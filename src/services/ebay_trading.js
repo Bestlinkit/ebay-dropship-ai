@@ -283,6 +283,12 @@ class EbayTradingService {
               'Content-Type': 'text/xml'
             }
         });
+
+        if (response.data.includes('<Ack>Failure</Ack>') || response.data.includes('<Ack>Error</Ack>')) {
+            const shortMsg = response.data.match(/<ShortMessage>(.*?)<\/ShortMessage>/);
+            throw new Error(shortMsg ? shortMsg[1] : 'eBay Refused Revision');
+        }
+
         return response.data;
     } catch (error) {
         console.error("ReviseItem Failed:", error);

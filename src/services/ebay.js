@@ -28,7 +28,7 @@ class eBayService {
     // Case-Agnostic Header Extraction
     const h = config.headers || {};
     const auth = h['Authorization'] || h['authorization'] || "";
-    const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || 'EBAY_US';
+    const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
     const proxies = [
         this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
@@ -59,7 +59,7 @@ class eBayService {
     try {
         const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
         const response = await this.fetchWithRetry('post', 'https://api.ebay.com/identity/v1/oauth2/token', {
-            data: new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope' }), 
+            data: new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope/buy.browse.readonly' }), 
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Authorization': `Basic ${platformBase64}`
