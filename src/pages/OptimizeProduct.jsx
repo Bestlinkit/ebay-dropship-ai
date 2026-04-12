@@ -22,6 +22,7 @@ import aiService from '../services/ai';
 import ebayService from '../services/ebay';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import ebayTrading from '../services/ebay_trading';
 import { cn } from '../lib/utils';
 
 /**
@@ -114,17 +115,34 @@ const OptimizeProduct = () => {
     }
   };
 
+
+
   const handlePushToStore = async () => {
+    if (!id) return;
     setLoading(true);
-    const label = isStoreConnected ? "eBay" : "Internal Hub";
-    toast.loading(`Deploying product vector to ${label}...`);
+    const label = isStoreConnected ? "eBay Production" : "Internal Hub";
+    const toastId = toast.loading(`Synchronizing product vector with ${label}...`);
+    
     try {
-        await new Promise(r => setTimeout(r, 2000));
+        if (isStoreConnected) {
+            const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
+            await ebayTrading.reviseItem(token, id, {
+                title: selectedTitle || product.title,
+                price: product.price,
+                description: description
+            });
+        } else {
+            // Mock delay for staging
+            await new Promise(r => setTimeout(r, 1500));
+        }
+        
         setIsDeployed(true);
-        toast.dismiss();
-        toast.success(`Product successfully ${isStoreConnected ? 'pushed' : 'staged'}!`);
+        toast.dismiss(toastId);
+        toast.success(`Product synchronized with ${label}!`);
     } catch (e) {
-        toast.error("Deployment failed.");
+        console.error("eBay Sync Error:", e);
+        toast.dismiss(toastId);
+        toast.error(`Sync Failed: ${e.message || "Connection Error"}`);
     } finally {
         setLoading(false);
     }

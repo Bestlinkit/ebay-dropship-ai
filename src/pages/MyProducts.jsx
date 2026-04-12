@@ -148,12 +148,20 @@ const MyProducts = () => {
                         </td>
                         <td className="px-10 py-8">
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                            <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-primary-500 hover:shadow-lg transition-all flex items-center justify-center">
-                                <Edit3 size={16} />
+                            <button 
+                                onClick={() => toast.info("Quick-Edit Node initialized.")}
+                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-amber-500 hover:bg-amber-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
+                                title="Quick Sync"
+                            >
+                                <Zap size={16} className="group-hover/btn:scale-110 transition-transform" />
                             </button>
-                            <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-primary-500 hover:shadow-lg transition-all flex items-center justify-center">
-                                <ExternalLink size={16} />
-                            </button>
+                            <Link 
+                                to={`/optimize/${p.id}`}
+                                className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl text-primary-400 hover:bg-slate-800 hover:shadow-lg transition-all flex items-center justify-center group/btn"
+                                title="AI Optimization Lab"
+                            >
+                                <Activity size={16} className="group-hover/btn:scale-110 transition-transform" />
+                            </Link>
                             <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-rose-500 hover:shadow-lg transition-all flex items-center justify-center">
                                 <Trash2 size={16} />
                             </button>

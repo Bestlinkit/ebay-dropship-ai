@@ -128,6 +128,9 @@ const Dashboard = () => {
                 setStats({
                   revenue: totalRevenue || summary.revenue,
                   activeListings: summary.activeListings,
+                  toShip: summary.toShip,
+                  urgentShip: summary.urgentShip,
+                  offers: summary.offers,
                   globalPulse: name ? 100 : 0, 
                   efficiency: name ? 94 : 0,
                   loading: false,
@@ -189,8 +192,9 @@ const Dashboard = () => {
     },
     scales: {
       y: { 
-        display: false,
-        grid: { display: false } 
+        display: true,
+        grid: { color: 'rgba(0,0,0,0.02)' },
+        ticks: { font: { family: 'Inter', size: 10, weight: '700' }, color: '#94a3b8' } 
       },
       x: { 
         grid: { display: false },
@@ -200,6 +204,33 @@ const Dashboard = () => {
         } 
       },
     },
+  };
+
+  // Calculate Cumulative Revenue Growth
+  const growthData = stats.recentOrders?.reduce((acc, order, i) => {
+    const prev = acc[i - 1] || 0;
+    acc.push(prev + order.amount);
+    return acc;
+  }, []) || [0,0,0,0,0,0,0];
+
+  const lineChartData = {
+    labels: stats.recentOrders?.slice(0, 7).reverse().map(o => o.date) || ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+    datasets: [
+      {
+        fill: true,
+        label: 'Revenue Growth',
+        data: growthData.slice(0, 7).reverse(),
+        borderColor: primaryColor,
+        backgroundColor: `${primaryColor}10`,
+        tension: 0.4,
+        borderWidth: 4,
+        pointRadius: 4,
+        pointHoverRadius: 8,
+        pointBackgroundColor: primaryColor,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+      },
+    ],
   };
 
   return (
@@ -282,10 +313,18 @@ const Dashboard = () => {
                 trendType={isStoreConnected && stats.activeListings > 0 ? 'up' : 'down'}
             />
             <PremiumStat 
-                label="System Capacity" 
-                value={stats.activeListings > 0 ? "Optimal" : "Standby"} 
-                trend={isStoreConnected ? "Synced" : "Awaiting Link"} 
-                icon={Activity} 
+                label="Urgent Fulfillment" 
+                value={stats.urgentShip > 0 ? stats.urgentShip : stats.toShip} 
+                trend={stats.urgentShip > 0 ? "ACTION REQUIRED" : "Status Normal"} 
+                icon={Clock}
+                trendType={stats.urgentShip > 0 ? 'down' : 'up'}
+            />
+            <PremiumStat 
+                label="Active Offers" 
+                value={stats.offers} 
+                trend="Live Negotiations" 
+                icon={Zap} 
+                trendType={stats.offers > 0 ? 'up' : 'down'}
             />
       </div>
 
@@ -297,9 +336,9 @@ const Dashboard = () => {
                     <div className="space-y-1">
                         <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
                             <BarChart3 className="text-primary-500" size={24} />
-                            Revenue Momentum
+                            Revenue Growth Trajectory
                         </h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">7d Snapshot | Live Scaling Active</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Cumulative Store Delta | real-time sync</p>
                     </div>
                     <div className="flex items-center gap-8 bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100">
                         <div className="flex items-center gap-2">
@@ -313,7 +352,7 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <div className="flex-1 w-full relative">
-                    <Line data={chartData} options={chartOptions} />
+                    <Line data={lineChartData} options={chartOptions} />
                 </div>
             </div>
 

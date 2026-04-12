@@ -8,7 +8,8 @@ class eBayService {
     
     // Triple-Layer API Bridge (Fail-Safe Architecture)
     this.proxyUrl = import.meta.env.VITE_PROXY_URL;
-    
+    this.marketplaceId = 'EBAY_US'; // Default for production
+
     this.route = (targetUrl) => {
       // Primary: Private Google Bridge
       const primary = this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(targetUrl)}` : null;
@@ -81,7 +82,10 @@ class eBayService {
 
             const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
                 params,
-                headers: { 'Authorization': `Bearer ${authToken}` }
+                headers: { 
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-EBAY-C-MARKETPLACE-ID': this.marketplaceId
+                }
             });
 
             if (response.data?.itemSummaries) {
