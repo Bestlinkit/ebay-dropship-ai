@@ -111,7 +111,7 @@ const Dashboard = () => {
         try {
             // Identity Bridge Handshake with Timeout Protection
             const handshakeTimeout = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Bridge Timeout")), 8500)
+                setTimeout(() => reject(new Error("Bridge Timeout")), 25000)
             );
             
             try {

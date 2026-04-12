@@ -74,7 +74,8 @@ class EbayTradingService {
             const response = await axios({
                 ...config,
                 method,
-                url: proxy
+                url: proxy,
+                timeout: 15000 // 15s timeout per proxy attempt
             });
             return response;
         } catch (e) {
