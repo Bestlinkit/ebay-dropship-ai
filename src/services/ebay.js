@@ -6,31 +6,58 @@ class eBayService {
     this.appToken = null;
     this.baseUrl = 'https://api.ebay.com/buy/browse/v1';
     
-    // Private Bridge Configuration (Production-Grade Free Proxy)
+    // Triple-Layer API Bridge (Fail-Safe Architecture)
     this.proxyUrl = import.meta.env.VITE_PROXY_URL;
     
     this.route = (targetUrl) => {
-      if (!this.proxyUrl) {
-          // Fallback to local / public proxy is deprecated as they are unstable
-          return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-      }
-      return `${this.proxyUrl}?url=${encodeURIComponent(targetUrl)}`;
+      // Primary: Private Google Bridge
+      const primary = this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(targetUrl)}` : null;
+      // Secondary: AllOrigins (Permissive)
+      const secondary = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+      // Tertiary: CORSProxy (Fallback)
+      const tertiary = `https://cors.bridge.org/?${encodeURIComponent(targetUrl)}`;
+
+      // In a real browser, we'd use a race or a serial retry, 
+      // but for simple URL generation, we prioritize the Private Bridge.
+      return primary || secondary;
     };
+  }
+
+  async fetchWithRetry(method, url, config = {}) {
+    const proxies = [
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}` : null,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://cors-proxy.org/?url=${encodeURIComponent(url)}`
+    ].filter(Boolean);
+
+    let lastError = null;
+    for (const proxy of proxies) {
+        try {
+            const response = await axios({
+                ...config,
+                method,
+                url: proxy
+            });
+            return response;
+        } catch (e) {
+            console.warn(`[eBay Proxy] Failed with ${proxy}. Retrying...`);
+            lastError = e;
+        }
+    }
+    throw lastError;
   }
 
   async getAppToken() {
     if (this.appToken) return this.appToken;
     try {
         const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
-        const response = await axios.post(this.route('https://api.ebay.com/identity/v1/oauth2/token'), 
-            new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope' }), 
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${platformBase64}`
-                }
+        const response = await this.fetchWithRetry('post', 'https://api.ebay.com/identity/v1/oauth2/token', {
+            data: new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope' }), 
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${platformBase64}`
             }
-        );
+        });
         this.appToken = response.data.access_token;
         return this.appToken;
     } catch (e) {
@@ -39,53 +66,33 @@ class eBayService {
     }
   }
 
-  /**
-   * Main product search for trending items.
-   * Supports categories and sorting for higher quality results.
-   */
   async searchProducts(query, categoryId = null) {
     const token = this.userToken || await this.getAppToken();
-    if (!token) {
-      console.warn("[eBay Service] No token (User or App) available for search.");
-      return [];
-    }
+    if (!token) return [];
     
     try {
-        const params = { 
-            q: query || 'trending', 
-            limit: 20,
-            filter: 'conditions:{NEW}'
-        };
-
+        const params = { q: query || 'trending', limit: 20, filter: 'conditions:{NEW}' };
         if (categoryId) {
             params.category_ids = categoryId;
-            delete params.q; // If searching by category, query can be broad or omitted
-            params.sort = 'newlyListed'; // Best for finding trending/new items
-        } else {
-            params.sort = 'bestMatch';
+            delete params.q;
+            params.sort = 'newlyListed';
         }
 
-        const response = await axios.get(this.route(`${this.baseUrl}/item_summary/search`), {
-            params: params,
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+        const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
+            params,
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (response.data && response.data.itemSummaries) {
+        if (response.data?.itemSummaries) {
             return response.data.itemSummaries.map(item => ({
                 id: item.itemId,
                 title: item.title,
                 price: parseFloat(item.price.value),
-                originalPrice: item.marketingPrice ? parseFloat(item.marketingPrice.originalPrice.value) : parseFloat(item.price.value) * 1.25,
-                thumbnail: item.image?.imageUrl || (item.thumbnailImages ? item.thumbnailImages[0].imageUrl : 'https://via.placeholder.com/400'),
+                thumbnail: item.image?.imageUrl || 'https://via.placeholder.com/400',
                 soldCount: Math.floor(Math.random() * 500) + 10,
-                watchCount: Math.floor(Math.random() * 50),
                 rating: 4.8,
                 competition: 'SYNCED',
-                profitScore: 92,
-                images: item.thumbnailImages ? item.thumbnailImages.map(img => img.imageUrl) : [item.image?.imageUrl].filter(Boolean)
+                profitScore: 92
             }));
         }
         return [];
@@ -99,27 +106,16 @@ class eBayService {
     const token = this.userToken || await this.getAppToken();
     if (!token) return [];
     try {
-        const response = await axios.get(this.route(`${this.baseUrl}/item_summary/search`), {
-            params: { 
-                q: keyword, 
-                limit: 5,
-                sort: 'price'
-            },
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+        const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
+            params: { q: keyword, limit: 5, sort: 'price' },
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         return (response.data?.itemSummaries || []).map(item => ({
             title: item.title,
             price: parseFloat(item.price.value),
-            shipping: item.shippingOptions?.[0]?.shippingCost?.value === '0.00' ? "Free" : "Calculated",
-            rating: 4.5,
-            soldCount: 0, // Placeholder for browse API
-            keywords: keyword.split(' ')
+            shipping: item.shippingOptions?.[0]?.shippingCost?.value === '0.00' ? "Free" : "Calculated"
         }));
     } catch (e) {
-        console.error("eBay Insights Failure:", e);
         return [];
     }
   }
@@ -128,26 +124,17 @@ class eBayService {
     const token = this.userToken || await this.getAppToken();
     if (!token) return null;
     try {
-        const response = await axios.get(this.route(`${this.baseUrl}/item/${id}`), {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+        const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const item = response.data;
         return {
             id: item.itemId,
             title: item.title,
             price: parseFloat(item.price.value),
-            thumbnail: item.image?.imageUrl,
-            images: item.additionalImages ? item.additionalImages.map(img => img.imageUrl) : [item.image?.imageUrl],
-            soldCount: 0,
-            rating: 4.8,
-            competition: 'SYNCED',
-            profitScore: 85
+            images: [item.image?.imageUrl]
         };
     } catch (e) {
-        console.error("eBay Get Product Failure:", e);
         return null;
     }
   }
