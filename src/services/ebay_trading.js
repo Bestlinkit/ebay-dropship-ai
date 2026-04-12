@@ -186,12 +186,22 @@ class EbayTradingService {
         });
 
         const userIdMatch = response.data.match(/<UserID>(.*?)<\/UserID>/);
-        return userIdMatch ? userIdMatch[1] : null;
+        if (userIdMatch) return userIdMatch[1];
+
+        // If no UserID, try to find Error message
+        const errorMatch = response.data.match(/<ShortMessage>(.*?)<\/ShortMessage>/);
+        const errorCodeMatch = response.data.match(/<ErrorCode>(.*?)<\/ErrorCode>/);
+        
+        if (errorMatch) {
+            throw new Error(`${errorMatch[1]} (Code ${errorCodeMatch ? errorCodeMatch[1] : '?'})`);
+        }
+        
+        return null;
     } catch (error) {
         console.error("eBay User Profile Fetch Failed:", error);
-        return null;
+        throw error; // Let the caller decide how to handle
     }
-  }
+}
 
   async publishItem(itemData, token) {
     if (!token) throw new Error("eBay Token Missing");

@@ -20,6 +20,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import aiService from '../services/ai';
 import ebayService from '../services/ebay';
+import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
 /**
@@ -30,6 +31,7 @@ const OptimizeProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isStoreConnected } = useAuth();
   const { ebayProduct, sourceProduct } = location.state || {};
 
   const [loading, setLoading] = useState(!ebayProduct);
@@ -113,12 +115,13 @@ const OptimizeProduct = () => {
 
   const handlePushToStore = async () => {
     setLoading(true);
-    toast.loading("Deploying product vector to eBay...");
+    const label = isStoreConnected ? "eBay" : "Internal Hub";
+    toast.loading(`Deploying product vector to ${label}...`);
     try {
         await new Promise(r => setTimeout(r, 2000));
         setIsDeployed(true);
         toast.dismiss();
-        toast.success("Product successfully pushed to eBay!");
+        toast.success(`Product successfully ${isStoreConnected ? 'pushed' : 'staged'}!`);
     } catch (e) {
         toast.error("Deployment failed.");
     } finally {
@@ -146,14 +149,21 @@ const OptimizeProduct = () => {
             <div className="max-w-xl w-full bg-white p-16 rounded-[4rem] border border-slate-100 shadow-3xl text-center space-y-10 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] -mr-32 -mt-32" />
                 
-                <div className="relative mx-auto w-24 h-24 bg-emerald-500 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-emerald-500/20 rotate-3">
+                <div className={cn(
+                    "relative mx-auto w-24 h-24 text-white rounded-[2rem] flex items-center justify-center shadow-2xl rotate-3",
+                    isStoreConnected ? "bg-emerald-500 shadow-emerald-500/20" : "bg-primary shadow-primary/20"
+                )}>
                     <CheckCircle size={48} />
                 </div>
                 
                 <div className="space-y-4">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Mission Accomplished</h2>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">
+                        {isStoreConnected ? "Mission Accomplished" : "Staging Complete"}
+                    </h2>
                     <p className="text-slate-400 font-medium text-lg leading-relaxed">
-                        Your product has been synchronized with eBay. Cross-platform ad vectors are now warming up.
+                        {isStoreConnected 
+                            ? "Your product has been synchronized with eBay. Cross-platform ad vectors are now warming up."
+                            : "Product saved to your internal Inventory Hub. You can finalize the eBay link on the Dashboard when ready."}
                     </p>
                 </div>
 
@@ -212,7 +222,7 @@ const OptimizeProduct = () => {
           onClick={handlePushToStore}
           className="bg-slate-900 text-white flex items-center gap-2 px-10 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-95"
         >
-          Push to Store
+          {isStoreConnected ? "Push to Store" : "Stage in Inventory"}
           <ArrowRight size={18} />
         </button>
       </div>

@@ -52,21 +52,28 @@ ChartJS.register(
   Filler
 );
 
-const PremiumStat = ({ label, value, trend, icon: Icon, trendType = 'up' }) => (
+const PremiumStat = ({ label, value, trend, icon: Icon, trendType = 'up', error }) => (
     <motion.div 
         whileHover={{ y: -5 }}
         className="glass-card p-8 rounded-[2.5rem] relative overflow-hidden group"
     >
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-100/20 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
         <div className="flex items-start justify-between relative z-10">
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
                         <Icon size={14} />
                     </div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{label}</p>
                 </div>
-                <h3 className="text-3xl font-outfit font-black text-slate-900 tracking-tighter">{value}</h3>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tighter leading-none mb-3">
+                  {value}
+                </h2>
+                {error && (
+                    <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-4 truncate w-full" title={error}>
+                        Error: {error}
+                    </p>
+                )}
                 <div className="flex items-center gap-2">
                     <div className={cn(
                         "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold",
@@ -94,11 +101,13 @@ const Dashboard = () => {
   });
   const [performanceItems, setPerformanceItems] = useState([]);
   const [sellerName, setSellerName] = useState(null);
+  const [handshakeError, setHandshakeError] = useState(null);
 
   useEffect(() => {
     const loadLiveStats = async () => {
       if (isStoreConnected && user?.ebayToken) {
         setStats(prev => ({ ...prev, loading: true }));
+        setHandshakeError(null);
         try {
             // Identity Bridge Handshake with Timeout Protection
             const handshakeTimeout = new Promise((_, reject) => 
@@ -125,10 +134,11 @@ const Dashboard = () => {
                 });
             } catch (e) {
                 console.error("Dashboard Live Load Fail", e);
+                setHandshakeError(e.message);
                 setStats(prev => ({ ...prev, loading: false }));
             }
         } catch (e) {
-            console.error("Dashboard Live Load Fail", e);
+            console.error("Dashboard Outer Fail", e);
             setStats(prev => ({ ...prev, loading: false }));
         }
       } else {
@@ -255,6 +265,7 @@ const Dashboard = () => {
                   sellerName ? "Live Handshake" : "Verify Token"
                 } 
                 icon={Globe} 
+                error={handshakeError}
             />
             <PremiumStat 
                 label="Bridge Health" 

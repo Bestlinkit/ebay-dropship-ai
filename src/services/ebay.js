@@ -2,17 +2,39 @@ import axios from 'axios';
 
 class eBayService {
   constructor() {
-    this.token = import.meta.env.VITE_EBAY_USER_TOKEN;
-    this.useMock = !this.token;
+    this.userToken = import.meta.env.VITE_EBAY_USER_TOKEN;
+    this.appToken = null;
     this.baseUrl = 'https://api.ebay.com/buy/browse/v1';
+  }
+
+  async getAppToken() {
+    if (this.appToken) return this.appToken;
+    try {
+        const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
+        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+            new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope' }), 
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${platformBase64}`
+                }
+            }
+        );
+        this.appToken = response.data.access_token;
+        return this.appToken;
+    } catch (e) {
+        console.error("eBay App Token Retrieval Failed:", e);
+        return null;
+    }
   }
 
   /**
    * Main product search for trending items.
    */
   async searchProducts(query) {
-    if (this.useMock) {
-      console.warn("[eBay Service] Mocking disabled in production mode. No token found.");
+    const token = this.userToken || await this.getAppToken();
+    if (!token) {
+      console.warn("[eBay Service] No token (User or App) available for search.");
       return [];
     }
     
@@ -24,7 +46,7 @@ class eBayService {
                 filter: 'conditions:{NEW}'
             },
             headers: {
-                'Authorization': `Bearer ${this.token}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -52,7 +74,8 @@ class eBayService {
   }
 
   async getCompetitorInsights(keyword) {
-    if (this.useMock) return [];
+    const token = this.userToken || await this.getAppToken();
+    if (!token) return [];
     try {
         const response = await axios.get(`${this.baseUrl}/item_summary/search`, {
             params: { 
@@ -61,7 +84,7 @@ class eBayService {
                 sort: 'price'
             },
             headers: {
-                'Authorization': `Bearer ${this.token}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
@@ -80,11 +103,12 @@ class eBayService {
   }
 
   async getProductById(id) {
-    if (this.useMock) return null;
+    const token = this.userToken || await this.getAppToken();
+    if (!token) return null;
     try {
         const response = await axios.get(`${this.baseUrl}/item/${id}`, {
             headers: {
-                'Authorization': `Bearer ${this.token}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });

@@ -48,10 +48,6 @@ const Discovery = () => {
 
   useEffect(() => {
     const fetchTrending = async () => {
-        if (!isStoreConnected) {
-            setTrendingProducts([]);
-            return;
-        }
         try {
             const results = await ebayService.searchProducts('trending');
             setTrendingProducts(results || []);
@@ -60,7 +56,7 @@ const Discovery = () => {
         }
     };
     fetchTrending();
-  }, [isStoreConnected]);
+  }, []);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
