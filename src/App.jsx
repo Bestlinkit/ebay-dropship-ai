@@ -2,8 +2,10 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import Discovery from './pages/Discovery';
 import Dashboard from './pages/Dashboard';
@@ -22,87 +24,91 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster position="top-right" richColors />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          } />
+        <ThemeProvider>
+          <ErrorBoundary>
+            <Toaster position="top-right" richColors />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/discovery" element={
-            <ProtectedRoute>
-              <Layout>
-                <Discovery />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/discovery" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Discovery />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/optimize/:id" element={
-            <ProtectedRoute>
-              <Layout>
-                <OptimizeProduct />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/optimize/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <OptimizeProduct />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/publish/:id" element={
-            <ProtectedRoute>
-              <Layout>
-                <PublishProduct />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/publish/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PublishProduct />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/products" element={
-            <ProtectedRoute>
-              <Layout>
-                <MyProducts />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/products" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <MyProducts />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/video" element={
-            <ProtectedRoute>
-              <Layout>
-                <VideoLab />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/video" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <VideoLab />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/analytics" element={
-            <ProtectedRoute>
-              <Layout>
-                <Analytics />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/analytics" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Analytics />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/marketing" element={
-            <ProtectedRoute>
-              <Layout>
-                <Marketing />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/marketing" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Marketing />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <Layout>
-                <Settings />
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
-          {/* eBay API Routes */}
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/auth/ebay/callback" element={<AuthCallback />} />
-          <Route path="/auth/ebay/declined" element={<AuthCallback />} />
-        </Routes>
+              {/* eBay API Routes */}
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/auth/ebay/callback" element={<AuthCallback />} />
+              <Route path="/auth/ebay/declined" element={<AuthCallback />} />
+            </Routes>
+          </ErrorBoundary>
+        </ThemeProvider>
       </AuthProvider>
     </Router>
   );

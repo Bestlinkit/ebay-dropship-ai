@@ -1,26 +1,43 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
-@theme {
+:root {
   --font-outfit: "Outfit", sans-serif;
   --font-inter: "Inter", sans-serif;
   
-  --color-primary-50: #f0f7ff;
-  --color-primary-100: #e0effe;
-  --color-primary-200: #bae0fd;
-  --color-primary-300: #7cc7fb;
-  --color-primary-400: #38a9f8;
-  --color-primary-500: #0e8ce9;
-  --color-primary-600: #026dc6;
-  --color-primary-700: #0357a1;
-  --color-primary-800: #074a83;
-  --color-primary-900: #0b3f6d;
-  --color-primary-950: #082849;
+  --primary-50: #f0f7ff;
+  --primary-100: #e0effe;
+  --primary-200: #bae0fd;
+  --primary-300: #7cc7fb;
+  --primary-400: #38a9f8;
+  --primary-500: #0e8ce9;
+  --primary-600: #026dc6;
+  --primary-700: #0357a1;
+  --primary-800: #074a83;
+  --primary-900: #0b3f6d;
+  --primary-950: #082849;
+}
+
+@theme {
+  --font-outfit: var(--font-outfit);
+  --font-inter: var(--font-inter);
+  
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+  --color-primary-950: var(--primary-950);
 }
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased selection:bg-primary-100 selection:text-primary-900;
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-primary-500/30 selection:text-slate-900;
     font-family: var(--font-inter);
   }
 
@@ -39,11 +56,11 @@
   }
 
   .btn-premium {
-    @apply relative overflow-hidden bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/30 active:scale-95;
+    @apply relative overflow-hidden bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/30 active:scale-95 disabled:opacity-50;
   }
 
   .btn-premium-outline {
-    @apply bg-white border border-slate-200 text-slate-900 px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:bg-slate-50 active:scale-95;
+    @apply bg-white border border-slate-200 text-slate-900 px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:bg-slate-50 active:scale-95 disabled:opacity-50;
   }
 
   .input-premium {
