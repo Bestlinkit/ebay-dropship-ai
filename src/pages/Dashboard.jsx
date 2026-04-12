@@ -20,7 +20,8 @@ import {
   Package,
   Globe,
   BarChart3,
-  Plus
+  Plus,
+  Clock
 } from 'lucide-react';
 import {
   Chart as ChartJS,
