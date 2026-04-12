@@ -25,15 +25,24 @@ class eBayService {
   }
 
   async fetchWithRetry(method, url, config = {}) {
-    // Case-Agnostic Header Extraction
+    // 1. Deep-Encode Target URL (Merge Params into URL for Proxy Transparency)
+    let targetUri = new URL(url);
+    if (config.params) {
+        Object.keys(config.params).forEach(key => 
+            targetUri.searchParams.append(key, config.params[key])
+        );
+    }
+    const finalTargetUrl = targetUri.toString();
+
+    // 2. Case-Agnostic Header Extraction
     const h = config.headers || {};
     const auth = h['Authorization'] || h['authorization'] || "";
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://cors-proxy.org/?url=${encodeURIComponent(url)}`
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
+        `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
     ].filter(Boolean);
 
     let lastError = null;
@@ -41,9 +50,10 @@ class eBayService {
         try {
             const response = await axios({
                 ...config,
+                params: {}, // Already merged into URL
                 method,
                 url: proxy,
-                timeout: 15000 // 15s timeout per proxy attempt
+                timeout: 15000 
             });
             return response;
         } catch (e) {

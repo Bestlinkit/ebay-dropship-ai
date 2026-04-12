@@ -1,67 +1,68 @@
 /**
- * Crystal Pulse: Production Identity Bridge (V2.0)
- * Optimized for eBay REST (Browse) and Trading XML APIs.
+ * eBay Cloudflare Identity Bridge V3.0 (Deep-Relay Edition)
+ * Optimized for full query parameter transparency and REST/SOAP relaying.
  */
-function doGet(e) {
-  return handleRequest(e);
-}
+addEventListener("fetch", event => {
+  event.respondWith(handleRequest(event.request))
+})
 
-function doPost(e) {
-  return handleRequest(e);
-}
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  
+  // 1. Deep-Encoded Target Extraction
+  const targetUrl = url.searchParams.get("url");
+  const auth = url.searchParams.get("auth") || "";
+  const marketplaceid = url.searchParams.get("marketplaceid") || "EBAY_US";
+  const callname = url.searchParams.get("callname") || "";
+  const siteid = url.searchParams.get("siteid") || "0";
 
-function handleRequest(e) {
-  const url = e.parameter.url;
-  if (!url) {
-    return ContentService.createTextOutput(JSON.stringify({ error: "Missing Target URL" }))
-      .setMimeType(ContentService.MimeType.JSON);
+  if (!targetUrl) {
+    return new Response("Missing target URL vector.", { status: 400 });
   }
 
-  // Universal Authentication & Context Extraction
-  const authToken = e.parameter.auth || "";
-  const callName = e.parameter.callname || "";
-  const siteId = e.parameter.siteid || "0";
-  const marketplaceId = e.parameter.marketplaceid || "EBAY_US";
+  // 2. Clone and Sanitize Headers
+  const headers = new Headers(request.headers);
+  headers.set("Access-Control-Allow-Origin", "*");
+  
+  // Inject Identity Parameters
+  if (auth) {
+    headers.set("Authorization", `Bearer ${auth}`);
+    headers.set("X-EBAY-API-IAF-TOKEN", auth); // For Legacy Trading API
+  }
+  
+  if (marketplaceid) {
+    headers.set("X-EBAY-C-MARKETPLACE-ID", marketplaceid);
+  }
 
-  // Unified Header Payload
-  const headers = {
-    // REST API Headers
-    "Authorization": authToken,
-    "X-EBAY-C-MARKETPLACE-ID": marketplaceId,
-    
-    // Trading API (Soap/XML) Headers
-    "X-EBAY-API-IAF-TOKEN": authToken,
-    "X-EBAY-API-SITEID": siteId,
-    "X-EBAY-API-CALL-NAME": callName,
-    "X-EBAY-API-COMPATIBILITY-LEVEL": "1001", // Production stable
-    
-    // Content Context
-    "Content-Type": e.postData ? (e.postData.type || "application/json") : "application/json",
-    "Accept": "application/json"
-  };
+  if (callname) {
+    headers.set("X-EBAY-API-CALL-NAME", callname);
+  }
 
-  const options = {
-    method: e.postData ? "post" : "get",
-    muteHttpExceptions: true,
-    headers: headers
-  };
+  if (siteid) {
+    headers.set("X-EBAY-API-SITEID", siteid);
+  }
 
-  if (e.postData) {
-    options.payload = e.postData.contents;
+  // Set Production API Context if missing
+  if (!headers.has("X-EBAY-API-COMPATIBILITY-LEVEL")) {
+    headers.set("X-EBAY-API-COMPATIBILITY-LEVEL", "967");
   }
 
   try {
-    const response = UrlFetchApp.fetch(url, options);
-    const resultText = response.getContentText();
-    
-    return ContentService.createTextOutput(resultText)
-      .setMimeType(ContentService.MimeType.JSON);
-    
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ 
-      error: "Bridge Failure", 
-      details: err.toString(),
-      target: url 
-    })).setMimeType(ContentService.MimeType.JSON);
+    // 3. Transparent Fetch (Mirror Method and Body)
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers: headers,
+      body: request.method === "POST" ? await request.arrayBuffer() : null,
+    });
+
+    // 4. Return Mirror Response with CORS enabled
+    const finalResponse = new Response(response.body, response);
+    finalResponse.headers.set("Access-Control-Allow-Origin", "*");
+    finalResponse.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    finalResponse.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-EBAY-C-MARKETPLACE-ID");
+
+    return finalResponse;
+  } catch (error) {
+    return new Response(`Identity Bridge Fault: ${error.message}`, { status: 500 });
   }
 }
