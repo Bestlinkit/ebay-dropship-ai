@@ -198,6 +198,9 @@ const Dashboard = () => {
              <div className="px-3 py-1 bg-primary-500 text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-primary-500/20">
                 Live Terminal
              </div>
+             <div className="px-3 py-1 bg-slate-900 border border-white/10 text-primary-400 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg">
+                Crystal Elite
+             </div>
              <div className={cn(
                 "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em]",
                 isStoreConnected ? "text-emerald-500" : "text-slate-400"

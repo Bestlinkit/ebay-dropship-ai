@@ -131,6 +131,9 @@ const LoginPage = () => {
                     <Zap className="text-primary-400 fill-primary-400" size={28} />
                 </div>
                 <span className="text-3xl font-black text-white tracking-tight uppercase italic">Geonoyc.</span>
+                <div className="px-3 py-1 bg-primary-500/20 border border-primary-500/40 rounded-lg text-[8px] font-black text-primary-400 uppercase tracking-[0.3em] backdrop-blur-md">
+                    Crystal Elite V5.4
+                </div>
             </div>
 
             <div className="space-y-6">

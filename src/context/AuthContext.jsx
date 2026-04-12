@@ -20,7 +20,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const GLOBAL_AUTH_VERSION = 'ebay_ds_v1.0.3';
+
   useEffect(() => {
+    // Force logout on version mismatch to clear legacy sessions
+    const storedVersion = localStorage.getItem('ebay_ds_auth_v');
+    if (storedVersion !== GLOBAL_AUTH_VERSION) {
+      signOut(auth).then(() => {
+        localStorage.clear(); // Purge all local state
+        localStorage.setItem('ebay_ds_auth_v', GLOBAL_AUTH_VERSION);
+        window.location.reload(); // Refresh to ensure clean state
+      });
+      return;
+    }
+
     let unsubscribeDoc = null;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setUser(user);
