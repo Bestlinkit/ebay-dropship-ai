@@ -68,7 +68,7 @@ class eBayService {
   }
 
   async searchProducts(query, categoryId = null) {
-    const token = this.userToken || await this.getAppToken();
+    const token = await this.getAppToken();
     if (!token) return [];
     
     try {
@@ -104,7 +104,7 @@ class eBayService {
   }
 
   async getCompetitorInsights(keyword) {
-    const token = this.userToken || await this.getAppToken();
+    const token = await this.getAppToken();
     if (!token) return [];
     try {
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
@@ -122,7 +122,7 @@ class eBayService {
   }
 
   async getProductById(id) {
-    const token = this.userToken || await this.getAppToken();
+    const token = await this.getAppToken();
     if (!token) return null;
     try {
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${id}`, {

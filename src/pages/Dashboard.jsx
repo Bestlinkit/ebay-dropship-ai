@@ -128,8 +128,8 @@ const Dashboard = () => {
                 setStats({
                   revenue: summary.revenue,
                   activeListings: summary.activeListings,
-                  globalPulse: summary.activeListings > 0 ? 100 : 0, 
-                  efficiency: summary.activeListings > 0 ? 94 : 0,
+                  globalPulse: name ? 100 : 0, 
+                  efficiency: name ? 94 : 0,
                   loading: false
                 });
             } catch (e) {
