@@ -10,7 +10,9 @@ import {
   Filter,
   Eye,
   Loader2,
-  Package
+  Package,
+  Zap,
+  Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
