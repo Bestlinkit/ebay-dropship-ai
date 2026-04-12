@@ -35,7 +35,7 @@ import { cn } from '../lib/utils';
 
 /**
  * Crystal Pulse Video Lab (V5.4)
- * Multi-Objective 24s Production Engine
+ * Premium Multi-Objective 24s Production Hub
  */
 const VideoLab = () => {
   const [inventory, setInventory] = useState([
@@ -63,6 +63,7 @@ const VideoLab = () => {
     };
     fetchRealInventory();
   }, []);
+
   const [adObjective, setAdObjective] = useState('ebay'); // 'ebay' | 'social'
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -93,7 +94,6 @@ const VideoLab = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Update CTA when objective changes
   useEffect(() => {
     setScenes(prev => {
         const newScenes = [...prev];
@@ -111,13 +111,12 @@ const VideoLab = () => {
       toast.info(`Neural scan initiated for "${selectedProduct.title}"...`);
       const newScenes = await aiService.generateVideoScript(selectedProduct);
       if (newScenes && Array.isArray(newScenes)) {
-        // Ensure final scene matches objective
         newScenes[7] = adObjective === 'ebay' ? "Order Now - Link Below!" : "Shop Now - Limited Time!";
         setScenes(newScenes);
         toast.success("Viral Sequence Orchestrated!");
       }
     } catch (error) {
-      toast.error("AI Scripting encounter a vector mismatch.");
+      toast.error("AI Scripting error.");
     } finally {
       setIsAiProcessing(false);
     }
@@ -130,13 +129,11 @@ const VideoLab = () => {
     
     try {
       toast.info("Initializing Crystal Production Engine...");
-      
       const resultUrl = await videoService.generateProAd(
         images, 
         scenes, 
         (p) => setProgress(p)
       );
-      
       setVideoUrl(resultUrl);
       toast.success("24s Multi-Objective Ad Produced!");
       
@@ -144,9 +141,8 @@ const VideoLab = () => {
       link.href = resultUrl;
       link.download = `${adObjective}-ad-${selectedProduct.id}.mp4`;
       link.click();
-      
     } catch (error) {
-      toast.error("Video Production failed. Check security vectors.");
+      toast.error("Video Production failed.");
     } finally {
       setIsGenerating(false);
       setProgress(0);
@@ -154,80 +150,90 @@ const VideoLab = () => {
   };
 
   return (
-    <div className="space-y-16 animate-in fade-in duration-1000 pb-32 max-w-[1600px] mx-auto">
+    <div className="space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-32 max-w-[1700px] mx-auto">
       
-      {/* Command Console */}
-      <div className="bg-white p-6 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] border border-slate-100 shadow-sm flex flex-col xl:flex-row items-center justify-between gap-8 md:gap-12">
-        <div className="space-y-4 max-w-xl text-center xl:text-left">
-           <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-full w-fit mx-auto xl:mx-0">
-              <Zap size={14} className="text-primary fill-primary" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Production Hub v5.4</span>
-           </div>
-           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-none">Viral Video Lab</h1>
-           <p className="text-slate-400 font-medium text-sm md:text-base">Select a product and ad objective to auto-craft high-converting video assets.</p>
-        </div>
-
-        <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 w-full xl:w-auto">
-            {/* Objective Toggle */}
-            <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full md:w-auto">
-                <button 
-                    onClick={() => setAdObjective('ebay')}
-                    className={cn("flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all", adObjective === 'ebay' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600")}
-                >
-                    <ShoppingBag size={14} /> eBay Native
-                </button>
-                <button 
-                    onClick={() => setAdObjective('social')}
-                    className={cn("flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all", adObjective === 'social' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600")}
-                >
-                    <Globe size={14} /> Social Ad
-                </button>
+      {/* Editorial Hero Header */}
+      <section className="relative min-h-[400px] flex flex-col items-center justify-center text-center px-6 overflow-hidden rounded-[3.5rem] bg-slate-900 shadow-3xl mx-4 lg:mx-0">
+         <div className="absolute inset-0 bg-gradient-to-b from-slate-800/20 to-slate-900" />
+         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px] -mr-64 -mt-64" />
+         
+         <div className="relative z-10 space-y-10 w-full max-w-4xl">
+            <div className="space-y-4">
+                <div className="flex items-center justify-center gap-3 text-primary-400 text-[10px] font-black uppercase tracking-[0.4em] mb-4">
+                    <Stars size={14} className="fill-primary-400" />
+                    Neural Production Lab
+                </div>
+                <h1 className="text-5xl md:text-7xl font-outfit font-black text-white tracking-tighter uppercase italic">Viral Video.</h1>
+                <p className="text-slate-400 font-medium text-lg md:text-xl max-w-xl mx-auto text-balance">
+                    Generate high-velocity video assets powered by AI-driven scripting and automated motion graphics.
+                </p>
             </div>
 
-            <div className="relative w-full md:w-72 group">
-                <Package className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition-colors" size={18} />
-                <select 
-                    value={selectedProduct?.id || ''}
-                    onChange={(e) => setSelectedProduct(inventory.find(p => p.id === e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-10 py-4 text-[10px] md:text-xs font-bold appearance-none outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase tracking-widest"
+            <div className="flex flex-col md:flex-row gap-6 justify-center items-stretch max-w-3xl mx-auto w-full">
+                <div className="flex bg-white/5 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 flex-1">
+                    {[
+                        { id: 'ebay', label: 'eBay Native', icon: ShoppingBag },
+                        { id: 'social', label: 'Social Ad', icon: Globe }
+                    ].map(obj => (
+                        <button
+                            key={obj.id}
+                            onClick={() => setAdObjective(obj.id)}
+                            className={cn(
+                                "flex-1 px-6 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3",
+                                adObjective === obj.id ? "bg-white text-slate-900 shadow-2xl" : "text-slate-400 hover:text-white"
+                            )}
+                        >
+                            <obj.icon size={16} />
+                            {obj.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="relative flex-1 group">
+                    <Package className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-white transition-colors" size={18} />
+                    <select 
+                        value={selectedProduct?.id || ''}
+                        onChange={(e) => setSelectedProduct(inventory.find(p => p.id === e.target.value))}
+                        className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl pl-14 pr-10 h-full py-5 text-[10px] font-black text-white appearance-none outline-none focus:ring-4 focus:ring-primary-500/20 transition-all uppercase tracking-widest"
+                    >
+                        {inventory.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.title}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={18} />
+                </div>
+
+                <button 
+                  onClick={handleAutoCraft}
+                  disabled={isAiProcessing}
+                  className="px-10 h-full py-5 bg-primary-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-600 transition-all active:scale-95 shadow-2xl shadow-primary-500/20 flex items-center justify-center gap-3"
                 >
-                    {inventory.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
-                </select>
-                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={18} />
+                  {isAiProcessing ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} className="fill-white" />}
+                  Auto-Craft
+                </button>
             </div>
+         </div>
+      </section>
 
-            <button 
-                onClick={handleAutoCraft}
-                disabled={isAiProcessing}
-                className="w-full md:w-auto px-10 h-16 bg-slate-900 text-white rounded-2xl shadow-2xl shadow-slate-900/20 hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center gap-3 group"
-            >
-                {isAiProcessing ? <Loader2 className="animate-spin" size={20} /> : <Sparkles size={20} className="group-hover:rotate-12 transition-transform" />}
-                <span className="text-[10px] font-bold uppercase tracking-widest leading-none">Auto-Craft</span>
-            </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 md:gap-12 items-start px-4 lg:px-0">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 px-4 lg:px-0">
         
         {/* Production Preview */}
-        <div className="xl:col-span-5 2xl:col-span-4 order-2 xl:order-1">
-            <div className="bg-white p-8 md:p-12 rounded-[3.5rem] border border-slate-100 shadow-sm relative group xl:sticky xl:top-28">
+        <div className="xl:col-span-5 2xl:col-span-4">
+            <div className="glass-card p-10 rounded-[3.5rem] relative group xl:sticky xl:top-28">
                 <div className="flex items-center justify-between mb-8">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Live Vector Preview</p>
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-900 uppercase">24s Active</span>
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Neural Monitor 5.4</h3>
+                    <div className="px-3 py-1 bg-emerald-500/10 rounded-full flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Active</span>
                     </div>
                 </div>
                 
-                <div className="relative w-full aspect-[9/16] max-w-[400px] mx-auto rounded-[2.5rem] md:rounded-[3rem] overflow-hidden shadow-2xl border-[8px] md:border-[12px] border-slate-900 bg-slate-900">
+                <div className="relative w-full aspect-[9/16] rounded-[2.5rem] overflow-hidden shadow-3xl border-[12px] border-slate-900 bg-slate-900">
                     <AnimatePresence mode="wait">
                       <motion.div 
                         key={activeIndex}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 1 }}
+                        transition={{ duration: 0.8 }}
                         className="w-full h-full relative"
                       >
                          <img 
@@ -235,13 +241,13 @@ const VideoLab = () => {
                             className="w-full h-full object-cover opacity-60 transition-transform duration-[3000ms] scale-110 group-hover:scale-100"
                             alt="Preview Segment"
                          />
-                         <div className="absolute inset-0 p-8 flex flex-col items-center justify-center text-center">
+                         <div className="absolute inset-0 p-10 flex flex-col items-center justify-center text-center">
                             <motion.div
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
-                                className="bg-white/10 backdrop-blur-2xl border border-white/20 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl"
+                                className="bg-white/10 backdrop-blur-2xl border border-white/20 p-8 rounded-[2rem] shadow-2xl"
                             >
-                                <p className="text-white text-base md:text-lg font-extrabold uppercase leading-tight tracking-tight drop-shadow-xl italic">
+                                <p className="text-white text-lg font-black uppercase leading-tight tracking-tighter drop-shadow-2xl italic">
                                     {scenes[activeIndex]}
                                 </p>
                             </motion.div>
@@ -249,123 +255,117 @@ const VideoLab = () => {
                       </motion.div>
                     </AnimatePresence>
 
-                    {/* Progress Monitor */}
-                    <div className="absolute bottom-10 md:bottom-12 left-0 right-0 px-8 md:px-10">
-                         <div className="w-full bg-white/20 h-1 rounded-full overflow-hidden">
+                    {/* Timeline */}
+                    <div className="absolute bottom-12 left-0 right-0 px-10">
+                         <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden">
                              <motion.div 
-                                className="bg-primary h-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
+                                className="bg-primary-500 h-full shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
                                 animate={{ width: `${((activeIndex + 1) / 8) * 100}%` }}
                              />
                          </div>
                     </div>
                 </div>
 
-                <div className="mt-8 md:mt-10 flex items-center justify-center gap-3 bg-slate-50 px-6 py-4 rounded-[1.25rem] border border-slate-100">
-                    <Music size={16} className="text-primary animate-pulse" />
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest leading-none">Neural Audio Sync Active</span>
+                <div className="mt-8 flex items-center justify-center gap-4 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                    <Music size={18} className="text-primary-500 animate-bounce" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Sync Active</span>
                 </div>
             </div>
         </div>
 
-        {/* Matrix Console: Main Workspace */}
-        <div className="lg:col-span-12 xl:col-span-7 2xl:col-span-8">
-            <div className="bg-white p-8 md:p-12 rounded-[3.5rem] border border-slate-100 shadow-sm space-y-10 md:space-y-12">
-                    <div className="flex items-center justify-between border-b border-slate-50 pb-8">
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 uppercase tracking-tight">
-                                <Layers size={24} className="text-primary" />
-                                Sequence Architecture
-                            </h3>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-9">8 Scenes | 3.0s Frequency | 4K Upscale</p>
-                        </div>
-                        <span className="text-[10px] font-bold text-white px-4 py-1.5 bg-slate-900 rounded-full tracking-widest">PRODUCTION READY</span>
+        {/* Scene Architecture */}
+        <div className="xl:col-span-7 2xl:col-span-8 space-y-12">
+            <div className="glass-card p-10 rounded-[3.5rem] space-y-10">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-10">
+                    <div className="space-y-2">
+                        <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Sequence Matrix</h3>
+                        <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Architecture Hub.</p>
                     </div>
+                    <div className="hidden md:block px-5 py-2 bg-slate-900 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest">Production Ready</div>
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {scenes.map((text, i) => (
-                            <div 
-                                key={i} 
-                                className={cn(
-                                    "p-8 rounded-[2rem] border transition-all duration-500 flex gap-6 items-center group/item relative overflow-hidden",
-                                    activeIndex === i ? "bg-slate-900 border-slate-900 text-white shadow-2xl scale-[1.02]" : "bg-slate-50/50 border-slate-100 hover:bg-white hover:border-slate-200"
-                                )}
-                            >
-                                <div className={cn(
-                                    "w-12 h-12 rounded-2xl flex items-center justify-center text-xs font-bold shrink-0 transition-colors",
-                                    activeIndex === i ? "bg-primary text-white" : "bg-white text-slate-400 border border-slate-100"
-                                )}>
-                                    0{i+1}
-                                </div>
-                                <div className="flex-1">
-                                    <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-1", activeIndex === i ? "text-primary" : "text-slate-400")}>
-                                        {i === 0 ? 'Hook Vector' : i === 7 ? 'CTA Final' : `Segment ${i+1}`}
-                                    </p>
-                                    <p className={cn(
-                                        "text-sm font-bold leading-relaxed",
-                                        activeIndex === i ? "text-white italic" : "text-slate-900"
-                                    )}>
-                                        "{text}"
-                                    </p>
-                                </div>
-                                {activeIndex === i && (
-                                    <motion.div 
-                                        layoutId="pulse"
-                                        className="absolute bottom-0 left-0 h-1 bg-primary w-full"
-                                    />
-                                )}
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="pt-10 flex flex-col sm:flex-row gap-6">
-                        <button 
-                            onClick={handleExport}
-                            disabled={isGenerating}
-                            className="flex-1 bg-slate-900 text-white h-24 rounded-[2rem] flex flex-col items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.3em] shadow-2xl shadow-slate-900/30 active:scale-95 transition-all group relative overflow-hidden"
-                        >
-                            {isGenerating ? (
-                                <>
-                                    <div className="absolute inset-0 bg-primary/20 transition-all duration-500" style={{ width: `${progress}%` }} />
-                                    <div className="relative z-10 flex items-center gap-4">
-                                        <Loader2 className="animate-spin" size={24} />
-                                        <span>PRODUCING: {progress}%</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex items-center gap-4">
-                                    <Download size={24} className="group-hover:translate-y-1 transition-transform" />
-                                    <span>Export Master Sequence</span>
-                                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
+                    {scenes.map((text, i) => (
+                        <div 
+                            key={i} 
+                            className={cn(
+                                "p-8 rounded-[2.5rem] border transition-all duration-500 flex gap-6 items-center group relative overflow-hidden",
+                                activeIndex === i ? "bg-slate-900 border-slate-900 text-white shadow-3xl scale-[1.02]" : "bg-white border-slate-100 hover:border-primary-200"
                             )}
-                        </button>
-                        <button className="px-12 h-24 bg-white border border-slate-200 rounded-[2rem] text-slate-400 hover:text-primary transition-all flex items-center justify-center gap-3 group">
-                            <RefreshCw size={24} className="group-hover:rotate-180 transition-transform duration-700" />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Resync</span>
-                        </button>
-                    </div>
-
-                    {videoUrl && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-4 p-8 bg-emerald-50 border border-emerald-100 rounded-[2.5rem] flex items-center justify-between"
                         >
-                            <div className="flex items-center gap-6">
-                                 <div className="w-16 h-16 bg-emerald-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-emerald-500/20">
-                                    <CheckCircle size={32} />
-                                 </div>
-                                 <div className="space-y-1">
-                                    <p className="text-sm font-bold text-emerald-900 uppercase tracking-widest">MASTER EXPORT COMPLETE</p>
-                                    <p className="text-xs font-medium text-emerald-600/80 italic">Vector alignment verified. Asset ready for deployment.</p>
-                                 </div>
+                            <div className={cn(
+                                "w-14 h-14 rounded-2xl flex items-center justify-center text-xs font-black shrink-0 transition-all",
+                                activeIndex === i ? "bg-primary-500 text-white rotate-6" : "bg-slate-50 text-slate-400 border border-slate-100"
+                            )}>
+                                0{i+1}
                             </div>
-                            <button className="bg-emerald-500 text-white px-10 h-14 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all flex items-center gap-3 shadow-xl">
-                                 {adObjective === 'ebay' ? 'Push to eBay' : 'Push to Hub'} <ExternalLink size={16} />
-                            </button>
-                        </motion.div>
-                    )}
+                            <div className="flex-1 min-w-0">
+                                <p className={cn("text-[9px] font-black uppercase tracking-widest mb-1.5", activeIndex === i ? "text-primary-400" : "text-slate-400")}>
+                                    {i === 0 ? 'Vector Hook' : i === 7 ? 'CTA Sync' : `Node ${i+1}`}
+                                </p>
+                                <p className={cn(
+                                    "text-sm font-bold leading-relaxed truncate",
+                                    activeIndex === i ? "text-white italic" : "text-slate-900"
+                                )}>
+                                    "{text}"
+                                </p>
+                            </div>
+                            {activeIndex === i && (
+                                <motion.div layoutId="scenePulse" className="absolute bottom-0 left-0 h-1.5 bg-primary-500 w-full" />
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="pt-6 flex flex-col md:flex-row gap-6">
+                    <button 
+                        onClick={handleExport}
+                        disabled={isGenerating}
+                        className="flex-1 overflow-hidden relative h-[90px] bg-slate-900 text-white rounded-[2rem] flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] shadow-3xl active:scale-95 transition-all group"
+                    >
+                        {isGenerating ? (
+                            <>
+                                <div className="absolute inset-0 bg-primary-500/20 transition-all duration-500" style={{ width: `${progress}%` }} />
+                                <Loader2 className="animate-spin" size={20} />
+                                <span className="relative z-10">Producing Master: {progress}%</span>
+                            </>
+                        ) : (
+                            <>
+                                <Download size={20} className="group-hover:translate-y-1 transition-transform" />
+                                <span>Export Native Assets</span>
+                            </>
+                        )}
+                    </button>
+                    <button className="px-12 h-[90px] bg-white border border-slate-100 rounded-[2rem] text-slate-400 hover:text-slate-900 transition-all flex items-center justify-center gap-4 group">
+                        <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-700" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Resync</span>
+                    </button>
                 </div>
             </div>
+
+            <AnimatePresence>
+                {videoUrl && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-10 bg-emerald-900 rounded-[3.5rem] flex flex-col md:flex-row items-center justify-between gap-8 border border-emerald-800 shadow-3xl text-white"
+                    >
+                        <div className="flex items-center gap-8 text-center md:text-left">
+                             <div className="w-20 h-20 bg-emerald-500 rounded-[2rem] flex items-center justify-center shadow-2xl">
+                                <CheckCircle size={40} className="fill-emerald-500 text-white" />
+                             </div>
+                             <div className="space-y-1">
+                                <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-400">Export Complete</p>
+                                <h4 className="text-xl font-outfit font-black uppercase tracking-tight">Master Sequence Ready.</h4>
+                             </div>
+                        </div>
+                        <button className="w-full md:w-auto px-12 h-16 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-3">
+                             Deploy to Channel <ExternalLink size={18} />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
       </div>
     </div>
   );

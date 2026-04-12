@@ -278,7 +278,7 @@ const Layout = ({ children }) => {
         <footer className="px-12 py-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100/50">
             <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">DropAI Neural Interface v5.4r2</p>
             <div className="flex items-center gap-6">
-                <Link to="/privacy-policy" className="text-[9px] font-black text-slate-300 hover:text-primary-600 uppercase tracking-[0.2em] transition-colors">Privacy Privacy</Link>
+                <Link to="/privacy" className="text-[9px] font-black text-slate-300 hover:text-primary-600 uppercase tracking-[0.2em] transition-colors">Privacy Policy</Link>
                 <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">
                     <Shield size={10} /> Secure Protocol Active
                 </div>
@@ -288,7 +288,5 @@ const Layout = ({ children }) => {
     </div>
   );
 };
-
-export default Layout;
 
 export default Layout;
