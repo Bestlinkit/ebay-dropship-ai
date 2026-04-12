@@ -68,39 +68,46 @@ class eBayService {
   }
 
   async searchProducts(query, categoryId = null) {
-    const token = await this.getAppToken();
-    if (!token) return [];
+    let token = await this.getAppToken();
     
-    try {
-        const params = { q: query || 'trending', limit: 20, filter: 'conditions:{NEW}' };
-        if (categoryId) {
-            params.category_ids = categoryId;
-            delete params.q;
-            params.sort = 'newlyListed';
-        }
+    const executeSearch = async (authToken) => {
+        try {
+            const params = { q: query || 'trending', limit: 20, filter: 'conditions:{NEW}' };
+            if (categoryId) {
+                params.category_ids = categoryId;
+                delete params.q;
+                params.sort = 'newlyListed';
+            }
 
-        const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
-            params,
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+            const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
+                params,
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
 
-        if (response.data?.itemSummaries) {
-            return response.data.itemSummaries.map(item => ({
-                id: item.itemId,
-                title: item.title,
-                price: parseFloat(item.price.value),
-                thumbnail: item.image?.imageUrl || 'https://via.placeholder.com/400',
-                soldCount: Math.floor(Math.random() * 500) + 10,
-                rating: 4.8,
-                competition: 'SYNCED',
-                profitScore: 92
-            }));
+            if (response.data?.itemSummaries) {
+                return response.data.itemSummaries.map(item => ({
+                    id: item.itemId,
+                    title: item.title,
+                    price: parseFloat(item.price.value),
+                    thumbnail: item.image?.imageUrl || 'https://via.placeholder.com/400',
+                    soldCount: Math.floor(Math.random() * 500) + 10,
+                    rating: 4.8,
+                    competition: 'SYNCED',
+                    profitScore: 92
+                }));
+            }
+            return [];
+        } catch (e) {
+            return [];
         }
-        return [];
-    } catch (error) {
-        console.error("eBay Live Search Failure:", error);
-        return [];
+    };
+
+    let results = await executeSearch(token);
+    if ((!results || results.length === 0) && this.userToken) {
+        console.warn("[eBay Browse] App Token yielded no results. Trying User Token fallback...");
+        results = await executeSearch(this.userToken);
     }
+    return results || [];
   }
 
   async getCompetitorInsights(keyword) {

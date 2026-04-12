@@ -114,7 +114,9 @@ class EbayTradingService {
             throw new Error(shortMsg ? shortMsg[1] : 'eBay API Rejected Request');
         }
 
-        const activeMatch = response.data.match(/<TotalActiveListings>(.*?)<\/TotalActiveListings>/);
+        const activeMatch = response.data.match(/<TotalActiveListings>(.*?)<\/TotalActiveListings>/) || 
+                            response.data.match(/<TotalNumberOfEntries>(.*?)<\/TotalNumberOfEntries>/);
+                            
         return {
             activeListings: activeMatch ? parseInt(activeMatch[1]) : 0,
             soldCount: 0,
