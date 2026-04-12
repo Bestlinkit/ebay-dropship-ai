@@ -107,16 +107,21 @@ class eBayService {
         const searchResult = response.data?.findItemsByKeywordsResponse?.[0]?.searchResult?.[0];
         const items = searchResult?.item || [];
 
-        return items.map(item => ({
-            id: item.itemId?.[0],
-            title: item.title?.[0],
-            price: parseFloat(item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || 0),
-            thumbnail: item.galleryURL?.[0] || 'https://via.placeholder.com/400',
-            soldCount: Math.floor(Math.random() * 200) + 5,
-            rating: 4.7,
-            competition: 'LIVE',
-            profitScore: 88
-        }));
+        return items.map(item => {
+            const priceVal = item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || 
+                           item.sellingStatus?.[0]?.convertedCurrentPrice?.[0]?.__value__ || "0";
+            
+            return {
+                id: item.itemId?.[0] || Math.random().toString(),
+                title: item.title?.[0] || "Unknown Item",
+                price: parseFloat(priceVal),
+                thumbnail: item.galleryURL?.[0] || item.pictureURLLarge?.[0] || 'https://via.placeholder.com/400',
+                soldCount: Math.floor(Math.random() * 200) + 5,
+                rating: 4.7,
+                competition: 'LIVE',
+                profitScore: 88
+            };
+        });
     } catch (e) {
         console.error("Finding API Fallback Failed:", e);
         return [];
