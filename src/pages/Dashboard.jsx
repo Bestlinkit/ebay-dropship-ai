@@ -100,19 +100,33 @@ const Dashboard = () => {
       if (isStoreConnected && user?.ebayToken) {
         setStats(prev => ({ ...prev, loading: true }));
         try {
-            const [summary, name] = await Promise.all([
-                ebayTrading.getAccountSummary(user.ebayToken),
-                ebayTrading.getUserProfile(user.ebayToken)
-            ]);
+            // Identity Bridge Handshake with Timeout Protection
+            const handshakeTimeout = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Bridge Timeout")), 8500)
+            );
             
-            setSellerName(name);
-            setStats({
-              revenue: summary.revenue,
-              activeListings: summary.activeListings,
-              globalPulse: summary.activeListings > 0 ? 100 : 0, // Bridge Health %
-              efficiency: summary.activeListings > 0 ? 94 : 0,
-              loading: false
-            });
+            try {
+                const results = await Promise.race([
+                    Promise.all([
+                        ebayTrading.getAccountSummary(user.ebayToken),
+                        ebayTrading.getUserProfile(user.ebayToken)
+                    ]),
+                    handshakeTimeout
+                ]);
+                
+                const [summary, name] = results;
+                setSellerName(name);
+                setStats({
+                  revenue: summary.revenue,
+                  activeListings: summary.activeListings,
+                  globalPulse: summary.activeListings > 0 ? 100 : 0, 
+                  efficiency: summary.activeListings > 0 ? 94 : 0,
+                  loading: false
+                });
+            } catch (e) {
+                console.error("Dashboard Live Load Fail", e);
+                setStats(prev => ({ ...prev, loading: false }));
+            }
         } catch (e) {
             console.error("Dashboard Live Load Fail", e);
             setStats(prev => ({ ...prev, loading: false }));
@@ -231,8 +245,15 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
             <PremiumStat 
                 label="Identity Bridge" 
-                value={sellerName || "Connecting..."} 
-                trend={isStoreConnected ? "Live Handshake" : "Searching..."} 
+                value={
+                  !isStoreConnected ? "Awaiting Link" :
+                  sellerName ? sellerName :
+                  stats.loading ? "Connecting..." : "Handshake Failed"
+                } 
+                trend={
+                  !isStoreConnected ? "Bridge Offline" :
+                  sellerName ? "Live Handshake" : "Verify Token"
+                } 
                 icon={Globe} 
             />
             <PremiumStat 

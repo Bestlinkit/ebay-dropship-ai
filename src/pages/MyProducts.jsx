@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
 import { useAuth } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 const MyProducts = () => {
   const [activeTab, setActiveTab] = useState('all');
