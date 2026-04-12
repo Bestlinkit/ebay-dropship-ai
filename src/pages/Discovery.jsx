@@ -43,8 +43,6 @@ const Discovery = () => {
   const [source, setSource] = useState('ebay'); // 'ebay' or 'eprolo'
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
-  const [trendingProducts, setTrendingProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState(null);
   const { isStoreConnected } = useAuth();
   const navigate = useNavigate();
@@ -121,9 +119,8 @@ const Discovery = () => {
   return (
     <div className="space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-32 max-w-[1700px] mx-auto">
       
-      {/* Editorial Hero Search */}
-      <section className="relative min-h-[450px] flex flex-col items-center justify-center text-center px-6 overflow-hidden rounded-[3.5rem] bg-slate-900 shadow-3xl mx-4 lg:mx-0">
-         <section className="bg-white p-12 md:p-20 rounded-[4rem] border border-slate-100 shadow-2xl relative overflow-hidden">
+      {/* Intelligence Hero Search */}
+      <section className="bg-white p-12 md:p-20 rounded-[4rem] border border-slate-100 shadow-2xl relative overflow-hidden mx-4 lg:mx-0">
          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-500/5 rounded-full blur-[120px] -mr-48 -mt-48" />
          
          <div className="relative z-10 space-y-12">
@@ -149,7 +146,7 @@ const Discovery = () => {
                         onClick={() => setSource(s.id)}
                         className={cn(
                             "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border backdrop-blur-md",
-                            source === s.id ? "bg-white text-slate-900 border-white shadow-2xl" : "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white"
+                            source === s.id ? "bg-slate-900 text-white border-slate-900 shadow-2xl" : "bg-white text-slate-400 border-slate-100 hover:border-slate-300"
                         )}
                     >
                         <s.icon size={16} />
@@ -158,9 +155,27 @@ const Discovery = () => {
                 ))}
             </div>
 
+            {/* Category Hotspots */}
+            <div className="flex flex-wrap justify-center gap-3">
+                {topCategories.map(cat => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold transition-all border ${
+                            activeCategory === cat.id 
+                            ? 'bg-primary text-white border-primary shadow-xl scale-105' 
+                            : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-primary/20 hover:text-primary'
+                        }`}
+                    >
+                        <span>{cat.icon}</span>
+                        {cat.name}
+                    </button>
+                ))}
+            </div>
+
             <form onSubmit={handleSearch} className="group relative max-w-2xl mx-auto w-full">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary-500/50 to-indigo-500/50 rounded-[2.5rem] blur opacity-25 group-focus-within:opacity-100 transition duration-1000" />
-                <div className="relative flex items-center bg-white rounded-[2.25rem] p-2 pr-2.5 shadow-2xl">
+                <div className="relative flex items-center bg-white rounded-[2.25rem] p-2 pr-2.5 shadow-2xl border border-slate-100">
                     <div className="pl-6 pr-4 text-slate-300">
                         <Search size={22} />
                     </div>

@@ -22,6 +22,7 @@ import aiService from '../services/ai';
 import ebayService from '../services/ebay';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { cn } from '../lib/utils';
 
 /**
  * Clean & Professional AI Optimization Lab
