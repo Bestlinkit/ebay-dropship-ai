@@ -102,6 +102,9 @@ class EbayTradingService {
               'X-EBAY-API-SITEID': '0',
               'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
               'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+              'X-EBAY-API-APP-NAME': import.meta.env.VITE_EBAY_APP_ID,
+              'X-EBAY-API-DEV-NAME': import.meta.env.VITE_EBAY_DEV_ID,
+              'X-EBAY-API-CERT-NAME': import.meta.env.VITE_EBAY_CERT_ID,
               'Content-Type': 'text/xml'
             }
         });
@@ -139,6 +142,9 @@ class EbayTradingService {
               'X-EBAY-API-SITEID': '0',
               'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
               'X-EBAY-API-CALL-NAME': 'GetUser',
+              'X-EBAY-API-APP-NAME': import.meta.env.VITE_EBAY_APP_ID,
+              'X-EBAY-API-DEV-NAME': import.meta.env.VITE_EBAY_DEV_ID,
+              'X-EBAY-API-CERT-NAME': import.meta.env.VITE_EBAY_CERT_ID,
               'Content-Type': 'text/xml'
             }
         });
