@@ -14,11 +14,11 @@ import {
   MoreVertical,
   Calendar,
   AlertCircle,
-  BarChart3,
-  Globe,
-  Plus,
   Shield,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw,
+  Package,
+  Globe
 } from 'lucide-react';
 import {
   Chart as ChartJS,
