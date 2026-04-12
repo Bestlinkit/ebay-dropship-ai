@@ -1,0 +1,65 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@theme {
+  --font-outfit: "Outfit", sans-serif;
+  --font-inter: "Inter", sans-serif;
+  
+  --color-primary-50: #f0f7ff;
+  --color-primary-100: #e0effe;
+  --color-primary-200: #bae0fd;
+  --color-primary-300: #7cc7fb;
+  --color-primary-400: #38a9f8;
+  --color-primary-500: #0e8ce9;
+  --color-primary-600: #026dc6;
+  --color-primary-700: #0357a1;
+  --color-primary-800: #074a83;
+  --color-primary-900: #0b3f6d;
+  --color-primary-950: #082849;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-primary-100 selection:text-primary-900;
+    font-family: var(--font-inter);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-outfit font-bold tracking-tight text-slate-900;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] transition-all duration-500;
+  }
+
+  .premium-gradient {
+    @apply bg-gradient-to-br from-primary-600 to-indigo-700 text-white;
+  }
+
+  .btn-premium {
+    @apply relative overflow-hidden bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/30 active:scale-95;
+  }
+
+  .btn-premium-outline {
+    @apply bg-white border border-slate-200 text-slate-900 px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:bg-slate-50 active:scale-95;
+  }
+
+  .input-premium {
+    @apply bg-white/50 backdrop-blur-md border border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium outline-none transition-all duration-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 hover:border-slate-300;
+  }
+
+  .badge-premium {
+    @apply px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] inline-flex items-center gap-2;
+  }
+}
+
+/* Custom Utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
