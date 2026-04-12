@@ -16,7 +16,8 @@ import {
   AlertCircle,
   BarChart3,
   Globe,
-  Plus
+  Plus,
+  Shield
 } from 'lucide-react';
 import {
   Chart as ChartJS,
