@@ -86,6 +86,104 @@ class EbayTradingService {
     throw lastError;
   }
 
+  async getActiveListings(token) {
+    if (!token) return [];
+    try {
+        const xml = `<?xml version="1.0" encoding="utf-8"?>
+        <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+          <RequesterCredentials><eBayAuthToken>${token}</eBayAuthToken></RequesterCredentials>
+          <ActiveList><Include>true</Include><Pagination><EntriesPerPage>50</EntriesPerPage></Pagination></ActiveList>
+        </GetMyeBaySellingRequest>`;
+
+        const response = await this.fetchWithRetry('post', 'https://api.ebay.com/ws/api.dll', {
+            data: xml,
+            headers: {
+              'X-EBAY-API-SITEID': '0',
+              'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
+              'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+              'X-EBAY-API-APP-NAME': import.meta.env.VITE_EBAY_APP_ID,
+              'X-EBAY-API-DEV-NAME': import.meta.env.VITE_EBAY_DEV_ID,
+              'X-EBAY-API-CERT-NAME': import.meta.env.VITE_EBAY_CERT_ID,
+              'Content-Type': 'text/xml'
+            }
+        });
+
+        const itemRegex = /<Item>(.*?)<\/Item>/gs;
+        const items = [];
+        let match;
+        while ((match = itemRegex.exec(response.data)) !== null) {
+            const itemXml = match[1];
+            const titleMatch = itemXml.match(/<Title>(.*?)<\/Title>/);
+            const itemIdMatch = itemXml.match(/<ItemID>(.*?)<\/ItemID>/);
+            const priceMatch = itemXml.match(/<CurrentPrice.*?>(.*?)<\/CurrentPrice>/);
+            const watchCountMatch = itemXml.match(/<WatchCount>(.*?)<\/WatchCount>/);
+            items.push({
+                id: itemIdMatch ? itemIdMatch[1] : Math.random().toString(),
+                title: titleMatch ? titleMatch[1] : 'Unknown Listing',
+                status: 'Published',
+                price: priceMatch ? parseFloat(priceMatch[1]) : 0,
+                views: watchCountMatch ? parseInt(watchCountMatch[1]) : 0,
+                date: new Date().toLocaleDateString()
+            });
+        }
+        return items;
+    } catch (error) {
+        console.error("Fetch Active Listings Failed:", error);
+        return [];
+    }
+  }
+
+  async getOrders(token) {
+    if (!token) return [];
+    try {
+        const now = new Date();
+        const past = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)); // Last 30 days
+        const xml = `<?xml version="1.0" encoding="utf-8"?>
+        <GetOrdersRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+          <RequesterCredentials><eBayAuthToken>${token}</eBayAuthToken></RequesterCredentials>
+          <CreateTimeFrom>${past.toISOString()}</CreateTimeFrom>
+          <CreateTimeTo>${now.toISOString()}</CreateTimeTo>
+          <OrderRole>Seller</OrderRole>
+          <OrderStatus>All</OrderStatus>
+        </GetOrdersRequest>`;
+
+        const response = await this.fetchWithRetry('post', 'https://api.ebay.com/ws/api.dll', {
+            data: xml,
+            headers: {
+              'X-EBAY-API-SITEID': '0',
+              'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
+              'X-EBAY-API-CALL-NAME': 'GetOrders',
+              'X-EBAY-API-APP-NAME': import.meta.env.VITE_EBAY_APP_ID,
+              'X-EBAY-API-DEV-NAME': import.meta.env.VITE_EBAY_DEV_ID,
+              'X-EBAY-API-CERT-NAME': import.meta.env.VITE_EBAY_CERT_ID,
+              'Content-Type': 'text/xml'
+            }
+        });
+
+        const orderRegex = /<Order>(.*?)<\/Order>/gs;
+        const orders = [];
+        let match;
+        while ((match = orderRegex.exec(response.data)) !== null) {
+            const orderXml = match[1];
+            const orderIdMatch = orderXml.match(/<OrderID>(.*?)<\/OrderID>/);
+            const totalMatch = orderXml.match(/<Total.*?>(.*?)<\/Total>/);
+            const statusMatch = orderXml.match(/<OrderStatus>(.*?)<\/OrderStatus>/);
+            const buyerMatch = orderXml.match(/<User>(.*?)<\/User>/);
+            orders.push({
+                id: orderIdMatch ? orderIdMatch[1] : Math.random().toString(),
+                amount: totalMatch ? parseFloat(totalMatch[1]) : 0,
+                status: statusMatch ? statusMatch[1] : 'Unknown',
+                buyer: buyerMatch ? buyerMatch[1] : 'eBay Buyer',
+                date: new Date().toLocaleDateString()
+            });
+        }
+        return orders;
+    } catch (error) {
+        console.error("Fetch Orders Failed:", error);
+        return [];
+    }
+  }
+
   async getAccountSummary(token) {
     if (!token) return { activeListings: 0, soldCount: 0, revenue: 0, status: 'DISCONNECTED' };
 

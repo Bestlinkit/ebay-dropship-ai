@@ -115,22 +115,23 @@ const Dashboard = () => {
             );
             
             try {
-                const results = await Promise.race([
-                    Promise.all([
-                        ebayTrading.getAccountSummary(user.ebayToken),
-                        ebayTrading.getUserProfile(user.ebayToken)
-                    ]),
-                    handshakeTimeout
+                const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
+                const [name, summary, orders] = await Promise.all([
+                    ebayTrading.getUserProfile(token),
+                    ebayTrading.getAccountSummary(token),
+                    ebayTrading.getOrders(token)
                 ]);
+
+                const totalRevenue = orders.reduce((sum, order) => sum + order.amount, 0);
                 
-                const [summary, name] = results;
                 setSellerName(name);
                 setStats({
-                  revenue: summary.revenue,
+                  revenue: totalRevenue || summary.revenue,
                   activeListings: summary.activeListings,
                   globalPulse: name ? 100 : 0, 
                   efficiency: name ? 94 : 0,
-                  loading: false
+                  loading: false,
+                  recentOrders: orders
                 });
             } catch (e) {
                 console.error("Dashboard Live Load Fail", e);

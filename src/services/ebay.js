@@ -69,14 +69,14 @@ class eBayService {
 
   async searchProducts(query, categoryId = null) {
     let token = await this.getAppToken();
+    const searchTerm = query || 'trending';
     
     const executeSearch = async (authToken) => {
         try {
-            const params = { q: query || 'trending', limit: 20, filter: 'conditions:{NEW}' };
+            const params = { q: searchTerm, limit: 10, filter: 'conditions:{NEW}' };
             if (categoryId) {
                 params.category_ids = categoryId;
                 delete params.q;
-                params.sort = 'newlyListed';
             }
 
             const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
@@ -98,13 +98,13 @@ class eBayService {
             }
             return [];
         } catch (e) {
+            console.error(`[eBay Browse Vector] Search failed for term: ${searchTerm}`, e);
             return [];
         }
     };
 
     let results = await executeSearch(token);
     if ((!results || results.length === 0) && this.userToken) {
-        console.warn("[eBay Browse] App Token yielded no results. Trying User Token fallback...");
         results = await executeSearch(this.userToken);
     }
     return results || [];
