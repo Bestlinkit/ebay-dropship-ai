@@ -106,6 +106,11 @@ class EbayTradingService {
             }
         });
 
+        if (response.data.includes('<Ack>Failure</Ack>') || response.data.includes('<Ack>Error</Ack>')) {
+            const shortMsg = response.data.match(/<ShortMessage>(.*?)<\/ShortMessage>/);
+            throw new Error(shortMsg ? shortMsg[1] : 'eBay API Rejected Request');
+        }
+
         const activeMatch = response.data.match(/<TotalActiveListings>(.*?)<\/TotalActiveListings>/);
         return {
             activeListings: activeMatch ? parseInt(activeMatch[1]) : 0,
@@ -115,47 +120,7 @@ class EbayTradingService {
         };
     } catch (error) {
         console.error("eBay Account Summary Sync Failure:", error);
-        return { activeListings: 0, soldCount: 0, revenue: 0, status: 'ERROR' };
-    }
-  }
-
-  async getActiveListings(token) {
-    if (!token) return [];
-    try {
-        const xml = `<?xml version="1.0" encoding="utf-8"?>
-        <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
-          <RequesterCredentials><eBayAuthToken>${token}</eBayAuthToken></RequesterCredentials>
-          <ActiveList><Include>true</Include><Pagination><EntriesPerPage>50</EntriesPerPage></Pagination></ActiveList>
-        </GetMyeBaySellingRequest>`;
-
-        const response = await this.fetchWithRetry('post', 'https://api.ebay.com/ws/api.dll', {
-            data: xml,
-            headers: {
-              'X-EBAY-API-SITEID': '0',
-              'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
-              'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
-              'Content-Type': 'text/xml'
-            }
-        });
-
-        const itemRegex = /<Item>(.*?)<\/Item>/gs;
-        const items = [];
-        let match;
-        while ((match = itemRegex.exec(response.data)) !== null) {
-            const itemXml = match[1];
-            const titleMatch = itemXml.match(/<Title>(.*?)<\/Title>/);
-            const itemIdMatch = itemXml.match(/<ItemID>(.*?)<\/ItemID>/);
-            const priceMatch = itemXml.match(/<CurrentPrice.*?>(.*?)<\/CurrentPrice>/);
-            items.push({
-                id: itemIdMatch ? itemIdMatch[1] : Math.random().toString(),
-                title: titleMatch ? titleMatch[1] : 'Unknown Listing',
-                status: 'Published',
-                price: priceMatch ? parseFloat(priceMatch[1]) : 0
-            });
-        }
-        return items;
-    } catch (error) {
-        return [];
+        throw error; // Let the dashboard catch the specific error
     }
   }
 
@@ -178,10 +143,16 @@ class EbayTradingService {
             }
         });
 
+        if (response.data.includes('<Ack>Failure</Ack>') || response.data.includes('<Ack>Error</Ack>')) {
+            const shortMsg = response.data.match(/<ShortMessage>(.*?)<\/ShortMessage>/);
+            throw new Error(shortMsg ? shortMsg[1] : 'eBay Identity Reject');
+        }
+
         const userIdMatch = response.data.match(/<UserID>(.*?)<\/UserID>/);
         return userIdMatch ? userIdMatch[1] : null;
     } catch (error) {
-        return null;
+        console.error("User Profile Retrieval Failed:", error);
+        throw error;
     }
   }
 
