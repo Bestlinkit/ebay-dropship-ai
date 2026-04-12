@@ -18,7 +18,9 @@ import {
   CheckCircle2,
   RefreshCw,
   Package,
-  Globe
+  Globe,
+  BarChart3,
+  Plus
 } from 'lucide-react';
 import {
   Chart as ChartJS,
