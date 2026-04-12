@@ -366,6 +366,45 @@ class EbayTradingService {
         return null;
     }
   }
+
+  async getItemDetails(itemId) {
+    const token = import.meta.env.VITE_EBAY_USER_TOKEN;
+    if (!token || !itemId) return null;
+    try {
+        const xml = `<?xml version="1.0" encoding="utf-8"?>
+        <GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+          <RequesterCredentials><eBayAuthToken>${token}</eBayAuthToken></RequesterCredentials>
+          <ItemID>${itemId}</ItemID>
+          <DetailLevel>ReturnAll</DetailLevel>
+        </GetItemRequest>`;
+
+        const response = await this.fetchWithRetry('post', 'https://api.ebay.com/ws/api.dll', {
+            data: xml,
+            headers: {
+              'X-EBAY-API-SITEID': '0',
+              'X-EBAY-API-CALL-NAME': 'GetItem',
+              'Content-Type': 'text/xml'
+            }
+        });
+
+        // Parse basic details from XML
+        const titleMatch = response.data.match(/<Title>(.*?)<\/Title>/);
+        const priceMatch = response.data.match(/<StartPrice.*?>(.*?)<\/StartPrice>/);
+        const descMatch = response.data.match(/<Description>(.*?)<\/Description>/);
+        const imageMatches = [...response.data.matchAll(/<PictureURL>(.*?)<\/PictureURL>/g)];
+
+        return {
+            id: itemId,
+            title: titleMatch ? titleMatch[1] : "",
+            price: priceMatch ? parseFloat(priceMatch[1]) : 0,
+            description: descMatch ? descMatch[1] : "",
+            images: imageMatches.map(m => m[1])
+        };
+    } catch (error) {
+        console.error("GetItem Details Failed:", error);
+        return null;
+    }
+  }
 }
 
 export default new EbayTradingService();

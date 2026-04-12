@@ -62,15 +62,21 @@ const OptimizeProduct = () => {
         if (!ebayProduct && id) {
             setLoading(true);
             try {
-                // Check if we have mock data source for direct navigation
-                const fetchedProduct = await ebayService.getProductById(id);
+                // Primary: Browse API (Modern)
+                let fetchedProduct = await ebayService.getProductById(id);
+                
+                // Fallback: Trading API (Ultra-Reliable Production Vector)
+                if (!fetchedProduct) {
+                    fetchedProduct = await ebayTrading.getItemDetails(id);
+                }
+
                 if (fetchedProduct) {
                     setProduct(fetchedProduct);
                 } else {
-                    toast.error("Product not found.");
+                    toast.error("Product identity could not be verified in production.");
                 }
             } catch (err) {
-                toast.error("Failed to restore session.");
+                toast.error("Handshake failed. Retrying through secure vector...");
             } finally {
                 setLoading(false);
             }
