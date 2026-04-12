@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   Users, 
@@ -35,6 +35,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import ebayTrading from '../services/ebay_trading';
 import { useTheme } from '../context/ThemeContext';
+import { Link } from 'react-router-dom';
+import { cn } from '../lib/utils';
 
 ChartJS.register(
   CategoryScale,
