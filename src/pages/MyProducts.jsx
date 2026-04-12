@@ -13,7 +13,8 @@ import {
   Loader2,
   Package,
   Zap,
-  Activity
+  Activity,
+  Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
