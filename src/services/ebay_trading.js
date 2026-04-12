@@ -3,6 +3,8 @@ import axios from 'axios';
 class EbayTradingService {
   constructor() {
     this.useMock = false; // Forced live for production transition
+    // Deep Bridge: Bypasses browser CORS restrictions for Free Tier
+    this.corsRelay = (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`;
   }
 
   // XML template for AddItem call (Trading API)
@@ -76,7 +78,7 @@ class EbayTradingService {
           </ActiveList>
         </GetMyeBaySellingRequest>`;
 
-        const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+        const response = await axios.post(this.corsRelay('https://api.ebay.com/ws/api.dll'), xml, {
             headers: {
               'X-EBAY-API-SITEID': '0',
               'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
@@ -127,7 +129,7 @@ class EbayTradingService {
           </ActiveList>
         </GetMyeBaySellingRequest>`;
 
-        const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+        const response = await axios.post(this.corsRelay('https://api.ebay.com/ws/api.dll'), xml, {
             headers: {
               'X-EBAY-API-SITEID': '0',
               'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
@@ -183,7 +185,7 @@ class EbayTradingService {
           <DetailLevel>ReturnAll</DetailLevel>
         </GetUserRequest>`;
 
-        const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+        const response = await axios.post(this.corsRelay('https://api.ebay.com/ws/api.dll'), xml, {
             headers: {
               'X-EBAY-API-SITEID': '0',
               'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
@@ -214,7 +216,7 @@ class EbayTradingService {
     if (!token) throw new Error("eBay Token Missing");
 
     const xml = this.generateAddItemLegacyXML(itemData, token);
-    const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+    const response = await axios.post(this.corsRelay('https://api.ebay.com/ws/api.dll'), xml, {
       headers: {
         'X-EBAY-API-SITEID': '0',
         'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
@@ -229,7 +231,7 @@ class EbayTradingService {
     if (!refreshToken) return null;
     try {
         const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
-        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+        const response = await axios.post(this.corsRelay('https://api.ebay.com/identity/v1/oauth2/token'), 
             new URLSearchParams({
                 grant_type: 'refresh_token',
                 refresh_token: refreshToken,

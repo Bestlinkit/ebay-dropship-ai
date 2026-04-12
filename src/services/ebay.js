@@ -5,13 +5,15 @@ class eBayService {
     this.userToken = import.meta.env.VITE_EBAY_USER_TOKEN;
     this.appToken = null;
     this.baseUrl = 'https://api.ebay.com/buy/browse/v1';
+    // Deep Bridge: Bypasses browser CORS restrictions for Free Tier
+    this.corsRelay = (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`;
   }
 
   async getAppToken() {
     if (this.appToken) return this.appToken;
     try {
         const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
-        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+        const response = await axios.post(this.corsRelay('https://api.ebay.com/identity/v1/oauth2/token'), 
             new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope' }), 
             {
                 headers: {
@@ -54,7 +56,7 @@ class eBayService {
             params.sort = 'bestMatch';
         }
 
-        const response = await axios.get(`${this.baseUrl}/item_summary/search`, {
+        const response = await axios.get(this.corsRelay(`${this.baseUrl}/item_summary/search`), {
             params: params,
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -88,7 +90,7 @@ class eBayService {
     const token = this.userToken || await this.getAppToken();
     if (!token) return [];
     try {
-        const response = await axios.get(`${this.baseUrl}/item_summary/search`, {
+        const response = await axios.get(this.corsRelay(`${this.baseUrl}/item_summary/search`), {
             params: { 
                 q: keyword, 
                 limit: 5,
@@ -117,7 +119,7 @@ class eBayService {
     const token = this.userToken || await this.getAppToken();
     if (!token) return null;
     try {
-        const response = await axios.get(`${this.baseUrl}/item/${id}`, {
+        const response = await axios.get(this.corsRelay(`${this.baseUrl}/item/${id}`), {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
