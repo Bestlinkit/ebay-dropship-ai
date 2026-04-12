@@ -23,6 +23,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: "geonoyc-dropshipping.firebasestorage.app"
           VITE_FIREBASE_MESSAGING_SENDER_ID: "704927667189"
           VITE_FIREBASE_APP_ID: "1:704927667189:web:ba367bb776d8a11bb5c6bc"
+          VITE_PROXY_URL: ${{ secrets.VITE_PROXY_URL }}
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
