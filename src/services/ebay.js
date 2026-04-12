@@ -25,8 +25,13 @@ class eBayService {
   }
 
   async fetchWithRetry(method, url, config = {}) {
+    // Case-Agnostic Header Extraction
+    const h = config.headers || {};
+    const auth = h['Authorization'] || h['authorization'] || "";
+    const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || 'EBAY_US';
+
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}` : null,
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(url)}`
     ].filter(Boolean);

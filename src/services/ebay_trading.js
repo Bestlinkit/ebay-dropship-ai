@@ -62,8 +62,14 @@ class EbayTradingService {
    * Fetches real account summary for the dashboard
    */
   async fetchWithRetry(method, url, config = {}) {
+    // Case-Agnostic Header Extraction
+    const h = config.headers || {};
+    const auth = h['Authorization'] || h['authorization'] || h['X-EBAY-API-IAF-TOKEN'] || h['x-ebay-api-iaf-token'] || "";
+    const callname = h['X-EBAY-API-CALL-NAME'] || h['x-ebay-api-call-name'] || "";
+    const siteid = h['X-EBAY-API-SITEID'] || h['x-ebay-api-siteid'] || "0";
+
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}` : null,
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(url)}&auth=${encodeURIComponent(auth)}&callname=${callname}&siteid=${siteid}` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(url)}`
     ].filter(Boolean);
