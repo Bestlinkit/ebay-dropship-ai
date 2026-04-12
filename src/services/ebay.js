@@ -40,24 +40,26 @@ class eBayService {
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}&v=5.9-SHIELD` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
     ].filter(Boolean);
 
     let lastError = null;
+    console.info(`[Stability Shield] Routing request: ${finalTargetUrl.slice(0, 80)}...`);
+    
     for (const proxy of proxies) {
         try {
             const response = await axios({
                 ...config,
-                params: {}, // Already merged into URL
+                params: {}, 
                 method,
                 url: proxy,
-                timeout: 15000 
+                timeout: 10000 
             });
             return response;
         } catch (e) {
-            console.warn(`[eBay Proxy] Failed with ${proxy}. Retrying...`);
+            console.warn(`[Stability Shield] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);
             lastError = e;
         }
     }

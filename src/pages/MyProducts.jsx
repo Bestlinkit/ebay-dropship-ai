@@ -151,7 +151,7 @@ const MyProducts = () => {
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.date}</span>
                         </td>
                         <td className="px-10 py-8">
-                        <div className="flex items-center gap-2 opacity-80 group-hover:opacity-100 transition-all">
+                        <div className="flex items-center gap-2 opacity-100 transition-all">
                             <button 
                                 onClick={() => toast.info("Quick-Edit Node initialized.")}
                                 className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-amber-500 hover:bg-amber-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 

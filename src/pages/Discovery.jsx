@@ -58,7 +58,6 @@ const Discovery = () => {
 
   useEffect(() => {
     const fetchMarketPulse = async () => {
-        setLoading(true);
         try {
             // Initial Pulse: Load Electronics or if user selected a category
             const targetCat = activeCategory || topCategories[0].id;
@@ -67,9 +66,7 @@ const Discovery = () => {
         } catch (e) {
             console.error("Market Pulse Sync Failed", e);
             setTrendingProducts([]);
-        } finally {
-            setLoading(false);
-        }
+        } 
     };
     fetchMarketPulse();
   }, [activeCategory]);
@@ -129,7 +126,10 @@ const Discovery = () => {
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live API: Global Pulse</span>
                 </div>
-                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none">Market Discovery.</h1>
+                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none flex items-center justify-center gap-4">
+                    Market Discovery.
+                    <span className="text-primary-500 text-[10px] bg-primary-50 px-3 py-1 rounded-lg border border-primary-100 font-black animate-pulse">v5.9-SHIELD</span>
+                </h1>
                 <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">
                     Scanning the eBay production vector for high-velocity sourcing opportunities.
                 </p>
