@@ -40,6 +40,7 @@ import { useAuth } from '../context/AuthContext';
 import ebayTrading from '../services/ebay_trading';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 ChartJS.register(
@@ -53,10 +54,10 @@ ChartJS.register(
   Filler
 );
 
-const PremiumStat = ({ label, value, trend, icon: Icon, trendType = 'up', error }) => (
+const PremiumStat = ({ label, value, trend, icon: Icon, trendType = 'up', error, className }) => (
     <motion.div 
         whileHover={{ y: -5 }}
-        className="glass-card p-8 rounded-[2.5rem] relative overflow-hidden group"
+        className={cn("glass-card p-8 rounded-[2.5rem] relative overflow-hidden group", className)}
     >
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-100/20 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
         <div className="flex items-start justify-between relative z-10">
@@ -98,7 +99,8 @@ const Dashboard = () => {
     activeListings: 0,
     globalPulse: 0,
     efficiency: 0,
-    loading: true
+    loading: true,
+    newCount: 0
   });
   const [performanceItems, setPerformanceItems] = useState([]);
   const [sellerName, setSellerName] = useState(null);
@@ -123,8 +125,19 @@ const Dashboard = () => {
                     ebayTrading.getOrders(token)
                 ]);
 
-                const totalRevenue = orders.reduce((sum, order) => sum + order.amount, 0);
-                
+                // New Order Notification Logic
+                const prevCount = parseInt(localStorage.getItem('ebay_order_count') || '0');
+                let newCount = 0;
+                if (orders.length > prevCount && prevCount > 0) {
+                    newCount = orders.length - prevCount;
+                    toast.success(`${newCount} New Order(s) detected! 🚀`, {
+                        duration: 8000,
+                        position: 'top-right',
+                        icon: '📦'
+                    });
+                }
+                localStorage.setItem('ebay_order_count', orders.length.toString());
+
                 setSellerName(name);
                 setStats({
                   revenue: totalRevenue || summary.revenue,
@@ -135,7 +148,8 @@ const Dashboard = () => {
                   globalPulse: name ? 100 : 0, 
                   efficiency: name ? 94 : 0,
                   loading: false,
-                  recentOrders: orders
+                  recentOrders: orders,
+                  newCount: newCount
                 });
             } catch (e) {
                 console.error("Dashboard Live Load Fail", e);
@@ -319,6 +333,7 @@ const Dashboard = () => {
                 trend={stats.urgentShip > 0 ? "ACTION REQUIRED" : "Status Normal"} 
                 icon={Clock}
                 trendType={stats.urgentShip > 0 ? 'down' : 'up'}
+                className={stats.urgentShip > 0 ? "animate-pulse ring-2 ring-rose-500/50" : ""}
             />
             <PremiumStat 
                 label="Active Offers" 
@@ -361,37 +376,63 @@ const Dashboard = () => {
             <div className="glass-card rounded-[3rem] overflow-hidden">
                 <div className="p-10 border-b border-slate-50 flex items-center justify-between">
                     <div className="space-y-1">
-                        <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight">Top performing vectors</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">High velocity inventory breakdown</p>
+                        <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight">Recent Sales Momentum</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Live fulfillment & revenue vectors</p>
                     </div>
-                    <button className="btn-premium-outline flex items-center gap-2">
-                        System Inventory <ChevronRight size={14} />
-                    </button>
                 </div>
                 <div className="overflow-x-auto scrollbar-hide">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-slate-50/30">
-                                <th className="px-10 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Product Vector</th>
-                                <th className="px-6 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Scalability</th>
-                                <th className="px-6 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">ROI Delta</th>
+                                <th className="px-10 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Market ID / Time</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Value</th>
+                                <th className="px-6 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Status</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] text-right">Operations</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50/50">
-                            {performanceItems.length === 0 ? (
+                            {!stats.recentOrders || stats.recentOrders.length === 0 ? (
                                 <tr>
                                     <td colSpan="4" className="px-10 py-20 text-center">
                                         <div className="flex flex-col items-center gap-4 text-slate-300">
                                             <PackageCheck size={48} className="opacity-20" />
-                                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Product Vectors Identified</p>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Sale Vectors Identified</p>
                                         </div>
                                     </td>
                                 </tr>
                             ) : (
-                                performanceItems.map((p, i) => (
+                                stats.recentOrders.map((order, i) => (
                                     <tr key={i} className="group hover:bg-slate-50/30 transition-all duration-300">
-                                        {/* ... Product Row Content ... */}
+                                        <td className="px-10 py-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-slate-900 text-white rounded-xl">
+                                                    <ShoppingBag size={14} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-900 italic uppercase flex items-center gap-2">
+                                                        #{order.id.slice(-8)}
+                                                        {i < stats.newCount && (
+                                                            <span className="bg-emerald-500 text-white text-[8px] px-2 py-0.5 rounded-lg animate-pulse">NEW</span>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-[10px] font-medium text-slate-400">{order.date}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-6">
+                                            <span className="text-xs font-black text-emerald-600">${order.amount}</span>
+                                        </td>
+                                        <td className="px-6 py-6">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 bg-primary-500 rounded-full" />
+                                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{order.status}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-10 py-6 text-right">
+                                            <button className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all">
+                                                <ChevronRight size={14} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             )}

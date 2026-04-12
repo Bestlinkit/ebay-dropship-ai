@@ -77,14 +77,13 @@ class eBayService {
             const params = { q: searchTerm, limit: 10, filter: 'conditions:{NEW}' };
             if (categoryId) {
                 params.category_ids = categoryId;
-                delete params.q;
             }
 
             const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
                 params,
                 headers: { 
                     'Authorization': `Bearer ${authToken}`,
-                    'X-EBAY-C-MARKETPLACE-ID': this.marketplaceId
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
                 }
             });
 
