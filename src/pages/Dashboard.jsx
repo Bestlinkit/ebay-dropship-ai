@@ -185,7 +185,7 @@ const Dashboard = () => {
            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-xl shadow-2xl">
                 <Zap size={14} className="text-primary-400 fill-primary-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Terminal Connected</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live Terminal v5.7</span>
               </div>
               {sellerName && (
                 <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-600 px-4 py-1.5 rounded-xl border border-emerald-500/20 backdrop-blur-md">
@@ -218,7 +218,7 @@ const Dashboard = () => {
             <PremiumStat 
                 label="Weekly Revenue" 
                 value={`$${stats.revenue.toLocaleString()}`} 
-                trend={isStoreConnected ? "Live" : "Demo"} 
+                trend={isStoreConnected ? "Live" : "Synced"} 
                 icon={DollarSign} 
             />
             <PremiumStat 
