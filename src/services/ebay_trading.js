@@ -102,6 +102,66 @@ class EbayTradingService {
   }
 
   /**
+   * Fetches the actual list of active listings for the My Products page.
+   */
+  async getActiveListings(token) {
+    if (!token) return [];
+    try {
+        const xml = `<?xml version="1.0" encoding="utf-8"?>
+        <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+          <RequesterCredentials>
+            <eBayAuthToken>${token}</eBayAuthToken>
+          </RequesterCredentials>
+          <ActiveList>
+            <Include>true</Include>
+            <Pagination>
+              <EntriesPerPage>50</EntriesPerPage>
+            </Pagination>
+          </ActiveList>
+        </GetMyeBaySellingRequest>`;
+
+        const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+            headers: {
+              'X-EBAY-API-SITEID': '0',
+              'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
+              'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+              'Content-Type': 'text/xml'
+            }
+        });
+
+        // Parse individual items. This is a quick regex approach for performance.
+        const itemRegex = /<Item>(.*?)<\/Item>/gs;
+        const items = [];
+        let match;
+
+        while ((match = itemRegex.exec(response.data)) !== null) {
+            const itemXml = match[1];
+            const titleMatch = itemXml.match(/<Title>(.*?)<\/Title>/);
+            const itemIdMatch = itemXml.match(/<ItemID>(.*?)<\/ItemID>/);
+            const priceMatch = itemXml.match(/<BuyItNowPrice.*?>(.*?)<\/BuyItNowPrice>/) || itemXml.match(/<CurrentPrice.*?>(.*?)<\/CurrentPrice>/);
+            const quantityMatch = itemXml.match(/<Quantity>(.*?)<\/Quantity>/);
+            const viewsMatch = itemXml.match(/<WatchCount>(.*?)<\/WatchCount>/);
+
+            items.push({
+                id: itemIdMatch ? itemIdMatch[1] : Math.random().toString(),
+                title: titleMatch ? titleMatch[1] : 'Unknown Listing',
+                status: 'Published',
+                date: new Date().toISOString().split('T')[0],
+                price: priceMatch ? parseFloat(priceMatch[1]) : 0,
+                profit: 0, 
+                views: viewsMatch ? parseInt(viewsMatch[1]) : 0,
+                quantity: quantityMatch ? parseInt(quantityMatch[1]) : 0
+            });
+        }
+
+        return items;
+    } catch (error) {
+        console.error("eBay Active Listings Fetch Failed:", error);
+        return [];
+    }
+  }
+
+  /**
    * Fetches the user profile (UserID) to verify connection identity.
    */
   async getUserProfile(token) {

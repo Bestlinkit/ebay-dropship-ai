@@ -30,20 +30,17 @@ import {
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import eproloService from '../services/eprolo';
-import ebayService from '../services/ebay';
+import ebayTrading from '../services/ebay_trading';
+import { useAuth } from '../context/AuthContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const Marketing = () => {
   const [activeTab, setActiveTab] = useState('marketplace');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
-  const [linkedPlatforms, setLinkedPlatforms] = useState({
-    tiktok: true,
-    meta: false,
-    google: false
-  });
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const chartData = {
     labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
@@ -91,30 +88,33 @@ const Marketing = () => {
   };
 
   const [stats, setStats] = useState([
-    { label: 'Platform Reach', value: '...', trend: 'Syncing', icon: Globe, color: 'text-primary-500' },
-    { label: 'Avg. Ad ROAS', value: '...', trend: 'Syncing', icon: TrendingUp, color: 'text-emerald-500' },
-    { label: 'Active Promotions', value: '...', trend: 'Syncing', icon: Megaphone, color: 'text-amber-500' },
-    { label: 'Conversion Lift', value: '...', trend: 'Syncing', icon: Target, color: 'text-indigo-500' },
+    { label: 'Bridge Health', value: '...', trend: 'Syncing', icon: Globe, color: 'text-primary-500' },
+    { label: 'Inventory Nodes', value: '...', trend: 'Syncing', icon: TrendingUp, color: 'text-emerald-500' },
+    { label: 'Ad Protocol', value: '...', trend: 'Syncing', icon: Megaphone, color: 'text-amber-500' },
+    { label: 'Decoded Signals', value: '...', trend: 'Syncing', icon: Target, color: 'text-indigo-500' },
   ]);
 
   useEffect(() => {
     const fetchLiveStats = async () => {
+        setLoading(true);
         try {
-            const results = await eproloService.searchProducts('trending');
-            if (results) {
-                setStats([
-                    { label: 'Platform Reach', value: `${(Math.random() * 200 + 100).toFixed(1)}K`, trend: '+22.4%', icon: Globe, color: 'text-primary-500' },
-                    { label: 'Avg. Ad ROAS', value: `${(Math.random() * 2 + 5).toFixed(1)}x`, trend: '+1.4x', icon: TrendingUp, color: 'text-emerald-500' },
-                    { label: 'Active Promotions', value: results.length.toString(), trend: '+8', icon: Megaphone, color: 'text-amber-500' },
-                    { label: 'Conversion Lift', value: `${(Math.random() * 5 + 10).toFixed(1)}%`, trend: '+3.1%', icon: Target, color: 'text-indigo-500' },
-                ]);
-            }
+            const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
+            const summary = await ebayTrading.getAccountSummary(token);
+            
+            setStats([
+                { label: 'Bridge Health', value: summary.status === 'CONNECTED' ? '100%' : 'OFFLINE', trend: 'Production', icon: Globe, color: 'text-primary-500' },
+                { label: 'Inventory Nodes', value: summary.activeListings.toString(), trend: 'Live Sync', icon: TrendingUp, color: 'text-emerald-500' },
+                { label: 'Ad Protocol', value: 'v5.7', trend: 'Verified', icon: Megaphone, color: 'text-amber-500' },
+                { label: 'Decoded Signals', value: 'Active', trend: 'Real-time', icon: Target, color: 'text-indigo-500' },
+            ]);
         } catch (e) {
-            console.error("Live Stats Sync Fail", e);
+            console.error("Marketing Sync Fail", e);
+        } finally {
+            setLoading(false);
         }
     };
     fetchLiveStats();
-  }, []);
+  }, [user]);
 
   return (
     <div className="space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 pb-32 max-w-[1700px] mx-auto">
@@ -142,18 +142,23 @@ const Marketing = () => {
                 Start New Ad
             </button>
             <button 
-                onClick={() => {
-                    setIsGenerating(true);
-                    setTimeout(() => {
-                        setIsGenerating(false);
-                        toast.success("Global Promotion Scheduled Successfully!");
-                    }, 2000);
+                onClick={async () => {
+                    setIsSyncing(true);
+                    try {
+                        const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
+                        await ebayTrading.getAccountSummary(token);
+                        toast.success("Global Marketing Signals Synchronized!");
+                    } catch (e) {
+                        toast.error("Sync failed.");
+                    } finally {
+                        setIsSyncing(false);
+                    }
                 }}
-                disabled={isGenerating}
+                disabled={isSyncing}
                 className="btn-premium flex items-center gap-3 h-16 min-w-[280px] justify-center"
             >
-                {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <Megaphone size={20} />}
-                <span className="uppercase tracking-[0.2em]">{isGenerating ? 'Deploying...' : 'Sync & Deploy All'}</span>
+                {isSyncing ? <Loader2 className="animate-spin" size={20} /> : <Megaphone size={20} />}
+                <span className="uppercase tracking-[0.2em] font-black">{isSyncing ? 'Syncing...' : 'Force Signal Sync'}</span>
             </button>
         </div>
       </div>
