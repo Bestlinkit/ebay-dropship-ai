@@ -50,11 +50,7 @@ const SidebarItem = ({ icon: Icon, label, href, active, collapsed, onClick }) =>
 );
 
 const NotificationDropdown = ({ isOpen, onClose }) => {
-    const notifications = [
-        { id: 1, type: 'success', title: 'Viral Trend Found', desc: '5 products in "Skincare" are gaining pulse.', time: '2m ago', icon: TrendingUp },
-        { id: 2, type: 'alert', title: 'Price Match Alert', desc: 'New lowest price found on Eprolo.', time: '15m ago', icon: Zap },
-        { id: 3, type: 'info', title: 'Video Ready', desc: 'Your TikTok ad for Serum 2.0 is ready.', time: '1h ago', icon: CheckCircle2 },
-    ];
+    const notifications = []; // Live feed integration pending
 
     return (
         <AnimatePresence>
@@ -69,29 +65,38 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
                     >
                         <div className="flex items-center justify-between mb-6 px-2">
                             <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Neural Notifications</h3>
-                            <button className="text-[9px] font-bold text-primary-500 hover:underline px-2 py-1 rounded-lg">Clear All</button>
+                            {notifications.length > 0 && <button className="text-[9px] font-bold text-primary-500 hover:underline px-2 py-1 rounded-lg">Clear All</button>}
                         </div>
                         <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-hide">
-                            {notifications.map((n) => (
-                                <div key={n.id} className="p-4 bg-white/50 hover:bg-white transition-all rounded-2xl group cursor-pointer flex gap-4 border border-transparent hover:border-slate-100">
-                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-all shrink-0">
-                                        <n.icon size={18} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold text-slate-900 leading-tight mb-1 group-hover:text-primary-600 transition-colors truncate">{n.title}</p>
-                                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2">{n.desc}</p>
-                                        <div className="flex items-center gap-1.5 mt-2.5 text-[9px] text-slate-400 font-black uppercase">
-                                            <Clock size={10} /> {n.time}
+                            {notifications.length === 0 ? (
+                                <div className="py-12 text-center space-y-3">
+                                    <Bell className="mx-auto text-slate-100" size={32} />
+                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No Active Intelligence Alerts</p>
+                                </div>
+                            ) : (
+                                notifications.map((n) => (
+                                    <div key={n.id} className="p-4 bg-white/50 hover:bg-white transition-all rounded-2xl group cursor-pointer flex gap-4 border border-transparent hover:border-slate-100">
+                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-all shrink-0">
+                                            <n.icon size={18} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold text-slate-900 leading-tight mb-1 group-hover:text-primary-600 transition-colors truncate">{n.title}</p>
+                                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2">{n.desc}</p>
+                                            <div className="flex items-center gap-1.5 mt-2.5 text-[9px] text-slate-400 font-black uppercase">
+                                                <Clock size={10} /> {n.time}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
-                        <div className="mt-6 pt-4 border-t border-slate-50 text-center">
-                            <button className="text-[9px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors flex items-center justify-center gap-2 mx-auto">
-                                View Full Activity Log <ArrowRight size={12} />
-                            </button>
-                        </div>
+                        {notifications.length > 0 && (
+                            <div className="mt-6 pt-4 border-t border-slate-50 text-center">
+                                <button className="text-[9px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors flex items-center justify-center gap-2 mx-auto">
+                                    View Full Activity Log <ArrowRight size={12} />
+                                </button>
+                            </div>
+                        )}
                     </motion.div>
                 </>
             )}

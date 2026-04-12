@@ -2,15 +2,15 @@ import axios from 'axios';
 
 class EbayTradingService {
   constructor() {
-    this.useMock = true;
+    this.useMock = false; // Forced live for production transition
   }
 
   // XML template for AddItem call (Trading API)
-  generateAddItemLegacyXML(itemData) {
+  generateAddItemLegacyXML(itemData, token) {
     return `<?xml version="1.0" encoding="utf-8"?>
     <AddItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
       <RequesterCredentials>
-        <eBayAuthToken>${localStorage.getItem('ebay_auth_token')}</eBayAuthToken>
+        <eBayAuthToken>${token}</eBayAuthToken>
       </RequesterCredentials>
       <ErrorLanguage>en_US</ErrorLanguage>
       <WarningLevel>High</WarningLevel>
@@ -27,7 +27,6 @@ class EbayTradingService {
         <DispatchTimeMax>3</DispatchTimeMax>
         <ListingDuration>GTC</ListingDuration>
         <ListingType>FixedPriceItem</ListingType>
-        <PaymentMethods>PayPal</PaymentMethods>
         <PictureDetails>
           ${itemData.images.map(url => `<PictureURL>${url}</PictureURL>`).join('\n')}
         </PictureDetails>
@@ -49,17 +48,63 @@ class EbayTradingService {
     </AddItemRequest>`;
   }
 
-  async publishItem(itemData) {
-    if (this.useMock) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return { 
-        success: true, 
-        listingId: 'EBAY-' + Math.random().toString(36).substring(7).toUpperCase(),
-        url: 'https://www.ebay.com/itm/example'
-      };
+  /**
+   * Fetches real account summary for the dashboard
+   */
+  async getAccountSummary(token) {
+    if (!token) {
+        return {
+            activeListings: 0,
+            soldCount: 0,
+            revenue: 0,
+            status: 'DISCONNECTED'
+        };
     }
 
-    const xml = this.generateAddItemLegacyXML(itemData);
+    try {
+        // XML for GetMyeBaySelling (ActiveList only)
+        const xml = `<?xml version="1.0" encoding="utf-8"?>
+        <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+          <RequesterCredentials>
+            <eBayAuthToken>${token}</eBayAuthToken>
+          </RequesterCredentials>
+          <ActiveList>
+            <Include>true</Include>
+            <Pagination>
+              <EntriesPerPage>1</EntriesPerPage>
+            </Pagination>
+          </ActiveList>
+        </GetMyeBaySellingRequest>`;
+
+        const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+            headers: {
+              'X-EBAY-API-SITEID': '0',
+              'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
+              'X-EBAY-API-CALL-NAME': 'GetMyeBaySelling',
+              'Content-Type': 'text/xml'
+            }
+        });
+
+        // Simple regex parsing for light footprint (or use a parser if needed)
+        const activeCountMatch = response.data.match(/<TotalNumberOfEntries>(\d+)<\/TotalNumberOfEntries>/);
+        const activeListings = activeCountMatch ? parseInt(activeCountMatch[1]) : 0;
+
+        return {
+            activeListings,
+            soldCount: 0, // Would require GetSellerTransactions for full accuracy
+            revenue: 0,
+            status: 'CONNECTED'
+        };
+    } catch (error) {
+        console.error("eBay Account Summary Fetch Failed:", error);
+        return { activeListings: 0, soldCount: 0, revenue: 0, status: 'ERROR' };
+    }
+  }
+
+  async publishItem(itemData, token) {
+    if (!token) throw new Error("eBay Token Missing");
+
+    const xml = this.generateAddItemLegacyXML(itemData, token);
     const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
       headers: {
         'X-EBAY-API-SITEID': '0',

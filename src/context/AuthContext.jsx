@@ -7,7 +7,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -20,11 +21,28 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    let unsubscribeDoc = null;
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      setLoading(false);
+      
+      if (user) {
+        // Listen to user metadata (including eBay connectivity)
+        const docRef = doc(db, 'users', user.uid);
+        unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUser(prev => ({ ...prev, ...docSnap.data() }));
+          }
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
 
   const signup = (email, password) => {
@@ -50,7 +68,8 @@ export function AuthProvider({ children }) {
     login,
     logout,
     loginWithGoogle,
-    loading
+    loading,
+    isStoreConnected: !!user?.ebayToken || !!user?.ebay_auth_token
   };
 
   return (

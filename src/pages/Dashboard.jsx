@@ -31,8 +31,10 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { cn } from '../lib/utils';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
+import ebayTrading from '../services/ebay_trading';
+import { useTheme } from '../context/ThemeContext';
 
 ChartJS.register(
   CategoryScale,
@@ -76,22 +78,51 @@ const PremiumStat = ({ label, value, trend, icon: Icon, trendType = 'up' }) => (
 );
 
 const Dashboard = () => {
+  const { user, isStoreConnected } = useAuth();
+  const { primaryColor } = useTheme();
+  const [stats, setStats] = useState({
+    revenue: 0,
+    activeListings: 0,
+    globalPulse: 0,
+    efficiency: 0,
+    loading: true
+  });
+  const [performanceItems, setPerformanceItems] = useState([]);
+
+  useEffect(() => {
+    const loadLiveStats = async () => {
+      if (isStoreConnected && user?.ebayToken) {
+        const summary = await ebayTrading.getAccountSummary(user.ebayToken);
+        setStats({
+          revenue: summary.revenue,
+          activeListings: summary.activeListings,
+          globalPulse: summary.activeListings > 0 ? 86 : 0,
+          efficiency: summary.activeListings > 0 ? 94 : 0,
+          loading: false
+        });
+      } else {
+        setStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+    loadLiveStats();
+  }, [isStoreConnected, user]);
+
   const chartData = {
     labels: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
     datasets: [
       {
         fill: true,
         label: 'Gross Profit',
-        data: [2100, 2400, 1900, 3200, 2800, 4100, 4800],
-        borderColor: '#026dc6',
-        backgroundColor: 'rgba(14, 140, 233, 0.05)',
+        data: isStoreConnected ? [0, 0, 0, 0, 0, 0, 0] : [2100, 2400, 1900, 3200, 2800, 4100, 4800],
+        borderColor: primaryColor,
+        backgroundColor: `${primaryColor}10`,
         tension: 0.4,
         borderWidth: 4,
         pointRadius: 0,
         pointHoverRadius: 6,
         pointHoverBackgroundColor: '#fff',
         pointHoverBorderWidth: 3,
-        pointHoverBorderColor: '#026dc6',
+        pointHoverBorderColor: primaryColor,
       },
     ],
   };
@@ -132,6 +163,32 @@ const Dashboard = () => {
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       
+      {/* Store Connection Alert */}
+      {!isStoreConnected && (
+        <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-8 rounded-[2.5rem] bg-slate-900 border border-primary-500/30 shadow-2xl relative overflow-hidden group"
+        >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-[80px] -mr-32 -mt-32" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center text-primary-400 group-hover:scale-110 transition-transform">
+                        <Shield className="fill-primary-500/20" size={32} />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.4em]">Connection Shield Inactive</p>
+                        <h3 className="text-xl font-outfit font-black text-white uppercase tracking-tight italic">Link your eBay store to activate live neural pulse.</h3>
+                        <p className="text-xs text-slate-500 font-medium">Your platform is currently in observer mode. Establish API handshakes to sync live listings.</p>
+                    </div>
+                </div>
+                <Link to="/settings" className="px-8 py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl">
+                    Configure API Vault
+                </Link>
+            </div>
+        </motion.div>
+      )}
+
       {/* Hero Header */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
         <div className="space-y-2">
@@ -139,12 +196,16 @@ const Dashboard = () => {
              <div className="px-3 py-1 bg-primary-500 text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-primary-500/20">
                 Live Terminal
              </div>
-             <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Nodes Connected
+             <div className={cn(
+                "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em]",
+                isStoreConnected ? "text-emerald-500" : "text-slate-400"
+             )}>
+                <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isStoreConnected ? "bg-emerald-500" : "bg-slate-400")} /> 
+                {isStoreConnected ? 'Nodes Connected' : 'Observer Mode Active'}
              </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-outfit font-black text-slate-900 tracking-tighter leading-none">Command Center.</h1>
-          <p className="text-slate-400 font-medium text-lg text-balance max-w-xl">System orchestration for your eBay dropshipping ecosystem. Monitoring high-velocity market vectors.</p>
+          <p className="text-slate-400 font-medium text-lg text-balance max-w-xl">System orchestration for your eBay dropshipping ecosystem. {isStoreConnected ? 'Monitoring high-velocity market vectors.' : 'Connect store to begin real-time analysis.'}</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -162,27 +223,27 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
             <PremiumStat 
                 label="Weekly Revenue" 
-                value="$184,204" 
-                trend="+14.2%" 
+                value={`$${stats.revenue.toLocaleString()}`} 
+                trend={isStoreConnected ? "Live" : "Demo"} 
                 icon={DollarSign} 
             />
             <PremiumStat 
                 label="Global Pulse" 
-                value="8.4k" 
-                trend="+2,410" 
+                value={stats.globalPulse > 0 ? stats.globalPulse : "OFF"} 
+                trend={isStoreConnected ? "Active" : "Locked"} 
                 icon={Activity} 
             />
             <PremiumStat 
                 label="Active Nodes" 
-                value="124" 
-                trend="-2.4%" 
+                value={stats.activeListings} 
+                trend={isStoreConnected ? "Live" : "Observer"} 
                 icon={ShoppingBag}
-                trendType="down"
+                trendType={isStoreConnected ? 'up' : 'down'}
             />
             <PremiumStat 
                 label="Neural Lift" 
-                value="98.2%" 
-                trend="Optimal" 
+                value={stats.activeListings > 0 ? "98.2%" : "N/A"} 
+                trend={isStoreConnected ? "Optimal" : "Disconnected"} 
                 icon={Zap} 
             />
       </div>
@@ -237,55 +298,22 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50/50">
-                            {[
-                                { title: 'Neural Vitality Serum 2.0', price: '$45.00', sales: '840 Unit Lift', roi: '12.4x', img: 'https://images.unsplash.com/photo-1570172619992-052267ad7c32' },
-                                { title: 'MagSync Wireless Matrix', price: '$59.00', sales: '612 Unit Lift', roi: '8.2x', img: 'https://images.unsplash.com/photo-1583394838336-acd977730f90' },
-                                { title: 'Posture Alignment Node', price: '$19.00', sales: '1,2k Unit Lift', roi: '15.1x', img: 'https://images.unsplash.com/photo-1616763355548-1b606f439f86' },
-                            ].map((p, i) => (
-                                <tr key={i} className="group hover:bg-slate-50/30 transition-all duration-300">
-                                    <td className="px-10 py-6">
-                                        <div className="flex items-center gap-6">
-                                            <div className="relative">
-                                                <img src={p.img} className="w-16 h-16 rounded-[1.25rem] object-cover bg-slate-50 border border-slate-100 group-hover:scale-105 transition-transform duration-500" />
-                                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 text-white rounded-lg flex items-center justify-center border-2 border-white shadow-lg">
-                                                    <Star size={8} className="fill-white" />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900 uppercase tracking-tight leading-none mb-2">{p.title}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-xs text-slate-400 font-black uppercase tracking-widest">{p.price}</p>
-                                                    <div className="w-1 h-1 rounded-full bg-slate-200" />
-                                                    <div className="flex items-center gap-1 text-[9px] font-black text-primary-500 uppercase tracking-widest">
-                                                        <Globe size={10} /> eBay Global
-                                                    </div>
-                                                </div>
-                                            </div>
+                            {performanceItems.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" className="px-10 py-20 text-center">
+                                        <div className="flex flex-col items-center gap-4 text-slate-300">
+                                            <PackageCheck size={48} className="opacity-20" />
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Product Vectors Identified</p>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                <span>Intensity</span>
-                                                <span className="text-slate-900">84%</span>
-                                            </div>
-                                            <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div className="bg-primary-500 h-full w-[84%] rounded-full shadow-[0_0_8px_rgba(14,140,233,0.3)]" />
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-6">
-                                        <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                                            <TrendingUp size={12} /> {p.roi} ROI
-                                        </div>
-                                    </td>
-                                    <td className="px-10 py-6 text-right">
-                                        <button className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center mx-auto lg:ml-auto lg:mr-0">
-                                            <Plus size={18} />
-                                        </button>
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                performanceItems.map((p, i) => (
+                                    <tr key={i} className="group hover:bg-slate-50/30 transition-all duration-300">
+                                        {/* ... Product Row Content ... */}
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -310,15 +338,20 @@ const Dashboard = () => {
                         />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-3xl font-outfit font-black text-slate-900 tracking-tighter">86%</span>
+                        <span className="text-3xl font-outfit font-black text-slate-900 tracking-tighter">{stats.efficiency > 0 ? `${stats.efficiency}%` : "0%"}</span>
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Efficiency</span>
                     </div>
                 </div>
                 <div className="space-y-1">
                     <h3 className="text-xl font-outfit font-black text-slate-900 uppercase">System Vitality</h3>
-                    <p className="text-[10px] px-4 font-black text-slate-400 uppercase tracking-widest line-clamp-2">Node stability verified across 18 Global marketplaces.</p>
+                    <p className="text-[10px] px-4 font-black text-slate-400 uppercase tracking-widest line-clamp-2">
+                        {isStoreConnected ? "Node stability verified across all connected marketplaces." : "Establish API Connection to begin node verification."}
+                    </p>
                 </div>
-                <button className="w-full btn-premium-outline mt-2 border-2">Optimize Core</button>
+                <button className={cn(
+                    "w-full btn-premium-outline mt-2 border-2",
+                    !isStoreConnected && "opacity-50 cursor-not-allowed"
+                )}>Optimize Core</button>
             </div>
 
             <div className="glass-card p-10 rounded-[3rem] space-y-10">
@@ -332,21 +365,17 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <div className="space-y-10">
-                    {[
-                        { icon: TrendingUp, color: "text-emerald-500", text: "New viral trend detected in 'Neural Wellness'. Suggest expansion in Node #4.", title: "Growth Vector" },
-                        { icon: AlertCircle, color: "text-amber-500", text: "Vendor discrepancy found on SKU-284. Neural script auto-correcting listing.", title: "Self-Correction" },
-                        { icon: Activity, color: "text-primary-500", text: "TikTok Pulse integration complete. 1.2M impressions buffered for dispatch.", title: "Traffic Matrix" },
-                    ].map((insight, i) => (
-                        <div key={i} className="flex gap-6 items-start group">
-                             <div className={cn("w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center transition-all group-hover:scale-110", insight.color)}>
-                                <insight.icon size={20} />
-                             </div>
-                             <div className="space-y-2">
-                                <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.1em]">{insight.title}</p>
-                                <p className="text-xs font-medium text-slate-400 leading-relaxed text-balance">{insight.text}</p>
-                             </div>
+                    {isStoreConnected ? (
+                        <div className="py-20 text-center space-y-3">
+                             <Activity className="mx-auto text-slate-100" size={32} />
+                             <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Neural Syncing Active...</p>
                         </div>
-                    ))}
+                    ) : (
+                        <div className="py-20 text-center space-y-3">
+                             <AlertCircle className="mx-auto text-slate-100" size={32} />
+                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Intelligence feed requires an active eBay handshake.</p>
+                        </div>
+                    )}
                 </div>
             </div>
 

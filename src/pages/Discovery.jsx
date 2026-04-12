@@ -15,8 +15,10 @@ import {
   ArrowRight,
   LayoutGrid,
   List,
-  Globe
+  Globe,
+  Shield
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import ebayService from '../services/ebay';
 import eproloService from '../services/eprolo';
 import ProductCard from '../components/ProductCard';
@@ -41,23 +43,24 @@ const Discovery = () => {
   const [source, setSource] = useState('ebay'); // 'ebay' or 'eprolo'
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
+  const { isStoreConnected } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchTrending = async () => {
+        if (!isStoreConnected) {
+            setTrendingProducts([]);
+            return;
+        }
         try {
             const results = await ebayService.searchProducts('trending');
-            if (results && results.length > 0) {
-                setTrendingProducts(results);
-            } else {
-                setTrendingProducts(ebayService.getMockProducts());
-            }
+            setTrendingProducts(results || []);
         } catch (e) {
-            setTrendingProducts(ebayService.getMockProducts());
+            setTrendingProducts([]);
         }
     };
     fetchTrending();
-  }, []);
+  }, [isStoreConnected]);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
@@ -232,17 +235,30 @@ const Discovery = () => {
                           </h2>
                           <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Velocity Leaders.</p>
                       </div>
+                      {!isStoreConnected && (
+                          <div className="flex items-center gap-3 bg-slate-900 text-white px-6 py-3 rounded-2xl">
+                             <Shield size={14} className="text-primary-400" />
+                             <span className="text-[9px] font-black uppercase tracking-widest">Connect Store for Live Trending Data</span>
+                          </div>
+                      )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                      {trendingProducts.map((product, i) => (
-                          <ProductCard 
-                              key={i} 
-                              product={product} 
-                              onImport={handleImport}
-                              compact={false}
-                          />
-                      ))}
-                  </div>
+                  {trendingProducts.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+                          {trendingProducts.map((product, i) => (
+                              <ProductCard 
+                                  key={i} 
+                                  product={product} 
+                                  onImport={handleImport}
+                                  compact={false}
+                              />
+                          ))}
+                      </div>
+                  ) : (
+                      <div className="py-20 flex flex-col items-center gap-4 text-slate-300">
+                          <Zap size={48} className="opacity-20" />
+                          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Neural Scanning Standby...</p>
+                      </div>
+                  )}
               </section>
           )}
 
