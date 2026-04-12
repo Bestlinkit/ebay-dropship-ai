@@ -125,6 +125,8 @@ const Dashboard = () => {
                     ebayTrading.getOrders(token)
                 ]);
 
+                const totalRevenue = orders.reduce((sum, order) => sum + order.amount, 0);
+                
                 // New Order Notification Logic
                 const prevCount = parseInt(localStorage.getItem('ebay_order_count') || '0');
                 let newCount = 0;

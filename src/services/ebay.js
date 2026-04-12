@@ -70,20 +70,27 @@ class eBayService {
 
   async searchProducts(query, categoryId = null) {
     let token = await this.getAppToken();
-    const searchTerm = query || 'trending';
+    const searchTerm = query || 'electronics'; 
     
     const executeSearch = async (authToken) => {
         try {
-            const params = { q: searchTerm, limit: 10, filter: 'conditions:{NEW}' };
+            // High-Performance Production Parameters
+            const params = { 
+                q: searchTerm, 
+                limit: 12, 
+                filter: 'buyingOptions:{FIXED_PRICE}' 
+            };
+            
             if (categoryId) {
-                params.category_ids = categoryId;
+                params.category_ids = categoryId.toString();
             }
 
             const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
                 params,
                 headers: { 
                     'Authorization': `Bearer ${authToken}`,
-                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
+                    'Content-Type': 'application/json'
                 }
             });
 

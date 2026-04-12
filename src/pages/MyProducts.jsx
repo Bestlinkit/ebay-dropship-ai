@@ -160,6 +160,7 @@ const MyProducts = () => {
                             </button>
                             <Link 
                                 to={`/optimize/${p.id}`}
+                                state={{ product: p }}
                                 className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl text-primary-400 hover:bg-slate-800 hover:shadow-lg transition-all flex items-center justify-center group/btn"
                                 title="AI Optimization Lab"
                             >
