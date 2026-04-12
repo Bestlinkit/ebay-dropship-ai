@@ -227,7 +227,7 @@ const Discovery = () => {
       <div className="space-y-12 px-4 lg:px-0">
           
           {!query && (
-              <section className="space-y-10">
+              <section className="space-y-12">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-10">
                       <div className="space-y-2">
                           <h2 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em] flex items-center gap-2">
@@ -236,12 +236,6 @@ const Discovery = () => {
                           <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Velocity Leaders.</p>
                       </div>
                       <div className="flex items-center gap-4">
-                          {!isStoreConnected && (
-                              <div className="flex items-center gap-3 bg-slate-900 text-white px-6 py-3 rounded-2xl">
-                                 <Shield size={14} className="text-primary-400" />
-                                 <span className="text-[9px] font-black uppercase tracking-widest">Connect Store for Live Trending Data</span>
-                              </div>
-                          )}
                           <div className="flex gap-2">
                              <button 
                                 onClick={() => {

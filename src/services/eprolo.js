@@ -8,8 +8,8 @@ class EproloService {
   constructor() {
     this.apiKey = import.meta.env.VITE_EPROLO_API_KEY || '7D57B61F51C2485285A0B9526548AB32';
     this.apiSecret = import.meta.env.VITE_EPROLO_API_SECRET || 'DEC24B77A8B84678AAB7BAAF35502798ED288A1A91E84DDB86D6B04F1BFAC6B8';
-    this.baseUrl = 'https://api.eprolo.com/v1'; // Standard Eprolo Open API endpoint
-    this.useSimulation = !import.meta.env.VITE_EPROLO_API_KEY || import.meta.env.VITE_EPROLO_API_KEY === 'YOUR_EPROLO_API_KEY'; 
+    this.baseUrl = 'https://api.eprolo.com/v1'; 
+    this.useSimulation = !import.meta.env.VITE_EPROLO_API_KEY || import.meta.env.VITE_EPROLO_API_KEY.includes('YOUR_'); 
   }
 
   /**

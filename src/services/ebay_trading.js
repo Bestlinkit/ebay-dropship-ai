@@ -101,6 +101,38 @@ class EbayTradingService {
     }
   }
 
+  /**
+   * Fetches the user profile (UserID) to verify connection identity.
+   */
+  async getUserProfile(token) {
+    if (!token) return null;
+
+    try {
+        const xml = `<?xml version="1.0" encoding="utf-8"?>
+        <GetUserRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+          <RequesterCredentials>
+            <eBayAuthToken>${token}</eBayAuthToken>
+          </RequesterCredentials>
+          <DetailLevel>ReturnAll</DetailLevel>
+        </GetUserRequest>`;
+
+        const response = await axios.post('https://api.ebay.com/ws/api.dll', xml, {
+            headers: {
+              'X-EBAY-API-SITEID': '0',
+              'X-EBAY-API-COMPATIBILITY-LEVEL': '967',
+              'X-EBAY-API-CALL-NAME': 'GetUser',
+              'Content-Type': 'text/xml'
+            }
+        });
+
+        const userIdMatch = response.data.match(/<UserID>(.*?)<\/UserID>/);
+        return userIdMatch ? userIdMatch[1] : null;
+    } catch (error) {
+        console.error("eBay User Profile Fetch Failed:", error);
+        return null;
+    }
+  }
+
   async publishItem(itemData, token) {
     if (!token) throw new Error("eBay Token Missing");
 

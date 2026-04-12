@@ -80,13 +80,16 @@ export function AuthProvider({ children }) {
   };
 
   const value = {
-    user,
+    user: user ? {
+        ...user,
+        ebayToken: user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN
+    } : null,
     signup,
     login,
     logout,
     loginWithGoogle,
     loading,
-    isStoreConnected: !!user?.ebayToken || !!user?.ebay_auth_token
+    isStoreConnected: !!import.meta.env.VITE_EBAY_USER_TOKEN || !!user?.ebayToken || !!user?.ebay_auth_token
   };
 
   return (

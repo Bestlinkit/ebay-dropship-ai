@@ -90,18 +90,29 @@ const Dashboard = () => {
     loading: true
   });
   const [performanceItems, setPerformanceItems] = useState([]);
+  const [sellerName, setSellerName] = useState(null);
 
   useEffect(() => {
     const loadLiveStats = async () => {
       if (isStoreConnected && user?.ebayToken) {
-        const summary = await ebayTrading.getAccountSummary(user.ebayToken);
-        setStats({
-          revenue: summary.revenue,
-          activeListings: summary.activeListings,
-          globalPulse: summary.activeListings > 0 ? 86 : 0,
-          efficiency: summary.activeListings > 0 ? 94 : 0,
-          loading: false
-        });
+        try {
+            const [summary, name] = await Promise.all([
+                ebayTrading.getAccountSummary(user.ebayToken),
+                ebayTrading.getUserProfile(user.ebayToken)
+            ]);
+            
+            setSellerName(name);
+            setStats({
+              revenue: summary.revenue,
+              activeListings: summary.activeListings,
+              globalPulse: summary.activeListings > 0 ? 86 : 0,
+              efficiency: summary.activeListings > 0 ? 94 : 0,
+              loading: false
+            });
+        } catch (e) {
+            console.error("Dashboard Live Load Fail", e);
+            setStats(prev => ({ ...prev, loading: false }));
+        }
       } else {
         setStats(prev => ({ ...prev, loading: false }));
       }
@@ -165,62 +176,40 @@ const Dashboard = () => {
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       
-      {/* Store Connection Alert */}
-      {!isStoreConnected && (
-        <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-8 rounded-[2.5rem] bg-slate-900 border border-primary-500/30 shadow-2xl relative overflow-hidden group"
-        >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-[80px] -mr-32 -mt-32" />
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center text-primary-400 group-hover:scale-110 transition-transform">
-                        <Shield className="fill-primary-500/20" size={32} />
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.4em]">Connection Shield Inactive</p>
-                        <h3 className="text-xl font-outfit font-black text-white uppercase tracking-tight italic">Link your eBay store to activate live neural pulse.</h3>
-                        <p className="text-xs text-slate-500 font-medium">Your platform is currently in observer mode. Establish API handshakes to sync live listings.</p>
-                    </div>
-                </div>
-                <Link to="/settings" className="px-8 py-4 bg-white text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl">
-                    Configure API Vault
-                </Link>
-            </div>
-        </motion.div>
-      )}
 
       {/* Hero Header */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-8">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 mb-4">
-             <div className="px-3 py-1 bg-primary-500 text-white rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-primary-500/20">
-                Live Terminal
-             </div>
-             <div className="px-3 py-1 bg-slate-900 border border-white/10 text-primary-400 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-lg">
-                Crystal Elite
-             </div>
-             <div className={cn(
-                "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em]",
-                isStoreConnected ? "text-emerald-500" : "text-slate-400"
-             )}>
-                <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isStoreConnected ? "bg-emerald-500" : "bg-slate-400")} /> 
-                {isStoreConnected ? 'Nodes Connected' : 'Observer Mode Active'}
-             </div>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-outfit font-black text-slate-900 tracking-tighter leading-none">Command Center.</h1>
-          <p className="text-slate-400 font-medium text-lg text-balance max-w-xl">System orchestration for your eBay dropshipping ecosystem. {isStoreConnected ? 'Monitoring high-velocity market vectors.' : 'Connect store to begin real-time analysis.'}</p>
-        </div>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-12 glass-card p-12 rounded-[3.5rem] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary-500/10 rounded-full blur-[100px] -mr-32 -mt-32" />
         
-        <div className="flex items-center gap-4">
-             <button className="btn-premium flex items-center gap-3">
-                 <Zap size={16} className="fill-white" />
-                 <span>Auto-Optimize Pulse</span>
-             </button>
-             <button className="w-16 h-16 glass-card rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900">
-                 <Calendar size={24} />
-             </button>
+        <div className="space-y-6 relative z-10">
+           <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-xl shadow-2xl">
+                <Zap size={14} className="text-primary-400 fill-primary-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Terminal Connected</span>
+              </div>
+              {sellerName && (
+                <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-600 px-4 py-1.5 rounded-xl border border-emerald-500/20 backdrop-blur-md">
+                    <Shield size={12} className="fill-emerald-500/10" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{sellerName}</span>
+                </div>
+              )}
+           </div>
+           <div className="space-y-2">
+              <h1 className="text-5xl md:text-6xl font-outfit font-black text-slate-900 tracking-tighter leading-[0.9]">Command Center.</h1>
+              <p className="text-slate-400 font-medium max-w-xl text-lg text-balance leading-relaxed">
+                   Neural orchestration and real-time market synchronization for your global dropshipping ecosystem.
+              </p>
+           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-6 relative z-10">
+            <button className="btn-premium flex items-center gap-3 h-16 min-w-[240px] justify-center group">
+                <Zap size={20} className="group-hover:animate-pulse" />
+                <span className="uppercase tracking-[0.2em]">Auto-Optimize Pulse</span>
+            </button>
+            <button className="w-16 h-16 glass-card rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 hover:scale-110 transition-all border border-slate-100">
+                <Calendar size={24} />
+            </button>
         </div>
       </div>
 
