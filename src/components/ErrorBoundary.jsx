@@ -8,7 +8,7 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true };
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -28,6 +28,13 @@ class ErrorBoundary extends React.Component {
                             <h2 className="text-2xl font-black text-white uppercase tracking-tight">System Crash</h2>
                             <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Error Vector Detected</p>
                         </div>
+                        
+                        {this.state.error && (
+                            <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl">
+                                <p className="text-[10px] font-mono text-rose-400 break-all">{this.state.error.toString()}</p>
+                            </div>
+                        )}
+
                         <p className="text-slate-400 text-sm font-medium leading-relaxed">
                             A critical runtime error has interrupted the terminal sequence. This is often caused by missing configuration or session instability.
                         </p>
