@@ -108,5 +108,3 @@ class eBayService {
 }
 
 export default new eBayService();
-
-export default new eBayService();

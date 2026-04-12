@@ -66,38 +66,44 @@ export function AuthProvider({ children }) {
                     }
                 }
 
-                unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setUser(prev => ({ ...prev, ...docSnap.data() }));
-                // Permanent Bridge: Auto-Refresh Logic
-                const data = docSnap.data();
-                if (data?.ebay_refresh_token && (!data?.ebayToken || (data?.ebay_token_expiry && new Date(data.ebay_token_expiry) < new Date()))) {
-                    try {
-                        const { default: ebayTrading } = await import('../services/ebay_trading');
-                        const refreshData = await ebayTrading.refreshEbayToken(data.ebay_refresh_token);
-                        if (refreshData?.access_token) {
-                            await updateDoc(docRef, {
-                                ebayToken: refreshData.access_token,
-                                ebay_token_expiry: new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
-                            });
-                            console.log("[Identity Sync] Persistent Token Refreshed.");
+                unsubscribeDoc = onSnapshot(docRef, async (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setUser(prev => ({ ...prev, ...data }));
+                        
+                        // Permanent Bridge: Auto-Refresh Logic
+                        if (data?.ebay_refresh_token && (!data?.ebayToken || (data?.ebay_token_expiry && new Date(data.ebay_token_expiry) < new Date()))) {
+                            try {
+                                const { default: ebayTrading } = await import('../services/ebay_trading');
+                                const { updateDoc } = await import('firebase/firestore');
+                                const refreshData = await ebayTrading.refreshEbayToken(data.ebay_refresh_token);
+                                if (refreshData?.access_token) {
+                                    await updateDoc(docRef, {
+                                        ebayToken: refreshData.access_token,
+                                        ebay_token_expiry: new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
+                                    });
+                                    console.log("[Identity Sync] Persistent Token Refreshed.");
+                                }
+                            } catch (e) {
+                                console.error("[Identity Sync] Auto-Refresh Failed:", e);
+                            }
                         }
-                    } catch (e) {
-                        console.error("[Identity Sync] Auto-Refresh Failed:", e);
+                        setLoading(false);
+                    } else {
+                        setLoading(false);
                     }
-                }
-
-                setLoading(false);
+                });
             } else {
                 setLoading(false);
             }
         });
 
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribeDoc) unsubscribeDoc();
-    };
-  }, []);
+        return () => {
+          unsubscribeAuth();
+          if (unsubscribeDoc) unsubscribeDoc();
+          clearTimeout(safetyTimeout);
+        };
+    }, []);
 
   const signup = (email, password) => {
     return createUserWithEmailAndPassword(auth, email, password);

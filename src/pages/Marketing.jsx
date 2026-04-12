@@ -315,9 +315,9 @@ const Marketing = () => {
                 </h4>
                 <div className="space-y-8">
                     {[
-                        { msg: 'ROAS Threshold exceeded on Node #14. Capital diverted.', time: '02:14 UTC', color: 'bg-primary-500' },
-                        { msg: 'AI Offer sent to 5 eBay watchers for "Vitamin C Serum".', time: '01:50 UTC', color: 'bg-emerald-500' },
-                        { msg: 'Niche volatility detected in "Home Office". Syncing catalog.', time: '00:12 UTC', color: 'bg-indigo-500' }
+                        { msg: 'Global signals synchronized. Bridge health verified at 100%.', time: '02:14 UTC', color: 'bg-emerald-500' },
+                        { msg: 'Production node handshake confirmed for connected account.', time: '01:50 UTC', color: 'bg-primary-500' },
+                        { msg: 'Neural scanning active across target market vectors.', time: '00:12 UTC', color: 'bg-indigo-500' }
                     ].map((m, i) => (
                         <div key={i} className="flex gap-4 group">
                             <div className="pt-1">

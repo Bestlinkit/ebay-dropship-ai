@@ -21,12 +21,12 @@ const PublishProduct = () => {
   const navigate = useNavigate();
 
   // Mock data for the final step
-  const product = {
-    title: "Optimized Vitamin C Serum 20% - Professional Grade",
+  const [product, setProduct] = useState({
+    title: "New Optimized Market Entry",
     price: 24.99,
     cost: 9.49,
     margin: 62
-  };
+  });
 
   const handlePublish = async () => {
     setLoading(true);

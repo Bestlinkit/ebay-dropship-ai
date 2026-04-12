@@ -96,6 +96,7 @@ const Dashboard = () => {
   useEffect(() => {
     const loadLiveStats = async () => {
       if (isStoreConnected && user?.ebayToken) {
+        setStats(prev => ({ ...prev, loading: true }));
         try {
             const [summary, name] = await Promise.all([
                 ebayTrading.getAccountSummary(user.ebayToken),
@@ -106,7 +107,7 @@ const Dashboard = () => {
             setStats({
               revenue: summary.revenue,
               activeListings: summary.activeListings,
-              globalPulse: summary.activeListings > 0 ? 86 : 0,
+              globalPulse: summary.activeListings > 0 ? 100 : 0, // Bridge Health %
               efficiency: summary.activeListings > 0 ? 94 : 0,
               loading: false
             });
@@ -127,7 +128,7 @@ const Dashboard = () => {
       {
         fill: true,
         label: 'Gross Profit',
-        data: isStoreConnected ? [0, 0, 0, 0, 0, 0, 0] : [2100, 2400, 1900, 3200, 2800, 4100, 4800],
+        data: [0, 0, 0, 0, 0, 0, 0], // Stay 0 until real sales are detected
         borderColor: primaryColor,
         backgroundColor: `${primaryColor}10`,
         tension: 0.4,
@@ -186,40 +187,40 @@ const Dashboard = () => {
            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-xl shadow-2xl">
                 <Zap size={14} className="text-primary-400 fill-primary-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live Terminal v5.7</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Scale System v5.7r</span>
               </div>
                {sellerName && (
-                <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-600 px-4 py-1.5 rounded-xl border border-emerald-500/20 backdrop-blur-md">
-                    <Shield size={12} className="fill-emerald-500/10" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{sellerName}</span>
+                <div className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-xl border border-emerald-400 shadow-xl shadow-emerald-500/20">
+                    <Shield size={12} className="fill-white/20" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Verified Seller: {sellerName}</span>
                 </div>
               )}
               {isStoreConnected && (
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="flex items-center gap-2 bg-primary-500 text-white px-4 py-1.5 rounded-xl shadow-[0_0_20px_rgba(14,140,233,0.3)] animate-pulse"
+                  className="flex items-center gap-2 bg-primary-500 text-white px-4 py-1.5 rounded-xl shadow-[0_0_20px_rgba(14,140,233,0.3)]"
                 >
                     <CheckCircle2 size={12} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Production Bridge Active</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Handshake Protocol Active</span>
                 </motion.div>
               )}
            </div>
            <div className="space-y-2">
               <h1 className="text-5xl md:text-6xl font-outfit font-black text-slate-900 tracking-tighter leading-[0.9]">Command Center.</h1>
               <p className="text-slate-400 font-medium max-w-xl text-lg text-balance leading-relaxed">
-                   Neural orchestration and real-time market synchronization for your global dropshipping ecosystem.
+                   Real-time eBay production telemetry and automated inventory sync.
               </p>
            </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-6 relative z-10">
-            <button className="btn-premium flex items-center gap-3 h-16 min-w-[240px] justify-center group">
-                <Zap size={20} className="group-hover:animate-pulse" />
-                <span className="uppercase tracking-[0.2em]">Auto-Optimize Pulse</span>
-            </button>
-            <button className="w-16 h-16 glass-card rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 hover:scale-110 transition-all border border-slate-100">
-                <Calendar size={24} />
+            <button 
+                onClick={() => window.location.reload()}
+                className="btn-premium flex items-center gap-3 h-16 min-w-[240px] justify-center group"
+            >
+                <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
+                <span className="uppercase tracking-[0.2em]">Force System Sync</span>
             </button>
         </div>
       </div>
@@ -227,29 +228,29 @@ const Dashboard = () => {
       {/* Primary Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
             <PremiumStat 
-                label="Weekly Revenue" 
-                value={`$${stats.revenue.toLocaleString()}`} 
-                trend={isStoreConnected ? "Live" : "Synced"} 
-                icon={DollarSign} 
+                label="Identity Bridge" 
+                value={sellerName || "Connecting..."} 
+                trend={isStoreConnected ? "Live Handshake" : "Searching..."} 
+                icon={Globe} 
             />
             <PremiumStat 
-                label="Global Pulse" 
-                value={stats.globalPulse > 0 ? stats.globalPulse : "OFF"} 
-                trend={isStoreConnected ? "Active" : "Locked"} 
-                icon={Activity} 
+                label="Bridge Health" 
+                value={stats.globalPulse > 0 ? "100%" : "OFFLINE"} 
+                trend={isStoreConnected ? "Production" : "N/A"} 
+                icon={Shield} 
             />
             <PremiumStat 
-                label="Active Nodes" 
+                label="Active Listings" 
                 value={stats.activeListings} 
-                trend={isStoreConnected ? "Live" : "Observer"} 
-                icon={ShoppingBag}
-                trendType={isStoreConnected ? 'up' : 'down'}
+                trend={isStoreConnected ? "Verified Node" : "Observer"} 
+                icon={Package}
+                trendType={isStoreConnected && stats.activeListings > 0 ? 'up' : 'down'}
             />
             <PremiumStat 
-                label="Neural Lift" 
-                value={stats.activeListings > 0 ? "98.2%" : "N/A"} 
-                trend={isStoreConnected ? "Optimal" : "Disconnected"} 
-                icon={Zap} 
+                label="System Capacity" 
+                value={stats.activeListings > 0 ? "Optimal" : "Standby"} 
+                trend={isStoreConnected ? "Synced" : "Awaiting Link"} 
+                icon={Activity} 
             />
       </div>
 

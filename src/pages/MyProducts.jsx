@@ -170,5 +170,3 @@ const MyProducts = () => {
 };
 
 export default MyProducts;
-
-export default MyProducts;
