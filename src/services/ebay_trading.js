@@ -87,16 +87,23 @@ class EbayTradingService {
 
         // Simple regex parsing for light footprint (or use a parser if needed)
         const activeCountMatch = response.data.match(/<TotalNumberOfEntries>(\d+)<\/TotalNumberOfEntries>/);
-        const activeListings = activeCountMatch ? parseInt(activeCountMatch[1]) : 0;
+        // Handle XML Errors
+        const errorMatch = response.data.match(/<ShortMessage>(.*?)<\/ShortMessage>/);
+        const errorCodeMatch = response.data.match(/<ErrorCode>(.*?)<\/ErrorCode>/);
+        
+        if (errorMatch && !response.data.includes('<Ack>Success</Ack>') && !response.data.includes('<Ack>Warning</Ack>')) {
+            throw new Error(`${errorMatch[1]} (Code ${errorCodeMatch[1]})`);
+        }
 
+        const activeMatch = response.data.match(/<TotalActiveListings>(.*?)<\/TotalActiveListings>/);
         return {
-            activeListings,
+            activeListings: activeMatch ? parseInt(activeMatch[1]) : 0,
             soldCount: 0, // Would require GetSellerTransactions for full accuracy
-            revenue: 0,
+            revenue: 0, // Financial data often requires a different call or specific scope
             status: 'CONNECTED'
         };
     } catch (error) {
-        console.error("eBay Account Summary Fetch Failed:", error);
+        console.error("eBay Account Summary Sync Failure:", error);
         return { activeListings: 0, soldCount: 0, revenue: 0, status: 'ERROR' };
     }
   }

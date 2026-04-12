@@ -43,20 +43,38 @@ const Discovery = () => {
   const [source, setSource] = useState('ebay'); // 'ebay' or 'eprolo'
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('grid');
+  const [trendingProducts, setTrendingProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(null);
   const { isStoreConnected } = useAuth();
   const navigate = useNavigate();
 
+  const topCategories = [
+    { id: '293', name: 'Electronics', icon: '📱' },
+    { id: '11450', name: 'Fashion', icon: '👕' },
+    { id: '11700', name: 'Home & Garden', icon: '🏡' },
+    { id: '1', name: 'Collectibles', icon: '🏺' },
+    { id: '220', name: 'Toys & Hobbies', icon: '🧸' },
+    { id: '888', name: 'Sporting Goods', icon: '🎾' }
+  ];
+
   useEffect(() => {
-    const fetchTrending = async () => {
+    const fetchMarketPulse = async () => {
+        setLoading(true);
         try {
-            const results = await ebayService.searchProducts('trending');
+            // Initial Pulse: Load Electronics or if user selected a category
+            const targetCat = activeCategory || topCategories[0].id;
+            const results = await ebayService.searchProducts(null, targetCat);
             setTrendingProducts(results || []);
         } catch (e) {
+            console.error("Market Pulse Sync Failed", e);
             setTrendingProducts([]);
+        } finally {
+            setLoading(false);
         }
     };
-    fetchTrending();
-  }, []);
+    fetchMarketPulse();
+  }, [activeCategory]);
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
@@ -105,18 +123,18 @@ const Discovery = () => {
       
       {/* Editorial Hero Search */}
       <section className="relative min-h-[450px] flex flex-col items-center justify-center text-center px-6 overflow-hidden rounded-[3.5rem] bg-slate-900 shadow-3xl mx-4 lg:mx-0">
-         <div className="absolute inset-0 bg-gradient-to-b from-slate-800/20 to-slate-900" />
-         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-500/10 rounded-full blur-[120px] -mr-64 -mt-64 animate-pulse" />
+         <section className="bg-white p-12 md:p-20 rounded-[4rem] border border-slate-100 shadow-2xl relative overflow-hidden">
+         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-500/5 rounded-full blur-[120px] -mr-48 -mt-48" />
          
-         <div className="relative z-10 space-y-10 w-full max-w-3xl">
-            <div className="space-y-4">
-                <div className="flex items-center justify-center gap-3 text-primary-400 text-[10px] font-black uppercase tracking-[0.4em] mb-4">
-                    <Zap size={14} className="fill-primary-400" />
-                    Neural Market Intelligence
+         <div className="relative z-10 space-y-12">
+            <div className="text-center space-y-4">
+                <div className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded-2xl shadow-xl">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live API: Global Pulse</span>
                 </div>
-                <h1 className="text-5xl md:text-7xl font-outfit font-black text-white tracking-tighter">Market Discovery.</h1>
-                <p className="text-slate-400 font-medium text-lg md:text-xl max-w-xl mx-auto text-balance">
-                    Identify high-velocity market gaps through real-time competitive analysis and gap detection.
+                <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none">Market Discovery.</h1>
+                <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">
+                    Scanning the eBay production vector for high-velocity sourcing opportunities.
                 </p>
             </div>
 
