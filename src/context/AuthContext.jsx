@@ -23,6 +23,10 @@ export function AuthProvider({ children }) {
   const GLOBAL_AUTH_VERSION = 'ebay_ds_v1.0.3';
 
   useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+        if (loading) setLoading(false);
+    }, 3500); // 3.5s safety limit for preloader
+
     // Force logout on version mismatch to clear legacy sessions
     const storedVersion = localStorage.getItem('ebay_ds_auth_v');
     if (storedVersion !== GLOBAL_AUTH_VERSION) {

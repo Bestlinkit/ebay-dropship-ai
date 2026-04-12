@@ -235,23 +235,56 @@ const Discovery = () => {
                           </h2>
                           <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Velocity Leaders.</p>
                       </div>
-                      {!isStoreConnected && (
-                          <div className="flex items-center gap-3 bg-slate-900 text-white px-6 py-3 rounded-2xl">
-                             <Shield size={14} className="text-primary-400" />
-                             <span className="text-[9px] font-black uppercase tracking-widest">Connect Store for Live Trending Data</span>
+                      <div className="flex items-center gap-4">
+                          {!isStoreConnected && (
+                              <div className="flex items-center gap-3 bg-slate-900 text-white px-6 py-3 rounded-2xl">
+                                 <Shield size={14} className="text-primary-400" />
+                                 <span className="text-[9px] font-black uppercase tracking-widest">Connect Store for Live Trending Data</span>
+                              </div>
+                          )}
+                          <div className="flex gap-2">
+                             <button 
+                                onClick={() => {
+                                    const container = document.getElementById('trending-carousel');
+                                    if (container) container.scrollBy({ left: -350, behavior: 'smooth' });
+                                }}
+                                className="p-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                             >
+                                <ChevronLeft size={20} />
+                             </button>
+                             <button 
+                                onClick={() => {
+                                    const container = document.getElementById('trending-carousel');
+                                    if (container) container.scrollBy({ left: 350, behavior: 'smooth' });
+                                }}
+                                className="p-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                             >
+                                <ChevronRight size={20} />
+                             </button>
                           </div>
-                      )}
+                      </div>
                   </div>
+
                   {trendingProducts.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-                          {trendingProducts.map((product, i) => (
-                              <ProductCard 
-                                  key={i} 
-                                  product={product} 
-                                  onImport={handleImport}
-                                  compact={false}
-                              />
-                          ))}
+                      <div className="relative pb-12">
+                         <div 
+                            id="trending-carousel"
+                            className="flex gap-8 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-6 px-1"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                         >
+                            {trendingProducts.map((product, i) => (
+                                <div key={i} className="min-w-[320px] md:min-w-[340px] snap-start">
+                                    <ProductCard 
+                                        product={product} 
+                                        onImport={handleImport}
+                                        compact={false}
+                                    />
+                                </div>
+                            ))}
+                         </div>
+                         <div className="absolute bottom-4 left-0 w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                             <div className="h-full bg-primary-500 w-1/3 transition-all duration-500" />
+                         </div>
                       </div>
                   ) : (
                       <div className="py-20 flex flex-col items-center gap-4 text-slate-300">

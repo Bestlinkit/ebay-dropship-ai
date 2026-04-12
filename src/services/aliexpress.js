@@ -2,7 +2,7 @@ import axios from 'axios';
 
 class AliExpressService {
   constructor() {
-    this.useMock = true; // Set to true for initial testing, false when backend is ready
+    this.useMock = !import.meta.env.VITE_ALIEXPRESS_API_KEY; 
   }
 
   /**
