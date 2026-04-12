@@ -53,12 +53,33 @@ const Settings = () => {
     pass: "••••••••••••"
   });
 
+  const [isTestingBridge, setIsTestingBridge] = useState(false);
+
   const handleSave = () => {
     setLoading(true);
     setTimeout(() => {
         setLoading(false);
         toast.success("Platform Configuration Updated!");
     }, 1500);
+  };
+
+  const handleTestBridge = async () => {
+    setIsTestingBridge(true);
+    try {
+        const { default: ebayTrading } = await import('../services/ebay_trading');
+        const token = import.meta.env.VITE_EBAY_USER_TOKEN;
+        const name = await ebayTrading.getUserProfile(token);
+        
+        if (name) {
+            toast.success(`Bridge Verified: Connected as ${name}`);
+        } else {
+            throw new Error("Invalid Handshake Response");
+        }
+    } catch (e) {
+        toast.error("Bridge Failure: Handshake rejected by eBay.");
+    } finally {
+        setIsTestingBridge(false);
+    }
   };
 
   const handleTestSmtp = () => {
@@ -260,40 +281,89 @@ const Settings = () => {
                 </div>
             )}
 
-            {activeTab === 'store' && (
-                 <div className="bg-white p-20 rounded-[4rem] border border-slate-100 shadow-sm text-center animate-in slide-in-from-right-4 duration-500">
-                    <div className={cn(
-                        "w-24 h-24 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 transition-all duration-700 shadow-2xl ",
-                        isStoreConnected ? "bg-emerald-500 text-white shadow-emerald-500/20" : "bg-slate-100 text-slate-300 shadow-slate-200"
-                    )}>
-                        {isStoreConnected ? <CheckCircle2 size={48} /> : <Store size={48} />}
+             {activeTab === 'store' && (
+                  <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                    <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/5 rounded-full blur-[80px] -mr-32 -mt-32" />
+                        
+                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+                            <div className="space-y-4 text-center md:text-left">
+                                <div className={cn(
+                                    "w-20 h-20 rounded-3xl flex items-center justify-center mx-auto md:mx-0 shadow-2xl transition-all duration-700",
+                                    isStoreConnected ? "bg-primary-500 text-white shadow-primary-500/30" : "bg-slate-100 text-slate-300"
+                                )}>
+                                    <Store size={40} />
+                                </div>
+                                <div>
+                                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">Identity Bridge Manager</h3>
+                                    <p className="text-slate-400 font-bold text-sm italic">Production Handshake Protocol v5.7</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-center md:items-end gap-4">
+                                <div className={cn(
+                                    "px-6 py-2 rounded-2xl flex items-center gap-3 text-xs font-black uppercase tracking-[0.2em]",
+                                    isStoreConnected ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-rose-50 text-rose-600 border border-rose-100"
+                                )}>
+                                    <div className={cn("w-2 h-2 rounded-full", isStoreConnected ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
+                                    {isStoreConnected ? "Production Bridge Active" : "Bridge Disconnected"}
+                                </div>
+                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Global Sync Status: Verified</p>
+                                <button 
+                                    onClick={handleTestBridge}
+                                    disabled={isTestingBridge}
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all"
+                                >
+                                    {isTestingBridge ? <Loader2 className="animate-spin" size={12} /> : <RefreshCw size={12} />}
+                                    {isTestingBridge ? "Handshaking..." : "Test Identity Bridge"}
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <h3 className="text-3xl font-black mb-4 uppercase tracking-tight">
-                        {isStoreConnected ? "EBay Store Live" : "Sync Storefront"}
-                    </h3>
-                    <p className="text-slate-400 font-bold mb-12 max-w-sm mx-auto text-sm leading-relaxed italic">Authorize your eBay business account to unlock automated sourcing, listing, and 24s video ad pushing.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="glass-card p-10 rounded-[3rem] space-y-8 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700" />
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                                    <Zap size={14} className="text-primary-500" />
+                                    Active Credentials
+                                </h4>
+                                <div className="space-y-4">
+                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Production App ID</p>
+                                        <p className="text-xs font-black text-slate-900 font-mono truncate">{apiKeys.ebayAppId}</p>
+                                    </div>
+                                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Marketplace RuName</p>
+                                        <p className="text-xs font-black text-slate-900 font-mono">{apiKeys.ebayRuName}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div className="flex justify-center">
-                        {!isStoreConnected ? (
-                            <button 
-                                onClick={() => setIsConnectModalOpen(true)}
-                                className="bg-primary-500 text-white h-20 px-14 rounded-3xl flex items-center justify-center gap-4 shadow-2xl shadow-primary-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all group min-w-[320px]"
-                            >
-                                <Plus size={28} className="group-hover:rotate-90 transition-transform" />
-                                <span className="font-black uppercase tracking-widest text-xs">Establish API Bridge</span>
-                            </button>
-                        ) : (
-                             <button 
-                                onClick={() => setIsStoreConnected(false)}
-                                className="text-rose-500 hover:underline text-[11px] font-black uppercase tracking-widest"
-                             >
-                                Terminate Connection
-                             </button>
-                        )}
+                        <div className="bg-slate-900 p-10 rounded-[3rem] text-white flex flex-col justify-between relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/20 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
+                            <div className="space-y-6 relative z-10">
+                                <div className="space-y-2">
+                                    <h4 className="text-xl font-black tracking-tight leading-none italic">Beat the Glitch.</h4>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Establish a permanent 18-month link to prevent session expiration.</p>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${import.meta.env.VITE_EBAY_APP_ID}&redirect_uri=${import.meta.env.VITE_EBAY_RUNAME}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.marketing https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.fulfillment`;
+                                        window.location.href = authUrl;
+                                    }}
+                                    className="w-full btn-premium bg-white text-slate-900 h-16 rounded-2xl flex items-center justify-center gap-3 group hover:scale-[1.02] transition-all"
+                                >
+                                    <Shield size={20} className="text-primary-500" />
+                                    <span className="font-black uppercase tracking-widest text-xs">Deploy Permanent Bridge</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                 </div>
-            )}
+                  </div>
+             )}
         </div>
       </div>
 

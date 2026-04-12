@@ -17,7 +17,8 @@ import {
   BarChart3,
   Globe,
   Plus,
-  Shield
+  Shield,
+  CheckCircle2
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -187,11 +188,21 @@ const Dashboard = () => {
                 <Zap size={14} className="text-primary-400 fill-primary-400" />
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live Terminal v5.7</span>
               </div>
-              {sellerName && (
+               {sellerName && (
                 <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-600 px-4 py-1.5 rounded-xl border border-emerald-500/20 backdrop-blur-md">
                     <Shield size={12} className="fill-emerald-500/10" />
                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">{sellerName}</span>
                 </div>
+              )}
+              {isStoreConnected && (
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="flex items-center gap-2 bg-primary-500 text-white px-4 py-1.5 rounded-xl shadow-[0_0_20px_rgba(14,140,233,0.3)] animate-pulse"
+                >
+                    <CheckCircle2 size={12} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Production Bridge Active</span>
+                </motion.div>
               )}
            </div>
            <div className="space-y-2">

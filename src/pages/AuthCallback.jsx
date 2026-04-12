@@ -12,24 +12,63 @@ const AuthCallback = () => {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // In a real app, you'd exchange the code/token here
         const query = new URLSearchParams(location.search);
         const code = query.get('code');
         
-        // Simulating node synchronization
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        if (!code) {
+            if (location.pathname.includes('declined')) {
+                setStatus('error');
+                toast.error("Marketplace authorization declined.");
+            }
+            return;
+        }
+
+        // Exchange code for token
+        const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
         
-        if (location.pathname.includes('declined')) {
-            setStatus('error');
-            toast.error("Marketplace authorization declined.");
-        } else {
+        const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${platformBase64}`
+            },
+            body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: import.meta.env.VITE_EBAY_RUNAME
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.access_token) {
+            // Success! Save to Firestore via a temporary bridge update logic
+            // In a real app, you'd send this to your backend
+            // Here we'll update the user doc directly if possible
+            const { db } = await import('../config/firebase');
+            const { doc, updateDoc } = await import('firebase/firestore');
+            const { auth } = await import('../config/firebase');
+            
+            if (auth.currentUser) {
+                await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                    ebayToken: data.access_token,
+                    ebay_refresh_token: data.refresh_token,
+                    ebay_token_expiry: new Date(Date.now() + data.expires_in * 1000).toISOString(),
+                    ebay_linked_at: new Date().toISOString(),
+                    bridge_type: 'PERMANENT_18_MONTH'
+                });
+            }
+
             setStatus('success');
-            toast.success("eBay Nodes Synchronized successfully!");
+            toast.success("Identity Bridge established for 18 months!");
             setTimeout(() => navigate('/dashboard'), 2000);
+        } else {
+            throw new Error(data.error_description || "Token exchange failed.");
         }
       } catch (error) {
+        console.error("Bridge Exchange Error:", error);
         setStatus('error');
-        toast.error("Vector sync failed.");
+        toast.error(`Vector sync failed: ${error.message}`);
       }
     };
 

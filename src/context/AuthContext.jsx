@@ -44,19 +44,22 @@ export function AuthProvider({ children }) {
             if (authUser) {
                 const docRef = doc(db, 'users', authUser.uid);
                 
-                // Self-Healing Identity Bridge: Sync .env token to Firestore if missing
+                // Self-Healing Identity Bridge: Sync .env token to Firestore
                 const envToken = import.meta.env.VITE_EBAY_USER_TOKEN;
-                if (envToken && envToken !== 'YOUR_EBAY_USER_TOKEN') {
+                if (envToken && envToken.startsWith('v^1.1')) {
                     try {
                         const { updateDoc, getDoc } = await import('firebase/firestore');
                         const docSnap = await getDoc(docRef);
-                        if (!docSnap.exists() || !docSnap.data().ebayToken) {
+                        const currentToken = docSnap.exists() ? docSnap.data().ebayToken : null;
+                        
+                        if (currentToken !== envToken) {
                             await updateDoc(docRef, { 
                                 ebayToken: envToken,
                                 ebay_linked_at: new Date().toISOString(),
-                                system_bridge: true
+                                system_bridge: true,
+                                bridge_version: 'v1.1_live'
                             });
-                            console.log("[Identity Sync] Production Bridge Established.");
+                            console.log("[Identity Sync] Production Bridge Synchronized.");
                         }
                     } catch (e) {
                         console.error("[Identity Sync] Bridge Failed:", e);
@@ -66,13 +69,29 @@ export function AuthProvider({ children }) {
                 unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
             setUser(prev => ({ ...prev, ...docSnap.data() }));
-          }
-          setLoading(false);
+                // Permanent Bridge: Auto-Refresh Logic
+                const data = docSnap.data();
+                if (data?.ebay_refresh_token && (!data?.ebayToken || (data?.ebay_token_expiry && new Date(data.ebay_token_expiry) < new Date()))) {
+                    try {
+                        const { default: ebayTrading } = await import('../services/ebay_trading');
+                        const refreshData = await ebayTrading.refreshEbayToken(data.ebay_refresh_token);
+                        if (refreshData?.access_token) {
+                            await updateDoc(docRef, {
+                                ebayToken: refreshData.access_token,
+                                ebay_token_expiry: new Date(Date.now() + refreshData.expires_in * 1000).toISOString()
+                            });
+                            console.log("[Identity Sync] Persistent Token Refreshed.");
+                        }
+                    } catch (e) {
+                        console.error("[Identity Sync] Auto-Refresh Failed:", e);
+                    }
+                }
+
+                setLoading(false);
+            } else {
+                setLoading(false);
+            }
         });
-      } else {
-        setLoading(false);
-      }
-    });
 
     return () => {
       unsubscribeAuth();

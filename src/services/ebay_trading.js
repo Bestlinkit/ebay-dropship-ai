@@ -148,6 +148,30 @@ class EbayTradingService {
 
     return response.data;
   }
+  async refreshEbayToken(refreshToken) {
+    if (!refreshToken) return null;
+    try {
+        const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
+        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+            new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+                scope: 'https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.marketing https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.fulfillment'
+            }), 
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${platformBase64}`
+                }
+            }
+        );
+
+        return response.data;
+    } catch (e) {
+        console.error("eBay Token Refresh Failed:", e);
+        return null;
+    }
+  }
 }
 
 export default new EbayTradingService();
