@@ -227,15 +227,35 @@ class eBayService {
     const token = await this.getAppToken();
     if (!token) return [];
     try {
+        // High-precision search for competitor baseline
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
-            params: { q: keyword, limit: 5, sort: 'price' },
+            params: { 
+                q: keyword, 
+                limit: 10, 
+                sort: 'price',
+                filter: 'buyingOptions:{FIXED_PRICE},itemCondition:{NEW}'
+            },
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        return (response.data?.itemSummaries || []).map(item => ({
+        
+        const results = (response.data?.itemSummaries || []).map(item => ({
             title: item.title,
             price: parseFloat(item.price.value),
-            shipping: item.shippingOptions?.[0]?.shippingCost?.value === '0.00' ? "Free" : "Calculated"
+            shipping: item.shippingOptions?.[0]?.shippingCost?.value === '0.00' ? "Free" : "Calculated",
+            seller: item.seller?.username || "eBay Competitor"
         }));
+
+        // Calculate Stats for AI Pricing Strat
+        if (results.length > 0) {
+            const prices = results.map(r => r.price);
+            results.stats = {
+                min: Math.min(...prices).toFixed(2),
+                max: Math.max(...prices).toFixed(2),
+                avg: (prices.reduce((a,b) => a+b, 0) / prices.length).toFixed(2)
+            };
+        }
+
+        return results;
     } catch (e) {
         return [];
     }
@@ -245,7 +265,9 @@ class eBayService {
     const token = await this.getAppToken();
     if (!token) return null;
     try {
+        // Enrich with PRODUCT fieldgroup for full description and additionalImages
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${id}`, {
+            params: { fieldgroups: 'PRODUCT' },
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const item = response.data;
@@ -253,9 +275,14 @@ class eBayService {
             id: item.itemId,
             title: item.title,
             price: parseFloat(item.price.value),
-            images: [item.image?.imageUrl]
+            description: item.description || "",
+            images: [
+                item.image?.imageUrl, 
+                ...(item.additionalImages || []).map(img => img.imageUrl)
+            ].filter(Boolean)
         };
     } catch (e) {
+        console.error("[eBay Sync] Detailed fetch failed:", e);
         return null;
     }
   }
