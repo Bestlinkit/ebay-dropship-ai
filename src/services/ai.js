@@ -151,6 +151,8 @@ class AIService {
   async generateProductImage(prompt) {
     await new Promise(r => setTimeout(r, 2000));
     return `https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000&auto=format&fit=crop`;
+  }
+
   /**
    * Generates viral marketing copy for specific social channels.
    */
@@ -165,7 +167,8 @@ class AIService {
     const prompt = prompts[channel.toLowerCase()] || prompts.tiktok;
 
     try {
-        const responseData = await this.askGemini(prompt);
+        const response = await this.model.generateContent(prompt);
+        const responseData = response.response.text();
         // Basic cleanup of GPT-style markdown if present
         const jsonStr = responseData.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(jsonStr);

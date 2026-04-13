@@ -396,8 +396,7 @@ const Marketing = () => {
                             ))}
                          </div>
                     </div>
-                </div>
-            )}
+            </div>
         </div>
 
         <div className="lg:col-span-4 space-y-10">
