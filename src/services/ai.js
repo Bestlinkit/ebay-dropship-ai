@@ -109,75 +109,82 @@ class AIService {
    * Returns: { titles: [{title, rank},...], description, category, tags, pricingStrategy }
    */
   /**
-   * Consolidates Optimization Intelligence (V6.5 - Luminous Engine)
+   * Consolidates Optimization Intelligence (Production SaaS v1.0)
+   * Returns precise JSON for rapid UI hydration.
    */
   async optimizeListing(baselineTitle, currentPrice, competitorPrices = []) {
     const pricesStr = Array.isArray(competitorPrices) && competitorPrices.stats 
-        ? `Avg: $${competitorPrices.stats.avg}, Min: $${competitorPrices.stats.min}` 
+        ? `Avg: $${competitorPrices.stats.avg}, Min: $${competitorPrices.stats.min}, Max: $${competitorPrices.stats.max}` 
         : "No direct market data found";
     
     const prompt = `
-      ACT AS EBAY LISTING ARCHITECT.
+      ACT AS EBAY LISTING ARCHITECT (SAAS PRODUCTION LEVEL).
       
-      CORE SPECS:
+      INPUT DATA:
       TITLE: ${baselineTitle}
-      STAGED PRICE: $${currentPrice}
-      COMPETITOR LANDSCAPE: ${pricesStr}
+      CURRENT PRICE: $${currentPrice}
+      MARKET LANDSCAPE: ${pricesStr}
 
-      OBJECTIVES:
-      1. TITLES: Generate EXACTLY 5 high-rank title profiles. MAX 80 CHARS.
-      2. DESCRIPTION: Create a PREMIUM HTML SELL-PITCH. 
-         - REMOVE all existing image links (<img> tags).
-         - REMOVE promotional noise (e.g., "FAST SHIPPING", "BEST PRICE").
-         - FOCUS on benefits, specs, and trust.
-      3. TAGS: 10 hyper-niche SEO keywords.
-      4. STRATEGY: Data-driven pricing logic.
+      TASKS:
+      1. TITLES: Generate EXACTLY 3 high-conversion titles. Rank each by SEO score (80-100). MAX 80 CHARS.
+      2. DESCRIPTION: Create a clean, image-free HTML sell-pitch. NO image tags. Focus on USP.
+      3. TAGS: Generate 10-20 hyper-relevant tags. Provide a relevance score (1-10) for each.
+      4. PRICING INTELLIGENCE:
+         - Suggested Price: Optimized for volume.
+         - Profit Margin: Estimate based on market delta.
+         - Competition Level: "Low", "Medium", or "High".
+         - Sales Probability: 0-100%.
 
-      OUTPUT STRUCTURE (JSON ONLY):
+      OUTPUT (JSON ONLY):
       {
         "titles": [
-          {"title": "...", "rank": 99},
-          {"title": "...", "rank": 95},
-          {"title": "...", "rank": 92},
-          {"title": "...", "rank": 88},
-          {"title": "...", "rank": 85}
+          {"id": 1, "title": "...", "score": 98},
+          {"id": 2, "title": "...", "score": 94},
+          {"id": 3, "title": "...", "score": 91}
         ],
-        "description": "<div class='premium-listing'>...</div>",
-        "tags": ["...", "..."],
-        "pricingStrategy": "...",
-        "aiVerdict": "High-velocity match."
+        "description": "...",
+        "tags": [
+          {"text": "...", "score": 10},
+          {"text": "...", "score": 8}
+        ],
+        "pricing": {
+          "suggested": 0.00,
+          "estimatedMargin": "15%",
+          "competition": "Medium",
+          "salesProbability": 85,
+          "feedback": "Optimal Market Entry"
+        }
       }
     `;
 
     try {
       const response = await this.model.generateContent(prompt);
       const text = response.response.text();
-      
-      // Improved robust JSON extraction
       const jsonStart = text.indexOf('{');
       const jsonEnd = text.lastIndexOf('}') + 1;
-      
-      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON object found in response");
-      
       const cleanJson = text.substring(jsonStart, jsonEnd).trim();
       const parsed = JSON.parse(cleanJson);
       
-      // Ensure strict compliance post-generation
-      parsed.titles = (parsed.titles || []).map(t => ({
+      // Strict Title compliance
+      parsed.titles = (parsed.titles || []).slice(0, 3).map(t => ({
           ...t,
           title: t.title.substring(0, 80)
       }));
       
       return parsed;
     } catch (error) {
-      console.error("AI Suite Synchronization Failed", error);
+      console.error("AI Intelligence Fault", error);
       return {
-        titles: [{ title: baselineTitle.substring(0, 80), rank: 95 }],
+        titles: [{ id: 1, title: baselineTitle.substring(0, 80), score: 95 }],
         description: `<p>${baselineTitle}</p>`,
-        mainCategory: "General Merchandise",
-        subCategory: "Uncategorized",
-        tags: ["SEO", "Optimized", "Best Seller"],
-        pricingStrategy: "Analyze market data for further precision."
+        tags: [{ text: "SEO", score: 10 }, { text: "Optimized", score: 9 }],
+        pricing: {
+          suggested: currentPrice,
+          estimatedMargin: "N/A",
+          competition: "Low",
+          salesProbability: 50,
+          feedback: "Awaiting Market Signal"
+        }
       };
     }
   }

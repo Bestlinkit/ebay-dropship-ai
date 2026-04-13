@@ -280,8 +280,6 @@ class eBayService {
     if (!token) return [];
     
     try {
-        // Taxonomy API: Search for leaf categories (Official eBay Standard)
-        // Tree ID 0 is usually EBAY_US
         const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions`, {
             params: { q: keyword },
             headers: { 'Authorization': `Bearer ${token}` }
@@ -290,10 +288,45 @@ class eBayService {
         return (response.data?.categorySuggestions || []).map(s => ({
             id: s.category?.categoryId,
             name: s.category?.categoryName,
-            ancestors: (s.categoryAncsentorPath || []).map(a => a.categoryName).join(' > ')
+            ancestors: (s.categoryAncsentorPath || []).map(a => a.categoryName).join(' > '),
+            fullPath: [...(s.categoryAncsentorPath || []).map(a => a.categoryName), s.category?.categoryName].join(' > ')
         }));
     } catch (e) {
         console.error("[eBay Taxonomy] Search Failed:", e);
+        return [];
+    }
+  }
+
+  async getSubCategories(parentId) {
+    const token = await this.getAppToken();
+    if (!token) return [];
+
+    try {
+        // Fetch specific subtree node to get immediate children
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_item_aspect_names`, {
+            params: { category_id: parentId },
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        // Note: For immediate subcategories, we usually need the full tree or iterative suggestions.
+        // As a SaaS standard, we'll use suggestions with query refinement if subtree fetch is restricted.
+        return response.data || [];
+    } catch (e) {
+        return [];
+    }
+  }
+
+  async getCategoryInfo(categoryId) {
+    const token = await this.getAppToken();
+    if (!token) return null;
+
+    try {
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_subtree`, {
+            params: { category_id: categoryId },
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        return response.data?.categoryTreeNode?.childCategoryTreeNodes || [];
+    } catch (e) {
+        console.error("[eBay Taxonomy] Subtree Fetch Failed:", e);
         return [];
     }
   }

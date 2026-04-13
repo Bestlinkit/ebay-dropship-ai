@@ -112,57 +112,43 @@ const Layout = ({ children }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
-
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-    { icon: Search, label: 'Market Discovery', href: '/discovery' },
-    { icon: Package, label: 'inventory Hub', href: '/products' },
-    { icon: Megaphone, label: 'Marketing Hub', href: '/marketing' },
-    { icon: Video, label: 'Video Lab', href: '/video' },
-    { icon: BarChart3, label: 'Performance', href: '/analytics' },
+    { icon: Package, label: 'Products', href: '/products' },
+    { icon: Zap, label: 'Optimization', href: '/discovery' },
+    { icon: ShoppingBag, label: 'Orders', href: '/orders' },
+    { icon: BarChart3, label: 'Analytics', href: '/analytics' },
     { icon: Settings, label: 'Settings', href: '/settings' },
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-inter selection:bg-primary-100 selection:text-primary-900">
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-inter selection:bg-primary-100 selection:text-primary-900">
       
-      {/* Sidebar Navigation */}
+      {/* SaaS Sidebar (240px) */}
       <aside 
         className={cn(
-          "fixed left-0 top-0 h-screen glass-card transition-all duration-500 z-[80] flex flex-col pt-4 border-r-0 rounded-r-[2rem] lg:rounded-none",
-          collapsed ? "w-24" : "w-72",
+          "fixed left-0 top-0 h-screen bg-white transition-all duration-500 z-[80] flex flex-col pt-4 border-r border-slate-100",
+          collapsed ? "w-20" : "w-[240px]",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="h-24 px-8 flex items-center justify-between shrink-0">
+        <div className="h-20 px-6 flex items-center justify-between shrink-0">
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 premium-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/20">
-                <Zap size={20} className="fill-white" />
+              <div className="w-8 h-8 bg-slate-950 rounded-xl flex items-center justify-center shadow-lg">
+                <Zap size={16} className="text-primary-400 fill-primary-400" />
               </div>
-              <span className="font-outfit font-black text-xl tracking-tight uppercase">DropAI</span>
+              <span className="font-black text-lg tracking-tighter uppercase italic">DropAI</span>
             </div>
           )}
           {collapsed && (
-            <div className="w-10 h-10 premium-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/20 mx-auto">
-                <Zap size={20} className="fill-white" />
+            <div className="w-8 h-8 bg-slate-950 rounded-xl flex items-center justify-center shadow-lg mx-auto">
+                <Zap size={16} className="text-primary-400 fill-primary-400" />
             </div>
           )}
         </div>
 
-        {/* Sidebar scrolling area */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide px-6 space-y-1 py-8">
-          <p className={cn("text-[9px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4 px-2", collapsed && "text-center")}>
-            {collapsed ? 'Hub' : 'Platform Control'}
-          </p>
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 space-y-1 py-10">
           {menuItems.map((item) => (
             <SidebarItem
               key={item.href}
@@ -174,32 +160,22 @@ const Layout = ({ children }) => {
           ))}
         </div>
 
-        <div className="p-6 space-y-4 shrink-0">
-          <div className={cn(
-            "p-5 rounded-[1.5rem] bg-slate-900 text-white shadow-2xl overflow-hidden relative group transition-all",
-            collapsed ? "flex justify-center" : ""
-          )}>
-            <div className="absolute top-0 right-0 w-20 h-20 bg-primary-400/20 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700" />
-            <div className="flex items-center gap-4 relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white shrink-0">
-                    <span className="font-bold text-sm tracking-widest">{user?.email?.[0]?.toUpperCase()}</span>
+        <div className="p-4 space-y-4 shrink-0">
+           {!collapsed && (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-black text-[10px]">
+                    {user?.email?.[0]?.toUpperCase()}
                 </div>
-                {!collapsed && (
                 <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-tight truncate">{user?.email?.split('@')[0]}</p>
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Verified Tier</p>
-                    </div>
+                    <p className="text-[10px] font-black uppercase truncate">{user?.email?.split('@')[0]}</p>
+                    <p className="text-[8px] text-emerald-500 font-black uppercase">Verified Node</p>
                 </div>
-                )}
-            </div>
-          </div>
-
-          <button 
+              </div>
+           )}
+           <button 
             onClick={handleLogout}
             className={cn(
-              "flex items-center gap-3 w-full px-5 py-3.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all font-bold uppercase tracking-widest text-[10px]",
+              "flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-rose-600 transition-all font-black uppercase text-[10px]",
               collapsed ? "justify-center" : ""
             )}
           >
@@ -209,80 +185,48 @@ const Layout = ({ children }) => {
         </div>
       </aside>
 
-      {/* Sidebar Toggle Overlay (Mobile) */}
-      <AnimatePresence>
-        {mobileOpen && (
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70]"
-                onClick={() => setMobileOpen(false)}
-            />
-        )}
-      </AnimatePresence>
-
-      {/* Main Content */}
+      {/* Main Framework */}
       <main 
         className={cn(
           "flex-1 min-w-0 transition-all duration-500",
-          collapsed ? "lg:ml-24" : "lg:ml-72",
-          "ml-0"
+          collapsed ? "lg:ml-20" : "lg:ml-[240px]"
         )}
       >
-        {/* Transparent Header */}
-        <header className="h-24 flex items-center justify-between px-6 lg:px-12 sticky top-0 z-40 bg-slate-50/80 backdrop-blur-md">
+        {/* SaaS Navbar */}
+        <header className="h-20 flex items-center justify-between px-6 lg:px-10 sticky top-0 z-40 bg-[#f8fafc]/80 backdrop-blur-md border-b border-slate-100">
             <div className="flex items-center gap-6">
-               <button 
-                  onClick={() => setMobileOpen(true)} 
-                  className="lg:hidden p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-slate-900"
-               >
-                  <Menu size={20} />
-               </button>
-               <button 
-                  onClick={() => setCollapsed(!collapsed)} 
-                  className="hidden lg:flex p-3 bg-white border border-slate-100 rounded-2xl shadow-sm text-slate-400 hover:text-slate-900 transition-all"
-               >
-                  <Layers size={18} />
-               </button>
-               <div className="hidden md:block">
-                    <h2 className="text-xl font-outfit font-black uppercase tracking-tight text-slate-900">
-                        {menuItems.find(m => m.href === location.pathname)?.label || 'System Core'}
-                    </h2>
+               <button onClick={() => setMobileOpen(true)} className="lg:hidden text-slate-900"><Menu size={20} /></button>
+               <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-2 w-64 md:w-80 group transition-all focus-within:ring-2 focus-within:ring-slate-950/5">
+                  <SearchIcon size={14} className="text-slate-400" />
+                  <input type="text" placeholder="Global Search (⌘K)" className="bg-transparent border-none text-[11px] font-bold placeholder:text-slate-300 focus:outline-none w-full" />
                </div>
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="hidden lg:flex items-center gap-3 bg-white/50 backdrop-blur-md border border-slate-100 rounded-2xl px-5 py-2.5 transition-all hover:bg-white hover:border-slate-300 group cursor-pointer text-slate-900">
-                    <SearchIcon size={14} className="text-slate-400 group-hover:text-primary-600" />
-                    <span className="text-[10px] font-black text-slate-400 group-hover:text-slate-900 uppercase tracking-widest">Global Scan (⌘K)</span>
+            <div className="flex items-center gap-6">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100 text-[9px] font-black uppercase">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    eBay: Connected
                 </div>
-
-                <div className="hidden sm:flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-2.5">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">eBay: ONLINE</span>
-                </div>
-                
                 <div className="relative">
-                    <button 
-                        onClick={() => setNotifOpen(!notifOpen)}
-                        className={cn(
-                            "p-3.5 rounded-2xl transition-all relative border border-transparent", 
-                            notifOpen ? "bg-slate-900 text-white shadow-2xl" : "bg-white border-slate-100 text-slate-400 hover:text-slate-900"
-                        )}
-                    >
-                        <Bell size={20} />
-                        <div className="absolute top-3 right-3 w-2 h-2 bg-primary-400 rounded-full ring-4 ring-white" />
+                    <button onClick={() => setNotifOpen(!notifOpen)} className="text-slate-400 hover:text-slate-900 relative">
+                        <Bell size={18} />
+                        <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary-500 rounded-full border-2 border-[#f8fafc]" />
                     </button>
                     <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
+                </div>
+                <div className="w-8 h-8 rounded-full bg-slate-950 text-white flex items-center justify-center font-black text-[10px] cursor-pointer ring-4 ring-white shadow-sm">
+                    {user?.email?.[0]?.toUpperCase()}
                 </div>
             </div>
         </header>
 
-        {/* Dynamic Page Container */}
-        <div className="p-6 lg:p-12 max-w-[1800px] mx-auto min-h-[calc(100vh-6rem)]">
+        <div className="p-6 lg:p-10 max-w-[1700px] mx-auto min-h-[calc(100vh-5rem)]">
           {children}
         </div>
+      </main>
+    </div>
+  );
+};
 
         {/* Footer Info */}
         <footer className="px-12 py-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100/50">

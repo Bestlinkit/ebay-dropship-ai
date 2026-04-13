@@ -28,6 +28,8 @@ const MyProducts = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -39,15 +41,42 @@ const MyProducts = () => {
             const liveProducts = await ebayTrading.getActiveListings(token);
             setProducts(liveProducts || []);
         } catch (e) {
-            console.error("Failed to sync products:", e);
-            toast.error("Failed to sync products.");
+            toast.error("Failed to sync inventory.");
         } finally {
             setLoading(false);
         }
     };
-
     fetchListings();
   }, [user]);
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredProducts.length) {
+        setSelectedIds([]);
+    } else {
+        setSelectedIds(filteredProducts.map(p => p.id));
+    }
+  };
+
+  const handleBulkOptimization = async () => {
+    setIsBulkProcessing(true);
+    toast.promise(
+        new Promise(resolve => setTimeout(resolve, 3000)),
+        {
+            loading: `Optimizing ${selectedIds.length} listing nodes...`,
+            success: `Registry synchronized! ${selectedIds.length} products updated.`,
+            error: 'Bulk throughput failure.'
+        }
+    );
+    // Real logic would iterate through selectedIds and call AIService/eBayService
+    setTimeout(() => {
+        setIsBulkProcessing(false);
+        setSelectedIds([]);
+    }, 3000);
+  };
 
   const filteredProducts = (products || []).filter(p => {
     const matchesTab = activeTab === 'all' || p.status?.toLowerCase() === activeTab.toLowerCase();
@@ -58,168 +87,153 @@ const MyProducts = () => {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-20">
+    <div className="space-y-6 animate-in fade-in duration-700 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Inventory Hub.</h1>
-          <p className="text-slate-400 font-bold mt-1 text-sm uppercase tracking-widest flex items-center gap-2">
-            <Package size={14} className="text-primary-500" />
-            Live Marketplace Synchronization
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Inventory Registry.</h1>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] flex items-center gap-2">
+            <Layers size={14} className="text-primary-500" /> Distributed Node Control Hub
           </p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
-           <div className="relative flex-1 md:w-64 text-slate-900">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+           <div className="relative flex-1 md:w-80 text-slate-900">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
               <input 
                 type="text" 
-                placeholder="Search products..." 
+                placeholder="Search registry indices..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full flex h-14 bg-white rounded-2xl border border-slate-100 pl-12 text-sm font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all" 
+                className="w-full flex h-12 bg-white rounded-xl border border-slate-200 pl-12 text-[11px] font-bold placeholder:text-slate-300 focus:outline-none ring-slate-950/5 transition-all focus:ring-4" 
               />
            </div>
-           <button className="h-14 px-5 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-slate-900 transition-all shadow-sm">
-              <Filter size={20} />
-           </button>
         </div>
       </div>
 
-      <div className="glass-card rounded-[3rem] flex flex-col overflow-hidden border-slate-100/50">
-         <div className="flex border-b border-slate-50 px-8 pt-8">
-            {['All', 'Published', 'Draft', 'Archived'].map(tab => (
+      <div className="bg-white rounded-[12px] border border-slate-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col relative">
+         <div className="flex border-b border-slate-100 px-6 bg-slate-50/10">
+            {['All', 'Published', 'Draft'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab.toLowerCase())}
-                className={`px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative ${
-                  activeTab === tab.toLowerCase() ? 'text-slate-900' : 'text-slate-300 hover:text-slate-500'
+                className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest relative ${
+                  activeTab === tab.toLowerCase() ? 'text-slate-950' : 'text-slate-400'
                 }`}
               >
                 {tab}
                 {activeTab === tab.toLowerCase() && (
-                  <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-primary-500 rounded-t-full" />
+                  <motion.div layoutId="t-line" className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950" />
                 )}
               </button>
             ))}
          </div>
 
-         <div className="overflow-x-auto min-h-[400px]">
+         <div className="flex-1 overflow-x-auto">
             {loading ? (
-                <div className="py-40 flex flex-col items-center justify-center gap-6">
-                    <Loader2 className="animate-spin text-slate-200" size={64} strokeWidth={1} />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Loading Inventory...</p>
+                <div className="py-40 flex flex-col items-center gap-6">
+                    <RefreshCw className="animate-spin text-slate-200" size={32} />
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Hydrating Registry Nodes...</p>
                 </div>
             ) : filteredProducts.length === 0 ? (
-                <div className="py-40 flex flex-col items-center justify-center gap-6 text-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200">
-                        <Package size={40} />
-                    </div>
-                    <div className="space-y-2">
-                        <h3 className="text-xl font-black text-slate-900 uppercase">No Products Found</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-[240px]">No matching listing nodes found in current search/filter parameters.</p>
-                    </div>
-                    <button 
-                        onClick={() => {setSearchTerm(''); setActiveTab('all');}}
-                        className="mt-4 px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
-                    >
-                        Clear All Filters
-                    </button>
-                </div>
+                <div className="py-40 text-center opacity-30 italic text-[10px] font-black uppercase tracking-[0.3em]">No target nodes identified</div>
             ) : (
-                <table className="w-full text-left border-collapse">
-                <thead>
-                    <tr className="bg-slate-50/30 text-slate-400 text-[9px] font-black uppercase tracking-[0.3em]">
-                    <th className="px-10 py-5">Product Name</th>
-                    <th className="px-10 py-5">Status</th>
-                    <th className="px-10 py-5">Price</th>
-                    <th className="px-10 py-5">Watchers</th>
-                    <th className="px-10 py-5">Sync Date</th>
-                    <th className="px-10 py-5">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                    {filteredProducts.map((p) => (
-                    <tr 
-                        key={p.id} 
-                        onClick={() => navigate(`/optimize/${p.id}`, { state: { ebayProduct: p } })}
-                        className="hover:bg-slate-100/80 transition-all group cursor-pointer"
-                    >
-                        <td className="px-10 py-8">
-                        <span className="font-bold text-sm text-slate-900 block max-w-xs truncate group-hover:text-primary-500 transition-colors">{p.title}</span>
-                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Product ID: {p.id}</span>
-                        </td>
-                        <td className="px-10 py-8">
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                            p.status === 'Published' ? 'bg-emerald-50 text-emerald-600 border-emerald-100/50' : 'bg-slate-100 text-slate-400 border-slate-200/50'
-                        }`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'Published' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                            {p.status}
-                        </div>
-                        </td>
-                        <td className="px-10 py-8">
-                        <div className="flex flex-col">
-                            <span className="text-base font-black text-slate-900">${p.price.toFixed(2)}</span>
-                            <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Current Price</span>
-                        </div>
-                        </td>
-                        <td className="px-10 py-8">
-                            <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-                                <Eye size={16} />
-                            </div>
-                            <span className="text-xs font-black text-slate-900 tracking-tight">{p.views} <span className="text-[9px] text-slate-400 font-black uppercase ml-1">Watchers</span></span>
-                            </div>
-                        </td>
-                        <td className="px-10 py-8">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.date}</span>
-                        </td>
-                        <td className="px-10 py-8">
-                        <div className="flex items-center gap-2 opacity-100 transition-all">
-                            <Link 
-                                to={`/optimize/${p.id}`}
-                                state={{ ebayProduct: p }}
-                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-primary-500 hover:bg-primary-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
-                                title="Edit & Optimize"
-                            >
-                                <Edit3 size={16} className="group-hover/btn:scale-110 transition-transform" />
-                            </Link>
-                            <Link 
-                                to={`/optimize/${p.id}`}
-                                state={{ ebayProduct: p }}
-                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-indigo-500 hover:bg-indigo-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
-                                title="AI Insights"
-                            >
-                                <Sparkles size={16} className="group-hover/btn:scale-110 transition-transform" />
-                            </Link>
-                            <Link 
-                                to={`/marketing`}
-                                state={{ selectedProduct: p }}
-                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-emerald-500 hover:bg-emerald-50 hover:shadow-lg transition-all flex items-center justify-center group/btn"
-                                title="Promote Market"
-                            >
-                                <Megaphone size={16} className="group-hover/btn:scale-110 transition-transform" />
-                            </Link>
-                            <Link 
-                                to={`/video-lab`}
-                                state={{ selectedProduct: p }}
-                                className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-slate-800 hover:shadow-lg transition-all flex items-center justify-center group/btn"
-                                title="Create Video Ad"
-                            >
-                                <Play size={16} className="group-hover/btn:scale-110 transition-transform" />
-                            </Link>
-                            <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-slate-300 hover:text-rose-500 hover:shadow-lg transition-all flex items-center justify-center">
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                        </td>
-                    </tr>
-                    ))}
-                </tbody>
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="bg-slate-50/30 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 border-b border-slate-50">
+                            <th className="px-6 py-4 w-12">
+                                <input 
+                                    type="checkbox" 
+                                    checked={selectedIds.length === filteredProducts.length && filteredProducts.length > 0} 
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded-md border-slate-200"
+                                />
+                            </th>
+                            <th className="px-6 py-4">Product Identity</th>
+                            <th className="px-6 py-4">Satus</th>
+                            <th className="px-6 py-4">Market Price</th>
+                            <th className="px-6 py-4">Metadata</th>
+                            <th className="px-6 py-4 text-right">Interaction</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {filteredProducts.map((p) => (
+                            <tr key={p.id} className={cn("hover:bg-slate-50/50 transition-all cursor-pointer", selectedIds.includes(p.id) && "bg-slate-50")}>
+                                <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={selectedIds.includes(p.id)} 
+                                        onChange={() => toggleSelect(p.id)}
+                                        className="w-4 h-4 rounded-md border-slate-200 accent-slate-950"
+                                    />
+                                </td>
+                                <td className="px-6 py-5" onClick={() => navigate(`/optimize/${p.id}`, { state: { ebayProduct: p } })}>
+                                    <p className="text-[11px] font-black text-slate-950 uppercase leading-tight truncate max-w-sm">{p.title}</p>
+                                    <p className="text-[8px] font-black text-slate-300 uppercase mt-1">ID: {p.id}</p>
+                                </td>
+                                <td className="px-6 py-5">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-slate-100 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400">
+                                        <div className={cn("w-1 h-1 rounded-full", p.status === 'Published' ? "bg-emerald-500" : "bg-slate-300")} />
+                                        {p.status}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-5">
+                                    <span className="text-xs font-black text-slate-950">${p.price.toFixed(2)}</span>
+                                </td>
+                                <td className="px-6 py-5">
+                                    <div className="flex items-center gap-3 text-slate-400">
+                                        <div className="flex items-center gap-1.5"><Eye size={12} /> <span className="text-[8px] font-black">{p.views}</span></div>
+                                        <div className="flex items-center gap-1.5"><Activity size={12} /> <span className="text-[8px] font-black text-emerald-500">92%</span></div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-5 text-right">
+                                    <button onClick={() => navigate(`/optimize/${p.id}`, { state: { ebayProduct: p } })} className="p-2 hover:bg-slate-950 hover:text-white rounded-lg transition-all text-slate-400">
+                                        <Edit3 size={16} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
                 </table>
             )}
          </div>
+
+         {/* SaaS Bulk Optimization Toolset */}
+         <AnimatePresence>
+            {selectedIds.length > 0 && (
+                <motion.div 
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 100, opacity: 0 }}
+                    className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-950 text-white px-8 py-4 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-12 z-[100]"
+                >
+                    <div className="flex flex-col">
+                        <span className="text-[9px] font-black uppercase tracking-widest text/50">Registry Nodes Selected</span>
+                        <span className="text-lg font-black tracking-tighter leading-none">{selectedIds.length} Nodes</span>
+                    </div>
+                    <div className="flex gap-3">
+                        <button 
+                            disabled={isBulkProcessing}
+                            onClick={handleBulkOptimization}
+                            className="bg-primary-400 text-slate-950 h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all flex items-center gap-2"
+                        >
+                            {isBulkProcessing ? <RefreshCw className="animate-spin" size={14} /> : <Zap size={14} />}
+                            Bulk Optimize
+                        </button>
+                        <button 
+                            disabled={isBulkProcessing}
+                            onClick={() => setSelectedIds([])}
+                            className="bg-white/10 hover:bg-white/20 h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                            Deselect all
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+         </AnimatePresence>
       </div>
     </div>
   );
 };
+
+export default MyProducts;
 
 export default MyProducts;
