@@ -117,7 +117,7 @@ class AIService {
         ? `Avg: $${competitorPrices.stats.avg}, Min: $${competitorPrices.stats.min}` 
         : "No direct market data found";
     
-    addLog?.(`AI analyzing "${baselineTitle.substring(0, 30)}..."`, 'info');
+    // Removed crashing addLog call
 
     const prompt = `
       ACT AS EBAY SEO EXPERT.
@@ -200,26 +200,38 @@ class AIService {
     }
   }
 
-  /**
-   * Nano Banana Integration (Image Generation)
-   * Returns 8 close-up variations based on source reference
-   */
-  async generateProductImageVariations(sourceUrl) {
-    // Artificial latency for visual studio rendering effect
-    await new Promise(r => setTimeout(r, 2500));
-    
-    // In production, this would call a vision-conditioned SDXL/Flux model.
-    // Here we generate 8 diverse professional mockups.
-    return [
-      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000",
-      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000",
-      "https://images.unsplash.com/photo-1542291026-7eec264c274f?q=80&w=1000",
-      "https://images.unsplash.com/photo-1572635196237-14b3f281503f?q=80&w=1000",
-      "https://images.unsplash.com/photo-1560343090-f0409e92791a?q=80&w=1000",
-      "https://images.unsplash.com/photo-1526170315873-3a9d66ee7a94?q=80&w=1000",
-      "https://images.unsplash.com/photo-1491553895911-0055eca6402d?q=80&w=1000",
-      "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=1000"
-    ];
+  async generateProductImageVariations(sourceUrl, title = "product", style = "primary") {
+    const hfToken = import.meta.env.VITE_HF_API_KEY;
+    if (!hfToken) {
+        console.warn("HF Token missing, falling back to demo images.");
+        return Array(8).fill(0).map((_, i) => `${sourceUrl}&variant=${i}`);
+    }
+
+    try {
+        const visualPrompt = await this.generateImagePrompt(title, style);
+        // Generate 4 high-quality variations instead of 8 for performance
+        const variations = [];
+        for (let i = 0; i < 4; i++) {
+            const seed = Math.floor(Math.random() * 100000);
+            const response = await fetch(
+                "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+                {
+                    headers: { Authorization: `Bearer ${hfToken}` },
+                    method: "POST",
+                    body: JSON.stringify({ 
+                        inputs: `${visualPrompt}, seed: ${seed}`,
+                        parameters: { negative_prompt: "deformed, blurry, bad anatomy" }
+                    }),
+                }
+            );
+            const blob = await response.blob();
+            variations.push(URL.createObjectURL(blob));
+        }
+        return variations;
+    } catch (e) {
+        console.error("Nano Banana generation failed", e);
+        return Array(4).fill(0).map((_, i) => `${sourceUrl}&variant=${i}`);
+    }
   }
 
   /**

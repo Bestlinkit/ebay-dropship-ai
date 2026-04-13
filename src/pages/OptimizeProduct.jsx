@@ -94,6 +94,7 @@ const OptimizeProduct = () => {
                     
                     const baselineImages = fetchedProduct.images || [];
                     setMaintainedImages(baselineImages);
+                    addSystemLog(`Payload Hydrated: ${baselineImages.length} images identified.`, 'info');
                     if (baselineImages.length > 0) {
                         setReferenceImage(baselineImages[0]);
                         setPrimaryImage(baselineImages[0]);
@@ -190,9 +191,11 @@ const OptimizeProduct = () => {
     }
     setVisualLoading(true);
     try {
-      const variations = await aiService.generateProductImageVariations(referenceImage);
+      addSystemLog(`Nano Banana: Triggering ${visualMood.toUpperCase()} generation...`, 'info');
+      const variations = await aiService.generateProductImageVariations(referenceImage, selectedTitle || product.title, visualMood);
       setGeneratedImages(variations);
-      toast.success(`8 variations generated [Mood: ${visualMood.toUpperCase()}]`);
+      addSystemLog(`Visual Studio: ${variations.length} variations rendered.`, 'success');
+      toast.success(`${variations.length} variations generated [Mood: ${visualMood.toUpperCase()}]`);
     } catch (error) {
       toast.error("Visual Studio error.");
     } finally {
