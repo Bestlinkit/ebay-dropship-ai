@@ -33,12 +33,20 @@ import {
   BarChart3,
   Search as SearchIcon,
   X,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  Check,
+  LayoutDashboard,
+  Package,
+  Edit3,
+  Shield
 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import aiService from '../services/ai';
 import ebayService from '../services/ebay';
+import sourcingService from '../services/sourcing';
+import NanoBanana from '../components/NanoBanana';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
@@ -51,26 +59,28 @@ const OptimizeProduct = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isStoreConnected, user } = useAuth();
-  const { ebayProduct } = location.state || {};
 
-  const [loading, setLoading] = useState(!ebayProduct);
-  const [product, setProduct] = useState(ebayProduct || { title: "", price: 0, images: [], description: "" });
+  const [loading, setLoading] = useState(true);
+  const [originalProduct, setOriginalProduct] = useState(null);
+  const [rank, setRank] = useState(null);
 
   // Core Product Object Model (Unified Registry)
   const [registry, setRegistry] = useState({
-    originalTitle: ebayProduct?.title || "",
-    selectedTitle: ebayProduct?.title || "",
-    description: ebayProduct?.description || "",
+    titles: [],
+    selectedTitle: '',
+    description: '',
     optimizedDescription: "",
     tags: [],
-    images: ebayProduct?.images || [],
+    category: '',
+    categoryPath: [],
+    images: [],
     excludedImages: [],
-    price: ebayProduct?.price || 0,
+    price: 0,
     suggestedPrice: 0,
     margin: "0%",
     competition: "Low",
     probability: 0,
-    stats: null // Live Market Stats
+    marketStats: null
   });
 
   // Hierarchy Selection Stack (Categories)
@@ -82,52 +92,63 @@ const OptimizeProduct = () => {
   const [activeTab, setActiveTab] = useState('intelligence');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
-  const [titles, setTitles] = useState([]);
   const [systemLogs, setSystemLogs] = useState([]);
   
-  // Nano Banana Engine
-  const [visualLoading, setVisualLoading] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState([]);
-
   const addSystemLog = (message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
     setSystemLogs(prev => [{ timestamp, message, type }, ...prev].slice(0, 30));
   };
 
-  // Phase 1: Deep Hydration & Taxonomy Entry
+  // HYDRATION & PRELOADER: Synchronize with Discovery Marketplace Vectors
   useEffect(() => {
-    const hydrate = async () => {
-      setLoading(true);
-      try {
-        addSystemLog(`Syncing node ${id}...`, 'info');
-        const fetched = await ebayService.getProductById(id);
-        if (fetched) {
-          const primaryId = matchPrimaryCategory(fetched.title);
-          const primary = PRIMARY_CATEGORIES.find(c => c.id === primaryId);
-          
-          setRegistry(prev => ({
-            ...prev,
-            ...fetched,
-            originalTitle: fetched.title,
-            selectedTitle: fetched.title,
-            images: fetched.images || []
-          }));
-          
-          if (primary) {
-            setCategoryStack([{ id: primary.id, name: primary.name, level: 0 }]);
-            fetchChildren(primary.id);
-          }
+    const hydrateStudio = async () => {
+        setLoading(true);
+        try {
+            // Case A: Product passed via Discovery Hub State (Zero-Delay)
+            if (location.state?.ebayProduct) {
+                const ep = location.state.ebayProduct;
+                setOriginalProduct(ep);
+                
+                // Deterministic Ranking
+                const r = sourcingService.rankProduct(ep);
+                setRank(r);
 
-          addSystemLog(`Registry synced: ${fetched.title.slice(0, 30)}...`, 'success');
+                setRegistry(prev => ({
+                    ...prev,
+                    selectedTitle: ep.title || "",
+                    price: ep.price || 0,
+                    images: ep.additionalImages || ep.images || [ep.thumbnail],
+                    marketStats: ep.stats || null,
+                    category: ep.categoryId || '',
+                    description: ep.description || ''
+                }));
+                setLoading(false);
+                return;
+            }
+
+            // Case B: Direct navigation with ID (Fetch from eBay API)
+            if (id && id !== 'new') {
+                const product = await ebayService.getProductById(id);
+                setOriginalProduct(product);
+                const r = sourcingService.rankProduct(product);
+                setRank(r);
+                
+                setRegistry(prev => ({
+                    ...prev,
+                    selectedTitle: product.title || "",
+                    price: product.price || 0,
+                    images: product.additionalImages || product.images || [],
+                    category: product.categoryId || ''
+                }));
+            }
+        } catch (e) {
+            console.error("Studio Hydration Fault:", e);
+        } finally {
+            setLoading(false);
         }
-      } catch (e) {
-        addSystemLog(`Registry fault: ${e.message}`, 'error');
-      } finally {
-        setLoading(false);
-      }
     };
-    hydrate();
-  }, [id]);
+    hydrateStudio();
+  }, [id, location.state]);
 
   const fetchChildren = async (parentId) => {
     setCategoryLoading(true);
@@ -159,34 +180,24 @@ const OptimizeProduct = () => {
   };
 
   // Phase 2: Optimization Engine
-  useEffect(() => {
-    if (registry.originalTitle && titles.length === 0) {
-      runFullOptimization();
-    }
-  }, [registry.originalTitle]);
-
   const runFullOptimization = async () => {
     setIsProcessing(true);
     addSystemLog("SaaS Intelligence Analysis started...", 'info');
     try {
-      // 1. Market Heatmap fetch (Real Data Only)
-      const keyword = registry.originalTitle.split(' ').slice(0, 4).join(' ');
+      const keyword = registry.selectedTitle.split(' ').slice(0, 4).join(' ');
       const competitors = await ebayService.getCompetitorInsights(keyword);
       
-      if (import.meta.env.DEV) console.log("Market Data:", competitors);
-
-      // 2. AI Silo Execution (Strict Archetypes)
-      const opt = await aiService.optimizeListing(registry.originalTitle, registry.price, competitors);
+      const opt = await aiService.optimizeListing(registry.selectedTitle, registry.price, competitors);
       
-      setTitles(opt.titles || []);
       setRegistry(prev => ({
         ...prev,
+        titles: opt.titles || [],
         optimizedDescription: opt.description,
         tags: opt.tags || [],
         suggestedPrice: opt.pricing?.suggested || prev.price,
         competition: opt.pricing?.competition || 'Medium',
         probability: opt.pricing?.salesProbability || 75,
-        stats: competitors.stats || null
+        marketStats: competitors.stats || null
       }));
       
       addSystemLog("Optimization vectors locked and validated.", 'success');
@@ -401,7 +412,22 @@ const OptimizeProduct = () => {
            )}
 
            {activeTab === 'visual' && (
-             <div className="space-y-8 animate-in zoom-in-95 duration-500">
+             <div className="space-y-12 animate-in zoom-in-95 duration-500">
+                <section className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-10">
+                    <div className="flex items-center justify-between border-b border-slate-50 pb-8">
+                       <div className="space-y-1">
+                          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tighter">AI Visual Studio</h3>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Nano Banana 8-Image Synthesis Pipeline</p>
+                       </div>
+                       <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400"><Sparkles size={24} /></div>
+                    </div>
+                    
+                    <NanoBanana 
+                      product={originalProduct} 
+                      onGallerySync={(newImages) => setRegistry(prev => ({ ...prev, images: [...prev.images, ...newImages] }))} 
+                    />
+                </section>
+
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
                     {registry.images.map((img, i) => (
                       <div key={i} className={cn("group relative rounded-[1.5rem] aspect-square overflow-hidden border-2 transition-all shadow-md hover:shadow-xl", registry.excludedImages.includes(img) ? "opacity-30 grayscale border-slate-200" : "border-white")}>
@@ -500,6 +526,40 @@ const OptimizeProduct = () => {
 
         {/* Intelligence Telemetry Sidebar */}
         <div className="space-y-8">
+            {/* AI INTELLIGENCE DEEP DIVE PANEL */}
+            {rank && (
+                <section className="bg-slate-950 p-10 rounded-[3rem] text-white space-y-8 relative overflow-hidden group shadow-2xl">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-[50px] -mr-16 -mt-16 group-hover:scale-150 transition-all duration-1000" />
+                    <div className="relative z-10 flex items-center justify-between mb-2">
+                       <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Winner Intelligence</h4>
+                       <div className="px-3 py-1 bg-primary-500 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg">{rank.score}% Score</div>
+                    </div>
+                    <div className="relative z-10 space-y-6">
+                        <p className="text-sm font-bold leading-tight text-white/90">
+                            {sourcingService.getExplanation(rank)}
+                        </p>
+                        <div className="space-y-5 pt-4 border-t border-white/5">
+                            {sourcingService.getDeepDive(rank).signals.map((s, i) => (
+                                <div key={i} className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{s.label} ({s.weight})</span>
+                                        <span className="text-[10px] font-bold text-primary-400">{s.value}%</span>
+                                    </div>
+                                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div 
+                                          initial={{ width: 0 }}
+                                          animate={{ width: `${s.value}%` }}
+                                          className="h-full bg-primary-500" 
+                                        />
+                                    </div>
+                                    <p className="text-[9px] font-bold text-slate-500 italic uppercase leading-none">{s.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
+
            <div className="bg-white p-8 rounded-[1.5rem] border border-slate-100 shadow-sm text-center space-y-10">
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Production Confidence</h3>
               <div className="relative flex justify-center h-48 items-center">

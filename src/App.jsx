@@ -20,12 +20,15 @@ import Settings from './pages/Settings';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 
+import { NotificationProvider } from './context/NotificationContext';
+
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <ThemeProvider>
-          <ErrorBoundary>
+        <NotificationProvider>
+          <ThemeProvider>
+            <ErrorBoundary>
             <Toaster position="top-right" richColors />
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -109,9 +112,10 @@ function App() {
             </Routes>
           </ErrorBoundary>
         </ThemeProvider>
-      </AuthProvider>
-    </Router>
-  );
+      </NotificationProvider>
+    </AuthProvider>
+  </Router>
+);
 }
 
 export default App;

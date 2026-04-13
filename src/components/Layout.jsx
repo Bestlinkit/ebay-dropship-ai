@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNotifications } from '../context/NotificationContext';
 
 const SidebarItem = ({ icon: Icon, label, href, active, collapsed, onClick }) => (
   <Link
@@ -49,8 +50,10 @@ const SidebarItem = ({ icon: Icon, label, href, active, collapsed, onClick }) =>
   </Link>
 );
 
+
 const NotificationDropdown = ({ isOpen, onClose }) => {
-    const notifications = []; // Live feed integration pending
+    const { notifications, markRead, clearAll } = useNotifications();
+    const navigate = useNavigate();
 
     return (
         <AnimatePresence>
@@ -61,42 +64,54 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
                         initial={{ opacity: 0, y: 15, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                        className="absolute right-0 mt-4 w-80 glass-card rounded-[2rem] p-4 z-50 overflow-hidden"
+                        className="absolute right-0 mt-4 w-96 glass-card rounded-[2rem] p-4 z-50 shadow-2xl overflow-hidden border border-white/10"
                     >
-                        <div className="flex items-center justify-between mb-6 px-2">
-                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Notifications</h3>
-                            {notifications.length > 0 && <button className="text-[9px] font-bold text-primary-500 hover:underline px-2 py-1 rounded-lg">Clear All</button>}
+                        <div className="flex items-center justify-between mb-6 px-4">
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">SaaS Intelligence Hub</h3>
+                            {notifications.length > 0 && <button onClick={clearAll} className="text-[9px] font-bold text-rose-500 hover:underline px-2 py-1">Purge Buffer</button>}
                         </div>
-                        <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-hide">
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-hide">
                             {notifications.length === 0 ? (
-                                <div className="py-12 text-center space-y-3">
-                                    <Bell className="mx-auto text-slate-100" size={32} />
-                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No New Alerts</p>
+                                <div className="py-12 text-center space-y-4">
+                                    <Bell className="mx-auto text-slate-100" size={48} />
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-relaxed">No new vectors monitored</p>
                                 </div>
                             ) : (
                                 notifications.map((n) => (
-                                    <div key={n.id} className="p-4 bg-white/50 hover:bg-white transition-all rounded-2xl group cursor-pointer flex gap-4 border border-transparent hover:border-slate-100">
-                                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-all shrink-0">
-                                            <n.icon size={18} />
+                                    <div 
+                                        key={n.id} 
+                                        onClick={() => {
+                                            markRead(n.id);
+                                            if (n.productState) {
+                                                navigate("/optimize/" + (n.productState.id || "new"), { state: { ebayProduct: n.productState } });
+                                                onClose();
+                                            }
+                                        }}
+                                        className={cn(
+                                            "p-4 transition-all rounded-2xl group cursor-pointer flex gap-4 border",
+                                            n.read ? "bg-slate-50/50 border-transparent opacity-60" : "bg-white border-slate-100 shadow-sm"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                                            n.read ? "bg-slate-100 text-slate-400" : "bg-slate-950 text-primary-400 shadow-lg"
+                                        )}>
+                                            <Zap size={18} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-bold text-slate-900 leading-tight mb-1 group-hover:text-primary-600 transition-colors truncate">{n.title}</p>
-                                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed line-clamp-2">{n.desc}</p>
-                                            <div className="flex items-center gap-1.5 mt-2.5 text-[9px] text-slate-400 font-black uppercase">
-                                                <Clock size={10} /> {n.time}
+                                            <div className="flex items-center justify-between gap-2 mb-1">
+                                                <p className="text-xs font-bold text-slate-900 leading-tight truncate">{n.title}</p>
+                                                {!n.read && <div className="w-2 h-2 bg-primary-500 rounded-full shrink-0 animate-pulse" />}
+                                            </div>
+                                            <p className="text-[10px] text-primary-600 font-bold leading-tight mb-2">{n.snippet}</p>
+                                            <div className="flex items-center gap-2 text-[9px] text-slate-400 font-black uppercase">
+                                                <Clock size={10} /> {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </div>
                                     </div>
                                 ))
                             )}
                         </div>
-                        {notifications.length > 0 && (
-                            <div className="mt-6 pt-4 border-t border-slate-50 text-center">
-                                <button className="text-[9px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors flex items-center justify-center gap-2 mx-auto">
-                                    View Full Activity Log <ArrowRight size={12} />
-                                </button>
-                            </div>
-                        )}
                     </motion.div>
                 </>
             )}
@@ -108,6 +123,7 @@ const Layout = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const { unreadCount } = useNotifications();
   const location = useLocation();
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -213,10 +229,14 @@ const Layout = ({ children }) => {
                     <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                     eBay: Connected
                 </div>
-                <div className="relative">
+                 <div className="relative">
                     <button onClick={() => setNotifOpen(!notifOpen)} className="text-slate-400 hover:text-slate-900 relative">
                         <Bell size={18} />
-                        <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-primary-500 rounded-full border-2 border-[#f8fafc]" />
+                        {unreadCount > 0 && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-950 animate-in zoom-in">
+                                {unreadCount}
+                            </div>
+                        )}
                     </button>
                     <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
                 </div>

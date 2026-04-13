@@ -170,6 +170,25 @@ class AIService {
       return { headline: "", body: "", cta: "" };
     }
   }
+  /**
+   * NANO BANANA: Visual Synthesis Engine
+   * Generates 8 specialized image prompts for marketing archetypes.
+   */
+  async generateEnhancementPrompts(product) {
+    const context = `Product: ${product.title}\nCategory: ${product.category}\nTheme: Premium eCommerce`;
+    
+    // Deterministic archetype prompts for the Visual Forge
+    return [
+      { id: 'hero', prompt: `High-end hero shot of ${product.title}, center focus, premium lighting, sharp details, 8k resolution.` },
+      { id: 'white', prompt: `Clean eCommerce white background product photography of ${product.title}, soft shadows, professional.` },
+      { id: 'lifestyle', prompt: `Modern lifestyle context showing ${product.title} in professional use, natural lighting, high-end environment.` },
+      { id: 'closeup', prompt: `Macro close-up detail of ${product.title}, texture focus, high-fidelity lens, crisp edges.` },
+      { id: 'studio', prompt: `Cinematic studio lighting, dark moody background with spotlight on ${product.title}, luxury aesthetic.` },
+      { id: 'social', prompt: `Viral social media ad style photography for ${product.title}, vibrant colors, high-energy composition.` },
+      { id: 'branding', label: 'Branding Mockup', prompt: `Premium branding mockup of ${product.title}, sleek presentation, minimalist design context.` },
+      { id: 'conversion', label: 'Emotional Trigger', prompt: `Benefit-driven visual capture of ${product.title}, highlighting core value proposition, warm lighting.` }
+    ];
+  }
 }
 
 export default new AIService();
