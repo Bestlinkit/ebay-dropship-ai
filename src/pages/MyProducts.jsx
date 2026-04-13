@@ -16,12 +16,15 @@ import {
   Activity,
   Sparkles,
   Megaphone,
-  Play
+  Play,
+  Layers,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../lib/utils';
 
 const MyProducts = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -233,7 +236,5 @@ const MyProducts = () => {
     </div>
   );
 };
-
-export default MyProducts;
 
 export default MyProducts;

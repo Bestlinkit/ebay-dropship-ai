@@ -112,14 +112,10 @@ const Layout = ({ children }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-    { icon: Package, label: 'Products', href: '/products' },
-    { icon: Zap, label: 'Optimization', href: '/discovery' },
-    { icon: ShoppingBag, label: 'Orders', href: '/orders' },
-    { icon: BarChart3, label: 'Analytics', href: '/analytics' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
-  ];
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-inter selection:bg-primary-100 selection:text-primary-900">
@@ -223,10 +219,6 @@ const Layout = ({ children }) => {
         <div className="p-6 lg:p-10 max-w-[1700px] mx-auto min-h-[calc(100vh-5rem)]">
           {children}
         </div>
-      </main>
-    </div>
-  );
-};
 
         {/* Footer Info */}
         <footer className="px-12 py-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100/50">
