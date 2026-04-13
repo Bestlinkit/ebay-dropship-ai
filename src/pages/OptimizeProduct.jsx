@@ -20,7 +20,8 @@ import {
   AlertCircle,
   Image as ImageIcon,
   Trash2,
-  Eye
+  Eye,
+  Terminal
 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -69,26 +70,36 @@ const OptimizeProduct = () => {
   const [referenceImage, setReferenceImage] = useState(null);
   const [maintainedImages, setMaintainedImages] = useState([]);
 
+  const [systemLogs, setSystemLogs] = useState([]);
+  const addSystemLog = (message, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    setSystemLogs(prev => [{ timestamp, message, type }, ...prev].slice(0, 50));
+  };
+
   useEffect(() => {
     const hydrate = async () => {
         if (id) {
             setLoading(true);
             try {
+                addSystemLog(`Initiating handshake for Production ID: ${id}`, 'info');
                 const fetchedProduct = await ebayService.getProductById(id);
                 if (fetchedProduct) {
+                    addSystemLog(`Handshake Successful: ${fetchedProduct.title.substring(0, 30)}...`, 'success');
                     setProduct(fetchedProduct);
                     const baselinePrice = fetchedProduct.price || 0;
                     setPrice(baselinePrice);
                     setDescription(fetchedProduct.description);
                     
-                    // Critical Fix: Ensure image states are populated early
                     const baselineImages = fetchedProduct.images || [];
                     setMaintainedImages(baselineImages);
                     if (baselineImages.length > 0) {
                         setReferenceImage(baselineImages[0]);
                     }
+                } else {
+                    addSystemLog(`Handshake Failed: eBay/Proxy returned null. Verify Cloudflare Worker logs.`, 'error');
                 }
             } catch (err) {
+                addSystemLog(`Transmission Error: ${err.message}`, 'error');
                 toast.error("Failed to fetch product baseline.");
             } finally {
                 setLoading(false);
@@ -560,18 +571,40 @@ const OptimizeProduct = () => {
                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] mb-8 opacity-40">System Handshakes</h3>
                <div className="space-y-6">
                   <div className="flex gap-4 items-center">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]" />
                       <p className="text-[12px] font-bold opacity-80 uppercase tracking-widest">EBay Browse API V1.0</p>
                   </div>
                   <div className="flex gap-4 items-center">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_#10b981]" />
                       <p className="text-[12px] font-bold opacity-80 uppercase tracking-widest">Gemini 1.5 Ultra Optimized</p>
                   </div>
                   <div className="flex gap-4 items-center">
-                      <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                      <div className={`w-2 h-2 rounded-full shadow-[0_0_10px_#f59e0b] ${loading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
                       <p className="text-[12px] font-bold opacity-80 uppercase tracking-widest">Nano Banana Ready</p>
                   </div>
                </div>
+
+                {/* Real-time Diagnostic Console */}
+                <div className="mt-12 p-6 bg-black/40 rounded-2xl border border-white/5 font-mono text-[9px] h-48 overflow-y-auto no-scrollbar">
+                   <div className="flex items-center gap-2 mb-4 sticky top-0 bg-slate-900/80 backdrop-blur-md py-1">
+                      <Terminal size={12} className="text-primary" />
+                      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Neural Diagnostic Stream</span>
+                   </div>
+                   <div className="space-y-3">
+                      {systemLogs.length === 0 ? (
+                        <div className="text-slate-500 italic opacity-50">Awaiting production handshake signals...</div>
+                      ) : systemLogs.map((log, i) => (
+                        <div key={i} className={`flex gap-3 leading-relaxed ${
+                            log.type === 'error' ? 'text-rose-400' : 
+                            log.type === 'success' ? 'text-emerald-400' : 'text-slate-300'
+                        }`}>
+                           <span className="opacity-30 whitespace-nowrap">[{log.timestamp}]</span>
+                           <span className="font-bold">{log.message}</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
            </div>
         </div>
       </div>

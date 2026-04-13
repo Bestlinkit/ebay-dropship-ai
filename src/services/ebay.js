@@ -66,7 +66,8 @@ class eBayService {
 
             return response;
         } catch (e) {
-            console.warn(`[Market Sync] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);
+            const status = e.response?.status || 'Network Fault';
+            console.warn(`[Market Sync] Node ${proxies.indexOf(proxy)} bypassed [Status: ${status}]`);
             lastError = e;
         }
     }
