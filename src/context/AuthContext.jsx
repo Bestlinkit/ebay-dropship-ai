@@ -5,7 +5,8 @@ import {
   createUserWithEmailAndPassword, 
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -122,6 +123,10 @@ export function AuthProvider({ children }) {
     return signInWithPopup(auth, provider);
   };
 
+  const forgotPassword = (email) => {
+    return sendPasswordResetEmail(auth, email);
+  };
+
   const value = {
     user: user ? {
         ...user,
@@ -131,6 +136,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     loginWithGoogle,
+    forgotPassword,
     loading,
     isStoreConnected: !!import.meta.env.VITE_EBAY_USER_TOKEN || !!user?.ebayToken || !!user?.ebay_auth_token
   };

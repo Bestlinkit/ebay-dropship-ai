@@ -16,47 +16,47 @@ class ErrorBoundary extends React.Component {
   }
 
   render() {
-    if (this.state) {
         if (this.state.hasError) {
             return (
-                <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 font-outfit">
-                    <div className="max-w-md w-full glass-card p-12 rounded-[3.5rem] border-rose-500/20 text-center space-y-8 animate-in zoom-in duration-500">
-                        <div className="w-24 h-24 bg-rose-500/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-rose-500/20">
-                            <AlertTriangle size={48} className="text-rose-500" />
+                <div className="min-h-screen bg-white flex items-center justify-center p-6 font-inter selection:bg-rose-500/10">
+                    <div className="max-w-md w-full bg-white p-12 rounded-[2.5rem] border border-slate-100 shadow-[0_32px_120px_rgba(0,0,0,0.08)] text-center space-y-8 animate-in zoom-in duration-500">
+                        <div className="w-20 h-20 bg-rose-50 rounded-[1.5rem] flex items-center justify-center mx-auto border border-rose-100 shadow-sm">
+                            <AlertTriangle size={36} className="text-rose-500" />
                         </div>
                         <div className="space-y-2">
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tight">System Crash</h2>
-                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Error Vector Detected</p>
+                            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">System Fault.</h2>
+                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Node Desynchronization</p>
                         </div>
                         
                         {this.state.error && (
-                            <div className="bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl">
-                                <p className="text-[10px] font-mono text-rose-400 break-all">{this.state.error.toString()}</p>
+                            <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                                <p className="text-[9px] font-black font-mono text-slate-400 break-all uppercase leading-relaxed text-left">
+                                    {this.state.error.toString().slice(0, 150)}...
+                                </p>
                             </div>
                         )}
 
-                        <p className="text-slate-400 text-sm font-medium leading-relaxed">
-                            A critical runtime error has interrupted the terminal sequence. This is often caused by missing configuration or session instability.
+                        <p className="text-slate-400 text-xs font-bold leading-relaxed max-w-[280px] mx-auto">
+                            The terminal encountered a critical vector mismatch. This usually occurs during a session timeout or API link failure.
                         </p>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 pt-4">
                             <button 
                                 onClick={() => window.location.reload()}
-                                className="h-14 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary-500 hover:text-white transition-all"
+                                className="h-12 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
                             >
-                                <RefreshCw size={14} /> Restart
+                                <RefreshCw size={14} /> Restart Node
                             </button>
                             <button 
                                 onClick={() => window.location.href = '/'}
-                                className="h-14 bg-slate-800 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-700 transition-all border border-white/5"
+                                className="h-12 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all border border-slate-100"
                             >
-                                <Home size={14} /> Home
+                                <Home size={14} /> Return Home
                             </button>
                         </div>
                     </div>
                 </div>
             );
         }
-    }
 
     return this.props.children;
   }
