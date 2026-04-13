@@ -113,33 +113,38 @@ class AIService {
    * Returns: { titles: [{title, rank},...], description, category, tags, pricingStrategy }
    */
   async optimizeListing(baselineTitle, currentPrice, competitorPrices = []) {
-    const pricesStr = competitorPrices.length ? `Competitor Average: ${competitorPrices.stats?.avg}` : "N/A";
+    const pricesStr = Array.isArray(competitorPrices) && competitorPrices.stats 
+        ? `Avg: $${competitorPrices.stats.avg}, Min: $${competitorPrices.stats.min}` 
+        : "No direct market data found";
     
+    addLog?.(`AI analyzing "${baselineTitle.substring(0, 30)}..."`, 'info');
+
     const prompt = `
-      Product Analysis Task (eBay Production Context):
-      Baseline: ${baselineTitle}
-      Current Price: $${currentPrice}
-      Market Baseline: ${pricesStr}
+      ACT AS EBAY SEO EXPERT.
+      
+      PRODUCT: ${baselineTitle}
+      PRICE: $${currentPrice}
+      MARKET: ${pricesStr}
 
-      CATEGORY COMPASS:
-      Select ONLY ONE from these top-level eBay branches, then drill down:
-      - Health & Beauty
-      - Home & Garden
-      - Electronics
-      - Sporting Goods
-      - Fashion
-      - Toys & Hobbies
-      - Business & Industrial
-      - Motors
+      OUTPUT DATA STRUCTURE (STRICT JSON):
+      {
+        "titles": [
+          {"title": "High performance title 1", "rank": 98},
+          {"title": "High performance title 2", "rank": 95},
+          {"title": "High performance title 3", "rank": 92}
+        ],
+        "mainCategory": "Selected Category",
+        "subCategory": "Specific Sub",
+        "tags": ["tag1", ... "tag10"],
+        "description": "Premium HTML Copy",
+        "pricingStrategy": "Data driven advice"
+      }
 
-      CRITICAL TASKS:
-      1. Titles: Generate 3 high-velocity titles (STRICTLY MAX 80 chars). Assign a 'rank' probability score (0-100).
-      2. Categorization: Based on the Title, select the correct Main Category from the Compass and a specific Sub-Category.
-      3. Tags: Generate exactly 10 descriptive SEO tags. Avoid generic "ebay/professional". Focus on niche keywords.
-      4. Description: Write a premium HTML sales-pitch.
-      5. Price Strategy: Specific actionable advice.
-
-      Return ONLY JSON: { "titles": [...], "mainCategory": "...", "subCategory": "...", "tags": ["tag1", ... "tag10"], "description": "...", "pricingStrategy": "..." }
+      RULES:
+      - Titles: Max 80 chars. 
+      - Tags: High-intent keywords.
+      - Category: Choose best from (Health & Beauty, Home & Garden, Electronics, Fashion).
+      - Return ONLY the JSON block.
     `;
 
     try {

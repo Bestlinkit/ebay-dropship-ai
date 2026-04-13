@@ -69,6 +69,8 @@ const OptimizeProduct = () => {
   const [generatedImages, setGeneratedImages] = useState([]);
   const [referenceImage, setReferenceImage] = useState(null);
   const [maintainedImages, setMaintainedImages] = useState([]);
+  const [primaryImage, setPrimaryImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const [systemLogs, setSystemLogs] = useState([]);
   const addSystemLog = (message, type = 'info') => {
@@ -94,6 +96,7 @@ const OptimizeProduct = () => {
                     setMaintainedImages(baselineImages);
                     if (baselineImages.length > 0) {
                         setReferenceImage(baselineImages[0]);
+                        setPrimaryImage(baselineImages[0]);
                     }
                 } else {
                     addSystemLog(`Handshake Failed: eBay/Proxy returned null. Verify Cloudflare Worker logs.`, 'error');
@@ -163,7 +166,7 @@ const OptimizeProduct = () => {
                 title: selectedTitle || product.title,
                 price: price,
                 description: description,
-                images: maintainedImages
+                images: maintainedImages.sort((a,b) => (b === primaryImage ? 1 : -1))
             });
         } else {
             await new Promise(r => setTimeout(r, 1500));
@@ -299,7 +302,7 @@ const OptimizeProduct = () => {
                 </div>
                 
                 <div className="space-y-6">
-                  {/* Custom Title Stack (Replaces Overflowing Dropdown) */}
+                  {/* Custom Title Stack */}
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 italic">Select Active Title Profile (80 Char Cap)</label>
                     <div className="grid grid-cols-1 gap-4">
@@ -312,14 +315,22 @@ const OptimizeProduct = () => {
                             selectedTitle === t.title ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 bg-slate-50/30 hover:border-primary/20"
                           )}
                         >
-                          <div className="flex-1 space-y-1">
-                              <p className={cn(
-                                "text-base font-bold leading-tight break-words pr-4",
-                                selectedTitle === t.title ? "text-slate-950" : "text-slate-500"
-                              )}>
-                                {t.title}
-                              </p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">{t.title.length}/80 characters used</p>
+                          <div className="flex items-center gap-4">
+                             <div className={cn(
+                                "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                                selectedTitle === t.title ? "border-primary bg-primary" : "border-slate-200 bg-white"
+                             )}>
+                                {selectedTitle === t.title && <div className="w-2 h-2 bg-white rounded-full" />}
+                             </div>
+                             <div className="flex-1 space-y-1">
+                                <p className={cn(
+                                    "text-base font-bold leading-tight break-words pr-4",
+                                    selectedTitle === t.title ? "text-slate-950" : "text-slate-500"
+                                )}>
+                                    {t.title}
+                                </p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">{t.title.length}/80 characters used</p>
+                             </div>
                           </div>
                           <div className={cn(
                               "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border shadow-sm",
@@ -385,6 +396,47 @@ const OptimizeProduct = () => {
 
           {activeTab === 'images' && (
             <div className="space-y-12 animate-in zoom-in-95">
+               
+               {/* Broadcast Selection Bucket */}
+               <div className="bg-slate-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-8">
+                      <div>
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/80 mb-1">Broadcast Bucket</h4>
+                          <p className="text-[11px] font-medium opacity-50">Images staged for eBay mobilization.</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                          <span className="text-xl font-black">{maintainedImages.length}</span>
+                          <span className="text-[10px] font-black opacity-40 uppercase tracking-widest text-primary">Files Staged</span>
+                      </div>
+                  </div>
+                  <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                      {maintainedImages.map((img, i) => (
+                          <div key={`bucket-${i}`} className={cn(
+                              "relative w-28 h-28 rounded-2xl overflow-hidden shrink-0 border-2 transition-all",
+                              primaryImage === img ? "border-primary shadow-[0_0_15px_rgba(30,190,230,0.3)]" : "border-white/10"
+                          )}>
+                              <img src={img} className="w-full h-full object-cover" />
+                              {primaryImage === img && (
+                                  <div className="absolute top-2 right-2 bg-primary text-white p-1 rounded-md shadow-lg">
+                                      <CheckCircle size={10} />
+                                  </div>
+                              )}
+                              <button 
+                                onClick={() => setMaintainedImages(prev => prev.filter(item => item !== img))}
+                                className="absolute bottom-2 right-2 bg-black/60 hover:bg-rose-500 text-white p-1.5 rounded-lg backdrop-blur-md transition-all"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                          </div>
+                      ))}
+                      {maintainedImages.length === 0 && (
+                          <div className="w-full py-12 text-center text-[10px] font-black uppercase tracking-widest opacity-20 border-2 border-dashed border-white/10 rounded-3xl">
+                              Bucket Empty. Select images from catalog below.
+                          </div>
+                      )}
+                  </div>
+               </div>
+
                <div className="bg-white p-12 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                       <Zap size={120} />
@@ -432,7 +484,10 @@ const OptimizeProduct = () => {
                            <div key={`gen-${i}`} className="group relative rounded-[2.5rem] overflow-hidden aspect-square border-4 border-slate-50 transition-all shadow-xl hover:scale-[1.02]">
                                <img src={img} className="w-full h-full object-cover" />
                                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all">
-                                   <button className="bg-white text-slate-900 p-3 rounded-full shadow-lg">
+                                   <button 
+                                     onClick={() => setPreviewImage(img)}
+                                     className="bg-white text-slate-900 p-3 rounded-full shadow-lg"
+                                    >
                                        <Eye size={20} />
                                    </button>
                                </div>
@@ -454,25 +509,60 @@ const OptimizeProduct = () => {
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                        {product.images?.map((img, i) => (
                            <div key={`src-${i}`} className={cn(
-                               "relative rounded-3xl p-4 border-2 flex items-center gap-4 transition-all",
-                               maintainedImages.includes(img) ? "border-slate-100 bg-white" : "border-slate-50 opacity-40 bg-slate-50 grayscale"
+                               "relative rounded-3xl p-5 border-2 flex items-center gap-5 transition-all overflow-hidden",
+                               maintainedImages.includes(img) ? "border-slate-100 bg-white shadow-xl" : "border-slate-50 opacity-40 bg-slate-50 grayscale"
                            )}>
-                               <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
+                               <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-slate-100 relative group/img">
                                   <img src={img} className="w-full h-full object-cover" />
+                                  <button 
+                                    onClick={() => setPreviewImage(img)}
+                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-all duration-300"
+                                  >
+                                     <Eye size={24} />
+                                  </button>
                                </div>
-                               <div className="flex-1 space-y-2">
-                                  <div className="flex items-center gap-2">
-                                     <input type="checkbox" checked={maintainedImages.includes(img)} onChange={() => toggleMaintainedImage(img)} className="w-5 h-5 rounded-lg text-primary" />
-                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Maintain</span>
+                               <div className="flex-1 space-y-4">
+                                  <div className="flex flex-col gap-3">
+                                     <label className="flex items-center gap-3 cursor-pointer group">
+                                        <input 
+                                           type="radio" 
+                                           name="primary-image"
+                                           checked={primaryImage === img} 
+                                           onChange={() => {
+                                               setPrimaryImage(img);
+                                               if (!maintainedImages.includes(img)) {
+                                                   setMaintainedImages(prev => [...prev, img]);
+                                               }
+                                           }} 
+                                           className="w-5 h-5 accent-primary" 
+                                        />
+                                        <div className="flex flex-col">
+                                           <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Primary Photo</span>
+                                        </div>
+                                     </label>
+                                     
+                                     <label className="flex items-center gap-3 cursor-pointer">
+                                        <input 
+                                           type="checkbox" 
+                                           checked={maintainedImages.includes(img)} 
+                                           onChange={() => toggleMaintainedImage(img)} 
+                                           className="w-5 h-5 rounded-lg accent-slate-900" 
+                                        />
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">In Gallery</span>
+                                     </label>
                                   </div>
-                                  <button onClick={() => setReferenceImage(img)} className={cn("w-full py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border", referenceImage === img ? "bg-slate-900 text-white" : "bg-white text-slate-400")}>
-                                    {referenceImage === img ? "ACTIVE REFERENCE" : "SET REFERENCE"}
+                                  
+                                  <button 
+                                     onClick={() => setReferenceImage(img)} 
+                                     className={cn(
+                                       "w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all", 
+                                       referenceImage === img ? "bg-slate-900 text-white shadow-lg" : "bg-white text-slate-400"
+                                     )}
+                                  >
+                                    {referenceImage === img ? "NEURAL REF ACTIVE" : "CALIBRATE AI"}
                                   </button>
                                </div>
                            </div>
-                       ))}
-                       {product.images?.length === 0 && Array(3).fill(0).map((_, i) => (
-                           <div key={i} className="h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-100 animate-pulse" />
                        ))}
                    </div>
                </div>
@@ -525,8 +615,8 @@ const OptimizeProduct = () => {
                        </div>
                        <div className="space-y-6">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Competitor Live Vector</h4>
-                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                {competitorData?.map((comp, idx) => (
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar no-scrollbar">
+                                {Array.isArray(competitorData) && competitorData.map((comp, idx) => (
                                     <div key={idx} className="flex items-center justify-between p-6 bg-white border-2 border-slate-50 rounded-3xl hover:border-slate-100 transition-all">
                                         <div className="flex flex-col">
                                             <span className="text-xs font-bold text-slate-900 truncate max-w-[150px] mb-1">{comp.title}</span>
@@ -535,7 +625,7 @@ const OptimizeProduct = () => {
                                         <span className="text-lg font-black text-slate-950 tracking-tighter">${comp.price}</span>
                                     </div>
                                 ))}
-                                {!competitorData && <div className="p-16 text-center text-slate-300 font-bold italic border-2 border-dashed border-slate-100 rounded-3xl">Synchronizing market intel...</div>}
+                                {(!competitorData || competitorData.length === 0) && <div className="p-16 text-center text-slate-300 font-bold italic border-2 border-dashed border-slate-100 rounded-3xl">Synchronizing market intel...</div>}
                             </div>
                        </div>
                    </div>
@@ -608,6 +698,18 @@ const OptimizeProduct = () => {
            </div>
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {previewImage && (
+          <div className="fixed inset-0 z-[200] bg-slate-950/95 flex items-center justify-center p-12 backdrop-blur-xl animate-in fade-in duration-300">
+              <button onClick={() => setPreviewImage(null)} className="absolute top-12 right-12 text-white/40 hover:text-white transition-all">
+                  <Zap className="rotate-45" size={48} />
+              </button>
+              <div className="max-w-5xl w-full h-full flex items-center justify-center">
+                  <img src={previewImage} className="max-w-full max-h-full object-contain rounded-[3rem] shadow-[0_0_100px_rgba(30,190,230,0.1)]" />
+              </div>
+          </div>
+      )}
     </div>
   );
 };

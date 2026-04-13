@@ -224,14 +224,27 @@ class eBayService {
     return results || [];
   }
 
+  sanitizeSearchKeyword(text) {
+    if (!text) return "";
+    // Remove symbols and common eBay 'noise' words
+    let clean = text.replace(/[^a-zA-Z0-9\s]/g, ' ')
+                    .replace(/\b(new|sealed|box|ship|fast|best|official|certified|genuine)\b/gi, '')
+                    .trim();
+    // Use first 5-6 meaningful words for the search (high precision)
+    return clean.split(/\s+/).slice(0, 6).join(' ');
+  }
+
   async getCompetitorInsights(keyword) {
     const token = await this.getAppToken();
     if (!token) return [];
+    
+    const optimizedQuery = this.sanitizeSearchKeyword(keyword);
+    console.info(`[Market Pulse] Optimized Query: "${optimizedQuery}"`);
+
     try {
-        // High-precision search for competitor baseline
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
             params: { 
-                q: keyword, 
+                q: optimizedQuery, 
                 limit: 10, 
                 sort: 'price',
                 filter: 'buyingOptions:{FIXED_PRICE},itemCondition:{NEW}'
