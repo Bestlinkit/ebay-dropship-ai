@@ -17,7 +17,8 @@ import {
   Monitor,
   CheckCircle2,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
