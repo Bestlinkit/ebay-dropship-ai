@@ -6,7 +6,7 @@ class eBayService {
     this.appToken = null;
     this.baseUrl = 'https://api.ebay.com/buy/browse/v1';
     
-    // Triple-Layer API Bridge (Fail-Safe Architecture)
+    // Multi-Layer API Bridge (Fail-Safe Architecture)
     this.proxyUrl = import.meta.env.VITE_PROXY_URL;
     this.marketplaceId = 'EBAY_US'; // Default for production
 
@@ -40,13 +40,13 @@ class eBayService {
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}&v=5.9-SHIELD` : null,
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
     ].filter(Boolean);
 
     let lastError = null;
-    console.info(`[Stability Shield] Routing request: ${finalTargetUrl.slice(0, 80)}...`);
+    console.info(`[Market Bridge] Routing request: ${finalTargetUrl.slice(0, 80)}...`);
     
     for (const proxy of proxies) {
         try {
@@ -58,15 +58,15 @@ class eBayService {
                 timeout: 10000 
             });
 
-            // Ghost Protocol Check: Detect bridge-level failures masked as 200 OK
+            // Bridge Check: Detect bridge-level failures masked as 200 OK
             if (typeof response.data === 'string' && 
                (response.data.includes("Bridge Fault") || response.data.includes("Handshake Failed"))) {
-                throw new Error("Bridge Ghost Failure Detected");
+                throw new Error("Bridge Connectivity Failure Detected");
             }
 
             return response;
         } catch (e) {
-            console.warn(`[Stability Shield] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);
+            console.warn(`[Market Bridge] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);
             lastError = e;
         }
     }
@@ -123,12 +123,12 @@ class eBayService {
         const searchResult = response.data?.findItemsByKeywordsResponse?.[0]?.searchResult?.[0];
         let items = searchResult?.item || [];
 
-        // FALLBACK: Autonomous Pulse (If API returns empty for this niche/region)
+        // FALLBACK: Mock Data (If API returns empty for this niche/region)
         if (items.length === 0) {
-            console.warn("[eBay] Zero Pulse detected. Deploying Autonomous Mock Vectors.");
+            console.warn("[eBay] No results detected. Deploying Mock Results.");
             items = Array.from({ length: 12 }).map((_, i) => ({
                 itemId: [`MOCK-NODE-${i}`],
-                title: [`[Predicted] ${searchTerm} Pro Vector ${i+1}`],
+                title: [`[Sample] ${searchTerm} ${i+1}`],
                 sellingStatus: [{ currentPrice: [{ __value__: (Math.random() * 200 + 50).toFixed(2) }] }],
                 galleryURL: ['https://images.unsplash.com/photo-1523206489230-c012c64b2b48?auto=format&fit=crop&q=80&w=400'],
                 isMock: true
@@ -198,15 +198,15 @@ class eBayService {
         }
     };
 
-    // Vector 1: Browse API
+    // Strategy 1: Browse API
     let results = await executeSearch(token);
     
-    // Vector 2: User-Triggered Browse (if permitted)
+    // Strategy 2: User-Triggered Browse (if permitted)
     if ((!results || results.length === 0) && this.userToken) {
         results = await executeSearch(this.userToken);
     }
 
-    // Vector 3 (Production Fortress): Legacy Finding API
+    // Strategy 3 (Production Fallback): Legacy Finding API
     if (!results || results.length === 0) {
         console.info("[eBay Search] Browsing restricted. Flipping to Finding API...");
         results = await this.findProductsViaFindingAPI(query, categoryId);

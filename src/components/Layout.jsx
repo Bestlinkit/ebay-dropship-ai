@@ -64,14 +64,14 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
                         className="absolute right-0 mt-4 w-80 glass-card rounded-[2rem] p-4 z-50 overflow-hidden"
                     >
                         <div className="flex items-center justify-between mb-6 px-2">
-                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Neural Notifications</h3>
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Notifications</h3>
                             {notifications.length > 0 && <button className="text-[9px] font-bold text-primary-500 hover:underline px-2 py-1 rounded-lg">Clear All</button>}
                         </div>
                         <div className="space-y-2 max-h-[350px] overflow-y-auto scrollbar-hide">
                             {notifications.length === 0 ? (
                                 <div className="py-12 text-center space-y-3">
                                     <Bell className="mx-auto text-slate-100" size={32} />
-                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No Active Intelligence Alerts</p>
+                                    <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">No New Alerts</p>
                                 </div>
                             ) : (
                                 notifications.map((n) => (
@@ -128,7 +128,7 @@ const Layout = ({ children }) => {
     { icon: Megaphone, label: 'Marketing Hub', href: '/marketing' },
     { icon: Video, label: 'Video Lab', href: '/video' },
     { icon: BarChart3, label: 'Performance', href: '/analytics' },
-    { icon: Settings, label: 'System Config', href: '/settings' },
+    { icon: Settings, label: 'Settings', href: '/settings' },
   ];
 
   return (
@@ -260,7 +260,7 @@ const Layout = ({ children }) => {
 
                 <div className="hidden sm:flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-2.5">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
-                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Bridge: ONLINE</span>
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">eBay: ONLINE</span>
                 </div>
                 
                 <div className="relative">
@@ -286,7 +286,7 @@ const Layout = ({ children }) => {
 
         {/* Footer Info */}
         <footer className="px-12 py-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100/50">
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">DropAI Neural Interface v5.9-SHIELD</p>
+            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">DropAI Business Suite v1.0</p>
             <div className="flex items-center gap-6">
                 <Link to="/privacy" className="text-[9px] font-black text-slate-300 hover:text-primary-600 uppercase tracking-[0.2em] transition-colors">Privacy Policy</Link>
                 <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">

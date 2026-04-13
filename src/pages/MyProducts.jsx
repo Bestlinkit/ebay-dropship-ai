@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   MoreHorizontal, 
@@ -29,6 +29,7 @@ const MyProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -39,7 +40,7 @@ const MyProducts = () => {
             setProducts(liveProducts || []);
         } catch (e) {
             console.error("Failed to sync products:", e);
-            toast.error("Vector sync failed for inventory nodes.");
+            toast.error("Failed to sync products.");
         } finally {
             setLoading(false);
         }
@@ -60,7 +61,7 @@ const MyProducts = () => {
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Inventory Pulse.</h1>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic">Inventory Hub.</h1>
           <p className="text-slate-400 font-bold mt-1 text-sm uppercase tracking-widest flex items-center gap-2">
             <Package size={14} className="text-primary-500" />
             Live Marketplace Synchronization
@@ -71,7 +72,7 @@ const MyProducts = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
               <input 
                 type="text" 
-                placeholder="Search live nodes..." 
+                placeholder="Search products..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full flex h-14 bg-white rounded-2xl border border-slate-100 pl-12 text-sm font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all" 
@@ -105,7 +106,7 @@ const MyProducts = () => {
             {loading ? (
                 <div className="py-40 flex flex-col items-center justify-center gap-6">
                     <Loader2 className="animate-spin text-slate-200" size={64} strokeWidth={1} />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Decoding Inventory Vectors...</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Loading Inventory...</p>
                 </div>
             ) : filteredProducts.length === 0 ? (
                 <div className="py-40 flex flex-col items-center justify-center gap-6 text-center">
@@ -113,34 +114,38 @@ const MyProducts = () => {
                         <Package size={40} />
                     </div>
                     <div className="space-y-2">
-                        <h3 className="text-xl font-black text-slate-900 uppercase">Sector Quiet</h3>
+                        <h3 className="text-xl font-black text-slate-900 uppercase">No Products Found</h3>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-[240px]">No matching listing nodes found in current search/filter parameters.</p>
                     </div>
                     <button 
                         onClick={() => {setSearchTerm(''); setActiveTab('all');}}
                         className="mt-4 px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
                     >
-                        Reset All Vectors
+                        Clear All Filters
                     </button>
                 </div>
             ) : (
                 <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="bg-slate-50/30 text-slate-400 text-[9px] font-black uppercase tracking-[0.3em]">
-                    <th className="px-10 py-5">Product Identity</th>
-                    <th className="px-10 py-5">Node Status</th>
-                    <th className="px-10 py-5">Market Price</th>
-                    <th className="px-10 py-5">Watcher Delta</th>
+                    <th className="px-10 py-5">Product Name</th>
+                    <th className="px-10 py-5">Status</th>
+                    <th className="px-10 py-5">Price</th>
+                    <th className="px-10 py-5">Watchers</th>
                     <th className="px-10 py-5">Sync Date</th>
                     <th className="px-10 py-5">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                     {filteredProducts.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <tr 
+                        key={p.id} 
+                        onClick={() => navigate(`/optimize/${p.id}`, { state: { ebayProduct: p } })}
+                        className="hover:bg-slate-100/80 transition-all group cursor-pointer"
+                    >
                         <td className="px-10 py-8">
                         <span className="font-bold text-sm text-slate-900 block max-w-xs truncate group-hover:text-primary-500 transition-colors">{p.title}</span>
-                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">UUID: {p.id}</span>
+                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">Product ID: {p.id}</span>
                         </td>
                         <td className="px-10 py-8">
                         <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${
@@ -153,7 +158,7 @@ const MyProducts = () => {
                         <td className="px-10 py-8">
                         <div className="flex flex-col">
                             <span className="text-base font-black text-slate-900">${p.price.toFixed(2)}</span>
-                            <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">USD Base</span>
+                            <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Current Price</span>
                         </div>
                         </td>
                         <td className="px-10 py-8">
@@ -173,7 +178,15 @@ const MyProducts = () => {
                                 to={`/optimize/${p.id}`}
                                 state={{ ebayProduct: p }}
                                 className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-primary-500 hover:bg-primary-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
-                                title="Neural Optimization"
+                                title="Edit & Optimize"
+                            >
+                                <Edit3 size={16} className="group-hover/btn:scale-110 transition-transform" />
+                            </Link>
+                            <Link 
+                                to={`/optimize/${p.id}`}
+                                state={{ ebayProduct: p }}
+                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-indigo-500 hover:bg-indigo-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
+                                title="AI Insights"
                             >
                                 <Sparkles size={16} className="group-hover/btn:scale-110 transition-transform" />
                             </Link>
@@ -181,7 +194,7 @@ const MyProducts = () => {
                                 to={`/marketing`}
                                 state={{ selectedProduct: p }}
                                 className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-emerald-500 hover:bg-emerald-50 hover:shadow-lg transition-all flex items-center justify-center group/btn"
-                                title="Marketing Center"
+                                title="Promote Market"
                             >
                                 <Megaphone size={16} className="group-hover/btn:scale-110 transition-transform" />
                             </Link>
@@ -189,7 +202,7 @@ const MyProducts = () => {
                                 to={`/video-lab`}
                                 state={{ selectedProduct: p }}
                                 className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-slate-800 hover:shadow-lg transition-all flex items-center justify-center group/btn"
-                                title="Video Ad Lab"
+                                title="Create Video Ad"
                             >
                                 <Play size={16} className="group-hover/btn:scale-110 transition-transform" />
                             </Link>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Settings as SettingsIcon, 
   Key, 
@@ -34,9 +35,14 @@ const Settings = () => {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isStoreConnected, setIsStoreConnected] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
-  
   const { primaryColor, updateBrandColor } = useTheme();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.tab) {
+        setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
 
   const [apiKeys, setApiKeys] = useState({
     ebayAppId: "9823-PROD-...",

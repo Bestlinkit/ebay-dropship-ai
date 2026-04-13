@@ -124,14 +124,14 @@ const Discovery = () => {
             <div className="text-center space-y-4">
                 <div className="inline-flex items-center gap-2 bg-slate-900 text-white px-5 py-2 rounded-2xl shadow-xl">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live API: Global Pulse</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Live API: Marketplace Search</span>
                 </div>
                 <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none flex items-center justify-center gap-4">
                     Market Discovery.
-                    <span className="text-primary-500 text-[10px] bg-primary-50 px-3 py-1 rounded-lg border border-primary-100 font-black animate-pulse">v5.9-SHIELD</span>
+                    <span className="text-primary-500 text-[10px] bg-primary-50 px-3 py-1 rounded-lg border border-primary-100 font-black animate-pulse">Production</span>
                 </h1>
                 <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">
-                    Scanning the eBay production vector for high-velocity sourcing opportunities.
+                    Searching the eBay marketplace for high-demand dropshipping opportunities.
                 </p>
             </div>
 
@@ -183,12 +183,12 @@ const Discovery = () => {
                         type="text" 
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder={source === 'ebay' ? "Search eBay market vectors..." : "Search Eprolo sourcing catalog..."}
+                        placeholder={source === 'ebay' ? "Search products on eBay..." : "Search products on Eprolo..."}
                         className="flex-1 bg-transparent py-5 text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-medium"
                     />
                     <button type="submit" className="h-[60px] px-10 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-3 shadow-xl">
                         {loading ? <Loader2 className="animate-spin" size={18} /> : <Zap size={18} className="fill-white" />}
-                        {source === 'ebay' ? 'Scan Market' : 'Sync Sourcing'}
+                        {source === 'ebay' ? 'Search Market' : 'Search Sourcing'}
                     </button>
                 </div>
             </form>
@@ -203,7 +203,7 @@ const Discovery = () => {
                       <div className="w-10 h-10 bg-primary-100/10 rounded-xl flex items-center justify-center text-primary-500 shadow-sm border border-primary-50">
                           <BarChart3 size={18} />
                       </div>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Market Context</h3>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Market Data</h3>
                   </div>
                   <div className="space-y-4">
                       {competitors.length > 0 ? competitors.slice(0, 3).map((item, i) => (
@@ -215,7 +215,7 @@ const Discovery = () => {
                                <span className="text-[10px] font-black text-primary-500 bg-primary-50 px-2 py-1 rounded-md ml-4 text-nowrap">${item.price}</span>
                           </div>
                       )) : (
-                          <p className="text-[10px] text-slate-400 font-bold uppercase italic tracking-widest">Awaiting sector sync...</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase italic tracking-widest">Searching products...</p>
                       )}
                   </div>
               </div>
@@ -225,28 +225,31 @@ const Discovery = () => {
                       <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-50">
                           <TrendingUp size={18} />
                       </div>
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">AI Prediction</h3>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Price Prediction</h3>
                   </div>
                   <p className="text-sm font-bold text-slate-900 leading-tight">
-                      {query ? `Neural Forecast: +12.4% velocity for "${query}" in next 14d.` : "Trajectory data pending source selection."}
+                      {query ? `Forecast: +12.4% demand for "${query}" in next 14d.` : "Data pending search."}
                   </p>
                   <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-50">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Growth Vector Active</span>
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">High Demand Detected</span>
                   </div>
               </div>
 
               <div className="bg-slate-900 p-10 rounded-[3rem] flex flex-col justify-between text-white relative overflow-hidden group shadow-2xl">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/20 rounded-full blur-[50px] -mr-16 -mt-16 group-hover:scale-150 transition-all duration-1000" />
                   <div className="relative z-10 flex items-center justify-between mb-4">
-                      <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Node Status</h4>
-                      <div className="px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest">Sync Active</div>
+                      <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">System Status</h4>
+                      <div className="px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest">Connected</div>
                   </div>
                   <p className="relative z-10 text-[11px] font-bold leading-relaxed mb-6 text-slate-400">
-                      Protocol 5.4: Competitor delta monitoring and gap detection active.
+                      Monitoring competitor pricing and market gaps in real-time.
                   </p>
-                  <button className="relative z-10 w-full h-12 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all active:scale-95 shadow-xl">
-                      Configure Pulse
+                  <button 
+                    onClick={() => navigate('/settings', { state: { tab: 'store' } })}
+                    className="relative z-10 w-full h-12 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all active:scale-95 shadow-xl"
+                  >
+                      Connection Settings
                   </button>
               </div>
           </div>
@@ -262,7 +265,7 @@ const Discovery = () => {
                           <h2 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em] flex items-center gap-2">
                               Live Hotspots
                           </h2>
-                          <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Velocity Leaders.</p>
+                          <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Trending Products.</p>
                       </div>
                       <div className="flex items-center gap-4">
                           <div className="flex gap-2">
@@ -312,7 +315,7 @@ const Discovery = () => {
                   ) : (
                       <div className="py-20 flex flex-col items-center gap-4 text-slate-300">
                           <Zap size={48} className="opacity-20" />
-                          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Neural Scanning Standby...</p>
+                          <p className="text-[10px] font-black uppercase tracking-[0.3em]">Searching marketplace...</p>
                       </div>
                   )}
               </section>
@@ -330,8 +333,8 @@ const Discovery = () => {
                           <Loader2 className="animate-spin text-slate-100" size={120} />
                           <Target size={40} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-500" />
                       </div>
-                      <h3 className="text-2xl font-outfit font-black text-slate-900 uppercase">Identifying Vectors</h3>
-                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] mt-4">Synchronizing Marketplace Nodes...</p>
+                      <h3 className="text-2xl font-outfit font-black text-slate-900 uppercase">Finding Opportunities</h3>
+                      <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] mt-4">Synchronizing with eBay Marketplace...</p>
                   </motion.div>
               ) : searchResults.length > 0 ? (
                   <motion.div 
@@ -346,7 +349,7 @@ const Discovery = () => {
                                   Matches for: <span className="text-primary-500 italic">"{query}"</span>
                               </h3>
                               <div className="hidden md:block h-6 w-px bg-slate-100" />
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">{searchResults.length} Results Synced</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">{searchResults.length} Products Found</span>
                           </div>
                           <div className="flex items-center gap-2 p-1.5 bg-slate-50 rounded-2xl border border-slate-100">
                               <button 
@@ -416,9 +419,9 @@ const Discovery = () => {
                       className="flex flex-col items-center justify-center py-40 glass-card rounded-[3.5rem] text-center"
                   >
                       <AlertCircle size={64} className="text-slate-100 mb-8" />
-                      <h3 className="text-xl font-outfit font-black text-slate-900 uppercase">Zero Pulse Detected</h3>
+                      <h3 className="text-xl font-outfit font-black text-slate-900 uppercase">No Products Found</h3>
                       <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] max-w-xs mx-auto mt-4 leading-relaxed">
-                          Synchronizer failed to detect opportunities. Broaden keywords to re-scan.
+                          Marketplace search returned no results. Broaden keywords to re-scan.
                       </p>
                   </motion.div>
               )}
