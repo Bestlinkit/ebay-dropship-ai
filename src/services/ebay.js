@@ -128,18 +128,7 @@ class eBayService {
         const searchResult = response.data?.findItemsByKeywordsResponse?.[0]?.searchResult?.[0];
         let items = searchResult?.item || [];
 
-        // FALLBACK: Mock Data (If API returns empty for this niche/region)
-        if (items.length === 0) {
-            console.warn("[eBay] No results detected. Deploying Mock Results.");
-            items = Array.from({ length: 12 }).map((_, i) => ({
-                itemId: [`MOCK-NODE-${i}`],
-                title: [`[Sample] ${searchTerm} ${i+1}`],
-                sellingStatus: [{ currentPrice: [{ __value__: (Math.random() * 200 + 50).toFixed(2) }] }],
-                galleryURL: ['https://images.unsplash.com/photo-1523206489230-c012c64b2b48?auto=format&fit=crop&q=80&w=400'],
-                isMock: true
-            }));
-        }
-
+        // REAL DATA ONLY: No mock fallback permitted per SaaS Hardening Mandate v1.0
         return items.map(item => {
             const priceVal = item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0";
             return {
@@ -203,6 +192,7 @@ class eBayService {
             }
             return [];
         } catch (e) {
+            console.error("[eBay Search] API Vector Failure:", e.message);
             return [];
         }
     };
@@ -302,15 +292,18 @@ class eBayService {
     if (!token) return [];
 
     try {
-        // Fetch specific subtree node to get immediate children
-        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_item_aspect_names`, {
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_subtree`, {
             params: { category_id: parentId },
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        // Note: For immediate subcategories, we usually need the full tree or iterative suggestions.
-        // As a SaaS standard, we'll use suggestions with query refinement if subtree fetch is restricted.
-        return response.data || [];
+        
+        return (response.data?.categoryTreeNode?.childCategoryTreeNodes || []).map(node => ({
+            id: node.category.categoryId,
+            name: node.category.categoryName,
+            isLeaf: node.leafCategoryTreeNodes?.length === 0 && (!node.childCategoryTreeNodes || node.childCategoryTreeNodes.length === 0)
+        }));
     } catch (e) {
+        console.error("[Taxonomy Drill-Down] Node Retrieval Failed:", e.message);
         return [];
     }
   }
