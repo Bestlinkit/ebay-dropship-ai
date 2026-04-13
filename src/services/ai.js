@@ -133,7 +133,7 @@ class AIService {
       - Motors
 
       CRITICAL TASKS:
-      1. Titles: Generate 3 high-velocity titles (max 80 chars). Assign a 'rank' probability score (0-100).
+      1. Titles: Generate 3 high-velocity titles (STRICTLY MAX 80 chars). Assign a 'rank' probability score (0-100).
       2. Categorization: Based on the Title, select the correct Main Category from the Compass and a specific Sub-Category.
       3. Tags: Generate exactly 10 descriptive SEO tags. Avoid generic "ebay/professional". Focus on niche keywords.
       4. Description: Write a premium HTML sales-pitch.
@@ -145,12 +145,27 @@ class AIService {
     try {
       const response = await this.model.generateContent(prompt);
       const text = response.response.text();
-      const cleanJson = text.replace(/```json|```/g, '').trim();
-      return JSON.parse(cleanJson);
+      
+      // Improved robust JSON extraction
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}') + 1;
+      
+      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON object found in response");
+      
+      const cleanJson = text.substring(jsonStart, jsonEnd).trim();
+      const parsed = JSON.parse(cleanJson);
+      
+      // Ensure strict compliance post-generation
+      parsed.titles = (parsed.titles || []).map(t => ({
+          ...t,
+          title: t.title.substring(0, 80)
+      }));
+      
+      return parsed;
     } catch (error) {
       console.error("AI Suite Synchronization Failed", error);
       return {
-        titles: [{ title: baselineTitle, rank: 95 }],
+        titles: [{ title: baselineTitle.substring(0, 80), rank: 95 }],
         description: `<p>${baselineTitle}</p>`,
         mainCategory: "General Merchandise",
         subCategory: "Uncategorized",

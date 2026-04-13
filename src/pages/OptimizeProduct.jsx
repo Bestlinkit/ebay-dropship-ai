@@ -77,11 +77,15 @@ const OptimizeProduct = () => {
                 const fetchedProduct = await ebayService.getProductById(id);
                 if (fetchedProduct) {
                     setProduct(fetchedProduct);
-                    setPrice(fetchedProduct.price || 0);
+                    const baselinePrice = fetchedProduct.price || 0;
+                    setPrice(baselinePrice);
                     setDescription(fetchedProduct.description);
-                    setMaintainedImages(fetchedProduct.images || []);
-                    if (fetchedProduct.images?.length > 0) {
-                        setReferenceImage(fetchedProduct.images[0]);
+                    
+                    // Critical Fix: Ensure image states are populated early
+                    const baselineImages = fetchedProduct.images || [];
+                    setMaintainedImages(baselineImages);
+                    if (baselineImages.length > 0) {
+                        setReferenceImage(baselineImages[0]);
                     }
                 }
             } catch (err) {
@@ -95,7 +99,7 @@ const OptimizeProduct = () => {
   }, [id]);
 
   useEffect(() => {
-    if (product?.title && product.title !== "" && !titles.length) {
+    if (product?.title && product.title !== "" && titles.length === 0) {
         runOptimization();
     }
   }, [product?.title]);
@@ -110,11 +114,13 @@ const OptimizeProduct = () => {
       await new Promise(r => setTimeout(r, 800));
       
       addLog("Consulting Category Compass...");
+      // Use current price from state or product baseline
+      const activePrice = price || product.price || 0;
       const insights = await ebayService.getCompetitorInsights(product.title);
       setCompetitorData(insights);
       
       addLog("Synthesizing Neural SEO Metrics...");
-      const optimization = await aiService.optimizeListing(product.title, price, insights);
+      const optimization = await aiService.optimizeListing(product.title, activePrice, insights);
       
       setTitles(optimization.titles || []);
       setSelectedTitle(optimization.titles?.[0]?.title || product.title);
@@ -170,7 +176,6 @@ const OptimizeProduct = () => {
     }
     setVisualLoading(true);
     try {
-      // In production, each generation would use a specific prompt based on visualMood
       const variations = await aiService.generateProductImageVariations(referenceImage);
       setGeneratedImages(variations);
       toast.success(`8 variations generated [Mood: ${visualMood.toUpperCase()}]`);
@@ -283,20 +288,40 @@ const OptimizeProduct = () => {
                 </div>
                 
                 <div className="space-y-6">
-                  {/* Title Selection Dropdown */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Select Active Title Profile</label>
-                    <div className="relative">
-                      <select 
-                        value={selectedTitle}
-                        onChange={(e) => setSelectedTitle(e.target.value)}
-                        className="w-full h-20 px-8 rounded-3xl bg-slate-50 border-2 border-slate-100 font-bold text-slate-900 appearance-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none"
-                      >
-                        {titles.map((t, i) => (
-                          <option key={i} value={t.title}>{t.title} ({t.rank}% Ranking)</option>
-                        ))}
-                      </select>
-                      <ChevronRight className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" size={20} />
+                  {/* Custom Title Stack (Replaces Overflowing Dropdown) */}
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 italic">Select Active Title Profile (80 Char Cap)</label>
+                    <div className="grid grid-cols-1 gap-4">
+                      {titles.map((t, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedTitle(t.title)}
+                          className={cn(
+                            "group relative text-left p-6 rounded-3xl border-2 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4",
+                            selectedTitle === t.title ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 bg-slate-50/30 hover:border-primary/20"
+                          )}
+                        >
+                          <div className="flex-1 space-y-1">
+                              <p className={cn(
+                                "text-base font-bold leading-tight break-words pr-4",
+                                selectedTitle === t.title ? "text-slate-950" : "text-slate-500"
+                              )}>
+                                {t.title}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic">{t.title.length}/80 characters used</p>
+                          </div>
+                          <div className={cn(
+                              "shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border shadow-sm",
+                              selectedTitle === t.title ? "bg-primary text-white border-primary" : "bg-white text-slate-400 border-slate-100"
+                          )}>
+                              {t.rank}% RANK
+                              {selectedTitle === t.title && <CheckCircle size={14} />}
+                          </div>
+                        </button>
+                      ))}
+                      {titles.length === 0 && Array(3).fill(0).map((_, i) => (
+                          <div key={i} className="h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-100 animate-pulse" />
+                      ))}
                     </div>
                   </div>
 
@@ -349,7 +374,6 @@ const OptimizeProduct = () => {
 
           {activeTab === 'images' && (
             <div className="space-y-12 animate-in zoom-in-95">
-               {/* Visual Mood Switcher */}
                <div className="bg-white p-12 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                       <Zap size={120} />
@@ -388,21 +412,15 @@ const OptimizeProduct = () => {
                   </button>
                </div>
 
-               {/* Stage 1: AI Variations */}
                <div className="space-y-6">
                    <div className="flex items-center justify-between px-2">
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Neural Variations</h4>
-                      {generatedImages.length > 0 && <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full uppercase italic">8 high-res ready</span>}
                    </div>
                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                        {generatedImages.map((img, i) => (
-                           <div 
-                             key={`gen-${i}`} 
-                             className="group relative rounded-[2.5rem] overflow-hidden aspect-square border-4 border-slate-50 transition-all shadow-xl hover:scale-[1.02]"
-                           >
+                           <div key={`gen-${i}`} className="group relative rounded-[2.5rem] overflow-hidden aspect-square border-4 border-slate-50 transition-all shadow-xl hover:scale-[1.02]">
                                <img src={img} className="w-full h-full object-cover" />
                                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all">
-                                   <p className="text-white text-[10px] font-black uppercase tracking-widest mb-4">Neural Variant</p>
                                    <button className="bg-white text-slate-900 p-3 rounded-full shadow-lg">
                                        <Eye size={20} />
                                    </button>
@@ -417,45 +435,33 @@ const OptimizeProduct = () => {
                    </div>
                </div>
 
-               {/* Stage 2: Source Catalog Management */}
                <div className="space-y-6 pt-12 border-t border-slate-100">
                    <div className="px-2">
                     <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em] mb-2">Source Image Catalog</h4>
-                    <p className="text-slate-400 text-[11px] font-medium italic">Enable/Disable images for the final broadcast. Select one as the AI Reference.</p>
+                    <p className="text-slate-400 text-[11px] font-medium italic">Enable/Disable images for the final broadcast.</p>
                    </div>
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                        {product.images?.map((img, i) => (
-                           <div 
-                             key={`src-${i}`} 
-                             className={cn(
+                           <div key={`src-${i}`} className={cn(
                                "relative rounded-3xl p-4 border-2 flex items-center gap-4 transition-all",
                                maintainedImages.includes(img) ? "border-slate-100 bg-white" : "border-slate-50 opacity-40 bg-slate-50 grayscale"
-                             )}
-                           >
+                           )}>
                                <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
                                   <img src={img} className="w-full h-full object-cover" />
                                </div>
                                <div className="flex-1 space-y-2">
                                   <div className="flex items-center gap-2">
-                                     <input 
-                                       type="checkbox" 
-                                       checked={maintainedImages.includes(img)}
-                                       onChange={() => toggleMaintainedImage(img)}
-                                       className="w-5 h-5 rounded-lg text-primary focus:ring-primary border-slate-200 cursor-pointer"
-                                     />
+                                     <input type="checkbox" checked={maintainedImages.includes(img)} onChange={() => toggleMaintainedImage(img)} className="w-5 h-5 rounded-lg text-primary" />
                                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Maintain</span>
                                   </div>
-                                  <button 
-                                    onClick={() => setReferenceImage(img)}
-                                    className={cn(
-                                      "w-full py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all",
-                                      referenceImage === img ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
-                                    )}
-                                  >
+                                  <button onClick={() => setReferenceImage(img)} className={cn("w-full py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border", referenceImage === img ? "bg-slate-900 text-white" : "bg-white text-slate-400")}>
                                     {referenceImage === img ? "ACTIVE REFERENCE" : "SET REFERENCE"}
                                   </button>
                                </div>
                            </div>
+                       ))}
+                       {product.images?.length === 0 && Array(3).fill(0).map((_, i) => (
+                           <div key={i} className="h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-100 animate-pulse" />
                        ))}
                    </div>
                </div>
@@ -464,25 +470,25 @@ const OptimizeProduct = () => {
 
           {activeTab === 'pricing' && (
              <div className="space-y-8 animate-in slide-in-from-right-4">
-                <div className="bg-white p-12 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                   <div className="flex items-center justify-between mb-12">
+                <div className="bg-white p-12 rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-12 mb-12">
                       <div className="flex items-center gap-6">
-                         <div className="w-20 h-20 bg-slate-950 rounded-[1.5rem] flex items-center justify-center text-white shadow-2xl">
+                         <div className="w-20 h-20 bg-slate-950 rounded-[1.5rem] flex items-center justify-center text-white shadow-2xl shrink-0">
                             <DollarSign size={40} />
                          </div>
                          <div>
                             <h3 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Price Matrix</h3>
-                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Optimizing for global revenue</p>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Optimizing global revenue</p>
                          </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex-1 max-w-sm">
                           <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Neural Recommendation</p>
-                          <span className={cn(
-                              "px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border shadow-sm",
+                          <div className={cn(
+                              "p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border shadow-sm leading-relaxed",
                               pricingStrategy.toLowerCase().includes("decrease") ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
                           )}>
-                              {pricingStrategy || "Analyzing Market Feed..."}
-                          </span>
+                              {pricingStrategy}
+                          </div>
                       </div>
                    </div>
 
@@ -492,35 +498,28 @@ const OptimizeProduct = () => {
                                <p className="text-[10px] text-slate-400 font-black uppercase mb-6 tracking-widest">Global Marketplace Value</p>
                                <div className="flex items-center gap-8 relative">
                                    <span className="text-6xl font-black text-slate-400 italic shrink-0">$</span>
-                                   <input 
-                                     type="number"
-                                     value={price}
-                                     onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                                     className="bg-transparent text-7xl font-black text-slate-950 w-full outline-none focus:text-primary transition-colors tracking-tighter"
-                                   />
+                                   <input type="number" value={price} onChange={(e) => setPrice(parseFloat(e.target.value) || 0)} className="bg-transparent text-7xl font-black text-slate-950 w-full outline-none focus:text-primary tracking-tighter" />
                                </div>
                            </div>
-                           
                            <div className="p-8 bg-primary/5 rounded-[2rem] border border-primary/10 flex items-start gap-6">
                                <TrendingUp className="text-primary mt-1" size={24} />
                                <div>
                                    <p className="text-[11px] font-black text-primary uppercase mb-2">Market Sentiment Analyzer</p>
-                                   <p className="text-[13px] text-slate-600 leading-relaxed font-medium">
+                                   <p className="text-[13px] text-slate-600 leading-relaxed font-medium italic">
                                        Competitor baseline stands at <b>${competitorData?.stats?.avg || 'N/A'}</b>. 
-                                       Your current vector of <b>${price.toFixed(2)}</b> provides a healthy buffer while maintaining competitive advantage.
+                                       Your current vector of <b>${price.toFixed(2)}</b> provides a healthy buffer.
                                    </p>
                                </div>
                            </div>
                        </div>
-
                        <div className="space-y-6">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Competitor Live Vector</h4>
-                            <div className="space-y-4">
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                 {competitorData?.map((comp, idx) => (
                                     <div key={idx} className="flex items-center justify-between p-6 bg-white border-2 border-slate-50 rounded-3xl hover:border-slate-100 transition-all">
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-bold text-slate-900 truncate max-w-[200px] mb-1">{comp.title}</span>
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{comp.seller}</span>
+                                            <span className="text-xs font-bold text-slate-900 truncate max-w-[150px] mb-1">{comp.title}</span>
+                                            <span className="text-[9px] font-black text-slate-400 uppercase italic">{comp.seller}</span>
                                         </div>
                                         <span className="text-lg font-black text-slate-950 tracking-tighter">${comp.price}</span>
                                     </div>
@@ -528,23 +527,6 @@ const OptimizeProduct = () => {
                                 {!competitorData && <div className="p-16 text-center text-slate-300 font-bold italic border-2 border-dashed border-slate-100 rounded-3xl">Synchronizing market intel...</div>}
                             </div>
                        </div>
-                   </div>
-
-                   <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-10 pt-16 border-t border-slate-100">
-                        <div className="text-center group">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest group-hover:text-slate-900 transition-colors">Base Origin Cost</p>
-                            <p className="text-3xl font-black text-slate-900 tracking-tighter font-serif italic">${sourceProduct?.price || 0}</p>
-                        </div>
-                        <div className="text-center group border-x border-slate-100">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest group-hover:text-slate-900 transition-colors">Platform Excise Fee</p>
-                            <p className="text-3xl font-black text-slate-900 tracking-tighter font-serif italic">${(price * 0.12).toFixed(2)}</p>
-                        </div>
-                        <div className="text-center group">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-3 tracking-widest group-hover:text-slate-900 transition-colors">Projected Net ROI</p>
-                            <p className="text-4xl font-black text-emerald-500 tracking-tight italic">
-                              ${(price - (sourceProduct?.price || 0) - (price * 0.12)).toFixed(2)}
-                            </p>
-                        </div>
                    </div>
                 </div>
              </div>
@@ -554,9 +536,7 @@ const OptimizeProduct = () => {
         {/* Sidebar Status Column */}
         <div className="xl:col-span-1 space-y-8">
            <div className="bg-white p-12 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-10 flex items-center justify-center gap-2 italic">
-                 Market Health
-              </h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-10 italic">Market Health</h3>
               <div className="flex justify-center mb-10 relative">
                   <div className="w-48 h-48 flex items-center justify-center">
                       <div className="absolute inset-0 border-[16px] border-slate-50 rounded-full" />
@@ -588,7 +568,7 @@ const OptimizeProduct = () => {
                       <p className="text-[12px] font-bold opacity-80 uppercase tracking-widest">Gemini 1.5 Ultra Optimized</p>
                   </div>
                   <div className="flex gap-4 items-center">
-                      <div className="w-2 h-2 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)] animate-pulse" />
+                      <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
                       <p className="text-[12px] font-bold opacity-80 uppercase tracking-widest">Nano Banana Ready</p>
                   </div>
                </div>
