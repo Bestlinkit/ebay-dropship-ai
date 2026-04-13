@@ -253,9 +253,14 @@ const Layout = ({ children }) => {
             </div>
 
             <div className="flex items-center gap-4">
-                <div className="hidden lg:flex items-center gap-3 bg-white/50 backdrop-blur-md border border-slate-100 rounded-2xl px-5 py-2.5 transition-all hover:bg-white hover:border-slate-300 group cursor-pointer">
+                <div className="hidden lg:flex items-center gap-3 bg-white/50 backdrop-blur-md border border-slate-100 rounded-2xl px-5 py-2.5 transition-all hover:bg-white hover:border-slate-300 group cursor-pointer text-slate-900">
                     <SearchIcon size={14} className="text-slate-400 group-hover:text-primary-600" />
                     <span className="text-[10px] font-black text-slate-400 group-hover:text-slate-900 uppercase tracking-widest">Global Scan (⌘K)</span>
+                </div>
+
+                <div className="hidden sm:flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-2.5">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_#10b981]" />
+                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Bridge: ONLINE</span>
                 </div>
                 
                 <div className="relative">
@@ -281,7 +286,7 @@ const Layout = ({ children }) => {
 
         {/* Footer Info */}
         <footer className="px-12 py-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100/50">
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">DropAI Neural Interface v5.4r2</p>
+            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">DropAI Neural Interface v5.9-SHIELD</p>
             <div className="flex items-center gap-6">
                 <Link to="/privacy" className="text-[9px] font-black text-slate-300 hover:text-primary-600 uppercase tracking-[0.2em] transition-colors">Privacy Policy</Link>
                 <div className="flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em]">

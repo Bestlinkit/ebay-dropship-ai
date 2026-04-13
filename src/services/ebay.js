@@ -57,6 +57,13 @@ class eBayService {
                 url: proxy,
                 timeout: 10000 
             });
+
+            // Ghost Protocol Check: Detect bridge-level failures masked as 200 OK
+            if (typeof response.data === 'string' && 
+               (response.data.includes("Bridge Fault") || response.data.includes("Handshake Failed"))) {
+                throw new Error("Bridge Ghost Failure Detected");
+            }
+
             return response;
         } catch (e) {
             console.warn(`[Stability Shield] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);

@@ -12,9 +12,36 @@ class EproloService {
     this.useSimulation = !import.meta.env.VITE_EPROLO_API_KEY || import.meta.env.VITE_EPROLO_API_KEY.includes('YOUR_'); 
   }
 
-  /**
-   * Searches for products directly on Eprolo's marketplace.
-   */
+  async fetchWithRetry(method, url, data = {}, headers = {}) {
+    const proxyUrl = import.meta.env.VITE_PROXY_URL;
+    const finalUrl = proxyUrl ? `${proxyUrl}?url=${encodeURIComponent(url)}` : url;
+    
+    try {
+        const response = await axios({
+            method,
+            url: finalUrl,
+            data,
+            headers: {
+                ...headers,
+                'X-API-KEY': this.apiKey,
+                'X-API-SECRET': this.apiSecret
+            },
+            timeout: 15000
+        });
+
+        // Ghost Protocol Check
+        if (typeof response.data === 'string' && 
+           (response.data.includes("Bridge Fault") || response.data.includes("Handshake Failed"))) {
+            throw new Error("Bridge Ghost Failure Detected");
+        }
+
+        return response;
+    } catch (e) {
+        console.warn(`[Eprolo Shield] Node Bypass Triggered: ${e.message}`);
+        throw e;
+    }
+  }
+
   async searchProducts(query, page = 1) {
     if (this.useSimulation) {
         console.warn("[Eprolo Service] Simulation mode active. No API keys found.");
@@ -22,16 +49,10 @@ class EproloService {
     }
 
     try {
-        const response = await axios.post(`${this.baseUrl}/product/list`, {
+        const response = await this.fetchWithRetry('post', `${this.baseUrl}/product/list`, {
             keywords: query,
             page: page,
             limit: 10
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-KEY': this.apiKey,
-                'X-API-SECRET': this.apiSecret
-            }
         });
 
         if (response.data && response.data.list) {

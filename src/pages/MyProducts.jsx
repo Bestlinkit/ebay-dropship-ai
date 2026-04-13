@@ -14,7 +14,9 @@ import {
   Package,
   Zap,
   Activity,
-  Sparkles
+  Sparkles,
+  Megaphone,
+  Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
@@ -22,6 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 
 const MyProducts = () => {
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +36,7 @@ const MyProducts = () => {
         try {
             const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
             const liveProducts = await ebayTrading.getActiveListings(token);
-            setProducts(liveProducts);
+            setProducts(liveProducts || []);
         } catch (e) {
             console.error("Failed to sync products:", e);
             toast.error("Vector sync failed for inventory nodes.");
@@ -45,9 +48,12 @@ const MyProducts = () => {
     fetchListings();
   }, [user]);
 
-  const filteredProducts = products.filter(p => {
-    if (activeTab === 'all') return true;
-    return p.status.toLowerCase() === activeTab;
+  const filteredProducts = (products || []).filter(p => {
+    const matchesTab = activeTab === 'all' || p.status?.toLowerCase() === activeTab.toLowerCase();
+    const matchesSearch = !searchTerm || 
+                         p.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.id?.toString().includes(searchTerm);
+    return matchesTab && matchesSearch;
   });
 
   return (
@@ -61,9 +67,15 @@ const MyProducts = () => {
           </p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
-           <div className="relative flex-1 md:w-64">
+           <div className="relative flex-1 md:w-64 text-slate-900">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
-              <input type="text" placeholder="Search live nodes..." className="w-full flex h-14 bg-white rounded-2xl border border-slate-100 pl-12 text-sm font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all" />
+              <input 
+                type="text" 
+                placeholder="Search live nodes..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full flex h-14 bg-white rounded-2xl border border-slate-100 pl-12 text-sm font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all" 
+              />
            </div>
            <button className="h-14 px-5 bg-white border border-slate-100 rounded-2xl text-slate-400 hover:text-slate-900 transition-all shadow-sm">
               <Filter size={20} />
@@ -89,7 +101,7 @@ const MyProducts = () => {
             ))}
          </div>
 
-         <div className="overflow-x-auto">
+         <div className="overflow-x-auto min-h-[400px]">
             {loading ? (
                 <div className="py-40 flex flex-col items-center justify-center gap-6">
                     <Loader2 className="animate-spin text-slate-200" size={64} strokeWidth={1} />
@@ -101,10 +113,15 @@ const MyProducts = () => {
                         <Package size={40} />
                     </div>
                     <div className="space-y-2">
-                        <h3 className="text-xl font-black text-slate-900 uppercase">Empty Sector</h3>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-[240px]">No active listings detected on your linked eBay production node.</p>
+                        <h3 className="text-xl font-black text-slate-900 uppercase">Sector Quiet</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-[240px]">No matching listing nodes found in current search/filter parameters.</p>
                     </div>
-                    <button className="mt-4 px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Establish New Link</button>
+                    <button 
+                        onClick={() => {setSearchTerm(''); setActiveTab('all');}}
+                        className="mt-4 px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all"
+                    >
+                        Reset All Vectors
+                    </button>
                 </div>
             ) : (
                 <table className="w-full text-left border-collapse">
@@ -152,22 +169,31 @@ const MyProducts = () => {
                         </td>
                         <td className="px-10 py-8">
                         <div className="flex items-center gap-2 opacity-100 transition-all">
-                            <button 
-                                onClick={() => toast.info("Quick-Edit Node initialized.")}
-                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-amber-500 hover:bg-amber-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
-                                title="Quick Sync"
-                            >
-                                <Zap size={16} className="group-hover/btn:scale-110 transition-transform" />
-                            </button>
                             <Link 
                                 to={`/optimize/${p.id}`}
-                                state={{ product: p }}
-                                className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl text-primary-400 hover:bg-slate-800 hover:shadow-lg transition-all flex items-center justify-center group/btn"
-                                title="AI Optimization Lab"
+                                state={{ ebayProduct: p }}
+                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-primary-500 hover:bg-primary-50 hover:shadow-lg transition-all flex items-center justify-center group/btn" 
+                                title="Neural Optimization"
                             >
                                 <Sparkles size={16} className="group-hover/btn:scale-110 transition-transform" />
                             </Link>
-                            <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-rose-500 hover:shadow-lg transition-all flex items-center justify-center">
+                            <Link 
+                                to={`/marketing`}
+                                state={{ selectedProduct: p }}
+                                className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-emerald-500 hover:bg-emerald-50 hover:shadow-lg transition-all flex items-center justify-center group/btn"
+                                title="Marketing Center"
+                            >
+                                <Megaphone size={16} className="group-hover/btn:scale-110 transition-transform" />
+                            </Link>
+                            <Link 
+                                to={`/video-lab`}
+                                state={{ selectedProduct: p }}
+                                className="w-10 h-10 bg-slate-900 border border-slate-800 rounded-xl text-white hover:bg-slate-800 hover:shadow-lg transition-all flex items-center justify-center group/btn"
+                                title="Video Ad Lab"
+                            >
+                                <Play size={16} className="group-hover/btn:scale-110 transition-transform" />
+                            </Link>
+                            <button className="w-10 h-10 bg-white border border-slate-100 rounded-xl text-slate-300 hover:text-rose-500 hover:shadow-lg transition-all flex items-center justify-center">
                                 <Trash2 size={16} />
                             </button>
                         </div>

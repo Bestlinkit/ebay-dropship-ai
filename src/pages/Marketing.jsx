@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { 
@@ -31,16 +32,42 @@ import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import ebayTrading from '../services/ebay_trading';
+import aiService from '../services/ai';
 import { useAuth } from '../context/AuthContext';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const Marketing = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('marketplace');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  
+  // Neural Studio States
+  const [selectedProduct, setSelectedProduct] = useState(location.state?.selectedProduct || null);
+  const [generatedCopy, setGeneratedCopy] = useState(null);
+  const [copyLoading, setCopyLoading] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState('tiktok');
+
+  const handleGenerateCopy = async (channel) => {
+    if (!selectedProduct) {
+        toast.error("Select a listing node first.");
+        return;
+    }
+    setSelectedChannel(channel);
+    setCopyLoading(true);
+    try {
+        const copy = await aiService.generateMarketingCopy(selectedProduct.title, channel);
+        setGeneratedCopy(copy);
+        toast.success(`${channel.toUpperCase()} vectors generated!`);
+    } catch (e) {
+        toast.error("AI Generation failed.");
+    } finally {
+        setCopyLoading(false);
+    }
+  };
 
   const chartData = {
     labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
@@ -125,7 +152,7 @@ const Marketing = () => {
         <div className="space-y-4 relative z-10">
            <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1 rounded-lg w-fit">
               <Zap size={14} className="text-primary-400 fill-primary-400" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Ad Engine v5.4 Protocol</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Ad Engine v5.9 Neural Pulse</span>
            </div>
            <h1 className="text-4xl md:text-5xl font-outfit font-black text-slate-900 tracking-tighter">Promotion Hub.</h1>
            <p className="text-slate-400 font-medium max-w-xl text-lg text-balance">
@@ -188,7 +215,7 @@ const Marketing = () => {
       {/* Operation Tabs */}
       <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[2rem] border border-slate-100 w-fit mx-auto lg:mx-0 shadow-sm">
           {[
-              { id: 'marketplace', label: 'eBay Console', icon: ShoppingBag },
+              { id: 'marketplace', label: 'Neural Studio', icon: ShoppingBag },
               { id: 'scheduler', label: 'Ad Scheduler', icon: Clock },
               { id: 'intelligence', label: 'ROI & Ecosystem', icon: BarChart3 },
           ].map(tab => (
@@ -208,40 +235,128 @@ const Marketing = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-12">
-            {activeTab === 'marketplace' && (
-                <div className="space-y-12">
-                    <div className="glass-card p-12 rounded-[3.5rem] space-y-10">
-                        <div className="space-y-1 px-4">
-                            <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight">Marketplace Strategy</h3>
-                            <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Native eBay Promoted Listings and Watcher engagement</p>
+            <div className="space-y-12">
+                <div className="glass-card p-12 rounded-[3.5rem] space-y-10">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-50 pb-10">
+                        <div className="space-y-2">
+                            <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Viral Suite</h3>
+                            <p className="text-2xl font-outfit font-black text-slate-900 uppercase italic">Neural Copy Studio.</p>
+                        </div>
+                        <button className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all shadow-xl shadow-primary-500/10 flex items-center gap-3">
+                            <Plus size={16} /> New Ad Campaign
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        <div className="space-y-8">
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Product Node</label>
+                                <div className="relative">
+                                    <Package className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                    <div className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-10 text-xs font-bold text-slate-900 flex items-center uppercase tracking-widest">
+                                        {selectedProduct ? selectedProduct.title : "Select from Inventory..."}
+                                    </div>
+                                    <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 rotate-90" size={18} />
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                {[
+                                    { id: 'tiktok', label: 'TikTok Viral', icon: Play },
+                                    { id: 'facebook', label: 'FB Direct Response', icon: Target },
+                                    { id: 'instagram', label: 'Insta Aesthetic', icon: ImageLucide },
+                                    { id: 'google', label: 'Google Search', icon: Globe }
+                                ].map((channel, i) => (
+                                    <button 
+                                        key={i} 
+                                        onClick={() => handleGenerateCopy(channel.id)}
+                                        disabled={copyLoading}
+                                        className={cn(
+                                            "p-6 rounded-3xl border transition-all group flex flex-col gap-4 text-left",
+                                            selectedChannel === channel.id ? "bg-primary-500/5 border-primary-500 shadow-lg shadow-primary-500/5" : "bg-white border-slate-100 hover:border-primary-500 hover:bg-primary-50/30"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                                            selectedChannel === channel.id ? "bg-primary-500 text-white" : "bg-slate-50 text-slate-400 group-hover:bg-primary-500 group-hover:text-white"
+                                        )}>
+                                            <channel.icon size={18} />
+                                        </div>
+                                        <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">{channel.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="space-y-4">
-                            {[
-                                { name: 'Automated Standard Ads', strategy: 'CPS (Cost-Per-Sale)', bid: '5%', status: 'Active', icon: Percent },
-                                { name: 'Pulse Watcher Capture', strategy: '15% Discount Trigger', bid: 'N/A', status: 'Running', icon: UserCheck },
-                                { name: 'Advanced Placement (CPC)', strategy: 'Keyword Targeted', bid: '$0.45/avg', status: 'Scheduled', icon: Target },
-                            ].map((promo, i) => (
-                                <div key={i} className="flex items-center justify-between p-8 bg-slate-50/50 rounded-[2.5rem] border border-transparent hover:border-slate-200 hover:bg-white transition-all group">
-                                    <div className="flex items-center gap-8">
-                                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 group-hover:bg-primary-500 group-hover:text-white transition-all">
-                                            <promo.icon size={24} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">{promo.name}</p>
-                                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">{promo.strategy} — {promo.bid}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-8">
-                                        <span className={cn("text-[9px] font-black px-4 py-2 rounded-full uppercase tracking-[0.2em]", promo.status === 'Active' || promo.status === 'Running' ? "bg-emerald-50 text-emerald-600" : "bg-slate-200 text-slate-600")}>
-                                            {promo.status}
-                                        </span>
-                                        <ChevronRight size={20} className="text-slate-300 group-hover:text-slate-900 transition-all" />
-                                    </div>
+                        <div className="bg-slate-50 rounded-[2.5rem] border border-slate-100 p-8 flex flex-col min-h-[400px]">
+                            <div className="flex items-center justify-between mb-6">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Output Terminal</span>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            if (generatedCopy) {
+                                                navigator.clipboard.writeText(`${generatedCopy.headline}\n\n${generatedCopy.body}\n\n${generatedCopy.cta}`);
+                                                toast.success("Copy encoded to clipboard.");
+                                            }
+                                        }}
+                                        className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-900 transition-all shadow-sm"
+                                    >
+                                        <Copy size={16} />
+                                    </button>
+                                    <button onClick={() => handleGenerateCopy(selectedChannel)} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-900 transition-all shadow-sm">
+                                        <RefreshCw size={16} className={cn(copyLoading && "animate-spin")} />
+                                    </button>
                                 </div>
-                            ))}
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto no-scrollbar">
+                                <AnimatePresence mode="wait">
+                                    {copyLoading ? (
+                                        <motion.div 
+                                            key="loading"
+                                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                            className="h-full flex flex-col items-center justify-center space-y-4"
+                                        >
+                                            <Loader2 className="animate-spin text-primary-500" size={32} />
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Neuralizing Content...</p>
+                                        </motion.div>
+                                    ) : generatedCopy ? (
+                                        <motion.div 
+                                            key="content"
+                                            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+                                            className="space-y-6"
+                                        >
+                                            <div className="space-y-2">
+                                                <p className="text-[8px] font-black text-primary-500 uppercase tracking-[0.2em]">Headline</p>
+                                                <p className="text-sm font-bold text-slate-900">{generatedCopy.headline}</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-[8px] font-black text-primary-500 uppercase tracking-[0.2em]">Ad Body</p>
+                                                <p className="text-xs font-medium text-slate-600 leading-relaxed italic">"{generatedCopy.body}"</p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-[8px] font-black text-primary-500 uppercase tracking-[0.2em]">Call to Action</p>
+                                                <div className="px-4 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase text-center tracking-widest shadow-xl shadow-slate-900/10">
+                                                    {generatedCopy.cta}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ) : (
+                                        <div className="h-full flex flex-col items-center justify-center space-y-6 text-center px-8">
+                                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-200 border border-slate-100 shadow-sm shadow-slate-100">
+                                                <Megaphone size={32} />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-sm font-black text-slate-900 uppercase">Awaiting Signal</h4>
+                                                <p className="text-[10px] text-slate-400 font-bold mt-2 leading-relaxed uppercase tracking-widest">Select a product and channel to generate neural marketing copy.</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
                     </div>
+                </div>
 
                     <div className="bg-slate-900 p-12 rounded-[3.5rem] text-white space-y-12 overflow-hidden relative shadow-3xl">
                          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-500/10 rounded-full blur-[120px] -mr-64 -mt-64" />

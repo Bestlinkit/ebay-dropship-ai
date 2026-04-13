@@ -303,12 +303,19 @@ const VideoLab = () => {
                                 <p className={cn("text-[9px] font-black uppercase tracking-widest mb-1.5", activeIndex === i ? "text-primary-400" : "text-slate-400")}>
                                     {i === 0 ? 'Vector Hook' : i === 7 ? 'CTA Sync' : `Node ${i+1}`}
                                 </p>
-                                <p className={cn(
-                                    "text-sm font-bold leading-relaxed truncate",
-                                    activeIndex === i ? "text-white italic" : "text-slate-900"
-                                )}>
-                                    "{text}"
-                                </p>
+                                <input 
+                                    type="text"
+                                    value={text}
+                                    onChange={(e) => {
+                                        const newScenes = [...scenes];
+                                        newScenes[i] = e.target.value;
+                                        setScenes(newScenes);
+                                    }}
+                                    className={cn(
+                                        "w-full bg-transparent border-none outline-none text-sm font-bold tracking-tight px-0",
+                                        activeIndex === i ? "text-white italic placeholder:text-white/20" : "text-slate-900 placeholder:text-slate-200"
+                                    )}
+                                />
                             </div>
                             {activeIndex === i && (
                                 <motion.div layoutId="scenePulse" className="absolute bottom-0 left-0 h-1.5 bg-primary-500 w-full" />

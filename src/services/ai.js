@@ -151,6 +151,32 @@ class AIService {
   async generateProductImage(prompt) {
     await new Promise(r => setTimeout(r, 2000));
     return `https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000&auto=format&fit=crop`;
+  /**
+   * Generates viral marketing copy for specific social channels.
+   */
+  async generateMarketingCopy(productTitle, channel = 'tiktok') {
+    const prompts = {
+      tiktok: `Create a viral TikTok ad script for "${productTitle}". Include a high-energy HOOK, the VALUE PROP, and a CTA. Format as JSON: { "headline": "...", "body": "...", "cta": "..." }`,
+      facebook: `Create a high-conversion Facebook ad for "${productTitle}". Focus on EMOTIONAL BENEFITS and SCARCITY. Format as JSON: { "headline": "...", "body": "...", "cta": "..." }`,
+      instagram: `Create an aesthetic Instagram caption for "${productTitle}". Use STORYTELLING and EMOJIS. Format as JSON: { "headline": "...", "body": "...", "cta": "..." }`,
+      google: `Create a high-CTR Google Search ad for "${productTitle}". Focus on FEATURES and RELIABILITY. Format as JSON: { "headline": "...", "body": "...", "cta": "..." }`
+    };
+
+    const prompt = prompts[channel.toLowerCase()] || prompts.tiktok;
+
+    try {
+        const responseData = await this.askGemini(prompt);
+        // Basic cleanup of GPT-style markdown if present
+        const jsonStr = responseData.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        console.error("AI Marketing Fail:", e);
+        return {
+            headline: `${productTitle} - Limited Offer`,
+            body: `Experience the best of ${productTitle}. Highly rated and currently trending in your area. Secure yours while stocks last.`,
+            cta: "Shop Now"
+        };
+    }
   }
 }
 
