@@ -269,12 +269,20 @@ class EbayTradingService {
 
   async reviseItem(token, itemId, updates) {
     if (!token) throw new Error("eBay Token Missing");
+    
+    // Identity Transformation: Strip Browse API Vector for Trading API Legacy Handshake
+    let finalItemId = itemId;
+    if (itemId && itemId.startsWith('v1|')) {
+        finalItemId = itemId.split('|')[1];
+        console.info(`[Production Push] Normalizing ID for Trading: ${itemId} -> ${finalItemId}`);
+    }
+
     try {
         const xml = `<?xml version="1.0" encoding="utf-8"?>
         <ReviseItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
           <RequesterCredentials><eBayAuthToken>${token}</eBayAuthToken></RequesterCredentials>
           <Item>
-            <ItemID>${itemId}</ItemID>
+            <ItemID>${finalItemId}</ItemID>
             ${updates.title ? `<Title>${updates.title}</Title>` : ''}
             ${updates.price ? `<StartPrice>${updates.price}</StartPrice>` : ''}
             ${updates.description ? `<Description><![CDATA[${updates.description}]]></Description>` : ''}

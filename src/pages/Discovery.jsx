@@ -118,7 +118,7 @@ const Discovery = () => {
       
       {/* Intelligence Hero Search */}
       <section className="bg-white p-12 md:p-20 rounded-[4rem] border border-slate-100 shadow-2xl relative overflow-hidden mx-4 lg:mx-0">
-         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary-500/5 rounded-full blur-[120px] -mr-48 -mt-48" />
+         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -mr-48 -mt-48" />
          
          <div className="relative z-10 space-y-12">
             <div className="text-center space-y-4">
@@ -128,7 +128,7 @@ const Discovery = () => {
                 </div>
                 <h1 className="text-5xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none flex items-center justify-center gap-4">
                     Market Discovery.
-                    <span className="text-primary-500 text-[10px] bg-primary-50 px-3 py-1 rounded-lg border border-primary-100 font-black animate-pulse">Production</span>
+                    <span className="text-primary text-[10px] bg-primary/5 px-3 py-1 rounded-lg border border-primary/10 font-black animate-pulse uppercase">Production</span>
                 </h1>
                 <p className="text-slate-400 font-medium text-lg max-w-2xl mx-auto">
                     Searching the eBay marketplace for high-demand dropshipping opportunities.
@@ -138,20 +138,19 @@ const Discovery = () => {
             <div className="flex gap-4 justify-center">
                 {[
                     { id: 'ebay', label: 'Market Intelligence', icon: Globe },
-                    { id: 'eprolo', label: 'Sourcing Hub', icon: ShoppingBag }
+                    { id: 'eprolo', label: 'Eprolo Direct', icon: Truck },
                 ].map(s => (
-                    <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setSource(s.id)}
-                        className={cn(
-                            "px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 border backdrop-blur-md",
-                            source === s.id ? "bg-slate-900 text-white border-slate-900 shadow-2xl" : "bg-white text-slate-400 border-slate-100 hover:border-slate-300"
-                        )}
-                    >
-                        <s.icon size={16} />
-                        {s.label}
-                    </button>
+                  <button 
+                    key={s.id}
+                    onClick={() => setSource(s.id)}
+                    className={cn(
+                        "flex items-center gap-3 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                        source === s.id ? "bg-slate-900 text-white border-slate-900 shadow-2xl" : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
+                    )}
+                  >
+                    <s.icon size={18} />
+                    {s.label}
+                  </button>
                 ))}
             </div>
 

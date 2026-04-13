@@ -264,23 +264,31 @@ class eBayService {
   async getProductById(id) {
     const token = await this.getAppToken();
     if (!token) return null;
+    
+    // Identity Transformation: Qualify legacy IDs for Browse API Vector
+    let finalId = id;
+    if (id && !id.startsWith('v1|')) {
+        finalId = `v1|${id}|0`;
+        console.info(`[Production Shift] Qualifying ID: ${id} -> ${finalId}`);
+    }
+
     try {
-        console.log(`[eBay Handshake] Fetching Item: ${id}`);
-        // Enrich with PRODUCT fieldgroup for full description and additionalImages
-        const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${id}`, {
+        console.log(`[eBay Handshake] Fetching Item: ${finalId}`);
+        const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${finalId}`, {
             params: { fieldgroups: 'PRODUCT' },
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const item = response.data;
         
-        // Robust Extraction (Mapping multiple possible field names)
+        // Robust Extraction (Mapping multiple possible field names for sales/promos)
         const rawPrice = item.price?.value || item.currentPrice?.value || item.estimatedAvailabilities?.[0]?.price?.value || "0";
         
         const mainImage = item.image?.imageUrl || item.image?.url;
         const subImages = (item.additionalImages || []).map(img => img.imageUrl || img.url);
 
         return {
-            id: item.itemId,
+            id: item.itemId, // This will be the v1 format
+            legacyId: item.legacyItemId || id.replace('v1|', '').split('|')[0],
             title: item.title,
             price: parseFloat(rawPrice),
             description: item.description || "",
