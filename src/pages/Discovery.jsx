@@ -29,7 +29,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 
 /**
- * Crystal Pulse Discovery Hub (V5.4)
+ * Professional Discovery Hub v1.0
  * Premium, Architectural Market Intelligence Center
  */
 const Discovery = () => {
@@ -57,18 +57,18 @@ const Discovery = () => {
   ];
 
   useEffect(() => {
-    const fetchMarketPulse = async () => {
+    const fetchMarketActivity = async () => {
         try {
             // Initial Pulse: Load Electronics or if user selected a category
             const targetCat = activeCategory || topCategories[0].id;
             const results = await ebayService.searchProducts(null, targetCat);
             setTrendingProducts(results || []);
         } catch (e) {
-            console.error("Market Pulse Sync Failed", e);
+            console.error("Market Activity Sync Failed", e);
             setTrendingProducts([]);
         } 
     };
-    fetchMarketPulse();
+    fetchMarketActivity();
   }, [activeCategory]);
 
   const handleSearch = async (e) => {

@@ -99,10 +99,10 @@ const AuthCallback = () => {
                         <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-500" size={32} />
                     </div>
                     <div className="space-y-2">
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">Syncing Vectors</h2>
+                        <h2 className="text-2xl font-black text-white uppercase tracking-tight">Linking Store</h2>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Protocol 5.4 Active</p>
                     </div>
-                    <p className="text-slate-400 text-sm font-medium">Please wait while we establish secure handshake with eBay Production Nodes...</p>
+                    <p className="text-slate-400 text-sm font-medium">Please wait while we establish secure connection with eBay...</p>
                 </motion.div>
             )}
 
@@ -118,9 +118,9 @@ const AuthCallback = () => {
                     </div>
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">Channel Linked</h2>
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">Success Vector Detected</p>
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.4em]">Store Link Successful</p>
                     </div>
-                    <p className="text-slate-400 text-sm font-medium italic">Handshake confirmed. Redirecting to Command Center...</p>
+                    <p className="text-slate-400 text-sm font-medium italic">Connection confirmed. Redirecting to Dashboard...</p>
                 </motion.div>
             )}
 
@@ -136,7 +136,7 @@ const AuthCallback = () => {
                     </div>
                     <div className="space-y-2">
                         <h2 className="text-2xl font-black text-white uppercase tracking-tight">Sync Failure</h2>
-                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Node Rejection</p>
+                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Connection Rejection</p>
                     </div>
                     <p className="text-slate-400 text-sm font-medium">The authorization sequence was terminated. Returning to safe zone.</p>
                     <button 

@@ -108,7 +108,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
             <div className="text-center py-40 space-y-4">
               <AlertCircle className="mx-auto text-slate-200" size={48} />
               <h3 className="text-lg font-bold text-slate-900">No Matches Identified</h3>
-              <p className="text-sm text-slate-400 font-medium max-w-xs mx-auto">Neural filters couldn't find a direct vector match for this SKU.</p>
+              <p className="text-sm text-slate-400 font-medium max-w-xs mx-auto">Smart filters couldn't find a direct product match for this SKU.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

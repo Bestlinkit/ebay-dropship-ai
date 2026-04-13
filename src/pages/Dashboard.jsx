@@ -97,22 +97,22 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     revenue: 0,
     activeListings: 0,
-    globalPulse: 0,
+    syncStatus: 0,
     efficiency: 0,
     loading: true,
     newCount: 0
   });
   const [performanceItems, setPerformanceItems] = useState([]);
   const [sellerName, setSellerName] = useState(null);
-  const [handshakeError, setHandshakeError] = useState(null);
+  const [connectionError, setConnectionError] = useState(null);
 
   useEffect(() => {
     const loadLiveStats = async () => {
       if (isStoreConnected && user?.ebayToken) {
         setStats(prev => ({ ...prev, loading: true }));
-        setHandshakeError(null);
+        setConnectionError(null);
         try {
-            // Identity Bridge Handshake with Timeout Protection
+            // Store Connectivity Sync with Timeout Protection
             const handshakeTimeout = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error("Bridge Timeout")), 25000)
             );
@@ -147,7 +147,7 @@ const Dashboard = () => {
                   toShip: summary.toShip,
                   urgentShip: summary.urgentShip,
                   offers: summary.offers,
-                  globalPulse: name ? 100 : 0, 
+                  syncStatus: name ? 100 : 0, 
                   efficiency: name ? 94 : 0,
                   loading: false,
                   recentOrders: orders,
@@ -155,7 +155,7 @@ const Dashboard = () => {
                 });
             } catch (e) {
                 console.error("Dashboard Live Load Fail", e);
-                setHandshakeError(e.message);
+                setConnectionError(e.message);
                 setStats(prev => ({ ...prev, loading: false }));
             }
         } catch (e) {
@@ -262,7 +262,7 @@ const Dashboard = () => {
            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-xl shadow-2xl">
                 <Zap size={14} className="text-primary-400 fill-primary-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Scale System v5.7r</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Store Integration Active</span>
               </div>
                {sellerName && (
                 <div className="flex items-center gap-2 bg-emerald-500 text-white px-4 py-1.5 rounded-xl border border-emerald-400 shadow-xl shadow-emerald-500/20">
@@ -277,12 +277,12 @@ const Dashboard = () => {
                   className="flex items-center gap-2 bg-primary-500 text-white px-4 py-1.5 rounded-xl shadow-[0_0_20px_rgba(14,140,233,0.3)]"
                 >
                     <CheckCircle2 size={12} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">Handshake Protocol Active</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">eBay Connection Active</span>
                 </motion.div>
               )}
            </div>
            <div className="space-y-2">
-              <h1 className="text-5xl md:text-6xl font-outfit font-black text-slate-900 tracking-tighter leading-[0.9]">Command Center.</h1>
+              <h1 className="text-5xl md:text-6xl font-outfit font-black text-slate-900 tracking-tighter leading-[0.9]">Business Overview.</h1>
               <p className="text-slate-400 font-medium max-w-xl text-lg text-balance leading-relaxed">
                    Real-time eBay production telemetry and automated inventory sync.
               </p>
@@ -303,29 +303,29 @@ const Dashboard = () => {
       {/* Primary Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
             <PremiumStat 
-                label="Identity Bridge" 
+                label="Store Connectivity" 
                 value={
                   !isStoreConnected ? "Awaiting Link" :
                   sellerName ? sellerName :
-                  stats.loading ? "Connecting..." : "Handshake Failed"
+                  stats.loading ? "Connecting..." : "Verification Failed"
                 } 
                 trend={
-                  !isStoreConnected ? "Bridge Offline" :
-                  sellerName ? "Live Handshake" : "Verify Token"
+                  !isStoreConnected ? "Store Offline" :
+                  sellerName ? "Live Connection" : "Verify Token"
                 } 
                 icon={Globe} 
-                error={handshakeError}
+                error={connectionError}
             />
             <PremiumStat 
-                label="Bridge Health" 
-                value={stats.globalPulse > 0 ? "100%" : "OFFLINE"} 
-                trend={isStoreConnected ? "Production" : "N/A"} 
+                label="Sync Status" 
+                value={stats.syncStatus > 0 ? "100%" : "OFFLINE"} 
+                trend={isStoreConnected ? "Live" : "N/A"} 
                 icon={Shield} 
             />
             <PremiumStat 
                 label="Active Listings" 
                 value={stats.activeListings} 
-                trend={isStoreConnected ? "Verified Node" : "Observer"} 
+                trend={isStoreConnected ? "Verified Listing" : "Observer"} 
                 icon={Package}
                 trendType={isStoreConnected && stats.activeListings > 0 ? 'up' : 'down'}
             />
@@ -354,7 +354,7 @@ const Dashboard = () => {
                     <div className="space-y-1">
                         <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
                             <BarChart3 className="text-primary-500" size={24} />
-                            Revenue Growth Trajectory
+                            Revenue Analytics
                         </h3>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Cumulative Store Delta | real-time sync</p>
                     </div>
@@ -378,8 +378,8 @@ const Dashboard = () => {
             <div className="glass-card rounded-[3rem] overflow-hidden">
                 <div className="p-10 border-b border-slate-50 flex items-center justify-between">
                     <div className="space-y-1">
-                        <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight">Recent Sales Momentum</h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Live fulfillment & revenue vectors</p>
+                        <h3 className="text-xl font-outfit font-black text-slate-900 uppercase tracking-tight">Recent Sales Activity</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Live fulfillment & revenue data</p>
                     </div>
                 </div>
                 <div className="overflow-x-auto scrollbar-hide">
@@ -398,7 +398,7 @@ const Dashboard = () => {
                                     <td colSpan="4" className="px-10 py-20 text-center">
                                         <div className="flex flex-col items-center gap-4 text-slate-300">
                                             <PackageCheck size={48} className="opacity-20" />
-                                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Sale Vectors Identified</p>
+                                            <p className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Sales Identified</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -469,7 +469,7 @@ const Dashboard = () => {
                 <div className="space-y-1">
                     <h3 className="text-xl font-outfit font-black text-slate-900 uppercase">System Vitality</h3>
                     <p className="text-[10px] px-4 font-black text-slate-400 uppercase tracking-widest line-clamp-2">
-                        {isStoreConnected ? "Node stability verified across all connected marketplaces." : "Establish API Connection to begin node verification."}
+                        {isStoreConnected ? "Store stability verified across all connected marketplaces." : "Establish API Connection to begin verification."}
                     </p>
                 </div>
                 <button className={cn(
@@ -483,21 +483,21 @@ const Dashboard = () => {
                     <div className="space-y-1">
                         <h3 className="text-lg font-outfit font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
                             <Zap className="text-primary-500" size={20} />
-                            Neural Pulse
+                            Store Activity
                         </h3>
-                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Real-time intelligence feed</p>
+                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Real-time business feed</p>
                     </div>
                 </div>
                 <div className="space-y-10">
                     {isStoreConnected ? (
                         <div className="py-20 text-center space-y-3">
                              <Activity className="mx-auto text-slate-100" size={32} />
-                             <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Neural Syncing Active...</p>
+                             <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Store Syncing Active...</p>
                         </div>
                     ) : (
                         <div className="py-20 text-center space-y-3">
                              <AlertCircle className="mx-auto text-slate-100" size={32} />
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Intelligence feed requires an active eBay handshake.</p>
+                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Activity feed requires an active eBay store connection.</p>
                         </div>
                     )}
                 </div>
@@ -511,10 +511,10 @@ const Dashboard = () => {
                             <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white">
                                 <Shield size={16} />
                             </div>
-                            <span className="text-[9px] font-black text-primary-400 uppercase tracking-[0.3em]">Neural Firewall</span>
+                            <span className="text-[9px] font-black text-primary-400 uppercase tracking-[0.3em]">System Security</span>
                         </div>
-                        <h3 className="text-2xl font-outfit font-black tracking-tight leading-tighter">Scale Protocol Alpha Active.</h3>
-                        <p className="text-xs text-slate-400 font-medium leading-relaxed">System will automatically deploy additional ad capital to vectors exceeding 8.5x ROI baseline.</p>
+                        <h3 className="text-2xl font-outfit font-black tracking-tight leading-tighter">Automated Scaling Active.</h3>
+                        <p className="text-xs text-slate-400 font-medium leading-relaxed">System will automatically deploy additional ad capital to listings exceeding targets.</p>
                     </div>
                     
                     <div className="space-y-3">
@@ -533,7 +533,7 @@ const Dashboard = () => {
                     </div>
                     
                     <button className="w-full py-5 bg-white text-slate-900 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] hover:bg-primary-500 hover:text-white hover:scale-[1.02] transition-all">
-                        Modify Strategy Nodes
+                        Adjust Growth Settings
                     </button>
                 </div>
             </div>

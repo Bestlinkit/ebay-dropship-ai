@@ -71,13 +71,13 @@ const Analytics = () => {
             const summary = await ebayTrading.getAccountSummary(token);
             
             setStats([
-                { label: 'EBay Active Nodes', value: summary.activeListings.toString(), trend: 'Live Sync', icon: Zap, color: 'text-primary' },
+                { label: 'Active Store Syncs', value: summary.activeListings.toString(), trend: 'Live Sync', icon: Zap, color: 'text-primary' },
                 { label: 'Market Intensity', value: 'High', trend: 'Verified', icon: Activity, color: 'text-rose-500' },
                 { label: 'Global Reach', value: 'Active', trend: 'Production', icon: Globe, color: 'text-indigo-500' },
-                { label: 'Handshake Status', value: summary.status, trend: 'v5.7', icon: Shield, color: 'text-emerald-500' },
+                { label: 'Link Status', value: summary.status, trend: 'v1.0', icon: Shield, color: 'text-emerald-500' },
             ]);
         } catch (e) {
-            toast.error("Analytics vector synchronization failed.");
+            toast.error("Analytics metrics synchronization failed.");
         } finally {
             setLoading(false);
         }
@@ -202,8 +202,8 @@ const Analytics = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative z-10">
                 {[
                     { title: 'Inventory Sync', desc: 'Cross-referencing active listings with sourcing availability. Zero delta detected.', delta: 'Synchronized' },
-                    { title: 'Global Handshake', desc: 'Secure OAuth v2.0 tunnel established with eBay US Production Servers.', delta: 'Connected' },
-                    { title: 'Data Integrity', desc: 'Validating API response vectors to filter out simulation ghosts.', delta: 'Verified' }
+                    { title: 'Global Integration', desc: 'Secure OAuth v2.0 tunnel established with eBay US Production Servers.', delta: 'Connected' },
+                    { title: 'Data Integrity', desc: 'Validating API response data to filter out duplicate records.', delta: 'Verified' }
                 ].map((p, i) => (
                     <div key={i} className="group cursor-pointer bg-white/5 p-8 rounded-[2rem] border border-white/10 hover:bg-white/10 transition-all">
                         <div className="flex justify-between items-end mb-3">

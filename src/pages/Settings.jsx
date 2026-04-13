@@ -82,7 +82,7 @@ const Settings = () => {
             throw new Error("Invalid Handshake Response");
         }
     } catch (e) {
-        toast.error("Bridge Failure: Handshake rejected by eBay.");
+        toast.error("Link Failure: Request rejected by eBay.");
     } finally {
         setIsTestingBridge(false);
     }
@@ -124,7 +124,7 @@ const Settings = () => {
                 { id: 'api', label: 'API Keys', icon: Key },
                 { id: 'store', label: 'eBay Store Link', icon: Store },
                 { id: 'smtp', label: 'Mail Server (SMTP)', icon: Mail },
-                { id: 'security', label: 'Data Vault', icon: Shield },
+                { id: 'security', label: 'Privacy & Security', icon: Shield },
             ].map(tab => (
                 <button
                     key={tab.id}
@@ -147,7 +147,7 @@ const Settings = () => {
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
                     <Database size={14} className="text-primary-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Pulse</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Status</span>
                 </div>
                 <h4 className="text-sm font-black mb-1 italic">AES-256 VAULT ACTIVE</h4>
                 <p className="text-[10px] text-slate-500 font-bold leading-relaxed uppercase tracking-tighter">All tokens are server-side encrypted and rotated every 72h.</p>
@@ -169,7 +169,7 @@ const Settings = () => {
                                     <Palette className="text-primary-500" size={32} />
                                     Brand Identity
                                 </h3>
-                                <p className="text-slate-400 font-medium text-sm">Synchronize your primary profit vector colors across the platform.</p>
+                                <p className="text-slate-400 font-medium text-sm">Synchronize your primary brand colors across the platform.</p>
                             </div>
                             
                             <div className="flex items-center gap-6">
@@ -199,7 +199,7 @@ const Settings = () => {
                                 <button className="btn-premium w-full">Primary Button</button>
                                 <div className="flex items-center gap-3 p-4 bg-primary-50 rounded-2xl border border-primary-100">
                                     <CheckCircle2 className="text-primary-500" size={18} />
-                                    <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">Success Node Active</span>
+                                    <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest leading-none">Connection Active</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {[50, 200, 500, 700, 900].map(s => (
@@ -214,7 +214,7 @@ const Settings = () => {
                                 <Zap size={28} className="fill-white" />
                              </div>
                              <div className="space-y-1">
-                                <h5 className="text-lg font-black text-white uppercase tracking-tight">Handshake Sync</h5>
+                                <h5 className="text-lg font-black text-white uppercase tracking-tight">API Synchronization</h5>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Cross-device deployment verified</p>
                              </div>
                         </div>
@@ -302,7 +302,7 @@ const Settings = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-3xl font-black text-slate-900 tracking-tight">Identity Bridge Manager</h3>
-                                    <p className="text-slate-400 font-bold text-sm italic">Production Handshake Protocol v5.7</p>
+                                    <p className="text-slate-400 font-bold text-sm italic">Merchant API Connectivity Suite</p>
                                 </div>
                             </div>
 

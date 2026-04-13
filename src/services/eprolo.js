@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 /**
- * Crystal Pulse Eprolo Bridge (V5.4)
- * Secure Vector for Sourcing & Multi-Channel Fulfillment
+ * Professional Eprolo Sync v1.0
+ * Secure Sourcing Connection & Multi-Channel Fulfillment
  */
 class EproloService {
   constructor() {
@@ -31,13 +31,13 @@ class EproloService {
 
         // Ghost Protocol Check
         if (typeof response.data === 'string' && 
-           (response.data.includes("Bridge Fault") || response.data.includes("Handshake Failed"))) {
+           (response.data.includes("Sync Error") || response.data.includes("Connection Failed"))) {
             throw new Error("Bridge Ghost Failure Detected");
         }
 
         return response;
     } catch (e) {
-        console.warn(`[Eprolo Shield] Node Bypass Triggered: ${e.message}`);
+        console.warn(`[Eprolo Sync] Connection Retry Triggered: ${e.message}`);
         throw e;
     }
   }

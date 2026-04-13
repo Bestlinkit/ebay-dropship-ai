@@ -108,7 +108,7 @@ const VideoLab = () => {
     if (!selectedProduct) return;
     setIsAiProcessing(true);
     try {
-      toast.info(`Neural scan initiated for "${selectedProduct.title}"...`);
+      toast.info(`Smart scan initiated for "${selectedProduct.title}"...`);
       const newScenes = await aiService.generateVideoScript(selectedProduct);
       if (newScenes && Array.isArray(newScenes)) {
         newScenes[7] = adObjective === 'ebay' ? "Order Now - Link Below!" : "Shop Now - Limited Time!";
@@ -161,7 +161,7 @@ const VideoLab = () => {
             <div className="space-y-4">
                 <div className="flex items-center justify-center gap-3 text-primary-400 text-[10px] font-black uppercase tracking-[0.4em] mb-4">
                     <Stars size={14} className="fill-primary-400" />
-                    Neural Production Lab
+                    Professional Video Suite
                 </div>
                 <h1 className="text-5xl md:text-7xl font-outfit font-black text-white tracking-tighter uppercase italic">Viral Video.</h1>
                 <p className="text-slate-400 font-medium text-lg md:text-xl max-w-xl mx-auto text-balance">
@@ -219,7 +219,7 @@ const VideoLab = () => {
         <div className="xl:col-span-5 2xl:col-span-4">
             <div className="glass-card p-10 rounded-[3.5rem] relative group xl:sticky xl:top-28">
                 <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Neural Monitor 5.4</h3>
+                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Project Monitor</h3>
                     <div className="px-3 py-1 bg-emerald-500/10 rounded-full flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Active</span>
@@ -278,7 +278,7 @@ const VideoLab = () => {
             <div className="glass-card p-10 rounded-[3.5rem] space-y-10">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-10">
                     <div className="space-y-2">
-                        <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Sequence Matrix</h3>
+                        <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Scene Sequence</h3>
                         <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Architecture Hub.</p>
                     </div>
                     <div className="hidden md:block px-5 py-2 bg-slate-900 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest">Production Ready</div>
@@ -301,7 +301,7 @@ const VideoLab = () => {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className={cn("text-[9px] font-black uppercase tracking-widest mb-1.5", activeIndex === i ? "text-primary-400" : "text-slate-400")}>
-                                    {i === 0 ? 'Vector Hook' : i === 7 ? 'CTA Sync' : `Node ${i+1}`}
+                                    {i === 0 ? 'Engagement Hook' : i === 7 ? 'Conversion CTA' : `Scene ${i+1}`}
                                 </p>
                                 <input 
                                     type="text"

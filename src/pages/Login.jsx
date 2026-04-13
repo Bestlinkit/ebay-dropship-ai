@@ -53,7 +53,7 @@ const LoginPage = () => {
     try {
       setLoading(true);
       await loginWithGoogle();
-      toast.success("Handshake Successful. Welcome.");
+      toast.success("Login Successful. Welcome.");
       navigate('/');
     } catch (error) {
       console.error("Auth Error:", error);
@@ -114,7 +114,7 @@ const LoginPage = () => {
               <div className="w-10 h-10 bg-primary-500/10 rounded-xl flex items-center justify-center text-primary-500">
                   <Zap size={20} />
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Neural Response</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">AI Insights</p>
               <h4 className="text-2xl font-black text-white">24ms</h4>
           </motion.div>
       </div>
@@ -139,10 +139,10 @@ const LoginPage = () => {
             <div className="space-y-6">
                 <h1 className="text-5xl md:text-7xl xl:text-8xl font-black text-white tracking-tighter leading-[0.9] text-balance">
                     Sync Your <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-indigo-400">Profit Vector.</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-indigo-400">Total Solutions.</span>
                 </h1>
                 <p className="text-slate-400 text-lg md:text-xl font-medium max-w-lg mx-auto lg:mx-0 leading-relaxed">
-                    The autonomous terminal for high-velocity eBay dropshipping. Orchestrate products, media, and marketing with neural precision.
+                    The autonomous terminal for high-velocity eBay dropshipping. Orchestrate products, media, and marketing with professional precision.
                 </p>
             </div>
 
@@ -151,7 +151,7 @@ const LoginPage = () => {
                     <ShieldCheck className="text-primary-500 shrink-0" size={20} />
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-white uppercase tracking-widest">Protocol</p>
-                        <p className="text-xs text-slate-500 font-medium">Secure API handshakes</p>
+                        <p className="text-xs text-slate-500 font-medium">Secure API connections</p>
                     </div>
                 </div>
                 <div className="flex items-start gap-4 p-4 border border-white/5 bg-white/2 rounded-2xl">
@@ -164,7 +164,7 @@ const LoginPage = () => {
             </div>
         </div>
 
-        {/* Right Side: Handshake Hub */}
+        {/* Right Side: Access Portal */}
         <div className="relative">
             {/* Decorative background glow for the form */}
             <div className="absolute inset-0 bg-primary-500/20 blur-[100px] rounded-full scale-75" />
@@ -178,13 +178,13 @@ const LoginPage = () => {
                         {isRegistering ? "Initialize Node" : "Access Terminal"}
                     </h2>
                     <p className="text-slate-500 text-sm font-medium">
-                        {isRegistering ? "Register your enterprise credentials." : "Enter vectors to enter the hub."}
+                        {isRegistering ? "Register your enterprise credentials." : "Enter credentials to access the hub."}
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Vector Identifier</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Account Identifier</label>
                         <div className="relative">
                             <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                             <input 
@@ -272,7 +272,7 @@ const LoginPage = () => {
       <div className="mt-20 lg:mt-32 relative z-20 flex flex-col md:flex-row items-center gap-12 text-[10px] font-black text-slate-600 tracking-[0.4em] uppercase">
           <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Primary Node Live
+              Main Service Live
           </div>
           <div className="flex items-center gap-3">
               <ShieldCheck size={14} />

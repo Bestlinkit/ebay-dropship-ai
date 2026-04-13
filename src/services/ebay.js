@@ -36,17 +36,20 @@ class eBayService {
 
     // 2. Case-Agnostic Header Extraction
     const h = config.headers || {};
-    const auth = h['Authorization'] || h['authorization'] || "";
+    let auth = h['Authorization'] || h['authorization'] || "";
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
+    // Strip "Bearer " prefix for proxy if present (proxy adds it back)
+    const cleanAuth = auth.replace(/^Bearer /i, '');
+
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(cleanAuth)}&marketplaceid=${marketplaceid}` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
     ].filter(Boolean);
 
     let lastError = null;
-    console.info(`[Market Bridge] Routing request: ${finalTargetUrl.slice(0, 80)}...`);
+    console.info(`[Market Sync] Routing request: ${finalTargetUrl.slice(0, 80)}...`);
     
     for (const proxy of proxies) {
         try {
@@ -61,12 +64,12 @@ class eBayService {
             // Bridge Check: Detect bridge-level failures masked as 200 OK
             if (typeof response.data === 'string' && 
                (response.data.includes("Bridge Fault") || response.data.includes("Handshake Failed"))) {
-                throw new Error("Bridge Connectivity Failure Detected");
+                throw new Error("Market Connectivity Failure Detected");
             }
 
             return response;
         } catch (e) {
-            console.warn(`[Market Bridge] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);
+            console.warn(`[Market Sync] Proxy Node ${proxies.indexOf(proxy)} bypassed. Retrying...`);
             lastError = e;
         }
     }
@@ -78,7 +81,7 @@ class eBayService {
     try {
         const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
         const response = await this.fetchWithRetry('post', 'https://api.ebay.com/identity/v1/oauth2/token', {
-            data: new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope/buy.browse.readonly' }), 
+            data: new URLSearchParams({ grant_type: 'client_credentials', scope: 'https://api.ebay.com/oauth/api_scope' }), 
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Authorization': `Basic ${platformBase64}`

@@ -61,7 +61,7 @@ const Marketing = () => {
     try {
         const copy = await aiService.generateMarketingCopy(selectedProduct.title, channel);
         setGeneratedCopy(copy);
-        toast.success(`${channel.toUpperCase()} vectors generated!`);
+        toast.success(`${channel.toUpperCase()} content generated!`);
     } catch (e) {
         toast.error("AI Generation failed.");
     } finally {
@@ -116,7 +116,7 @@ const Marketing = () => {
 
   const [stats, setStats] = useState([
     { label: 'Bridge Health', value: '...', trend: 'Syncing', icon: Globe, color: 'text-primary-500' },
-    { label: 'Inventory Nodes', value: '...', trend: 'Syncing', icon: TrendingUp, color: 'text-emerald-500' },
+    { label: 'Store Listings', value: '...', trend: 'Syncing', icon: TrendingUp, color: 'text-emerald-500' },
     { label: 'Ad Protocol', value: '...', trend: 'Syncing', icon: Megaphone, color: 'text-amber-500' },
     { label: 'Decoded Signals', value: '...', trend: 'Syncing', icon: Target, color: 'text-indigo-500' },
   ]);
@@ -130,7 +130,7 @@ const Marketing = () => {
             
             setStats([
                 { label: 'Bridge Health', value: summary.status === 'CONNECTED' ? '100%' : 'OFFLINE', trend: 'Production', icon: Globe, color: 'text-primary-500' },
-                { label: 'Inventory Nodes', value: summary.activeListings.toString(), trend: 'Live Sync', icon: TrendingUp, color: 'text-emerald-500' },
+                { label: 'Store Listings', value: summary.activeListings.toString(), trend: 'Live Sync', icon: TrendingUp, color: 'text-emerald-500' },
                 { label: 'Ad Protocol', value: 'v5.7', trend: 'Verified', icon: Megaphone, color: 'text-amber-500' },
                 { label: 'Decoded Signals', value: 'Active', trend: 'Real-time', icon: Target, color: 'text-indigo-500' },
             ]);
@@ -152,7 +152,7 @@ const Marketing = () => {
         <div className="space-y-4 relative z-10">
            <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1 rounded-lg w-fit">
               <Zap size={14} className="text-primary-400 fill-primary-400" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Ad Engine v5.9 Neural Pulse</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Promo Suite v1.0</span>
            </div>
            <h1 className="text-4xl md:text-5xl font-outfit font-black text-slate-900 tracking-tighter">Promotion Hub.</h1>
            <p className="text-slate-400 font-medium max-w-xl text-lg text-balance">
@@ -215,7 +215,7 @@ const Marketing = () => {
       {/* Operation Tabs */}
       <div className="flex bg-white/50 backdrop-blur-md p-2 rounded-[2rem] border border-slate-100 w-fit mx-auto lg:mx-0 shadow-sm">
           {[
-              { id: 'marketplace', label: 'Neural Studio', icon: ShoppingBag },
+              { id: 'marketplace', label: 'AI Content Studio', icon: ShoppingBag },
               { id: 'scheduler', label: 'Ad Scheduler', icon: Clock },
               { id: 'intelligence', label: 'ROI & Ecosystem', icon: BarChart3 },
           ].map(tab => (
@@ -240,7 +240,7 @@ const Marketing = () => {
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-slate-50 pb-10">
                         <div className="space-y-2">
                             <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Viral Suite</h3>
-                            <p className="text-2xl font-outfit font-black text-slate-900 uppercase italic">Neural Copy Studio.</p>
+                            <p className="text-2xl font-outfit font-black text-slate-900 uppercase italic">AI Copywriter Studio.</p>
                         </div>
                         <button className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all shadow-xl shadow-primary-500/10 flex items-center gap-3">
                             <Plus size={16} /> New Ad Campaign
@@ -250,7 +250,7 @@ const Marketing = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                         <div className="space-y-8">
                             <div className="space-y-4">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Product Node</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Product</label>
                                 <div className="relative">
                                     <Package className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                                     <div className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-10 text-xs font-bold text-slate-900 flex items-center uppercase tracking-widest">
@@ -296,7 +296,7 @@ const Marketing = () => {
                                         onClick={() => {
                                             if (generatedCopy) {
                                                 navigator.clipboard.writeText(`${generatedCopy.headline}\n\n${generatedCopy.body}\n\n${generatedCopy.cta}`);
-                                                toast.success("Copy encoded to clipboard.");
+                                                toast.success("Content saved to clipboard.");
                                             }
                                         }}
                                         className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-900 transition-all shadow-sm"
@@ -318,7 +318,7 @@ const Marketing = () => {
                                             className="h-full flex flex-col items-center justify-center space-y-4"
                                         >
                                             <Loader2 className="animate-spin text-primary-500" size={32} />
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Neuralizing Content...</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Generating Content...</p>
                                         </motion.div>
                                     ) : generatedCopy ? (
                                         <motion.div 
@@ -367,7 +367,7 @@ const Marketing = () => {
                                     <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md">
                                        <Zap className="text-primary-400 fill-primary-400" size={20} />
                                     </div>
-                                    <h3 className="text-2xl font-outfit font-black tracking-tight uppercase">eBay Neural Promotion</h3>
+                                    <h3 className="text-2xl font-outfit font-black tracking-tight uppercase">eBay AI Promotion</h3>
                                 </div>
                                 <p className="text-sm text-slate-400 font-medium max-w-lg text-balance leading-relaxed">
                                     Algorithmic orchestration that analyzes competitor delta and watcher behavior to deploy high-conversion eBay promotions.
@@ -379,7 +379,7 @@ const Marketing = () => {
                             {[
                                 { title: 'Offer Automator', desc: 'Secure margin-safe offers to watchers.', action: 'Active (12 sent)', icon: DollarSign },
                                 { title: 'Coupon Engine', desc: 'Personalized coupons for repeat LTV.', action: 'Deploy Script', icon: Percent },
-                                { title: 'Flash Schedulers', desc: 'High-traffic weekend velocity spikes.', action: 'Sync Node', icon: Clock },
+                                { title: 'Flash Schedulers', desc: 'High-traffic weekend velocity spikes.', action: 'Sync Feed', icon: Clock },
                             ].map((tool, i) => (
                                 <div key={i} className="p-8 bg-white/5 rounded-[2rem] border border-white/5 group hover:bg-white/10 transition-all flex flex-col justify-between h-64">
                                     <div className="space-y-4">
@@ -412,14 +412,14 @@ const Marketing = () => {
                     </div>
                     <div className="space-y-4 pt-4">
                         <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            <span>TikTok Business Node</span>
+                            <span>TikTok Channel</span>
                             <span className="text-emerald-500">Live</span>
                         </div>
                         <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden">
                             <div className="bg-emerald-500 h-full w-[100%] rounded-full shadow-[0_0_8px_rgba(16,185,129,0.3)]" />
                         </div>
                     </div>
-                    <button className="w-full btn-premium-outline">Configure Vectors</button>
+                    <button className="w-full btn-premium-outline">Configure Parameters</button>
                 </div>
             </div>
 
@@ -431,7 +431,7 @@ const Marketing = () => {
                     {[
                         { msg: 'Global signals synchronized. Bridge health verified at 100%.', time: '02:14 UTC', color: 'bg-emerald-500' },
                         { msg: 'Production node handshake confirmed for connected account.', time: '01:50 UTC', color: 'bg-primary-500' },
-                        { msg: 'Neural scanning active across target market vectors.', time: '00:12 UTC', color: 'bg-indigo-500' }
+                        { msg: 'Market scanning active across target products.', time: '00:12 UTC', color: 'bg-indigo-500' }
                     ].map((m, i) => (
                         <div key={i} className="flex gap-4 group">
                             <div className="pt-1">
