@@ -117,6 +117,16 @@ const Layout = ({ children }) => {
     navigate('/login');
   };
 
+  const menuItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: Package, label: 'Products', href: '/products' },
+    { icon: Zap, label: 'Optimization', href: '/discovery' },
+    { icon: Video, label: 'Video Lab', href: '/video' },
+    { icon: BarChart3, label: 'Analytics', href: '/analytics' },
+    { icon: Megaphone, label: 'Marketing', href: '/marketing' },
+    { icon: Settings, label: 'Settings', href: '/settings' },
+  ];
+
   return (
     <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-inter selection:bg-primary-100 selection:text-primary-900">
       
