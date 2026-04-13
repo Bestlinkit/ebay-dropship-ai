@@ -108,23 +108,38 @@ class AIService {
    * Consolidates Optimization Intelligence
    * Returns: { titles: [{title, rank},...], description, category, tags, pricingStrategy }
    */
+  /**
+   * Consolidates Optimization Intelligence (V6.0 - Category Compass)
+   * Returns: { titles: [{title, rank},...], description, category, tags, pricingStrategy }
+   */
   async optimizeListing(baselineTitle, currentPrice, competitorPrices = []) {
     const pricesStr = competitorPrices.length ? `Competitor Average: ${competitorPrices.stats?.avg}` : "N/A";
     
     const prompt = `
-      Analyze this eBay listing:
-      Title: ${baselineTitle}
+      Product Analysis Task (eBay Production Context):
+      Baseline: ${baselineTitle}
       Current Price: $${currentPrice}
-      Market Data: ${pricesStr}
+      Market Baseline: ${pricesStr}
 
-      Tasks:
-      1. Generate 3 SEO-ranked titles (max 80 chars). Assign each a 'rank' score (0-100) based on eBay visibility logic.
-      2. Suggest one 'mainCategory' and one 'subCategory' for eBay.
-      3. Create 10 SEO 'tags' for optimized search indexing.
-      4. Write a premium, HTML-formatted, sales-driven 'description'.
-      5. Provide a 'pricingStrategy' (e.g., "Decrease by 5% to undercut Top Rated sellers").
+      CATEGORY COMPASS:
+      Select ONLY ONE from these top-level eBay branches, then drill down:
+      - Health & Beauty
+      - Home & Garden
+      - Electronics
+      - Sporting Goods
+      - Fashion
+      - Toys & Hobbies
+      - Business & Industrial
+      - Motors
 
-      Return ONLY JSON with keys: 'titles' (array of {title, rank}), 'mainCategory', 'subCategory', 'tags' (array), 'description', 'pricingStrategy'.
+      CRITICAL TASKS:
+      1. Titles: Generate 3 high-velocity titles (max 80 chars). Assign a 'rank' probability score (0-100).
+      2. Categorization: Based on the Title, select the correct Main Category from the Compass and a specific Sub-Category.
+      3. Tags: Generate exactly 10 descriptive SEO tags. Avoid generic "ebay/professional". Focus on niche keywords.
+      4. Description: Write a premium HTML sales-pitch.
+      5. Price Strategy: Specific actionable advice.
+
+      Return ONLY JSON: { "titles": [...], "mainCategory": "...", "subCategory": "...", "tags": ["tag1", ... "tag10"], "description": "...", "pricingStrategy": "..." }
     `;
 
     try {
@@ -133,14 +148,14 @@ class AIService {
       const cleanJson = text.replace(/```json|```/g, '').trim();
       return JSON.parse(cleanJson);
     } catch (error) {
-      console.error("AI Optimization failed", error);
+      console.error("AI Suite Synchronization Failed", error);
       return {
         titles: [{ title: baselineTitle, rank: 95 }],
         description: `<p>${baselineTitle}</p>`,
-        mainCategory: "Electronics",
-        subCategory: "Gadgets",
-        tags: ["ebay", "professional"],
-        pricingStrategy: "Maintain current pricing."
+        mainCategory: "General Merchandise",
+        subCategory: "Uncategorized",
+        tags: ["SEO", "Optimized", "Best Seller"],
+        pricingStrategy: "Analyze market data for further precision."
       };
     }
   }
@@ -148,13 +163,20 @@ class AIService {
   /**
    * Crafts a visual prompt for the Nano Banana AI engine.
    */
-  async generateImagePrompt(title, style = "lifestyle") {
-    const prompt = `Create a 1-sentence prompt for a photorealistic AI image generator for the product: ${title}. Style: ${style}. Clean studio lighting.`;
+  async generateImagePrompt(title, style = "primary") {
+    const templates = {
+      primary: `Photorealistic close-up of the product ${title} in professional studio lighting, clean minimal background, 8k resolution, commercial photography.`,
+      presentation: `A professional presentation of ${title} being used in a real-world high-end environment, lifestyle shot, bokeh background, appealing to a luxury audience.`,
+      ingredients: `An artistic display of the components and ingredients of ${title}, flat-lay style, natural lighting, organic feel, detailed textures.`
+    };
+
+    const prompt = templates[style] || templates.primary;
+    
     try {
-      const response = await this.model.generateContent(prompt);
+      const response = await this.model.generateContent(`Refine this visual prompt for an AI image generator: "${prompt}"`);
       return response.response.text().trim();
     } catch {
-      return `Photorealistic ${title} on a clean white background, high resolution.`;
+      return prompt;
     }
   }
 

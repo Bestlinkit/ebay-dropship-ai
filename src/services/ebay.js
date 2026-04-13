@@ -271,10 +271,14 @@ class eBayService {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const item = response.data;
+        
+        // Robust Price Extraction
+        const rawPrice = item.price?.value || item.currentPrice?.value || "0";
+        
         return {
             id: item.itemId,
             title: item.title,
-            price: parseFloat(item.price.value),
+            price: parseFloat(rawPrice),
             description: item.description || "",
             images: [
                 item.image?.imageUrl, 
