@@ -275,6 +275,29 @@ class eBayService {
     }
   }
 
+  async getCategorySuggestions(keyword) {
+    const token = await this.getAppToken();
+    if (!token) return [];
+    
+    try {
+        // Taxonomy API: Search for leaf categories (Official eBay Standard)
+        // Tree ID 0 is usually EBAY_US
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions`, {
+            params: { q: keyword },
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        return (response.data?.categorySuggestions || []).map(s => ({
+            id: s.category?.categoryId,
+            name: s.category?.categoryName,
+            ancestors: (s.categoryAncsentorPath || []).map(a => a.categoryName).join(' > ')
+        }));
+    } catch (e) {
+        console.error("[eBay Taxonomy] Search Failed:", e);
+        return [];
+    }
+  }
+
   async getProductById(id) {
     const token = await this.getAppToken();
     if (!token) return null;
@@ -283,29 +306,37 @@ class eBayService {
     let finalId = id;
     if (id && !id.startsWith('v1|')) {
         finalId = `v1|${id}|0`;
-        console.info(`[Production Shift] Qualifying ID: ${id} -> ${finalId}`);
     }
 
     try {
-        console.log(`[eBay Handshake] Fetching Full Specs for: ${finalId}`);
+        console.log(`[eBay Handshake] Fetching PRODUCTION Specs: ${finalId}`);
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${finalId}`, {
             params: { fieldgroups: 'FULL' },
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const item = response.data;
-        
-        // Robust Extraction (Mapping multiple possible field names for sales/promos)
-        const rawPrice = item.price?.value || item.currentPrice?.value || "0";
-        
-        // Detailed Image Extraction
-        const mainImage = item.image?.imageUrl || item.image?.url;
-        const subImages = (item.additionalImages || []).map(img => img.imageUrl || img.url);
-        const images = [mainImage, ...subImages].filter(Boolean);
+        if (!item) return null;
 
-        // Advanced Description Capture (eBay sometimes returns raw HTML or a simple string)
+        // "Deep-Seek" Image Extraction (Multi-Layer fallback for different eBay item types)
+        const findImages = (obj) => {
+            const urls = new Set();
+            // Primary Browse API fields
+            if (obj.image?.imageUrl) urls.add(obj.image.imageUrl);
+            if (Array.isArray(obj.additionalImages)) {
+                obj.additionalImages.forEach(img => img.imageUrl && urls.add(img.imageUrl));
+            }
+            // Fallback: Check common legacy/nested fields
+            if (Array.isArray(obj.pictureUrls)) obj.pictureUrls.forEach(url => urls.add(url));
+            if (obj.pictureDetails?.pictureUrls) obj.pictureDetails.pictureUrls.forEach(url => urls.add(url));
+            
+            return Array.from(urls);
+        };
+
+        const images = findImages(item);
         const rawDescription = item.description || item.shortDescription || "";
-        
-        console.info(`[eBay Handshake] Payload Captured: ${images.length} images, ${rawDescription.length} chars description.`);
+        const rawPrice = item.price?.value || item.currentPrice?.value || "0";
+
+        console.info(`[Production Restoration] Payload Synced: ${images.length} images recovered.`);
 
         return {
             id: item.itemId,
@@ -314,10 +345,10 @@ class eBayService {
             price: parseFloat(rawPrice),
             description: rawDescription,
             images: images,
-            rawItem: item // Provide reference for deep inspection
+            rawItem: item
         };
     } catch (e) {
-        console.error("[eBay Sync] Detailed fetch failed:", e);
+        console.error("[eBay Sync] Critical Production Fetch Failed:", e);
         return null;
     }
   }
