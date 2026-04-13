@@ -303,21 +303,21 @@ const OptimizeProduct = () => {
                    
                    <div className="grid grid-cols-1 gap-4">
                       <button 
-                         onClick={() => setRegistry(prev => ({ ...prev, selectedTitle: registry.originalTitle }))}
+                         onClick={() => setRegistry(prev => ({ ...prev, selectedTitle: originalProduct?.title }))}
                          className={cn(
                            "flex items-center justify-between p-5 rounded-2xl border-2 transition-all text-left",
-                           registry.selectedTitle === registry.originalTitle ? "border-slate-950 bg-slate-50" : "border-slate-50 hover:border-slate-100"
+                           registry.selectedTitle === originalProduct?.title ? "border-slate-950 bg-slate-50" : "border-slate-50 hover:border-slate-100"
                          )}
                       >
                          <div className="flex items-center gap-4">
-                            <div className={cn("w-5 h-5 rounded-full border-4 transition-all", registry.selectedTitle === registry.originalTitle ? "border-slate-950 bg-white" : "border-slate-200")} />
-                            <p className="text-xs font-bold text-slate-900">{registry.originalTitle}</p>
+                            <div className={cn("w-5 h-5 rounded-full border-4 transition-all", registry.selectedTitle === originalProduct?.title ? "border-slate-950 bg-white" : "border-slate-200")} />
+                            <p className="text-xs font-bold text-slate-900">{originalProduct?.title}</p>
                          </div>
                          <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Baseline</span>
                       </button>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {titles.map((t) => (
+                        {registry.titles.map((t) => (
                           <button
                             key={t.id}
                             onClick={() => setRegistry(prev => ({ ...prev, selectedTitle: t.title }))}
@@ -348,7 +348,7 @@ const OptimizeProduct = () => {
                       <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] flex items-center gap-2">
                         <Activity size={16} className="text-primary-500" /> Market Real-Time Heatmap
                       </h3>
-                      {!registry.stats ? (
+                      {!registry.marketStats ? (
                         <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center gap-3">
                             <AlertCircle className="text-slate-300" size={32} />
                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Market telemetry not available for this node</p>
@@ -359,18 +359,18 @@ const OptimizeProduct = () => {
                            <div className="p-5 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
                               <div>
                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Avg Marketplace Price</p>
-                                 <p className="text-2xl font-black text-slate-950 tabular-nums">${registry.stats.avg}</p>
+                                 <p className="text-2xl font-black text-slate-950 tabular-nums">${registry.marketStats.avg}</p>
                               </div>
                               <DollarSign className="text-slate-200" size={32} />
                            </div>
                            <div className="grid grid-cols-2 gap-4">
                               <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
                                  <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Low Bound</p>
-                                 <p className="text-lg font-black text-slate-900">${registry.stats.min}</p>
+                                 <p className="text-lg font-black text-slate-900">${registry.marketStats.min}</p>
                               </div>
                               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">High Bound</p>
-                                 <p className="text-lg font-black text-slate-900">${registry.stats.max}</p>
+                                 <p className="text-lg font-black text-slate-900">${registry.marketStats.max}</p>
                               </div>
                            </div>
                         </div>
@@ -498,11 +498,11 @@ const OptimizeProduct = () => {
                                 onChange={(e) => setRegistry(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
                                 className="w-full text-7xl font-black text-slate-950 tracking-tighter outline-none bg-transparent"
                             />
-                            {registry.stats && (
+                             {registry.marketStats && (
                                 <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
-                                    {registry.price < registry.stats.avg ? 'Competitive pricing locked' : 'Pricing above market midpoint'}
+                                    {registry.price < registry.marketStats.avg ? 'Competitive pricing locked' : 'Pricing above market midpoint'}
                                 </p>
-                            )}
+                             )}
                        </div>
                        <div className="w-full md:w-80 space-y-4">
                             <div className="p-6 bg-slate-950 text-white rounded-2xl space-y-1 relative overflow-hidden">
