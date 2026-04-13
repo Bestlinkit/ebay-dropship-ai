@@ -26,8 +26,9 @@ async function handleRequest(request) {
   
   // Inject Identity Parameters
   if (auth) {
-    headers.set("Authorization", `Bearer ${auth}`);
-    headers.set("X-EBAY-API-IAF-TOKEN", auth); // For Legacy Trading API
+    const finalAuth = (auth.startsWith("Bearer ") || auth.startsWith("Basic ")) ? auth : `Bearer ${auth}`;
+    headers.set("Authorization", finalAuth);
+    headers.set("X-EBAY-API-IAF-TOKEN", auth.replace(/^Bearer /i, "")); // For Legacy Trading API
   }
   
   if (marketplaceid) {

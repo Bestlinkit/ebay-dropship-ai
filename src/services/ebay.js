@@ -39,11 +39,8 @@ class eBayService {
     let auth = h['Authorization'] || h['authorization'] || "";
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
-    // Strip "Bearer " prefix for proxy if present (proxy adds it back)
-    const cleanAuth = auth.replace(/^Bearer /i, '');
-
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(cleanAuth)}&marketplaceid=${marketplaceid}` : null,
+        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
     ].filter(Boolean);
@@ -87,10 +84,14 @@ class eBayService {
                 'Authorization': `Basic ${platformBase64}`
             }
         });
+        if (!response.data || !response.data.access_token) {
+            throw new Error("Empty token response from eBay");
+        }
         this.appToken = response.data.access_token;
+        console.info("[eBay Auth] App Token successfully synchronized.");
         return this.appToken;
     } catch (e) {
-        console.error("eBay App Token Retrieval Failed:", e);
+        console.error("eBay App Token Retrieval Failed:", e.response?.data || e.message);
         return null;
     }
   }
@@ -159,6 +160,10 @@ class eBayService {
 
   async searchProducts(query, categoryId = null) {
     let token = await this.getAppToken();
+    if (!token) {
+        console.error("[eBay Search] Cannot execute search: Auth Token Missing.");
+        return [];
+    }
     const searchTerm = query || 'electronics'; 
     
     const executeSearch = async (authToken) => {
