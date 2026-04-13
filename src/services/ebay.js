@@ -287,26 +287,34 @@ class eBayService {
     }
 
     try {
-        console.log(`[eBay Handshake] Fetching Item: ${finalId}`);
+        console.log(`[eBay Handshake] Fetching Full Specs for: ${finalId}`);
         const response = await this.fetchWithRetry('get', `${this.baseUrl}/item/${finalId}`, {
-            params: { fieldgroups: 'PRODUCT' },
+            params: { fieldgroups: 'FULL' },
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const item = response.data;
         
         // Robust Extraction (Mapping multiple possible field names for sales/promos)
-        const rawPrice = item.price?.value || item.currentPrice?.value || item.estimatedAvailabilities?.[0]?.price?.value || "0";
+        const rawPrice = item.price?.value || item.currentPrice?.value || "0";
         
+        // Detailed Image Extraction
         const mainImage = item.image?.imageUrl || item.image?.url;
         const subImages = (item.additionalImages || []).map(img => img.imageUrl || img.url);
+        const images = [mainImage, ...subImages].filter(Boolean);
+
+        // Advanced Description Capture (eBay sometimes returns raw HTML or a simple string)
+        const rawDescription = item.description || item.shortDescription || "";
+        
+        console.info(`[eBay Handshake] Payload Captured: ${images.length} images, ${rawDescription.length} chars description.`);
 
         return {
-            id: item.itemId, // This will be the v1 format
+            id: item.itemId,
             legacyId: item.legacyItemId || id.replace('v1|', '').split('|')[0],
             title: item.title,
             price: parseFloat(rawPrice),
-            description: item.description || "",
-            images: [mainImage, ...subImages].filter(Boolean)
+            description: rawDescription,
+            images: images,
+            rawItem: item // Provide reference for deep inspection
         };
     } catch (e) {
         console.error("[eBay Sync] Detailed fetch failed:", e);

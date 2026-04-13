@@ -109,42 +109,44 @@ class AIService {
    * Returns: { titles: [{title, rank},...], description, category, tags, pricingStrategy }
    */
   /**
-   * Consolidates Optimization Intelligence (V6.0 - Category Compass)
-   * Returns: { titles: [{title, rank},...], description, category, tags, pricingStrategy }
+   * Consolidates Optimization Intelligence (V6.5 - Luminous Engine)
    */
   async optimizeListing(baselineTitle, currentPrice, competitorPrices = []) {
     const pricesStr = Array.isArray(competitorPrices) && competitorPrices.stats 
         ? `Avg: $${competitorPrices.stats.avg}, Min: $${competitorPrices.stats.min}` 
         : "No direct market data found";
     
-    // Removed crashing addLog call
-
     const prompt = `
-      ACT AS EBAY SEO EXPERT.
+      ACT AS EBAY LISTING ARCHITECT.
       
-      PRODUCT: ${baselineTitle}
-      PRICE: $${currentPrice}
-      MARKET: ${pricesStr}
+      CORE SPECS:
+      TITLE: ${baselineTitle}
+      STAGED PRICE: $${currentPrice}
+      COMPETITOR LANDSCAPE: ${pricesStr}
 
-      OUTPUT DATA STRUCTURE (STRICT JSON):
+      OBJECTIVES:
+      1. TITLES: Generate EXACTLY 5 high-rank title profiles. MAX 80 CHARS.
+      2. DESCRIPTION: Create a PREMIUM HTML SELL-PITCH. 
+         - REMOVE all existing image links (<img> tags).
+         - REMOVE promotional noise (e.g., "FAST SHIPPING", "BEST PRICE").
+         - FOCUS on benefits, specs, and trust.
+      3. TAGS: 10 hyper-niche SEO keywords.
+      4. STRATEGY: Data-driven pricing logic.
+
+      OUTPUT STRUCTURE (JSON ONLY):
       {
         "titles": [
-          {"title": "High performance title 1", "rank": 98},
-          {"title": "High performance title 2", "rank": 95},
-          {"title": "High performance title 3", "rank": 92}
+          {"title": "...", "rank": 99},
+          {"title": "...", "rank": 95},
+          {"title": "...", "rank": 92},
+          {"title": "...", "rank": 88},
+          {"title": "...", "rank": 85}
         ],
-        "mainCategory": "Selected Category",
-        "subCategory": "Specific Sub",
-        "tags": ["tag1", ... "tag10"],
-        "description": "Premium HTML Copy",
-        "pricingStrategy": "Data driven advice"
+        "description": "<div class='premium-listing'>...</div>",
+        "tags": ["...", "..."],
+        "pricingStrategy": "...",
+        "aiVerdict": "High-velocity match."
       }
-
-      RULES:
-      - Titles: Max 80 chars. 
-      - Tags: High-intent keywords.
-      - Category: Choose best from (Health & Beauty, Home & Garden, Electronics, Fashion).
-      - Return ONLY the JSON block.
     `;
 
     try {
