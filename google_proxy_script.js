@@ -1,6 +1,6 @@
 /**
- * eBay Cloudflare Identity Bridge V3.0 (Deep-Relay Edition)
- * Optimized for full query parameter transparency and REST/SOAP relaying.
+ * eBay Proxy Identity Bridge v1.0
+ * Optimized for transparent marketplace relaying.
  */
 addEventListener("fetch", event => {
   event.respondWith(handleRequest(event.request))
@@ -17,7 +17,7 @@ async function handleRequest(request) {
   const siteid = url.searchParams.get("siteid") || "0";
 
   if (!targetUrl) {
-    return new Response("Missing target URL vector.", { status: 400 });
+    return new Response("Missing target URL.", { status: 400 });
   }
 
   // 2. Clone and Sanitize Headers
@@ -63,6 +63,6 @@ async function handleRequest(request) {
 
     return finalResponse;
   } catch (error) {
-    return new Response(`Identity Bridge Fault: ${error.message}`, { status: 500 });
+    return new Response(`Identity Bridge Error: ${error.message}`, { status: 500 });
   }
 }
