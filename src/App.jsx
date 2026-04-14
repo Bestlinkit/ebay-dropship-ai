@@ -19,6 +19,7 @@ import Marketing from './pages/Marketing';
 import Settings from './pages/Settings';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
+import IntelligenceReview from './pages/IntelligenceReview';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -45,6 +46,14 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Discovery />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/intelligence-review/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <IntelligenceReview />
                   </Layout>
                 </ProtectedRoute>
               } />

@@ -1,34 +1,32 @@
 import ebayService from './ebay';
 
 /**
- * Hardened Sourcing Intelligence Engine (v3.0 - OPS & Profit Maximizer)
- * Deterministic Weighted Model & Real-Market Telemetry Pulse
+ * eBay Profit Decision Engine (v4.0)
+ * Stage II: Intelligence Due Diligence & Risk Calculation
  */
 class SourcingService {
   constructor() {
     this.weights = {
-      demand: 0.30,
-      competition: 0.25,
-      priceStability: 0.15,
-      profitMargin: 0.20,
+      demand: 0.35,        // Prioritized revenue velocity
+      competition: 0.20,
+      priceStability: 0.10,
+      profitMargin: 0.25,   // Prioritized net yield
       trend: 0.10
     };
-    
-    this.COOLDOWN_KEY = 'dropai_discovery_cooldown';
   }
 
   /**
-   * Calculates the Product Opportunity Score (OPS)
-   * Deterministic 0-100 score based on real marketplace signals.
+   * Calculates the 'Sell Score' (Formerly OPS)
+   * High-integrity decision metric prioritizing sellability and profit.
    */
-  calculateOPS(product, supplierCost = null) {
+  calculateSellScore(product, supplierCost = null) {
     if (!product) return { score: 0, labels: { demand: 'Low', competition: 'High', profit: 'Low', trend: 'Stable' } };
 
     const signals = {
       demand: this._calcDemandScore(product),
       competition: this._calcCompetitionScore(product),
       priceStability: this._calcPriceStability(product),
-      profitMargin: supplierCost ? this._calcProfitScore(product.price, supplierCost) : 60, // Fallback if no supplier cost yet
+      profitMargin: supplierCost ? this._calcProfitScore(product.price, supplierCost) : 65, 
       trend: product.trendIndex || 50
     };
 
@@ -37,19 +35,57 @@ class SourcingService {
     }, 0);
 
     const score = Math.round(weightedScore);
-    
+    const risk = this.calculateRisk(score);
+
     return {
       score,
+      risk,
       labels: {
         demand: this._getLabel(signals.demand, ['Low', 'Medium', 'High']),
-        competition: this._getLabel(signals.competition, ['High', 'Medium', 'Low']), // Inverted for competition
+        competition: this._getLabel(signals.competition, ['High', 'Medium', 'Low']),
         profit: this._getLabel(signals.profitMargin, ['Low', 'Medium', 'High']),
         trend: this._getLabel(signals.trend, ['Declining', 'Stable', 'Rising'])
       },
-      status: score >= 80 ? 'HIGH' : (score >= 50 ? 'MODERATE' : 'LOW'),
-      color: score >= 80 ? '#10b981' : (score >= 50 ? '#f59e0b' : '#ef4444'),
-      reasoning: this.getDecisionLogic(score, signals)
+      status: this._getStatus(score),
+      color: this._getColor(score),
+      summary: this.getAIIntelligenceSummary(score, signals, product)
     };
+  }
+
+  /**
+   * Investment Risk Classification
+   */
+  calculateRisk(score) {
+    if (score >= 80) return { label: 'Low Risk', level: 'Low', color: '#22C55E' };
+    if (score >= 55) return { label: 'Medium Risk', level: 'Medium', color: '#FBBF24' };
+    return { label: 'High Risk', level: 'High', color: '#EF4444' };
+  }
+
+  /**
+   * Deterministic Decision Layer (AI Broadcast)
+   */
+  getAIIntelligenceSummary(score, signals, product) {
+    const targetPrice = (product.price * 0.9).toFixed(2);
+    
+    if (score >= 80) {
+      return `High marketplace demand paired with low saturation. Strong potential for resale if sourced below $${targetPrice}. Market winner protocol active.`;
+    }
+    if (score >= 50) {
+      return `Balanced market signals. Performance depends on supplier agility and pricing precision. Recommended for moderate inventory depth.`;
+    }
+    return `Oversaturated competitive node with yield degradation. High risk of idle inventory. Suggest skipping or alternative category node exploration.`;
+  }
+
+  _getStatus(score) {
+    if (score >= 80) return 'TOP PICK';
+    if (score >= 50) return 'GOOD OPPORTUNITY';
+    return 'LOW VALUE';
+  }
+
+  _getColor(score) {
+    if (score >= 80) return '#22C55E';
+    if (score >= 50) return '#FBBF24';
+    return '#EF4444';
   }
 
   _getLabel(value, labels) {
@@ -59,52 +95,44 @@ class SourcingService {
   }
 
   _calcDemandScore(product) {
-    // Derived from sold count or listing activity
     const sold = product.soldCount || 0;
-    if (sold > 100) return 90;
-    if (sold > 50) return 75;
-    if (sold > 10) return 50;
-    return 30;
+    if (sold > 120) return 95;
+    if (sold > 60) return 80;
+    if (sold > 15) return 55;
+    return 35;
   }
 
   _calcCompetitionScore(product) {
-    // High results = High competition = Low score
-    const count = product.totalFound || 500;
-    if (count < 50) return 95;
-    if (count < 200) return 70;
-    if (count < 1000) return 40;
-    return 20;
+    const count = product.totalFound || 1000;
+    if (count < 100) return 95;
+    if (count < 400) return 75;
+    if (count < 1500) return 45;
+    return 25;
   }
 
   _calcPriceStability(product) {
-    if (!product.priceRange) return 60;
+    if (!product.priceRange) return 65;
     const { min, max, avg } = product.priceRange;
     const spread = (max - min) / (avg || 1);
-    if (spread < 0.15) return 90;
-    if (spread < 0.4) return 60;
-    return 30;
+    if (spread < 0.12) return 95;
+    if (spread < 0.45) return 65;
+    return 35;
   }
 
   _calcProfitScore(marketPrice, supplierCost) {
     const margin = (marketPrice - supplierCost) / marketPrice;
-    if (margin > 0.4) return 95;
-    if (margin > 0.25) return 75;
-    if (margin > 0.15) return 50;
-    return 20;
+    if (margin > 0.45) return 98;
+    if (margin > 0.30) return 85;
+    if (margin > 0.15) return 60;
+    return 30;
   }
 
-  /**
-   * AI Profit Maximizer Logic
-   */
   getPricingIntelligence(product, supplierCost, categoryId = null) {
     if (!supplierCost) return null;
-
     const fees = ebayService.getCategoryFee(categoryId || product.categoryId);
     const cost = parseFloat(supplierCost);
     const marketAvg = product.price || 50;
-    
-    // Suggest 5% below market average for conversion anchor
-    const suggestedPrice = marketAvg * 0.95;
+    const suggestedPrice = marketAvg * 0.94;
     const ebayFee = (suggestedPrice * fees.percentage) + fees.fixed;
     const netProfit = suggestedPrice - cost - ebayFee;
     const margin = netProfit / suggestedPrice;
@@ -117,58 +145,8 @@ class SourcingService {
         netProfit: netProfit.toFixed(2),
         margin: (margin * 100).toFixed(1)
       },
-      positioning: this._classifyPositioning(suggestedPrice, marketAvg),
-      marketDiff: (((suggestedPrice / marketAvg) - 1) * 100).toFixed(1),
-      isRecommended: margin >= 0.15,
-      probability: this._calculateSalesProbability(margin, suggestedPrice, marketAvg)
+      isRecommended: margin >= 0.15
     };
-  }
-
-  _classifyPositioning(price, avg) {
-    const diff = (price / avg) - 1;
-    if (diff < -0.1) return { label: 'Competitive', color: '#10b981' };
-    if (diff < 0.1) return { label: 'Balanced', color: '#f59e0b' };
-    return { label: 'Premium', color: '#ef4444' };
-  }
-
-  _calculateSalesProbability(margin, price, avg) {
-    const diff = (price / avg) - 1;
-    if (diff < -0.05 && margin >= 0.15) return 'High';
-    if (diff <= 0.05) return 'Medium';
-    return 'Low';
-  }
-
-  /**
-   * Deterministic Decision Reasoning (No generic AI text)
-   */
-  getDecisionLogic(score, signals) {
-    const drivers = [];
-    if (signals.demand >= 70) drivers.push("High marketplace demand spike");
-    if (signals.competition >= 70) drivers.push("Low saturation gap");
-    if (signals.priceStability >= 70) drivers.push("Price corridor stability");
-    if (signals.profitMargin >= 70) drivers.push("Strong margin potential");
-
-    if (score >= 80) return drivers.slice(0, 2).join(" + ") + " = high selling probability";
-    if (score < 40) return "Oversaturated market with low margin potential";
-    return drivers.length > 0 ? drivers[0] + " detected" : "Market neutral signals";
-  }
-
-  /**
-   * DUPLICATE GUARD
-   */
-  isCoolingDown(productId) {
-    const raw = localStorage.getItem(this.COOLDOWN_KEY);
-    const registry = raw ? JSON.parse(raw) : {};
-    const lastProcessed = registry[productId];
-    if (!lastProcessed) return false;
-    return (Date.now() - lastProcessed) / (1000 * 60 * 60) < 24;
-  }
-
-  markProcessed(productId) {
-    const raw = localStorage.getItem(this.COOLDOWN_KEY);
-    const registry = raw ? JSON.parse(raw) : {};
-    registry[productId] = Date.now();
-    localStorage.setItem(this.COOLDOWN_KEY, JSON.stringify(registry));
   }
 }
 
