@@ -194,6 +194,25 @@ class SourcingService {
     })[0];
   }
 
+  /**
+   * Generates broader, higher-match keywords by removing noise (brands, colors, specs).
+   */
+  generateSuggestedKeywords(title) {
+    if (!title) return "";
+    
+    // 1. Remove special characters and noise
+    let clean = title.replace(/[^\w\s]/gi, ' ');
+    
+    // 2. Filter out short words and common stop words
+    const stopWords = ['with', 'for', 'from', 'and', 'the', 'new', 'top', 'best', 'pro', 'hot', 'sale', 'free', 'shipping'];
+    const words = clean.split(/\s+/)
+      .filter(w => w.length > 3)
+      .filter(w => !stopWords.includes(w.toLowerCase()));
+    
+    // 3. Return a more "generic" but descriptive slice (first 4-6 strong words)
+    return words.slice(0, 6).join(' ');
+  }
+
   _getHumanizedSummary(score, priceZ, profitLevel) {
     const posHooks = [
       "This product is a good option to sell because",
