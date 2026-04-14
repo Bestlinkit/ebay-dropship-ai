@@ -20,6 +20,7 @@ import Settings from './pages/Settings';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
+import SupplierSourcing from './pages/SupplierSourcing';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -54,6 +55,14 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <IntelligenceReview />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/supplier-sourcing" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SupplierSourcing />
                   </Layout>
                 </ProtectedRoute>
               } />

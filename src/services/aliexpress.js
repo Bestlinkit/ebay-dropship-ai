@@ -31,7 +31,11 @@ class AliExpressService {
                 thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=400',
                 ordersCount: 1540,
                 rating: 4.7,
+                shipping: 3.50,
+                delivery: '12-15 days',
+                shipsFrom: 'China',
                 source: 'AliExpress',
+                category: 'Electronics',
                 availabilityScore: 95
             },
             {
@@ -41,7 +45,11 @@ class AliExpressService {
                 thumbnail: 'https://images.unsplash.com/photo-1542291026-7eec264c2745?auto=format&fit=crop&q=80&w=400',
                 ordersCount: 850,
                 rating: 4.9,
+                shipping: 0.00,
+                delivery: '7-10 days',
+                shipsFrom: 'USA',
                 source: 'AliExpress',
+                category: 'Electronics',
                 availabilityScore: 88
             }
         ];

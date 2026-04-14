@@ -115,6 +115,85 @@ class SourcingService {
   /**
    * Generates natural language insights with dynamic phrasing and actionable verdicts.
    */
+  /**
+   * Sourcing Intelligence (v1.1)
+   * Calculates relevance between target eBay product and supplier result.
+   */
+  calculateMatchRelevance(target, supplier) {
+    if (!target || !supplier) return 0;
+    
+    // 1. Keyword Overlap (Title Parity)
+    const tWords = target.title.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const sWords = supplier.title.toLowerCase().split(/\s+/);
+    const overlap = tWords.filter(w => sWords.includes(w)).length;
+    const titleScore = (overlap / tWords.length) * 100;
+
+    // 2. Category Check
+    const categoryMatch = supplier.category === target.category ? 20 : 0;
+
+    // 3. Price Context (Outlier Detection)
+    const priceRatio = Math.min(target.price, supplier.price) / Math.max(target.price, supplier.price);
+    const priceScore = priceRatio * 30; // 30 points for realistic price parity
+
+    return Math.round(Math.min(titleScore + categoryMatch + priceScore, 100));
+  }
+
+  /**
+   * Calculates realistic ROI ranges for business planning.
+   */
+  calculateSupplierROIRange(ebayPrice, supplierCost) {
+    const totalCost = Number(supplierCost);
+    if (!totalCost || totalCost <= 0) return { conservative: 0, expected: 0 };
+
+    // Expected: Current eBay baseline
+    const expectedProfit = (ebayPrice - totalCost) / totalCost;
+    
+    // Conservative: Under-cut market by 10%
+    const conservativePrice = ebayPrice * 0.90;
+    const conservativeProfit = (conservativePrice - totalCost) / totalCost;
+
+    return {
+      conservative: Math.round(conservativeProfit * 100),
+      expected: Math.round(expectedProfit * 100)
+    };
+  }
+
+  /**
+   * Grades supplier reliability based on delivery and ratings.
+   */
+  evaluateSupplierTrust(supplier) {
+    let score = 0;
+    
+    // 1. Ratings (AliExpress context)
+    if (supplier.rating >= 4.5) score += 40;
+    else if (supplier.rating >= 4.0) score += 20;
+
+    // 2. Shipping Speed
+    const deliveryDays = parseInt(supplier.delivery || '15');
+    if (deliveryDays <= 7) score += 40;
+    else if (deliveryDays <= 12) score += 20;
+
+    // 3. Provenance (USA Priority)
+    if (supplier.shipsFrom === 'USA') score += 20;
+
+    if (score >= 80) return 'High';
+    if (score >= 50) return 'Medium';
+    return 'Low';
+  }
+
+  /**
+   * Identifies the 'Best Option' for the store.
+   */
+  identifyBestOption(results) {
+    if (!results || results.length === 0) return null;
+    return [...results].sort((a, b) => {
+      // Sort by USA shipping first, then ROI, then Match Score
+      if (a.shipsFrom === 'USA' && b.shipsFrom !== 'USA') return -1;
+      if (b.shipsFrom === 'USA' && a.shipsFrom !== 'USA') return 1;
+      return (b.roiRange?.expected || 0) - (a.roiRange?.expected || 0);
+    })[0];
+  }
+
   _getHumanizedSummary(score, priceZ, profitLevel) {
     const posHooks = [
       "This product is a good option to sell because",

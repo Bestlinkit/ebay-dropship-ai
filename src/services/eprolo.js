@@ -55,7 +55,7 @@ class EproloService {
             limit: 10
         });
 
-        if (response.data && response.data.list) {
+      if (response.data && response.data.list) {
             return response.data.list.map(item => ({
                 id: item.product_id,
                 sku: item.sku,
@@ -63,8 +63,11 @@ class EproloService {
                 price: parseFloat(item.price),
                 thumbnail: item.image_url,
                 shipping: item.shipping_fee || 0,
-                delivery: item.delivery_days || '7-12 days',
-                rating: 4.8 
+                delivery: item.delivery_days || '5-8 days',
+                shipsFrom: item.ships_from || 'USA', // Prioritize USA availability
+                category: item.category_name,
+                rating: 4.9,
+                source: 'Eprolo'
             }));
         }
         return [];

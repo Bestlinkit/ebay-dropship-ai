@@ -209,7 +209,7 @@ const IntelligenceReview = () => {
                
                <div className="flex items-center gap-8">
                   <button 
-                    onClick={handleConnectProvider}
+                    onClick={() => navigate('/supplier-sourcing', { state: { product, batchContext } })}
                     className="flex-[2] px-12 py-6 bg-white text-slate-950 rounded-[2rem] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-emerald-500 hover:text-white transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-3xl shadow-white/5 group"
                   >
                     Add to Store
