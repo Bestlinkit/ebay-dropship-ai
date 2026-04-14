@@ -41,7 +41,6 @@ const hexToHsl = (hex) => {
     }
     return { h: h * 360, s: s * 100, l: l * 100 };
   } catch (e) {
-    console.error("Theme Error: hexToHsl failed", e);
     return { h: 205, s: 89, l: 48 }; // Safe fallback HSL
   }
 };
@@ -64,16 +63,19 @@ const hslToHex = (h, s, l) => {
 
 export const ThemeProvider = ({ children }) => {
   const [primaryColor, setPrimaryColor] = useState(DEFAULT_COLOR);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('themeMode') || 'dark');
+  const [uiScale, setUiScale] = useState(() => parseInt(localStorage.getItem('uiScale')) || 100);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   // Optimized Theme Applier
-  const applyTheme = useCallback((color) => {
+  const applyTheme = useCallback((color, mode, scale) => {
     try {
-      const safeColor = isValidHex(color) ? color : DEFAULT_COLOR;
-      const hsl = hexToHsl(safeColor);
       const root = document.documentElement;
       
+      // 1. Primary Color Shades
+      const safeColor = isValidHex(color) ? color : DEFAULT_COLOR;
+      const hsl = hexToHsl(safeColor);
       const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
       const lightnessMap = {
         50: 97, 100: 93, 200: 85, 300: 75, 400: 60,
@@ -86,62 +88,72 @@ export const ThemeProvider = ({ children }) => {
         const shadeHex = hslToHex(hsl.h, hsl.s, lightnessMap[shade]);
         root.style.setProperty(`--primary-${shade}`, shadeHex);
       });
+
+      // 2. Global Attributes (Data Theme)
+      root.setAttribute('data-theme', mode);
+      localStorage.setItem('themeMode', mode);
+
+      // 3. UI Scale (Base Font Size)
+      const baseSize = (scale / 100) * 16;
+      root.style.setProperty('--base-font-size', `${baseSize}px`);
+      localStorage.setItem('uiScale', scale.toString());
+
     } catch (error) {
       console.error("Theme Application Failure:", error);
     }
   }, []);
 
-  // Sync with Firestore with error handling
+  // Sync with Firestore & Local
   useEffect(() => {
     if (!user) {
-      setPrimaryColor(DEFAULT_COLOR);
-      applyTheme(DEFAULT_COLOR);
+      applyTheme(primaryColor, themeMode, uiScale);
       setLoading(false);
       return;
     }
 
     const docRef = doc(db, 'users', user.uid);
-    
-    // Listen for real-time changes
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       try {
-        if (docSnap.exists() && docSnap.data().brandColor) {
-          const newColor = docSnap.data().brandColor;
-          if (isValidHex(newColor)) {
-            setPrimaryColor(newColor);
-            applyTheme(newColor);
-          } else {
-            applyTheme(DEFAULT_COLOR);
-          }
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const newColor = data.brandColor || primaryColor;
+          const newMode = data.themeMode || themeMode;
+          const newScale = data.uiScale || uiScale;
+
+          setPrimaryColor(newColor);
+          setThemeMode(newMode);
+          setUiScale(newScale);
+          applyTheme(newColor, newMode, newScale);
         } else {
-          applyTheme(DEFAULT_COLOR);
+          applyTheme(primaryColor, themeMode, uiScale);
         }
       } catch (err) {
         console.error("Snapshot Sync Error:", err);
-        applyTheme(DEFAULT_COLOR);
       } finally {
         setLoading(false);
       }
-    }, (error) => {
-        console.error("Firestore Theme Connection Error:", error);
-        applyTheme(DEFAULT_COLOR);
-        setLoading(false);
     });
 
     return () => unsubscribe();
   }, [user, applyTheme]);
 
-  const updateBrandColor = async (color) => {
-    if (!isValidHex(color)) {
-        console.error("Attempted to set invalid color:", color);
-        return;
-    }
-    
-    setPrimaryColor(color);
-    applyTheme(color);
+  const updateTheme = async (updates) => {
+    const newColor = updates.primaryColor || primaryColor;
+    const newMode = updates.themeMode || themeMode;
+    const newScale = updates.uiScale !== undefined ? updates.uiScale : uiScale;
+
+    setPrimaryColor(newColor);
+    setThemeMode(newMode);
+    setUiScale(newScale);
+    applyTheme(newColor, newMode, newScale);
+
     if (user) {
       try {
-        await setDoc(doc(db, 'users', user.uid), { brandColor: color }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid), { 
+          brandColor: newColor,
+          themeMode: newMode,
+          uiScale: newScale
+        }, { merge: true });
       } catch (err) {
         console.error("Failed to save theme to cloud:", err);
       }
@@ -150,7 +162,9 @@ export const ThemeProvider = ({ children }) => {
 
   const value = {
     primaryColor,
-    updateBrandColor,
+    themeMode,
+    uiScale,
+    updateTheme,
     loading
   };
 

@@ -28,7 +28,7 @@ import sourcingService from '../services/sourcing';
 import ProductCard from '../components/ProductCard';
 
 /**
- * Adaptive Market Research Terminal (v11.0)
+ * Adaptive Market Research Terminal (v12.0 Responsive)
  * Stage I: Strategic Profit Discovery & AI-Assisted Normalization.
  */
 const Discovery = () => {
@@ -84,7 +84,6 @@ const Discovery = () => {
         const { minScore, demandLevel, profitLevel } = filters;
         if (minScore && p.sellData.score < parseInt(minScore)) return false;
         if (profitLevel && p.sellData.profitLevel !== profitLevel) return false;
-        // Demand Level mapping (High = High Velocity, Med = Stable)
         if (demandLevel === 'High' && p.sellData.score < 70) return false;
         return true;
       })
@@ -116,7 +115,7 @@ const Discovery = () => {
           categoryId: filters.categoryId,
           minPrice: filters.minPrice,
           maxPrice: filters.maxPrice,
-          limit: 20, // Fetch more for better normalization
+          limit: 20, 
           offset: (pagination.page - 1) * 20
         });
       }
@@ -130,13 +129,11 @@ const Discovery = () => {
     }
   }, [query, filters.categoryId, filters.minPrice, filters.maxPrice, pagination.page]);
 
-  // Reactive Debounce
   useEffect(() => {
     const timer = setTimeout(() => executeSearch(), 450);
     return () => clearTimeout(timer);
   }, [filters.categoryId, filters.minPrice, filters.maxPrice, query, pagination.page]);
 
-  // Init
   useEffect(() => { executeSearch(true); }, []);
 
   const handleAddProduct = (product) => {
@@ -144,26 +141,26 @@ const Discovery = () => {
   };
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-700 pb-40 max-w-[1700px] mx-auto px-6 font-inter text-text-primary">
+    <div className="space-y-16 animate-in fade-in duration-700 pb-40 w-full max-w-full">
       
-      {/* 🚀 STAGE I: TOP PICKS (RANKED BY RELEVANCE) */}
+      {/* 🚀 STAGE I: TOP PICKS (Rule 2 Compliance: Dynamic Grid) */}
       {topPicks.length > 0 && !loading && (
-        <section className="space-y-8">
-           <div className="flex items-center justify-between border-b border-slate-800 pb-6">
-              <div className="flex items-center gap-5">
-                 <div className="w-14 h-14 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center justify-center text-green-500 shadow-[0_0_30px_rgba(34,197,94,0.1)]">
-                    <Zap size={28} />
+        <section className="space-y-10">
+           <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-8">
+              <div className="flex items-center gap-6">
+                 <div className="w-16 h-16 bg-[var(--primary-500)]/10 border border-[var(--primary-500)]/20 rounded-[1.5rem] flex items-center justify-center text-[var(--primary-500)] shadow-2xl shadow-[var(--primary-500)]/5">
+                    <Zap size={32} />
                  </div>
                  <div>
-                    <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Market Momentum.</h2>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                       <Sparkles size={12} className="text-green-500" /> AI-Assisted Normalization (Query Batch)
+                    <h2 className="text-4xl font-black italic tracking-tighter uppercase leading-none text-[var(--text-primary)]">Momentum.</h2>
+                    <p className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-widest mt-2 flex items-center gap-2">
+                       <Sparkles size={14} className="text-[var(--success)]" /> AI-Assisted Normalization Engine
                     </p>
                  </div>
               </div>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+           <div className="dynamic-grid">
               {topPicks.map(p => (
                 <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} isCompact={true} />
               ))}
@@ -172,86 +169,86 @@ const Discovery = () => {
       )}
 
       {/* 📊 STAGE II: RESEARCH TERMINAL */}
-      <div className="space-y-10">
-         <div className="flex flex-col gap-4">
-            <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-4 pl-10 shadow-2xl flex items-center gap-8 relative overflow-hidden">
-               <div className="flex-1 flex items-center gap-6">
-                  <Search className="text-slate-600" size={20} />
+      <div className="space-y-12">
+         <div className="flex flex-col gap-6 w-full">
+            <section className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[3rem] p-5 pl-12 shadow-3xl flex flex-col md:flex-row items-center gap-10 relative overflow-hidden w-full">
+               <div className="flex-1 flex items-center gap-6 w-full">
+                  <Search className="text-[var(--text-secondary)]" size={24} />
                   <input 
                     type="text" 
                     value={query}
                     onChange={(e) => { setQuery(e.target.value); setPagination({ page: 1 }); }}
                     placeholder="Analyze Marketplace Opportunities..."
-                    className="flex-1 bg-transparent py-4 text-sm font-bold text-white outline-none placeholder:text-slate-700"
+                    className="flex-1 bg-transparent py-4 text-sm font-black text-[var(--text-primary)] outline-none placeholder:text-slate-600 w-full"
                   />
                </div>
 
-               <div className="flex items-center gap-4 px-6 relative z-30">
+               <div className="flex items-center gap-6 px-10 relative z-30 w-full md:w-auto justify-end">
                   <button 
                     onClick={() => setShowFilters(!showFilters)}
                     className={cn(
-                        "flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
-                        showFilters ? "bg-white text-slate-950 border-white" : "bg-slate-800 text-slate-400 border-slate-700 hover:text-white"
+                        "flex items-center gap-3 px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all border shadow-lg",
+                        showFilters ? "bg-white text-black border-white" : "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-color)] hover:text-[var(--text-primary)]"
                     )}
                   >
-                    <Filter size={14} /> Intelligence Filter
+                    <Filter size={16} /> Filter Suite
                   </button>
-                  <div className="h-10 w-px bg-slate-800" />
-                  <div className="flex flex-col text-right">
-                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Live Density</span>
-                     <span className="text-[11px] font-black text-emerald-500 italic">Adaptive Stream</span>
+                  <div className="h-12 w-px bg-[var(--border-color)] hidden md:block" />
+                  <div className="flex flex-col text-right hidden lg:flex">
+                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Active Batch</span>
+                     <span className="text-[12px] font-black text-[var(--success)] italic tracking-tighter uppercase">High Density</span>
                   </div>
                </div>
             </section>
 
-            {/* HIGH-CONTRAST FILTER STRIP (ADAPTIVE UI) */}
+            {/* HIGH-CONTRAST FILTER PANEL (Rule 1 & 2 Compliance) */}
             <AnimatePresence>
                {showFilters && (
                   <motion.div 
-                    initial={{ height: 0, opacity: 0, y: -20 }}
-                    animate={{ height: 'auto', opacity: 1, y: 0 }}
-                    exit={{ height: 0, opacity: 0, y: -20 }}
-                    className="z-50"
+                    initial={{ height: 0, opacity: 0, scaleY: 0.9 }}
+                    animate={{ height: 'auto', opacity: 1, scaleY: 1 }}
+                    exit={{ height: 0, opacity: 0, scaleY: 0.9 }}
+                    className="z-50 w-full overflow-hidden origin-top"
                   >
-                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-6 p-10 bg-[#111C33] border border-[#2A3A55] rounded-[3rem] shadow-3xl">
-                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Waves size={12} /> Category</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 p-12 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[4rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
+                       <div className="space-y-4">
+                          <label className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] px-2 flex items-center gap-3"><Waves size={14} /> Segment</label>
                           <select 
                             value={filters.categoryId}
                             onChange={(e) => setFilters(p => ({ ...p, categoryId: e.target.value }))}
-                            className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none cursor-pointer hover:bg-[#1f2e4d] transition-colors appearance-none shadow-inner"
+                            className="w-full bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl px-6 py-5 text-[12px] font-black text-[var(--text-primary)] outline-none cursor-pointer hover:border-[var(--primary-500)] transition-all appearance-none shadow-2xl"
                           >
-                            <option value="">All Segments</option>
+                            <option value="">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
                        </div>
                        
-                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><DollarSign size={12} /> Price Ceiling</label>
-                          <div className="flex items-center gap-3">
+                       <div className="space-y-4">
+                          <label className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] px-2 flex items-center gap-3"><DollarSign size={14} /> Price Range</label>
+                          <div className="flex items-center gap-4">
                              <input 
                                type="number" 
                                placeholder="Min"
                                value={filters.minPrice}
                                onChange={(e) => setFilters(p => ({ ...p, minPrice: e.target.value }))}
-                               className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none placeholder:text-slate-800 shadow-inner"
+                               className="w-full bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl px-6 py-5 text-[12px] font-black text-[var(--text-primary)] outline-none placeholder:text-slate-700 shadow-2xl"
                              />
                              <input 
                                type="number" 
                                placeholder="Max"
                                value={filters.maxPrice}
                                onChange={(e) => setFilters(p => ({ ...p, maxPrice: e.target.value }))}
-                               className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none placeholder:text-slate-800 shadow-inner"
+                               className="w-full bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl px-6 py-5 text-[12px] font-black text-[var(--text-primary)] outline-none placeholder:text-slate-700 shadow-2xl"
                              />
                           </div>
                        </div>
 
-                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><BarChart3 size={12} /> Sell Score</label>
+                       <div className="space-y-4">
+                          <label className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] px-2 flex items-center gap-3"><BarChart3 size={14} /> Sell Ranking</label>
                           <select 
                             value={filters.minScore}
                             onChange={(e) => setFilters(p => ({ ...p, minScore: e.target.value }))}
-                            className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
+                            className="w-full bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl px-6 py-5 text-[12px] font-black text-[var(--text-primary)] outline-none appearance-none"
                           >
                             <option value="">Any Confidence</option>
                             <option value="80">Top Rated (80+)</option>
@@ -259,31 +256,25 @@ const Discovery = () => {
                           </select>
                        </div>
 
-                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><TrendingUp size={12} /> Profit Potential</label>
+                       <div className="space-y-4">
+                          <label className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] px-2 flex items-center gap-3"><TrendingUp size={14} /> Yield Tier</label>
                           <select 
                             value={filters.profitLevel}
                             onChange={(e) => setFilters(p => ({ ...p, profitLevel: e.target.value }))}
-                            className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
+                            className="w-full bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl px-6 py-5 text-[12px] font-black text-[var(--text-primary)] outline-none appearance-none"
                           >
-                            <option value="">All Marigins</option>
+                            <option value="">All Margins</option>
                             <option value="High">High Yield</option>
-                            <option value="Medium">Stable</option>
+                            <option value="Medium">Standard</option>
                           </select>
                        </div>
 
-                       <div className="flex flex-col gap-3 justify-end pb-1">
+                       <div className="flex flex-col gap-4 justify-end">
                           <button 
                             onClick={() => setFilters({ categoryId: '', minPrice: '', maxPrice: '', minScore: '', demandLevel: '', profitLevel: '', sort: 'money' })}
-                            className="w-full px-6 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-2xl text-[10px] font-black text-slate-400 hover:text-white transition-all uppercase tracking-widest"
+                            className="w-full px-8 py-5 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-2xl text-[11px] font-black text-[var(--text-secondary)] hover:text-white transition-all uppercase tracking-widest"
                           >
                             Reset Logic
-                          </button>
-                          <button 
-                            onClick={() => setShowFilters(false)}
-                            className="w-full px-8 py-4 bg-white text-slate-950 font-black rounded-2xl text-[10px] uppercase tracking-widest shadow-xl shadow-white/5 hover:scale-[1.02] transition-transform"
-                          >
-                            Apply Intelligence
                           </button>
                        </div>
                     </div>
@@ -293,52 +284,52 @@ const Discovery = () => {
          </div>
 
          {/* 🌊 MARKET FEED HEADER */}
-         <div className="flex items-center justify-between px-2 pt-4">
-            <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Full Market Analysis Feed</h3>
-            <div className="flex items-center gap-3">
-               <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Confidence Normalized Per Query</span>
-               <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+         <div className="flex items-center justify-between px-6">
+            <h3 className="text-[12px] font-black text-[var(--text-secondary)] uppercase tracking-[0.4em]">Full Market Analysis Feed</h3>
+            <div className="flex items-center gap-4">
+               <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest hidden sm:inline">Data Normalized Relative to Batch</span>
+               <div className="w-2.5 h-2.5 rounded-full bg-[var(--success)] shadow-[0_0_15px_var(--success)]" />
             </div>
          </div>
 
-         <div className="grid grid-cols-1 gap-6 pt-4">
+         <div className="dynamic-grid pt-4">
             {loading ? (
               Array(8).fill(0).map((_, i) => (
-                <div key={i} className="h-36 bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-800/30" />
+                <div key={i} className="h-64 bg-[var(--bg-card)] rounded-[3rem] animate-pulse border border-[var(--border-color)]" />
               ))
             ) : processedProducts.length > 0 ? (
               processedProducts.map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
             ) : (
-              <div className="py-56 flex flex-col items-center justify-center gap-8 opacity-10">
-                 <Waves size={80} className="text-slate-400" />
-                 <p className="text-[14px] font-black uppercase tracking-[0.8em] text-center">Zero Market Alignment Detected</p>
+              <div className="py-72 flex flex-col items-center justify-center gap-10 opacity-20 col-span-full">
+                 <Waves size={100} className="text-[var(--text-secondary)]" />
+                 <p className="text-[16px] font-black uppercase tracking-[1em] text-center">Neural Null Response</p>
               </div>
             )}
          </div>
 
-         {/* PAGINATION LOGIC */}
+         {/* PAGINATION LOGIC (Rule 2 Compliance) */}
          {!loading && rawProducts.length > 0 && (
-            <div className="flex items-center justify-center gap-16 pt-24 border-t border-slate-800/30">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-16 pt-32 border-t border-[var(--border-color)]">
                <button 
                  disabled={pagination.page === 1}
                  onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                 className="flex items-center gap-4 px-10 py-5 rounded-[2rem] border border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white disabled:opacity-10 transition-all font-outfit"
+                 className="flex items-center gap-5 px-12 py-6 rounded-3xl border border-[var(--border-color)] text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-white disabled:opacity-10 transition-all bg-[var(--bg-card)] shadow-2xl"
                >
-                 <ChevronLeft size={20} /> Previous Phase
+                 <ChevronLeft size={24} /> Previous Segment
                </button>
                
-               <div className="flex flex-col items-center gap-2">
-                  <div className="w-14 h-14 rounded-2xl bg-[#EAF0FF] text-slate-950 flex items-center justify-center font-black italic text-xl shadow-2xl shadow-blue-500/10">
+               <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--text-primary)] text-[var(--bg-app)] flex items-center justify-center font-black italic text-2xl shadow-3xl">
                      {pagination.page}
                   </div>
-                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Terminal View</span>
+                  <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Discovery Phase</span>
                </div>
 
                <button 
                  onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                 className="flex items-center gap-4 px-12 py-5 rounded-[2rem] border border-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all font-outfit"
+                 className="flex items-center gap-5 px-14 py-6 rounded-3xl border border-[var(--border-color)] text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-white transition-all bg-[var(--bg-card)] shadow-2xl"
                >
-                 Next Discovery <ChevronRight size={20} />
+                 Next Signal <ChevronRight size={24} />
                </button>
             </div>
          )}
