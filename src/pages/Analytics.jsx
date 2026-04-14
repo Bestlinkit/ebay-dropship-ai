@@ -72,7 +72,7 @@ const Analytics = () => {
             
             setStats([
                 { label: 'Active Store Syncs', value: summary.activeListings.toString(), trend: 'Live Sync', icon: Zap, color: 'text-primary' },
-                { label: 'Market Intensity', value: 'High', trend: 'Verified', icon: Activity, color: 'text-rose-500' },
+                { label: 'Sales Demand', value: 'High', trend: 'Verified', icon: Activity, color: 'text-rose-500' },
                 { label: 'Global Reach', value: 'Active', trend: 'Production', icon: Globe, color: 'text-indigo-500' },
                 { label: 'Link Status', value: summary.status, trend: 'v1.0', icon: Shield, color: 'text-emerald-500' },
             ]);
@@ -110,10 +110,10 @@ const Analytics = () => {
         <div className="space-y-4">
            <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-1.5 rounded-full w-fit">
               <Shield size={12} className="text-primary-400 fill-primary-400" />
-              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Verified Production Intelligence</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Verified Store Dashboard</span>
            </div>
            <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter uppercase italic leading-none">Market Results.</h1>
-           <p className="text-slate-400 font-bold max-w-lg">Direct telemetry from the eBay Trading API nodes. No simulations. No estimates.</p>
+           <p className="text-slate-400 font-bold max-w-lg">Direct results from your eBay store and current market trends. No estimates.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-4">
@@ -169,8 +169,8 @@ const Analytics = () => {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-500/20 to-transparent" />
             <div className="flex justify-between items-center mb-12">
                 <div>
-                   <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">Production Velocity Orbit</h3>
-                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Live Telemetry Active</p>
+                   <h3 className="text-xl font-black text-slate-900 uppercase italic tracking-tighter">Store Performance Trends</h3>
+                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Live Updates Active</p>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100/30">
@@ -196,14 +196,14 @@ const Analytics = () => {
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/20 rounded-full blur-[80px] -mr-20 -mt-20" />
             <h3 className="text-xl font-black mb-10 flex items-center gap-4 relative z-10 italic tracking-tighter uppercase">
                 <Target className="text-primary-400 fill-primary-400" size={24} />
-                Market Decision nodes
+                Assistant Decision Logic
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative z-10">
                 {[
-                    { title: 'Inventory Sync', desc: 'Cross-referencing active listings with sourcing availability. Zero delta detected.', delta: 'Synchronized' },
-                    { title: 'Global Integration', desc: 'Secure OAuth v2.0 tunnel established with eBay US Production Servers.', delta: 'Connected' },
-                    { title: 'Data Integrity', desc: 'Validating API response data to filter out duplicate records.', delta: 'Verified' }
+                    { title: 'Inventory Sync', desc: 'Matching your store listings with market availability. Everything is up to date.', delta: 'Synchronized' },
+                    { title: 'Global Integration', desc: 'Secure connection established with eBay US Marketplace.', delta: 'Connected' },
+                    { title: 'Data Accuracy', desc: 'Ensuring all product data is clean and accurate before display.', delta: 'Verified' }
                 ].map((p, i) => (
                     <div key={i} className="group cursor-pointer bg-white/5 p-8 rounded-[2rem] border border-white/10 hover:bg-white/10 transition-all">
                         <div className="flex justify-between items-end mb-3">
@@ -216,7 +216,7 @@ const Analytics = () => {
             </div>
 
             <button className="w-full mt-10 bg-white/5 border border-white/10 h-16 rounded-2xl flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all group">
-                <span>View Full Production Logs</span>
+                <span>View Full Activity Logs</span>
                 <ArrowRight size={16} className="group-hover:translate-x-2 transition-transform" />
             </button>
         </div>

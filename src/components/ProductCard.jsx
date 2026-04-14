@@ -82,7 +82,7 @@ const MiniMomentumLine = ({ data, color = "#22C55E" }) => {
 
   return (
     <div className="flex flex-col gap-1">
-       <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Market Momentum</span>
+       <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Demand Trend</span>
        <svg width={width} height={height} className="overflow-visible">
          <polyline
            fill="none"
@@ -147,17 +147,16 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
               "{sellData.summary}"
            </p>
 
-           {/* METRICS STRIP */}
            <div className="flex items-center gap-8 md:gap-12 pt-2">
               <div className="flex flex-col gap-0.5">
-                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Competition</span>
+                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Competition Level</span>
                  <span className={cn("text-[9px] font-black text-white")}>
                     {product.totalFound < 300 ? 'Low Saturation' : 'Balanced Market'}
                  </span>
               </div>
               <div className="flex flex-col gap-0.5">
-                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Growth Vector</span>
-                 <span className="text-[9px] font-black text-white whitespace-nowrap">{sellData.metrics.batchRank}</span>
+                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Market Demand</span>
+                 <span className="text-[9px] font-black text-white whitespace-nowrap">{sellData.status}</span>
               </div>
               <div className="hidden sm:block">
                  <MiniMomentumLine data={sellData.momentum} color={sellData.color} />
@@ -170,12 +169,15 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
            
            {/* PERFORMANCE SCORE */}
            <div className="flex flex-col items-center gap-1.5 order-1 md:order-1">
-              <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Resale Score</span>
+              <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Resell Score</span>
               <div className={cn(
-                "w-12 h-12 md:w-16 md:h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl md:text-2xl italic border shadow-2xl",
+                "w-12 h-12 md:w-16 md:h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl md:text-2xl italic border shadow-2xl relative",
                 isTopPick ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-slate-900/50 border-white/5 text-white"
               )}>
-                 {sellData.score}
+                 {sellData.resellScore}
+                 <div className="absolute -bottom-2 px-2 py-0.5 bg-slate-950 border border-slate-800 rounded-md text-[6px] font-black uppercase tracking-widest whitespace-nowrap">
+                    {sellData.resellScore >= 80 ? "Strong" : (sellData.resellScore >= 60 ? "Decent" : "Weak")}
+                 </div>
               </div>
            </div>
 

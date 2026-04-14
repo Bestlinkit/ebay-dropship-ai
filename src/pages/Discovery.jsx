@@ -74,21 +74,22 @@ const Discovery = () => {
   }, [rawProducts]);
 
   // 3. ADAPTIVE FILTERING & RANKING (Post-Processing)
-  const processedProducts = useMemo(() => {
+   const processedProducts = useMemo(() => {
     return rawProducts
       .map(p => ({ 
         ...p, 
         sellData: sourcingService.calculateSellScore(p, batchIntelligence) 
       }))
       .filter(p => {
-        const { minScore, demandLevel, profitLevel } = filters;
-        if (minScore && p.sellData.score < parseInt(minScore)) return false;
+        const { minScore, profitLevel } = filters;
+        const score = Number(p.sellData?.resellScore || 0);
+        const selectedMin = Number(minScore || 0);
+
+        if (selectedMin > 0 && score < selectedMin) return false;
         if (profitLevel && p.sellData.profitLevel !== profitLevel) return false;
-        // Demand Level mapping (High = High Velocity, Med = Stable)
-        if (demandLevel === 'High' && p.sellData.score < 70) return false;
         return true;
       })
-      .sort((a, b) => b.sellData.score - a.sellData.score);
+      .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
   }, [rawProducts, batchIntelligence, filters]);
 
   // 4. WINNER DETECTION: Extracting Validated Top Picks
@@ -246,18 +247,18 @@ const Discovery = () => {
                           </div>
                        </div>
 
-                       <div className="space-y-3">
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><BarChart3 size={12} /> Sell Score</label>
-                          <select 
-                            value={filters.minScore}
-                            onChange={(e) => setFilters(p => ({ ...p, minScore: e.target.value }))}
-                            className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
-                          >
-                            <option value="">Any Confidence</option>
-                            <option value="80">Top Rated (80+)</option>
-                            <option value="60">Growth (60+)</option>
-                          </select>
-                       </div>
+                        <div className="space-y-3">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><BarChart3 size={12} /> Resell Score</label>
+                           <select 
+                             value={filters.minScore}
+                             onChange={(e) => setFilters(p => ({ ...p, minScore: e.target.value }))}
+                             className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
+                           >
+                             <option value="">Any Score</option>
+                             <option value="80">Excellent (80+)</option>
+                             <option value="60">Decent (60+)</option>
+                           </select>
+                        </div>
 
                        <div className="space-y-3">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><TrendingUp size={12} /> Profit Potential</label>
@@ -294,9 +295,9 @@ const Discovery = () => {
 
          {/* 🌊 MARKET FEED HEADER */}
          <div className="flex items-center justify-between px-2 pt-4">
-            <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Full Market Analysis Feed</h3>
+            <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">Full Market Opportunity Feed</h2>
             <div className="flex items-center gap-3">
-               <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Confidence Normalized Per Query</span>
+               <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Decision Grade Intelligence</span>
                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
             </div>
          </div>

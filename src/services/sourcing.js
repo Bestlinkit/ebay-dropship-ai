@@ -1,8 +1,8 @@
 import ebayService from './ebay';
 
 /**
- * Adaptive Market Intelligence Engine (v11.0)
- * Stage II: Cross-Dataset Normalization & AI-Assisted Interpretation.
+ * Humanized Decision Intelligence Engine (v12.1)
+ * Transforms technical metrics into actionable business advice.
  */
 class SourcingService {
   constructor() {
@@ -15,71 +15,70 @@ class SourcingService {
   }
 
   /**
-   * Adaptive Intelligence Layer (Normalization + Interpretation)
-   * Scores are relative to the 'batchStats' of the current search query.
+   * Actionable Intelligence Layer
+   * Returns deterministic analytics for eBay product nodes.
    */
   calculateSellScore(product, batchStats = null) {
-    if (!product) return { score: 0, confidence: 'Low' };
+    if (!product) return { resellScore: 0, confidence: 'Low' };
 
-    // 1. DATASET NORMALIZATION (REALISM LAYER)
     const stats = batchStats || { avgPrice: product.price || 50, stdDev: 10, totalResults: 500 };
     
-    // Price Z-Score (Dispersion Signal)
+    // 1. Price Position (Z-Score)
     const priceZ = (stats.avgPrice - product.price) / (stats.stdDev || 5);
     const priceScore = Math.min(Math.max(50 + (priceZ * 15), 10), 98);
 
-    // 2. COMPETITION DENSITY (Relative Signal)
+    // 2. Competition Density
     const relativeDensity = product.totalFound < (stats.totalResults / 2) ? 90 : 50;
 
-    // 3. ADAPTIVE CONFIDENCE (AI-DRIVEN EVALUATION)
+    // 3. Confidence Evaluation
     const confidenceLevel = this._evaluateConfidence(product, stats);
     
-    // 4. MARKET MOMENTUM (ESTIMATED)
+    // 4. Demand Trend (Momentum)
     const momentumData = this.getTrendData(product, stats);
     const lastPoint = momentumData[momentumData.length - 1].y;
     const momentumScore = lastPoint > 50 ? 80 : 40;
 
-    // 5. AGGREGATION (ADAPTIVE RANKING)
-    const rawScore = Math.round(
+    // 5. Aggregation (Deterministic Resell Score)
+    const resellScore = Math.round(
       (priceScore * this.weights.pricePosition) +
       (relativeDensity * this.weights.demandPulse) +
       (momentumScore * this.weights.momentum) +
       (50 * this.weights.categoryFit)
     );
 
-    // 6. PROFIT CLASSIFICATION (CATEGORY-AWARE)
     const margin = this._calculateEstimatedMargin(product, stats);
     const profitLevel = margin > 0.25 ? 'High' : (margin > 0.10 ? 'Medium' : 'Low');
 
-    const isWinner = rawScore >= 80 && confidenceLevel !== 'Low' && margin > 0.05;
+    const isWinner = resellScore >= 80 && confidenceLevel !== 'Low' && margin > 0.05;
+
+    // Determine Seller Status (Actionable)
+    let sellerStatus = 'Low Demand (Hard to sell)';
+    if (resellScore >= 80) sellerStatus = 'High Demand (Easy to sell)';
+    else if (resellScore >= 60) sellerStatus = 'Moderate Demand (Requires effort)';
 
     return {
-      score: rawScore,
+      resellScore,
+      score: resellScore, // Registry legacy support
       confidence: confidenceLevel,
       isWinner,
-      status: isWinner ? 'TOP PICK' : (rawScore >= 50 ? 'GOOD OPPORTUNITY' : 'LOW VALUE'),
-      color: isWinner ? '#22C55E' : (rawScore >= 50 ? '#FBBF24' : '#EF4444'),
+      status: sellerStatus,
+      color: resellScore >= 80 ? '#22C55E' : (resellScore >= 60 ? '#FBBF24' : '#EF4444'),
       momentum: momentumData,
       profitLevel,
-      summary: this._getAdaptiveSummary(rawScore, priceZ, profitLevel),
+      summary: this._getHumanizedSummary(resellScore, priceZ, profitLevel),
       metrics: {
         priceYield: margin.toFixed(2),
-        batchRank: priceZ > 0 ? 'Top Tier' : 'Baseline'
+        sellerStatus: sellerStatus
       }
     };
   }
 
-  /**
-   * Deterministic Momentum Generator (Market Signal Translation)
-   * Derived from price dispersion and listing density.
-   */
   getTrendData(product, stats) {
     const points = [];
     const seed = (parseInt(product.id.toString().slice(-3)) || 50) % 100;
     const volatility = stats.stdDev / stats.avgPrice;
     
     for (let i = 0; i < 10; i++) {
-        // Momentum is higher if price is competitive and results are manageable
         const trend = (i / 10) * (product.price < stats.avgPrice ? 1.2 : 0.8);
         const noise = Math.sin(seed + i) * volatility * 10;
         points.push({ 
@@ -91,7 +90,6 @@ class SourcingService {
   }
 
   _evaluateConfidence(product, stats) {
-    // Adaptive Reasoning: Trust is gained if product is within a representable deviation
     const priceDiff = Math.abs(product.price - stats.avgPrice);
     const isOutlier = priceDiff > (stats.stdDev * 3);
     
@@ -109,16 +107,48 @@ class SourcingService {
   _calculateEstimatedMargin(product, stats) {
     const fees = ebayService.getCategoryFee(product.categoryId);
     const targetPrice = product.price;
-    const hypotheticalCost = targetPrice * 0.70; // Placeholder for sourcing calculation
+    const hypotheticalCost = targetPrice * 0.70;
     const ebayFee = (targetPrice * fees.percentage) + fees.fixed;
     return (targetPrice - hypotheticalCost - ebayFee) / targetPrice;
   }
 
-  _getAdaptiveSummary(score, priceZ, profitLevel) {
-    if (score >= 80) return `Strong resale candidate. Pricing outperforms ${Math.abs(priceZ.toFixed(1))}σ of marketplace peers with favorable margin potential.`;
-    if (profitLevel === 'High') return `High-margin opportunity detected. Stable pricing signals combined with emerging market entry potential.`;
-    if (priceZ < -1) return `Risk identified: Pricing exceeds marketplace average clustering. Expect reduced velocity and competitive friction.`;
-    return `Baseline market performance. Recommend secondary observation for potential price corrections.`;
+  /**
+   * Generates natural language insights with dynamic phrasing and actionable verdicts.
+   */
+  _getHumanizedSummary(score, priceZ, profitLevel) {
+    const posHooks = [
+      "This product is a good option to sell because",
+      "There is a strong opportunity here due to",
+      "This item has good selling potential because"
+    ];
+    const negHooks = [
+      "This product may not perform well because",
+      "It’s risky to sell this item due to",
+      "You may want to avoid this product because"
+    ];
+    const midHooks = [
+      "This product has moderate demand, but",
+      "There is some potential here, however",
+      "You can test this item, but"
+    ];
+
+    const pick = (list) => list[Math.floor(Math.random() * list.length)];
+    
+    let text = "";
+    let verdict = "";
+
+    if (score >= 80) {
+      text = `${pick(posHooks)} it has strong market demand and relatively low competition. Pricing is highly competitive, which gives you a great chance to make consistent sales.`;
+      verdict = "Overall, this is a good product to sell.";
+    } else if (score >= 60) {
+      text = `${pick(midHooks)} competition is increasing in this category. Success will depend on your ability to maintain a competitive pricing strategy.`;
+      verdict = "Overall, this is worth testing but not a top priority.";
+    } else {
+      text = `${pick(negHooks)} the competition is too high and profit margins are tight. It will be difficult to stand out or generate stable sales.`;
+      verdict = "Overall, this product is risky and should be avoided.";
+    }
+
+    return `${text} ${verdict}`;
   }
 }
 
