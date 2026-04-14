@@ -116,11 +116,11 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
     <motion.div 
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.01, y: -2 }}
+      whileHover={{ scale: 1.005, y: -1 }}
       className={cn(
-        "group saas-card p-5 flex items-center gap-8 relative overflow-hidden",
+        "group saas-card p-4 flex items-center gap-6 relative overflow-hidden",
         isTopPick && "border-green-500/40 shadow-[0_0_60px_rgba(34,197,94,0.1)]",
-        isCompact ? "flex-col items-start gap-6 p-8" : "flex-row"
+        isCompact ? "flex-col items-start gap-4 p-6" : "flex-row"
       )}
       style={{ backgroundColor: '#111C33' }}
     >
@@ -137,14 +137,14 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
       <SafeImage 
         src={product.thumbnail || product.image_url} 
         alt={product.title} 
-        className={cn(isCompact ? "w-full h-48" : "w-[120px] h-[120px]")} 
+        className={cn(isCompact ? "w-full h-40" : "w-[90px] h-[90px]")} 
       />
 
       {/* 2. CORE INTELLIGENCE BLOCK */}
-      <div className="flex-1 min-w-0 space-y-4">
-         <div className="flex flex-col gap-2">
+      <div className="flex-1 min-w-0 space-y-3">
+         <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-6">
-               <h3 className="text-sm font-black text-[#EAF0FF] leading-tight line-clamp-2 transition-colors group-hover:text-white uppercase tracking-tight">
+               <h3 className="text-xs font-black text-[#EAF0FF] leading-tight line-clamp-2 transition-colors group-hover:text-white uppercase tracking-tight">
                  {product.title}
                </h3>
                {!isCompact && (
@@ -156,20 +156,20 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
                   </button>
                )}
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-               <span className="text-2xl font-black text-white italic tracking-tighter leading-none">${product.price.toFixed(2)}</span>
+            <div className="flex items-center gap-2.5 flex-wrap">
+               <span className="text-xl font-black text-white italic tracking-tighter leading-none">${product.price.toFixed(2)}</span>
                <div className="h-4 w-px bg-[#2A3A55]" />
                <ConfidenceBadge level={sellData.confidence} />
                {isHighMargin && (
-                  <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-[8px] font-black uppercase tracking-[0.2em] animate-pulse">
+                  <div className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-[7px] font-black uppercase tracking-[0.15em] animate-pulse">
                      Premium Yield
                   </div>
                )}
             </div>
          </div>
 
-         {/* EXPLAINABLE INSIGHT SUMMARY */}
-         <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic border-l-2 border-slate-800 pl-4 py-1">
+         {/* EXPLAINABLE INSIGHT SUMMARY (CONTAINMENT HARDENED) */}
+         <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic border-l-2 border-slate-800 pl-4 py-1 line-clamp-3">
             "{sellData.summary}"
          </p>
 
@@ -192,7 +192,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
       </div>
 
       {/* 3. STRATEGIC ACTIONS */}
-      <div className={cn("flex items-center gap-8 shrink-0", isCompact && "w-full justify-between")}>
+      <div className={cn("flex items-center gap-6 shrink-0", isCompact && "w-full justify-between")}>
          {/* SELL SCORE ANALYTIC (ADAPTIVE RANK) */}
          <div className="flex flex-col items-center gap-2">
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Resale Score</span>
@@ -205,19 +205,19 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
          </div>
 
          {/* PRIMARY INVESTMENT ACTION */}
-         <div className="flex flex-col gap-3">
+         <div className="flex flex-col gap-2.5">
             <button 
               onClick={() => onAdd(product)}
-              className="px-10 py-5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-white/5 flex items-center gap-3 active:scale-95 group/btn"
+              className="px-6 py-3.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl shadow-white/5 flex items-center gap-2.5 active:scale-95 group/btn"
             >
-              Add to Store (Save for Review)
-              <Plus size={16} className="group-hover/btn:rotate-90 transition-transform" />
+              Add to Store
+              <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
             </button>
             <button 
               onClick={() => onAdd(product)} // Routes to details via state
-              className="px-10 py-4 bg-transparent border border-[#2A3A55] text-[#EAF0FF] hover:bg-[#1A2742] hover:border-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2"
+              className="px-6 py-3 bg-transparent border border-[#2A3A55] text-[#EAF0FF] hover:bg-[#1A2742] hover:border-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center flex items-center justify-center gap-2"
             >
-              View Market Details <ArrowRight size={14} />
+              View Details <ArrowRight size={12} />
             </button>
          </div>
       </div>

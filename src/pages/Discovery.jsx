@@ -301,7 +301,7 @@ const Discovery = () => {
             </div>
          </div>
 
-         <div className="grid grid-cols-1 gap-6 pt-4">
+         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 pt-4">
             {loading ? (
               Array(8).fill(0).map((_, i) => (
                 <div key={i} className="h-36 bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-800/30" />
@@ -309,7 +309,7 @@ const Discovery = () => {
             ) : processedProducts.length > 0 ? (
               processedProducts.map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
             ) : (
-              <div className="py-56 flex flex-col items-center justify-center gap-8 opacity-10">
+              <div className="col-span-full py-56 flex flex-col items-center justify-center gap-8 opacity-10">
                  <Waves size={80} className="text-slate-400" />
                  <p className="text-[14px] font-black uppercase tracking-[0.8em] text-center">Zero Market Alignment Detected</p>
               </div>
