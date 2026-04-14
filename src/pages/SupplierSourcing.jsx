@@ -70,69 +70,77 @@ const SupplierSourcing = () => {
     const performSourcing = useCallback(async (platform = 'EPROLO', customQuery = null) => {
         if (!targetProduct) return;
         
-        // CONTEXT PRESERVATION (Step 5)
+        // 🎯 MANDATORY DIAGNOSTIC LOGS
+        console.log("SOURCE PLATFORM:", platform);
+        
         const query = customQuery || searchQuery;
-        setLoading(true);
-        setTimerActive(false); // Reset timer on any new intentional search
+        if (rawResults.length === 0) setLoading(true);
+        setTimerActive(false); 
         
         setSourcingState(platform === 'EPROLO' ? 'searching_eprolo' : 'searching_aliexpress');
+        console.log("STATE TRANSITION:", platform === 'EPROLO' ? 'searching_eprolo' : 'searching_aliexpress');
         
         try {
             let matches = [];
             if (platform === 'EPROLO') {
                 matches = await eproloService.searchProducts(query);
+                console.log("RAW RESPONSE:", matches);
                 
                 if (matches.length === 0) {
+                    console.warn("[WATERFALL] Eprolo empty. Escalating to AliExpress discovery...");
                     setSourcingState('eprolo_no_results');
-                    setCountdown(5); // Start 5s countdown for ALI fallback
+                    setCountdown(2); 
                     setTimerActive(true);
                     setLoading(false);
+                    // Explicit background trigger (v1.2 Patched)
+                    setTimeout(() => performSourcing('ALIEXPRESS'), 500);
                     return;
                 }
                 setSourcingState('eprolo_results');
             } else {
                 matches = await aliexpressService.searchProducts(query);
+                console.log("RAW RESPONSE:", matches);
                 
                 if (matches.length === 0) {
-                    setSourcingState('aliexpress_no_results');
+                    setSourcingState(rawResults.length > 0 ? 'aliexpress_no_results_merged' : 'aliexpress_no_results');
                     setLoading(false);
                     return;
                 }
                 setSourcingState('aliexpress_results');
             }
 
-            setRawResults(matches);
-            
-            // 🧠 SEARCH QUALITY GUARD (v1.2)
-            const lowQuality = matches.every(m => sourcingService.calculateMatchRelevance(targetProduct, m) < 50);
-            if (lowQuality && matches.length > 0) {
-                toast.warning("Broad Match Detected", {
-                    description: "Suppliers found, but variants may differ. High-precision review required.",
-                    duration: 5000
-                });
-            }
+            // 🧱 SCHEMA HARMONIZATION (image instead of thumbnail)
+            const mappedMatches = matches.map(m => ({
+                ...m,
+                image: m.image || m.thumbnail
+            }));
+            console.log("MAPPED PRODUCTS:", mappedMatches);
 
+            // 🔄 RESULT MERGING RULE
+            setRawResults(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const uniqueNewMatches = mappedMatches.filter(m => !existingIds.has(m.id));
+                return platform === 'EPROLO' ? [...uniqueNewMatches, ...prev] : [...prev, ...uniqueNewMatches];
+            });
+            
         } catch (e) {
             console.error(`[Sourcing Error] ${platform}:`, e);
             
-            // ⚠️ NETWORK ERROR HANDLING (Step 4)
-            const isNetworkError = e.message.includes('timeout') || e.message.includes('Network') || e.message.includes('bridge');
-            
-            if (isNetworkError) {
-                toast.error("Supplier connection is unstable. Searching alternative supplier sources...", { duration: 4000 });
-                // Trigger ALI fallback for network errors too (Step 4 Hybrid)
-                if (platform === 'EPROLO') {
-                    setSourcingState('eprolo_error');
-                    setCountdown(3); 
-                    setTimerActive(true);
-                }
+            if (platform === 'EPROLO') {
+                toast.error(`Eprolo Node Failure: ${e.message}. Initiating AliExpress fallback...`, { duration: 3000 });
+                setSourcingState('eprolo_error');
+                setCountdown(2); 
+                setTimerActive(true);
+                // Explicit backup trigger on catch
+                setTimeout(() => performSourcing('ALIEXPRESS'), 500); 
             } else {
-                setSourcingState(platform === 'EPROLO' ? 'eprolo_error' : 'aliexpress_error');
+                setSourcingState('aliexpress_error');
+                toast.error(`Sourcing Exhausted: ${e.message}`);
             }
         } finally {
             setLoading(false);
         }
-    }, [targetProduct, searchQuery]);
+    }, [targetProduct, searchQuery, rawResults.length]);
 
     useEffect(() => { performSourcing(); }, []);
 
@@ -164,8 +172,9 @@ const SupplierSourcing = () => {
     [targetProduct]);
 
     const handleModifySearch = (newQuery) => {
+        setRawResults([]); // 🔥 CLEAR for manual search reset
         setSearchQuery(newQuery);
-        performSourcing(sourcingState.startsWith('ali') ? 'ALIEXPRESS' : 'EPROLO', newQuery);
+        performSourcing('EPROLO', newQuery); // Always start from Eprolo for new queries
     };
 
     const handleContinue = (supplierProduct) => {
@@ -249,25 +258,37 @@ const SupplierSourcing = () => {
                 </div>
             </div>
 
-            {/* 🔍 SOURCING FEED */}
+            {/* 🔍 SOURCING FEED (v1.2 Patched: Non-Blocking) */}
             <div className="space-y-8">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-6">
-                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">
-                        {sourcingState.includes('results') ? 'Verified Supplier Matches' : 'Intelligent Sourcing Engine'}
-                    </h2>
-                    <div className="flex items-center gap-4 text-[9px] font-black text-slate-700 uppercase tracking-widest">
-                        <span>{isSourcingAli ? 'Global Sourcing Bridge' : 'USA Priority Logic Active'}</span>
-                        <div className={cn("w-1.5 h-1.5 rounded-full", loading ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500')} />
-                    </div>
-                </div>
+                <SourcingStatusHeader 
+                    state={sourcingState} 
+                    loading={loading}
+                    timerActive={timerActive}
+                    countdown={countdown}
+                    resultsCount={processedResults.length}
+                    onCancel={() => setTimerActive(false)}
+                />
 
-                {loading ? (
+                {/* Always show results if they exist, never blank the UI */}
+                {hasResults ? (
+                    <div className="grid grid-cols-1 gap-6 pb-20">
+                        {processedResults.map(res => (
+                            <SupplierResultRow 
+                                key={`${res.source}-${res.id}`} 
+                                product={res} 
+                                targetPrice={targetProduct.price}
+                                isBest={bestOption?.id === res.id}
+                                onContinue={handleContinue}
+                            />
+                        ))}
+                    </div>
+                ) : loading ? (
                     <div className="space-y-6">
                         {Array(3).fill(0).map((_, i) => (
                            <div key={i} className="h-40 bg-slate-900/50 rounded-[2.5rem] animate-pulse border border-slate-800/30" />
                         ))}
                     </div>
-                ) : (isNoResults || isError || sourcingState === 'switching_to_fallback') ? (
+                ) : (isNoResults || isError || sourcingState === 'switching_to_fallback') && (
                     <RecoveryView 
                         state={sourcingState} 
                         query={searchQuery}
@@ -279,27 +300,22 @@ const SupplierSourcing = () => {
                         onCancel={() => setTimerActive(false)}
                         onModify={handleModifySearch}
                     />
-                ) : hasResults ? (
-                    <div className="grid grid-cols-1 gap-6">
-                        {processedResults.map(res => (
-                            <SupplierResultRow 
-                                key={res.id} 
-                                product={res} 
-                                targetPrice={targetProduct.price}
-                                isBest={bestOption?.id === res.id}
-                                onContinue={handleContinue}
-                            />
-                        ))}
+                )}
+
+                {/* Final Fallback if everything truly finished with zero results */}
+                {!hasResults && !loading && !timerActive && sourcingState === 'aliexpress_no_results' && (
+                    <div className="py-20 text-center space-y-6">
+                         <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center mx-auto text-slate-700">
+                             <ShieldAlert size={40} />
+                         </div>
+                         <div className="space-y-2">
+                             <h4 className="text-xl font-black text-white italic uppercase">Total Sourcing Exhausted</h4>
+                             <p className="text-slate-500 text-sm max-w-md mx-auto">Neither supplier platform returned a viable match for this market node. Try broader keywords.</p>
+                         </div>
+                         <button onClick={() => handleModifySearch(suggestedKeywords)} className="bg-white text-slate-950 px-10 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
+                             Try Suggested Keywords
+                         </button>
                     </div>
-                ) : (
-                    <RecoveryView 
-                        state="no_matches_found" 
-                        query={searchQuery}
-                        suggested={suggestedKeywords}
-                        onRetry={() => performSourcing('EPROLO')}
-                        onSwitch={() => performSourcing('ALIEXPRESS')}
-                        onModify={handleModifySearch}
-                    />
                 )}
             </div>
 
@@ -473,7 +489,7 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
 
             {/* PRODUCT VISUAL */}
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-[2rem] overflow-hidden border border-white/5 shrink-0 shadow-2xl">
-                <img src={product.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
             </div>
 
             {/* DATA CORE */}
@@ -545,6 +561,74 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                 </div>
             </div>
         </motion.div>
+    );
+};
+
+/**
+ * Sourcing Status Header (v1.2 Patched)
+ * Inline status bar that replaces the blocking full-page messages.
+ */
+const SourcingStatusHeader = ({ state, loading, timerActive, countdown, resultsCount, onCancel }) => {
+    const isAli = state.startsWith('ali');
+    const isSwitching = state === 'switching_to_fallback';
+    const isError = state.endsWith('_error');
+
+    return (
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-800 pb-8">
+            <div className="flex items-center gap-4">
+                <div className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                    loading || isSwitching ? "bg-emerald-500/20 text-emerald-500 animate-pulse" : 
+                    isError ? "bg-rose-500/20 text-rose-500" : "bg-slate-900 text-slate-500"
+                )}>
+                    {loading || isSwitching ? <RefreshCw size={20} className="animate-spin" /> : <Activity size={20} />}
+                </div>
+                <div>
+                    <h2 className="text-xl font-black text-white italic tracking-tighter uppercase">
+                        {isAli ? 'AliExpress' : 'Eprolo'} Discovery
+                    </h2>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                        Engine Status: <span className={cn(loading ? "text-emerald-500" : "text-slate-400")}>
+                            {state.replace('_', ' ')}
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6">
+                {/* 📊 RESULT COUNTER */}
+                <div className="px-5 py-3 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-3">
+                    <Package size={14} className="text-slate-500" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                        {resultsCount} Matches Found
+                    </span>
+                </div>
+
+                {/* ⏳ ADAPTIVE FALLBACK INDICATOR */}
+                {timerActive && countdown > 0 && (
+                    <div className="px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <Zap size={14} className="text-emerald-500 fill-emerald-500" />
+                            <span className="text-[9px] font-black text-white uppercase tracking-widest">
+                                Auto-triggering AliExpress in {countdown}s
+                            </span>
+                        </div>
+                        <button 
+                            onClick={onCancel}
+                            className="bg-white/10 hover:bg-rose-500/20 text-white/40 hover:text-rose-500 px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                )}
+
+                {/* 🔌 CONNECTION TYPE */}
+                <div className="flex items-center gap-3 text-[10px] font-black text-slate-700 uppercase tracking-[0.2em] bg-slate-950/50 px-4 py-2 rounded-lg border border-white/5">
+                    <Globe size={12} />
+                    {isAli ? 'Global Direct' : 'USA Priority Sourcing'}
+                </div>
+            </div>
+        </div>
     );
 };
 

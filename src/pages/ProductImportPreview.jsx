@@ -60,16 +60,19 @@ const ProductImportPreview = () => {
     }, [selectedVariant, product]);
 
     const handleConfirmImport = () => {
-        // Enforce Structured Storage Format
+        // Enforce Structured Storage Format (Production Vector)
         const finalProductVector = {
             title: product.title,
             description: product.description,
             images: product.images,
             variants: product.variants,
+            selectedVariant: selectedVariant,
             pricing: {
                 ...product.pricing,
                 selectedVariantPrice: selectedVariant.price,
-                totalCost: parseFloat(roiMetrics.cost)
+                totalCost: parseFloat(roiMetrics.cost),
+                profit: parseFloat(roiMetrics.profit),
+                margin: roiMetrics.margin
             },
             shipping: product.shipping,
             sourcePlatform: product.sourcePlatform,
@@ -77,9 +80,15 @@ const ProductImportPreview = () => {
             importedAt: new Date().toISOString()
         };
 
-        console.log("[IMPORT] Committing vector to repository:", finalProductVector);
-        toast.success(`Product successfully queued for import.`);
-        navigate('/products', { state: { importedProduct: finalProductVector } });
+        console.log("[IMPORT] Handing off vector to Optimization Studio:", finalProductVector);
+        toast.success(`Product vector stabilized. Transitioning to Neural Studio.`);
+        
+        // 🚀 NAVIGATION REDIRECT: Preview -> Optimization
+        navigate('/optimize-product/new', { 
+            state: { 
+                importedProduct: finalProductVector 
+            } 
+        });
     };
 
     return (
@@ -112,7 +121,7 @@ const ProductImportPreview = () => {
                         onClick={handleConfirmImport}
                         className="px-12 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-500 hover:text-white transition-all transform active:scale-95 shadow-2xl"
                     >
-                        Confirm & Add to Store <Check size={16} />
+                        Continue to Optimization <Sparkles size={16} className="text-emerald-500" />
                     </button>
                 </div>
             </div>
@@ -248,19 +257,27 @@ const ProductImportPreview = () => {
                                         key={variant.id}
                                         onClick={() => setSelectedVariant(variant)}
                                         className={cn(
-                                            "p-4 rounded-2xl border transition-all text-left space-y-1 relative group",
+                                            "p-4 rounded-2xl border transition-all text-left space-y-1 relative group overflow-hidden",
                                             selectedVariant.id === variant.id 
-                                                ? "bg-white border-white text-slate-950" 
-                                                : "bg-slate-900/50 border-slate-800 text-white hover:border-slate-600"
+                                                ? "bg-white border-white text-slate-950 shadow-2xl shadow-emerald-500/20" 
+                                                : "bg-slate-900/40 backdrop-blur-md border-slate-800 text-white hover:border-slate-600"
                                         )}
                                     >
-                                        <p className="text-[9px] font-black uppercase tracking-tighter line-clamp-1">{variant.title}</p>
+                                        {/* Pulse Effect for selected variant */}
+                                        {selectedVariant.id === variant.id && (
+                                            <motion.div 
+                                                layoutId="pulse"
+                                                className="absolute inset-0 bg-emerald-500/5 animate-pulse" 
+                                            />
+                                        )}
+                                        <p className="text-[9px] font-black uppercase tracking-tighter line-clamp-1 relative z-10">{variant.title}</p>
                                         <p className={cn(
-                                            "text-xs font-black italic",
+                                            "text-xs font-black italic relative z-10",
                                             selectedVariant.id === variant.id ? "text-slate-950" : "text-emerald-500"
                                         )}>${(variant.price || 0).toFixed(2)}</p>
+                                        
                                         {selectedVariant.id === variant.id && (
-                                            <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white scale-110">
+                                            <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white scale-110 shadow-lg relative z-20">
                                                 <Check size={12} strokeWidth={4} />
                                             </div>
                                         )}

@@ -62,19 +62,26 @@ class EproloService {
         });
 
       if (response.data && response.data.list) {
-            return response.data.list.map(item => ({
-                id: item.product_id,
-                sku: item.sku,
-                title: item.title,
-                price: parseFloat(item.price),
-                thumbnail: item.image_url,
-                shipping: item.shipping_fee || 0,
-                delivery: item.delivery_days || '5-8 days',
-                shipsFrom: item.ships_from || 'USA',
-                category: item.category_name,
-                rating: 4.9,
-                source: 'Eprolo'
-            }));
+            return response.data.list.map(item => {
+                // 🧱 ROBUST DATA MAPPING (Step 2 Patch)
+                const title = item.title || item.product_name || "Unnamed Supplier Product";
+                const thumbnail = item.image_url || item.image || item.pic || item.thumbnail || "";
+                const price = parseFloat(item.price || item.min_price || 0);
+
+                return {
+                    id: item.product_id,
+                    sku: item.sku,
+                    title: title,
+                    price: isNaN(price) ? 0 : price,
+                    image: thumbnail,
+                    shipping: item.shipping_fee || 0,
+                    delivery: item.delivery_days || '5-8 days',
+                    shipsFrom: item.ships_from || 'USA',
+                    category: item.category_name,
+                    rating: 4.9,
+                    source: 'Eprolo'
+                };
+            });
         }
         return [];
     } catch (error) {

@@ -27,30 +27,37 @@ class AliExpressService {
         
         const response = await axios.get(proxyUrl, { timeout: 10000 });
         
+        // 🔍 DEEP DEBUGGING (Step 2 Patch)
+        console.log("INTERNAL ALI_PROXY_RESPONSE:", response.data);
+        
         // If we get a response that isn't JSON or seems blocked, we throw.
-        // No demo data allowed!
         if (!response.data || typeof response.data !== 'object') {
-            throw new Error("Live AliExpress search is currently unavailable. Please try again or use Eprolo.");
+            throw new Error("Live AliExpress search is currently unavailable. Bridge response invalid.");
         }
 
-        // Logic to extract and Map results (assuming the internal API format)
-        // If the internal API is blocked, we must show the error.
-        const rawItems = response.data.items || [];
+        const rawItems = response.data.items || response.data.itemList || response.data.list || [];
         
-        let processedResults = rawItems.map(item => ({
-            id: item.productId || item.id,
-            title: item.title || item.name,
-            price: parseFloat(item.price || 0),
-            thumbnail: item.imageUrl || item.image,
-            ordersCount: item.orders || 0,
-            rating: parseFloat(item.rating || 4.5),
-            shipping: parseFloat(item.shippingFee || 0),
-            delivery: item.deliveryTime || '12-15 days',
-            shipsFrom: item.shipsFrom || 'China',
-            source: 'AliExpress',
-            category: item.categoryName || 'General',
-            availabilityScore: 90
-        }));
+        let processedResults = rawItems.map(item => {
+            // 🧱 ROBUST DATA MAPPING (Step 2 Patch)
+            const title = item.title || item.name || item.subject || "AliExpress Insight Product";
+            const image = item.imageUrl || item.image || item.thumbnail || (item.img && item.img.url) || "";
+            const price = parseFloat(item.price || (item.minPrice && item.minPrice.value) || 0);
+
+            return {
+                id: item.productId || item.id,
+                title: title,
+                price: isNaN(price) ? 0 : price,
+                image: image,
+                ordersCount: item.orders || 0,
+                rating: parseFloat(item.rating || 4.5),
+                shipping: parseFloat(item.shippingFee || 0),
+                delivery: item.deliveryTime || '12-15 days',
+                shipsFrom: item.shipsFrom || 'China',
+                source: 'AliExpress',
+                category: item.categoryName || 'General',
+                availabilityScore: 90
+            };
+        });
 
         // 🧠 USA-FIRST PRIORITY ENFORCEMENT
         // Sort by USA shipping and delivery speed

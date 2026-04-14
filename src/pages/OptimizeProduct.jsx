@@ -106,12 +106,10 @@ const OptimizeProduct = () => {
     const hydrateStudio = async () => {
         setLoading(true);
         try {
-            // Case A: Product passed via Discovery Hub State (Zero-Delay)
+            // Case A: Product passed via Discovery Hub State (Internal Node)
             if (location.state?.ebayProduct) {
                 const ep = location.state.ebayProduct;
                 setOriginalProduct(ep);
-                
-                // Deterministic Ranking
                 const r = sourcingService.rankProduct(ep);
                 setRank(r);
 
@@ -128,7 +126,47 @@ const OptimizeProduct = () => {
                 return;
             }
 
-            // Case B: Direct navigation with ID (Fetch from eBay API)
+            // Case B: Product passed via Supplier Extraction (New Listing Vector)
+            if (location.state?.importedProduct) {
+                const ip = location.state.importedProduct;
+                console.log("[STUDIO HYDRATION] Ingesting Supplier Vector:", ip);
+                
+                // 🧠 AUTO-TAXONOMY: Match primary category based on title
+                const matchedId = matchPrimaryCategory(ip.title);
+                const matchedCat = PRIMARY_CATEGORIES.find(c => c.id === matchedId);
+                
+                if (matchedCat) {
+                    setCategoryStack([{ id: matchedCat.id, name: matchedCat.name, level: 0 }]);
+                    fetchChildren(matchedId); // Warm up the sub-category engine
+                }
+
+                setOriginalProduct({
+                    title: ip.title,
+                    price: ip.pricing.selectedVariantPrice,
+                    images: ip.images,
+                    description: ip.description
+                });
+
+                setRegistry(prev => ({
+                    ...prev,
+                    selectedTitle: ip.title,
+                    price: ip.pricing.selectedVariantPrice,
+                    supplierCost: ip.pricing.totalCost,
+                    images: ip.images,
+                    description: ip.description,
+                    optimizedDescription: ip.description,
+                    category: matchedId || '', 
+                }));
+
+                addSystemLog("Supplier extraction node ingested successfully.", 'success');
+                setLoading(false);
+
+                // 🔥 AUTO-SWEEP (Step 4): Trigger AI Optimization immediately for new imports
+                setTimeout(() => runFullOptimization(), 1000);
+                return;
+            }
+
+            // Case C: Direct navigation with ID (Fetch from eBay API - Revision Flow)
             if (id && id !== 'new') {
                 const product = await ebayService.getProductById(id);
                 setOriginalProduct(product);
@@ -140,7 +178,8 @@ const OptimizeProduct = () => {
                     selectedTitle: product.title || "",
                     price: product.price || 0,
                     images: product.additionalImages || product.images || [],
-                    category: product.categoryId || ''
+                    category: product.categoryId || '',
+                    description: product.description || ''
                 }));
             }
         } catch (e) {
@@ -211,27 +250,56 @@ const OptimizeProduct = () => {
   };
 
   const handlePushToStore = async () => {
+    const currentCat = categoryStack[categoryStack.length - 1];
+    
+    // 🧱 ENFORCEMENT: Category is Mandatory for New Listings
+    if (id === 'new' && (!currentCat || !currentCat.id)) {
+        toast.error("eBay requires a primary category for new listings.");
+        setActiveTab('logistics'); // Switch to category tab
+        return;
+    }
+
     setIsDeploying(true);
-    const toastId = toast.loading("Broadcasting Registry Update...");
+    const toastId = toast.loading(id === 'new' ? "Initial Node Deployment..." : "Broadcasting Registry Update...");
+    
     try {
         const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
-        const currentCat = categoryStack[categoryStack.length - 1];
-        
-        await ebayTrading.reviseItem(token, id, {
+        const activeImages = registry.images.filter(img => !registry.excludedImages.includes(img));
+
+        const itemPayload = {
             title: registry.selectedTitle,
             price: registry.price,
             description: registry.optimizedDescription || registry.description,
-            categoryId: currentCat?.id,
-            images: registry.images.filter(img => !registry.excludedImages.includes(img))
-        });
-        toast.dismiss(toastId);
-        toast.success("Production update confirmed.");
-        addSystemLog("Node successfully deployed to eBay.", 'success');
+            categoryId: currentCat?.id || registry.category,
+            images: activeImages
+        };
+
+        if (id === 'new') {
+            console.log("[PRODUCTION DEPLOY] Initiating AddItem call for new listing:", itemPayload);
+            const result = await ebayTrading.publishItem(itemPayload, token);
+            
+            // Extract New Item ID from XML Response
+            const itemIdMatch = result.match(/<ItemID>(.*?)<\/ItemID>/);
+            const newId = itemIdMatch ? itemIdMatch[1] : 'unknown';
+            
+            toast.success("Product successfully materialized on eBay.");
+            addSystemLog(`Deployment successful. New Item ID: ${newId}`, 'success');
+            
+            // Redirect to the newly created product node (Revision path)
+            setTimeout(() => navigate(`/optimize-product/${newId}`), 2000);
+        } else {
+            console.log("[PRODUCTION UPDATE] Initiating ReviseItem call for node:", id);
+            await ebayTrading.reviseItem(token, id, itemPayload);
+            toast.success("Production update confirmed.");
+            addSystemLog("Node successfully updated on eBay.", 'success');
+        }
     } catch (e) {
-        toast.dismiss(toastId);
+        console.error("eBay Deployment Fault:", e);
         toast.error(`Broadcast failed: ${e.message}`);
+        addSystemLog(`Deployment failure: ${e.message}`, 'error');
     } finally {
         setIsDeploying(false);
+        toast.dismiss(toastId);
     }
   };
 
