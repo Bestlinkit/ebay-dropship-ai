@@ -1,27 +1,31 @@
 @import "tailwindcss";
 
 :root {
+  /* 💎 PRIMARY SAAS COLOR TOKENS (V11.0 ADAPTIVE) */
   --app-bg: #0B1220;
   --app-card: #111C33;
+  --app-card-hover: #1A2742;
+  --app-border: #2A3A55;
   --app-primary: #22C55E;
   --app-text: #EAF0FF;
   --app-muted: #9AA8C7;
-  --app-border: #1E293B;
+  --app-danger: #EF4444;
 }
 
 body {
   background-color: var(--app-bg);
   color: var(--app-text);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 💎 PREMIUM GLASS-CARD ARCHITECTURE */
 .saas-card {
   background-color: var(--app-card);
-  border: 1px solid rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--app-border);
   border-radius: 2.5rem;
-  transition: all 0.5s ease;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   position: relative;
@@ -29,29 +33,31 @@ body {
 }
 
 .saas-card:hover {
-  border-color: rgba(51, 65, 85, 0.8);
-  box-shadow: 0 20px 60px -15px rgba(0,0,0,0.5);
-  transform: translateY(-2px);
+  background-color: var(--app-card-hover);
+  border-color: rgba(234, 240, 255, 0.2);
+  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6);
+  transform: translateY(-4px);
 }
 
+/* ⚡ INVESTMENT DECISION BUTTONS */
 .btn-decision {
   position: relative;
-  padding: 1rem 2rem;
-  border-radius: 1rem;
+  padding: 1.25rem 2.5rem;
+  border-radius: 1.5rem;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.15em;
   font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
 }
 
 .btn-decision:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .btn-primary {
@@ -62,38 +68,38 @@ body {
 .btn-primary:hover {
   background-color: var(--app-primary);
   color: #ffffff;
+  box-shadow: 0 20px 40px -10px rgba(34, 197, 94, 0.3);
 }
 
 .btn-outline {
-  background-color: #0f172a;
-  border: 1px solid #1e293b;
-  color: #94a3b8;
+  background-color: transparent;
+  border: 1px solid var(--app-border);
+  color: var(--app-muted);
 }
 
 .btn-outline:hover {
-  color: #ffffff;
-  border-color: #475569;
+  background-color: var(--app-card-hover);
+  color: var(--app-text);
+  border-color: var(--app-text);
 }
 
-.badge-analytic {
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  font-weight: 900;
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* CUSTOM INTERFACE UTILITIES */
+/* 🎨 ACCESSIBILITY & CONTRAST OVERRIDES */
 .text-text-primary { color: var(--app-text) !important; }
 .text-text-muted { color: var(--app-muted) !important; }
 .bg-primary { background-color: var(--app-primary) !important; }
 
+/* DROPDOWN & INPUT HARDENING */
+select, input {
+  transition: all 0.3s ease;
+}
+
+select:focus, input:focus {
+  border-color: var(--app-primary) !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1) !important;
+}
+
+/* CUSTOM INTERFACE SCROLLBARS */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
