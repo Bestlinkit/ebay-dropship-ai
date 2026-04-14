@@ -62,21 +62,18 @@ const hslToHex = (h, s, l) => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [primaryColor, setPrimaryColor] = useState(() => localStorage.getItem('brandColor') || DEFAULT_COLOR);
-  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('themeMode') || 'dark');
-  const [uiScale, setUiScale] = useState(() => parseInt(localStorage.getItem('uiScale')) || 100);
+  const [primaryColor, setPrimaryColor] = useState(DEFAULT_COLOR);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const initRef = useRef(false);
 
-  // Optimized Theme Applier (v12.1 Rescue hardening)
-  const applyTheme = useCallback((color, mode, scale) => {
+  // Optimized Theme Applier (v11.1 Stability Guard)
+  const applyTheme = useCallback((color) => {
     try {
-      const root = document.documentElement;
-      
-      // 1. Primary Color Shades
       const safeColor = isValidHex(color) ? color : DEFAULT_COLOR;
       const hsl = hexToHsl(safeColor);
+      const root = document.documentElement;
+      
       const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
       const lightnessMap = {
         50: 97, 100: 93, 200: 85, 300: 75, 400: 60,
@@ -89,33 +86,20 @@ export const ThemeProvider = ({ children }) => {
         const shadeHex = hslToHex(hsl.h, hsl.s, lightnessMap[shade]);
         root.style.setProperty(`--primary-${shade}`, shadeHex);
       });
-
-      // 2. Global Attributes (Data Theme)
-      root.setAttribute('data-theme', mode);
-      localStorage.setItem('themeMode', mode);
-      localStorage.setItem('brandColor', safeColor);
-
-      // 3. UI Scale (Base Font Size)
-      const baseSize = (scale / 100) * 16;
-      root.style.setProperty('--base-font-size', `${baseSize}px`);
-      localStorage.setItem('uiScale', scale.toString());
-
     } catch (error) {
-      console.error("Theme Rescue: Application Failure:", error);
+      console.error("Theme Error:", error);
     }
   }, []);
 
-  // Sync with Firestore & Local (Harden v12.1)
+  // Sync with Firestore (Harden v11.1 Restoration)
   useEffect(() => {
-    // Immediate recovery: Apply local settings first
-    applyTheme(primaryColor, themeMode, uiScale);
-
-    // Safety Timeout: Force loading to false after 2.5s regardless of Firestore
+    // Safety Timeout: Force loading to false after 2s
     const safetyTimeout = setTimeout(() => {
         setLoading(false);
-    }, 2500);
+    }, 2000);
 
     if (!user) {
+      applyTheme(DEFAULT_COLOR);
       setLoading(false);
       clearTimeout(safetyTimeout);
       return;
@@ -124,25 +108,22 @@ export const ThemeProvider = ({ children }) => {
     const docRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       try {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const newColor = data.brandColor || primaryColor;
-          const newMode = data.themeMode || themeMode;
-          const newScale = data.uiScale || uiScale;
-
-          setPrimaryColor(newColor);
-          setThemeMode(newMode);
-          setUiScale(newScale);
-          applyTheme(newColor, newMode, newScale);
+        if (docSnap.exists() && docSnap.data().brandColor) {
+          const newColor = docSnap.data().brandColor;
+          if (isValidHex(newColor)) {
+            setPrimaryColor(newColor);
+            applyTheme(newColor);
+          }
+        } else {
+          applyTheme(DEFAULT_COLOR);
         }
       } catch (err) {
-        console.error("Theme Rescue: Snapshot Error:", err);
+        console.error("Snapshot Error:", err);
       } finally {
         setLoading(false);
         clearTimeout(safetyTimeout);
       }
     }, (err) => {
-        console.error("Theme Rescue: Firestore Connection Failure:", err);
         setLoading(false);
         clearTimeout(safetyTimeout);
     });
@@ -153,40 +134,28 @@ export const ThemeProvider = ({ children }) => {
     };
   }, [user, applyTheme]);
 
-  const updateTheme = async (updates) => {
-    const newColor = updates.primaryColor || primaryColor;
-    const newMode = updates.themeMode || themeMode;
-    const newScale = updates.uiScale !== undefined ? updates.uiScale : uiScale;
-
-    setPrimaryColor(newColor);
-    setThemeMode(newMode);
-    setUiScale(newScale);
-    applyTheme(newColor, newMode, newScale);
-
+  const updateBrandColor = async (color) => {
+    if (!isValidHex(color)) return;
+    setPrimaryColor(color);
+    applyTheme(color);
     if (user) {
       try {
-        await setDoc(doc(db, 'users', user.uid), { 
-          brandColor: newColor,
-          themeMode: newMode,
-          uiScale: newScale
-        }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid), { brandColor: color }, { merge: true });
       } catch (err) {
-        console.error("Theme Rescue: Cloud Sync Failed:", err);
+        console.error("Cloud Save Failed:", err);
       }
     }
   };
 
   const value = {
     primaryColor,
-    themeMode,
-    uiScale,
-    updateTheme,
+    updateBrandColor,
     loading
   };
 
   return (
     <ThemeContext.Provider value={value}>
-      {/* 🛡️ v12.1 Stability Guard: Never block rendering indefinitely */}
+      {/* 🛡️ Stability Guard: Never block rendering in restoration mode */}
       {children}
     </ThemeContext.Provider>
   );
