@@ -1,43 +1,48 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+/* 
+ * SaaS Intelligence Design System (v7.5)
+ * Centralized Design Tokens for Theme Consistency
+ */
 :root {
   --font-outfit: "Outfit", sans-serif;
   --font-inter: "Inter", sans-serif;
   
-  --primary-50: #f0f7ff;
-  --primary-100: #e0effe;
-  --primary-200: #bae0fd;
-  --primary-300: #7cc7fb;
-  --primary-400: #38a9f8;
-  --primary-500: #0e8ce9;
-  --primary-600: #026dc6;
-  --primary-700: #0357a1;
-  --primary-800: #074a83;
-  --primary-900: #0b3f6d;
-  --primary-950: #082849;
+  /* Primary Brand */
+  --color-primary: #3b82f6;
+  --color-primary-glow: rgba(59, 130, 246, 0.15);
+  
+  /* Backgrounds */
+  --bg-app: #0B1220;
+  --bg-card: #111A2E;
+  --bg-input: rgba(30, 41, 59, 0.3);
+  
+  /* Borders */
+  --border-slate: #1E293B;
+  --border-active: rgba(59, 130, 246, 0.3);
+  
+  /* Typography */
+  --text-primary: #E6EDF7;
+  --text-muted: #94A3B8;
+  --text-white: #FFFFFF;
+  
+  /* Status */
+  --status-green: #10b981;
+  --status-yellow: #f59e0b;
+  --status-red: #ef4444;
 }
 
 @theme {
   --font-outfit: var(--font-outfit);
   --font-inter: var(--font-inter);
-  
-  --color-primary-50: var(--primary-50);
-  --color-primary-100: var(--primary-100);
-  --color-primary-200: var(--primary-200);
-  --color-primary-300: var(--primary-300);
-  --color-primary-400: var(--primary-400);
-  --color-primary-500: var(--primary-500);
-  --color-primary-600: var(--primary-600);
-  --color-primary-700: var(--primary-700);
-  --color-primary-800: var(--primary-800);
-  --color-primary-900: var(--primary-900);
-  --color-primary-950: var(--primary-950);
 }
 
 @layer base {
   body {
-    @apply bg-slate-950 text-text-primary antialiased selection:bg-primary/30 selection:text-white;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+    @apply antialiased selection:bg-primary/30 selection:text-white;
     font-family: var(--font-inter);
   }
 
@@ -47,28 +52,27 @@
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] transition-all duration-500;
+  /* Unified SaaS Card Shell */
+  .saas-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-slate);
+    @apply rounded-[2.5rem] transition-all duration-500 shadow-2xl;
   }
 
-  .premium-gradient {
-    @apply bg-gradient-to-br from-primary-600 to-indigo-700 text-white;
+  .saas-card:hover {
+    border-color: var(--border-active);
   }
 
-  .btn-premium {
-    @apply relative overflow-hidden bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/30 active:scale-95 disabled:opacity-50;
+  /* Compact Metric Badge */
+  .badge-saas {
+    @apply px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-2;
+    background-color: var(--bg-app);
+    border: 1px solid var(--border-slate);
   }
 
-  .btn-premium-outline {
-    @apply bg-white border border-slate-200 text-slate-900 px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] transition-all duration-300 hover:bg-slate-50 active:scale-95 disabled:opacity-50;
-  }
-
-  .input-premium {
-    @apply bg-white/50 backdrop-blur-md border border-slate-200 rounded-2xl px-6 py-4 text-sm font-medium outline-none transition-all duration-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 hover:border-slate-300;
-  }
-
-  .badge-premium {
-    @apply px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] inline-flex items-center gap-2;
+  /* Premium Interaction Layer */
+  .btn-saas {
+    @apply h-11 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50;
   }
 }
 
@@ -79,4 +83,13 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite ease-in-out;
 }

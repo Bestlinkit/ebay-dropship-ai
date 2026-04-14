@@ -184,17 +184,26 @@ class eBayService {
             });
 
             if (response.data?.itemSummaries) {
-                return response.data.itemSummaries.map(item => ({
-                    id: item.itemId,
-                    title: item.title,
-                    price: parseFloat(item.price.value),
-                    thumbnail: item.image?.imageUrl || 'https://via.placeholder.com/400',
-                    condition: item.condition,
-                    categoryPath: item.categories?.map(c => c.categoryName).join(' > '),
-                    categoryId: item.categories?.[0]?.categoryId,
-                    seller: item.seller,
-                    totalFound: response.data.total // Mapping for competition count
-                }));
+                return response.data.itemSummaries.map(item => {
+                    // High-Integrity Image Mapping
+                    const image = item.image?.imageUrl || 
+                                  item.galleryURL || 
+                                  (item.thumbnailImages && item.thumbnailImages[0]?.imageUrl) ||
+                                  'https://via.placeholder.com/400';
+
+                    return {
+                        id: item.itemId,
+                        title: item.title,
+                        price: parseFloat(item.price.value),
+                        thumbnail: image, // Unified field
+                        image_url: image, // Legacy compatibility
+                        condition: item.condition,
+                        categoryPath: item.categories?.map(c => c.categoryName).join(' > '),
+                        categoryId: item.categories?.[0]?.categoryId,
+                        seller: item.seller,
+                        totalFound: response.data.total
+                    };
+                });
             }
             return [];
         } catch (e) {
