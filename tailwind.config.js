@@ -8,20 +8,19 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#1e40af',
-          dark: '#1e3a8a',
-          light: '#3b82f6',
+          DEFAULT: '#3b82f6', // Brighter blue accent for SaaS feel
+          dark: '#1e40af',
+          light: '#60a5fa',
         },
-        secondary: {
-          DEFAULT: '#10b981',
-          dark: '#059669',
-          light: '#34d399',
+        slate: {
+          950: '#0B1220', // Deepest background
+          900: '#111A2E', // Card background
+          800: '#1E293B',
         },
-        accent: {
-          DEFAULT: '#f59e0b',
-          dark: '#d97706',
-          light: '#fbbf24',
-        },
+        text: {
+          primary: '#E6EDF7',
+          muted: '#94A3B8',
+        }
       },
       fontFamily: {
         outfit: ['Outfit', 'sans-serif'],

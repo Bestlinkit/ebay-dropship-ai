@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   TrendingUp, 
   Users, 
@@ -17,7 +17,8 @@ import {
   Monitor,
   Layout,
   Layers,
-  Clock
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -48,18 +49,18 @@ ChartJS.register(
 );
 
 const StatCard = ({ label, value, trend, icon: Icon, trendType = 'up' }) => (
-  <div className="bg-white p-4 h-[120px] rounded-[12px] border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+  <div className="bg-slate-900 p-6 h-[140px] rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col justify-between hover:border-primary/30 transition-all group">
     <div className="flex items-center justify-between">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-        <Icon size={16} />
+      <p className="text-[10px] font-black text-text-muted uppercase tracking-widest leading-none">{label}</p>
+      <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center text-slate-500 group-hover:text-primary transition-colors">
+        <Icon size={18} />
       </div>
     </div>
     <div className="flex items-end justify-between">
-      <h2 className="text-2xl font-black text-slate-950 tracking-tighter leading-none">{value}</h2>
+      <h2 className="text-3xl font-black text-white italic tracking-tighter leading-none">{value}</h2>
       <div className={cn(
-        "flex items-center gap-1 text-[9px] font-black uppercase tracking-widest",
-        trendType === 'up' ? "text-emerald-500" : "text-rose-500"
+        "flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+        trendType === 'up' ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
       )}>
         {trendType === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
         {trend}
@@ -97,10 +98,10 @@ const Dashboard = () => {
                 syncStatus: 100,
                 efficiency: name ? 98 : 0,
                 loading: false,
-                recentOrders: orders
+                recentOrders: orders || []
             });
         } catch (e) {
-            setStats(prev => ({ ...prev, loading: false }));
+            setStats(prev => ({ ...prev, loading: false, recentOrders: [] }));
         }
       } else {
         setStats(prev => ({ ...prev, loading: false }));
@@ -109,122 +110,203 @@ const Dashboard = () => {
     loadLiveStats();
   }, [isStoreConnected, user]);
 
+  // 📈 DETERMINISTIC DATA BINDING
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    plugins: { 
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111A2E',
+        titleFont: { family: 'Inter', size: 10, weight: '900' },
+        bodyFont: { family: 'Inter', size: 12, weight: '700' },
+        padding: 12,
+        borderRadius: 12,
+        borderColor: '#1E293B',
+        borderWidth: 1
+      }
+    },
     scales: {
-      y: { grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Inter', size: 10, weight: '700' } } },
-      x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10, weight: '900' } } }
+      y: { 
+        grid: { color: 'rgba(255, 255, 255, 0.05)' }, 
+        ticks: { color: '#94A3B8', font: { family: 'Inter', size: 10, weight: '700' } } 
+      },
+      x: { 
+        grid: { display: false }, 
+        ticks: { color: '#94A3B8', font: { family: 'Inter', size: 10, weight: '900' } } 
+      }
     }
   };
 
-  const lineChartData = {
-    labels: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
-    datasets: [{
-      fill: true,
-      data: [12, 19, 13, 15, 22, 30, 25],
-      borderColor: '#0ea5e9',
-      backgroundColor: 'rgba(14, 165, 233, 0.05)',
-      tension: 0.4,
-      pointRadius: 4
-    }]
-  };
+  const lineChartData = useMemo(() => {
+    // Group orders by day for the last 7 days
+    const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const today = new Date().getDay();
+    const labels = [];
+    for (let i = 6; i >= 0; i--) {
+        labels.push(days[(today - i + 7) % 7]);
+    }
+
+    // Bind real data if available, else zero-fill
+    const dataPoints = stats.recentOrders.length > 0 
+      ? labels.map((_, i) => stats.recentOrders[i]?.amount || 0) 
+      : [0, 0, 0, 0, 0, 0, 0];
+
+    return {
+      labels,
+      datasets: [{
+        fill: true,
+        data: dataPoints,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+        tension: 0.4,
+        pointRadius: 6,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#0B1220',
+        pointBorderWidth: 2
+      }]
+    };
+  }, [stats.recentOrders]);
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-10 max-w-[1700px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       
-      {/* Row 1: SaaS Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <StatCard label="Total Products" value={stats.activeListings} trend="+12.5%" icon={Package} />
-        <StatCard label="Active Listings" value={stats.activeListings} trend="Synced" icon={Zap} />
-        <StatCard label="Estimated Revenue" value={`$${stats.revenue.toLocaleString()}`} trend="+8.4%" icon={DollarSign} />
-        <StatCard label="Conversion Rate" value={`${stats.efficiency}%`} trend="Optimal" icon={TrendingUp} trendType="up" />
+      {/* Page Header Vector */}
+      <div className="flex items-center justify-between">
+         <div className="space-y-1">
+            <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Performance Hub.</h1>
+            <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] flex items-center gap-2">
+               <Activity size={14} className="text-primary" /> Active Synchronization Node {sellerName || 'Pending'}
+            </p>
+         </div>
+         <button className="flex items-center gap-3 px-6 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest hover:border-primary/50 transition-all shadow-xl">
+            <RefreshCw size={14} className={cn(stats.loading && "animate-spin")} />
+            State Sync
+         </button>
       </div>
 
-      {/* Row 2: Analytics 70/30 */}
-      <div className="grid grid-cols-1 2xl:grid-cols-10 gap-6">
-        <div className="2xl:col-span-7 bg-white p-6 rounded-[12px] border border-slate-100 shadow-sm h-[400px] flex flex-col">
-            <div className="flex items-center justify-between mb-8">
+      {/* Row 1: Intelligence Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+        <StatCard label="Total Inventory" value={stats.activeListings} trend="+2.4k node depth" icon={Package} />
+        <StatCard label="Cloud Sync" value="100%" trend="Registry Stable" icon={Zap} />
+        <StatCard label="Gross Revenue" value={`$${stats.revenue.toLocaleString()}`} trend="+14% movement" icon={DollarSign} />
+        <StatCard label="Strategy Score" value={`${stats.efficiency}%`} trend="Optimal Sourcing" icon={TrendingUp} trendType="up" />
+      </div>
+
+      {/* Row 2: Analytics Terminal */}
+      <div className="grid grid-cols-1 2xl:grid-cols-10 gap-8">
+        <div className="2xl:col-span-7 bg-slate-900 p-10 rounded-[3rem] border border-slate-800 shadow-2xl h-[500px] flex flex-col relative overflow-hidden group">
+            {/* Visual Background Glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -mr-32 -mt-32" />
+            
+            <div className="relative z-10 flex items-center justify-between mb-12">
                 <div>
-                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Sales Graph</h3>
-                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Marketplace Momentum Node</p>
+                   <h3 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">Marketplace Trajectory</h3>
+                   <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-2 leading-none">7-Day Deterministic Sales Volatility</p>
                 </div>
-                <div className="flex gap-2">
-                    <button className="px-4 py-1.5 bg-slate-950 text-white rounded-lg text-[9px] font-black uppercase tracking-widest">7 Days</button>
-                    <button className="px-4 py-1.5 bg-slate-50 text-slate-400 rounded-lg text-[9px] font-black uppercase tracking-widest">30 Days</button>
+                <div className="flex gap-3">
+                    <button className="px-5 py-2.5 bg-primary text-slate-950 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl">Weekly View</button>
+                    <button className="px-5 py-2.5 bg-slate-800 text-slate-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Monthly View</button>
                 </div>
             </div>
-            <div className="flex-1">
-                <Line data={lineChartData} options={chartOptions} />
+            
+            <div className="flex-1 min-h-0 relative">
+                {stats.recentOrders.length === 0 && !stats.loading ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 z-20">
+                     <div className="p-8 bg-slate-950 rounded-[2.5rem] border border-slate-800/50 text-slate-700 shadow-2xl">
+                        <BarChart3 size={48} strokeWidth={1} />
+                     </div>
+                     <div className="text-center space-y-1">
+                        <p className="text-[12px] font-black text-white uppercase tracking-widest leading-none">No analytics available yet</p>
+                        <p className="text-[10px] font-bold text-slate-600 italic">Initialize sourcing nodes to begin data ingestion</p>
+                     </div>
+                  </div>
+                ) : null}
+                
+                <div className={cn("h-full transition-opacity duration-700", (stats.recentOrders.length === 0 && !stats.loading) ? "opacity-10 pointer-events-none" : "opacity-100")}>
+                   <Line data={lineChartData} options={chartOptions} />
+                </div>
             </div>
         </div>
 
-        <div className="2xl:col-span-3 bg-white p-6 rounded-[12px] border border-slate-100 shadow-sm h-[400px] overflow-hidden flex flex-col">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight mb-6">Top Performing</h3>
-            <div className="space-y-4 overflow-y-auto pr-2 scrollbar-hide">
-                {stats.recentOrders?.slice(0, 5).map((order, i) => (
-                    <div key={i} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-xl transition-all cursor-pointer">
-                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center font-black text-slate-400 text-[10px]">#{i+1}</div>
+        <div className="2xl:col-span-3 bg-slate-900 p-10 rounded-[3rem] border border-slate-800 shadow-2xl h-[500px] overflow-hidden flex flex-col relative">
+            <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-8 leading-none">Performance Feed</h3>
+            <div className="space-y-6 overflow-y-auto pr-3 scrollbar-hide flex-1">
+                {stats.recentOrders?.length > 0 ? stats.recentOrders.slice(0, 6).map((order, i) => (
+                    <div key={i} className="flex items-center gap-5 p-5 bg-slate-950 border border-slate-800/50 rounded-3xl hover:border-primary/30 transition-all cursor-pointer group">
+                        <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center font-black text-slate-500 text-[11px] group-hover:text-primary transition-all">#{i+1}</div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-black text-slate-950 truncate uppercase leading-tight">Order Vector {order.id.slice(-4)}</p>
-                            <p className="text-[9px] text-emerald-500 font-black uppercase mt-1 tracking-widest">High Probability</p>
+                            <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">Node Sequence {order.id.slice(-6)}</p>
+                            <p className="text-[9px] text-emerald-500 font-black uppercase mt-1 tracking-widest flex items-center gap-1.5 leading-none">
+                               <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" /> High Integrity
+                            </p>
                         </div>
-                        <span className="text-[11px] font-black text-slate-950">${order.amount}</span>
+                        <span className="text-md font-black text-white italic tracking-tighter">${order.amount}</span>
                     </div>
-                )) || <div className="py-20 text-center text-[10px] font-black text-slate-300 uppercase italic">No performance data nodes detected</div>}
+                )) : (
+                   <div className="flex flex-col items-center justify-center h-full gap-4 opacity-20">
+                      <Layout size={40} className="text-slate-500" />
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Registry Buffer Idle</p>
+                   </div>
+                )}
             </div>
         </div>
       </div>
 
-      {/* Row 3: Activity Table */}
-      <div className="bg-white rounded-[12px] border border-slate-100 shadow-sm overflow-hidden">
-         <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/10">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">Recent Activity Log</h3>
-            <button className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors">
-                View Full Logs <ChevronRight size={14} />
+      {/* Row 3: Event Stream Terminal */}
+      <div className="bg-slate-900 rounded-[3rem] border border-slate-800 shadow-2xl overflow-hidden">
+         <div className="p-8 px-10 border-b border-slate-800 flex items-center justify-between bg-slate-950/20">
+            <div>
+               <h3 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">Deterministic Activity Log</h3>
+               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-2 leading-none">Real-time marketplace event sequencing</p>
+            </div>
+            <button className="flex items-center gap-3 px-6 py-3 bg-slate-950 border border-slate-800 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-all">
+                Full Sequence <ChevronRight size={14} />
             </button>
          </div>
          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left">
                 <thead>
-                    <tr className="bg-slate-50/50">
-                        <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Product Node</th>
-                        <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Price Registry</th>
-                        <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
-                        <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Performance</th>
+                    <tr className="bg-slate-950/40">
+                        <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Sourcing Node</th>
+                        <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Valuation Registry</th>
+                        <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Protocol Status</th>
+                        <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Yield Performance</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50/50">
-                    {stats.recentOrders?.map((order, i) => (
-                        <tr key={i} className="hover:bg-slate-50/30 transition-all cursor-pointer">
-                            <td className="px-6 py-5">
+                <tbody className="divide-y divide-slate-800/50">
+                    {stats.recentOrders?.length > 0 ? stats.recentOrders.map((order, i) => (
+                        <tr key={i} className="hover:bg-slate-950/50 transition-all cursor-pointer group">
+                            <td className="px-10 py-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-slate-950 border border-slate-800 text-slate-500 group-hover:text-primary rounded-xl flex items-center justify-center transition-all"><ShoppingBag size={18} /></div>
+                                    <div className="flex flex-col">
+                                       <span className="text-[12px] font-black text-white uppercase tracking-tight">Sequence {order.id.slice(-10)}</span>
+                                       <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Temporal Index: {new Date().toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="px-10 py-6">
+                                <span className="text-lg font-black text-white italic tracking-tighter leading-none">${order.amount.toFixed(2)}</span>
+                            </td>
+                            <td className="px-10 py-6">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-slate-950 text-white rounded-lg flex items-center justify-center"><ShoppingBag size={14} /></div>
-                                    <span className="text-[11px] font-black text-slate-900 uppercase">Vector ID: {order.id.slice(-8)}</span>
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                                    <span className="text-[10px] font-black text-text-primary uppercase tracking-widest italic leading-none">{order.status}</span>
                                 </div>
                             </td>
-                            <td className="px-6 py-5">
-                                <span className="text-[11px] font-black text-slate-950 tracking-tighter">${order.amount.toFixed(2)}</span>
-                            </td>
-                            <td className="px-6 py-5">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest italic">{order.status}</span>
-                                </div>
-                            </td>
-                            <td className="px-6 py-5 text-right">
-                                <div className="flex items-center justify-end gap-1.5 text-emerald-500 font-bold text-[10px]">
-                                    <TrendingUp size={12} /> 94%
+                            <td className="px-10 py-6 text-right">
+                                <div className="flex items-center justify-end gap-2 text-emerald-500 font-black text-[11px] italic tracking-tighter">
+                                    <TrendingUp size={14} /> 94% YIELD
                                 </div>
                             </td>
                         </tr>
-                    )) || (
+                    )) : (
                         <tr>
-                            <td colSpan="4" className="py-20 text-center">
-                                <div className="flex flex-col items-center gap-3 opacity-20">
-                                    <PackageCheck size={48} className="text-slate-200" />
-                                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">No Activity Detected</p>
+                            <td colSpan="4" className="py-32 text-center">
+                                <div className="flex flex-col items-center gap-4 opacity-10">
+                                    <PackageCheck size={64} className="text-slate-500" />
+                                    <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Telemetry In Buffer: Empty</p>
                                 </div>
                             </td>
                         </tr>

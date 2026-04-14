@@ -37,12 +37,12 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased selection:bg-primary-500/30 selection:text-slate-900;
+    @apply bg-slate-950 text-text-primary antialiased selection:bg-primary/30 selection:text-white;
     font-family: var(--font-inter);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-outfit font-bold tracking-tight text-slate-900;
+    @apply font-outfit font-bold tracking-tight text-white;
   }
 }
 

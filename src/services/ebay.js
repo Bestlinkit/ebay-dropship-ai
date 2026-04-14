@@ -270,8 +270,10 @@ class eBayService {
   }
 
   async getCategorySuggestions(keyword) {
+    if (!keyword || keyword === 'top') return this.getTopCategories();
+    
     const token = await this.getAppToken();
-    if (!token) return [];
+    if (!token) return this.getCachedCategories();
     
     try {
         const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions`, {
@@ -287,8 +289,42 @@ class eBayService {
         }));
     } catch (e) {
         console.error("[eBay Taxonomy] Search Failed:", e);
-        return [];
+        return this.getCachedCategories();
     }
+  }
+
+  async getTopCategories() {
+    const token = await this.getAppToken();
+    if (!token) return this.getCachedCategories();
+
+    try {
+        // Fetching root-level nodes for the EBAY_US tree (ID: 0)
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        return (response.data?.rootCategoryNode?.childCategoryTreeNodes || []).map(node => ({
+            id: node.category.categoryId,
+            name: node.category.categoryName,
+            isLeaf: node.leafCategoryTreeNodes?.length === 0
+        }));
+    } catch (e) {
+        return this.getCachedCategories();
+    }
+  }
+
+  getCachedCategories() {
+    // High-integrity fallback for API degradation
+    return [
+        { id: '1', name: 'Collectibles' },
+        { id: '267', name: 'Books' },
+        { id: '58058', name: 'Computers & Tablets' },
+        { id: '11450', name: 'Clothing, Shoes & Accs' },
+        { id: '15032', name: 'Cell Phones & Accessories' },
+        { id: '11700', name: 'Home & Garden' },
+        { id: '1249', name: 'Video Games & Consoles' },
+        { id: '2984', name: 'Baby' }
+    ];
   }
 
   async getSubCategories(parentId) {
