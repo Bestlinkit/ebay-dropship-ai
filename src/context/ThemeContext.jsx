@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { db } from '../config/firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
@@ -62,13 +62,14 @@ const hslToHex = (h, s, l) => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [primaryColor, setPrimaryColor] = useState(DEFAULT_COLOR);
+  const [primaryColor, setPrimaryColor] = useState(() => localStorage.getItem('brandColor') || DEFAULT_COLOR);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('themeMode') || 'dark');
   const [uiScale, setUiScale] = useState(() => parseInt(localStorage.getItem('uiScale')) || 100);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const initRef = useRef(false);
 
-  // Optimized Theme Applier
+  // Optimized Theme Applier (v12.1 Rescue hardening)
   const applyTheme = useCallback((color, mode, scale) => {
     try {
       const root = document.documentElement;
@@ -92,6 +93,7 @@ export const ThemeProvider = ({ children }) => {
       // 2. Global Attributes (Data Theme)
       root.setAttribute('data-theme', mode);
       localStorage.setItem('themeMode', mode);
+      localStorage.setItem('brandColor', safeColor);
 
       // 3. UI Scale (Base Font Size)
       const baseSize = (scale / 100) * 16;
@@ -99,15 +101,23 @@ export const ThemeProvider = ({ children }) => {
       localStorage.setItem('uiScale', scale.toString());
 
     } catch (error) {
-      console.error("Theme Application Failure:", error);
+      console.error("Theme Rescue: Application Failure:", error);
     }
   }, []);
 
-  // Sync with Firestore & Local
+  // Sync with Firestore & Local (Harden v12.1)
   useEffect(() => {
+    // Immediate recovery: Apply local settings first
+    applyTheme(primaryColor, themeMode, uiScale);
+
+    // Safety Timeout: Force loading to false after 2.5s regardless of Firestore
+    const safetyTimeout = setTimeout(() => {
+        setLoading(false);
+    }, 2500);
+
     if (!user) {
-      applyTheme(primaryColor, themeMode, uiScale);
       setLoading(false);
+      clearTimeout(safetyTimeout);
       return;
     }
 
@@ -124,17 +134,23 @@ export const ThemeProvider = ({ children }) => {
           setThemeMode(newMode);
           setUiScale(newScale);
           applyTheme(newColor, newMode, newScale);
-        } else {
-          applyTheme(primaryColor, themeMode, uiScale);
         }
       } catch (err) {
-        console.error("Snapshot Sync Error:", err);
+        console.error("Theme Rescue: Snapshot Error:", err);
       } finally {
         setLoading(false);
+        clearTimeout(safetyTimeout);
       }
+    }, (err) => {
+        console.error("Theme Rescue: Firestore Connection Failure:", err);
+        setLoading(false);
+        clearTimeout(safetyTimeout);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(safetyTimeout);
+    };
   }, [user, applyTheme]);
 
   const updateTheme = async (updates) => {
@@ -155,7 +171,7 @@ export const ThemeProvider = ({ children }) => {
           uiScale: newScale
         }, { merge: true });
       } catch (err) {
-        console.error("Failed to save theme to cloud:", err);
+        console.error("Theme Rescue: Cloud Sync Failed:", err);
       }
     }
   };
@@ -170,7 +186,8 @@ export const ThemeProvider = ({ children }) => {
 
   return (
     <ThemeContext.Provider value={value}>
-      {!loading && children}
+      {/* 🛡️ v12.1 Stability Guard: Never block rendering indefinitely */}
+      {children}
     </ThemeContext.Provider>
   );
 };
