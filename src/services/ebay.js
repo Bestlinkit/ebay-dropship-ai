@@ -97,76 +97,81 @@ class eBayService {
     }
   }
 
-  async findProductsViaFindingAPI(query, categoryId = null) {
-    try {
-        const searchTerm = query || 'electronics';
-        const url = `https://svcs.ebay.com/services/search/FindingService/v1`;
-        
-        const params = {
-            'OPERATION-NAME': 'findItemsByKeywords',
-            'SERVICE-VERSION': '1.13.0',
-            'SECURITY-APPNAME': import.meta.env.VITE_EBAY_APP_ID,
-            'RESPONSE-DATA-FORMAT': 'JSON',
-            'GLOBAL-ID': 'EBAY-US',
-            'keywords': searchTerm,
-            'paginationInput.entriesPerPage': 15
-        };
-
-        if (categoryId) {
-            params['categoryId'] = categoryId;
-        }
-
-        const response = await this.fetchWithRetry('get', url, { 
-            params,
-            headers: {
-                'X-EBAY-SOA-OPERATION-NAME': 'findItemsByKeywords',
-                'X-EBAY-SOA-SECURITY-APPNAME': import.meta.env.VITE_EBAY_APP_ID,
-                'X-EBAY-SOA-RESPONSE-DATA-FORMAT': 'JSON'
-            }
-        });
-        
-        const searchResult = response.data?.findItemsByKeywordsResponse?.[0]?.searchResult?.[0];
-        let items = searchResult?.item || [];
-
-        // REAL DATA ONLY: No mock fallback permitted per SaaS Hardening Mandate v1.0
-        return items.map(item => {
-            const priceVal = item.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || "0";
-            return {
-                id: item.itemId?.[0],
-                title: item.title?.[0],
-                price: parseFloat(priceVal),
-                thumbnail: item.galleryURL?.[0],
-                soldCount: Math.floor(Math.random() * 200) + 45,
-                rating: 4.9,
-                competition: item.isMock ? 'PREDICTED' : 'LIVE',
-                profitScore: item.isMock ? 94 : 88
-            };
-        });
-    } catch (e) {
-        console.error("Finding API Fallback Failed:", e);
-        return [];
-    }
+  async fetchTrendingProducts(categoryId = null) {
+    // Intelligence-based trending: Pick high-velocity keywords + categories
+    const trendingKeywords = ['new arrival', 'best seller', 'trending', 'hot item'];
+    const randomKeyword = trendingKeywords[Math.floor(Math.random() * trendingKeywords.length)];
+    
+    return this.searchProducts(randomKeyword, {
+        categoryId,
+        limit: 12,
+        sort: 'newlyListed'
+    });
   }
 
-  async searchProducts(query, categoryId = null) {
+  getCategoryFee(categoryId) {
+    // Category-aware eBay fee logic
+    const feeMap = {
+        // Electronics (Computers, Tablets, etc.)
+        '58058': 0.15,
+        '171485': 0.15,
+        // Fashion (Clothing, Shoes, etc.)
+        '11450': 0.12,
+        '15724': 0.12,
+        // Home & Garden
+        '11700': 0.12,
+        // Collectibles
+        '1': 0.13
+    };
+
+    const fee = feeMap[categoryId] || 0.1435; // Fallback to 14.35%
+    return {
+        percentage: fee,
+        fixed: 0.30
+    };
+  }
+
+  async searchProducts(query, options = {}) {
     let token = await this.getAppToken();
     if (!token) {
         console.error("[eBay Search] Cannot execute search: Auth Token Missing.");
         return [];
     }
-    const searchTerm = query || 'electronics'; 
+    
+    const { 
+        categoryId = null, 
+        limit = 12, 
+        offset = 0, 
+        minPrice = null, 
+        maxPrice = null,
+        condition = 'NEW',
+        sort = null
+    } = options;
+
+    const searchTerm = query || ''; 
     
     const executeSearch = async (authToken) => {
         try {
-            // High-Performance Production Parameters
             const params = { 
                 q: searchTerm, 
-                limit: 12, 
-                filter: 'buyingOptions:{FIXED_PRICE}' 
+                limit, 
+                offset,
+                filter: `buyingOptions:{FIXED_PRICE},itemCondition:{${condition}}` 
             };
+
+            if (minPrice !== null || maxPrice !== null) {
+                const min = minPrice || 0;
+                const max = maxPrice || 999999;
+                params.filter += `,price:[${min}..${max}]`;
+                params.filter += `,priceCurrency:USD`;
+            }
             
             if (categoryId) {
                 params.category_ids = categoryId.toString();
+            }
+
+            if (sort) {
+                params.sort = sort;
             }
 
             const response = await this.fetchWithRetry('get', `${this.baseUrl}/item_summary/search`, {
@@ -184,16 +189,17 @@ class eBayService {
                     title: item.title,
                     price: parseFloat(item.price.value),
                     thumbnail: item.image?.imageUrl || 'https://via.placeholder.com/400',
-                    soldCount: Math.floor(Math.random() * 500) + 10,
-                    rating: 4.8,
-                    competition: 'SYNCED',
-                    profitScore: 92
+                    condition: item.condition,
+                    categoryPath: item.categories?.map(c => c.categoryName).join(' > '),
+                    categoryId: item.categories?.[0]?.categoryId,
+                    seller: item.seller,
+                    totalFound: response.data.total // Mapping for competition count
                 }));
             }
             return [];
         } catch (e) {
             console.error("[eBay Search] API Vector Failure:", e.message);
-            return [];
+            throw e; // Bubble up for error handling in UI
         }
     };
 
@@ -202,13 +208,11 @@ class eBayService {
     
     // Strategy 2: User-Triggered Browse (if permitted)
     if ((!results || results.length === 0) && this.userToken) {
-        results = await executeSearch(this.userToken);
-    }
-
-    // Strategy 3 (Production Fallback): Legacy Finding API
-    if (!results || results.length === 0) {
-        console.info("[eBay Search] Browsing restricted. Flipping to Finding API...");
-        results = await this.findProductsViaFindingAPI(query, categoryId);
+        try {
+            results = await executeSearch(this.userToken);
+        } catch (e) {
+            // Ignore for secondary strategy
+        }
     }
 
     return results || [];

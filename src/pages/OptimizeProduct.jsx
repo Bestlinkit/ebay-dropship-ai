@@ -47,6 +47,7 @@ import aiService from '../services/ai';
 import ebayService from '../services/ebay';
 import sourcingService from '../services/sourcing';
 import NanoBanana from '../components/NanoBanana';
+import ProfitMaximizer from '../components/ProfitMaximizer';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import ebayTrading from '../services/ebay_trading';
@@ -77,6 +78,7 @@ const OptimizeProduct = () => {
     excludedImages: [],
     price: 0,
     suggestedPrice: 0,
+    supplierCost: 35.00, // Baseline for maximization pulse
     margin: "0%",
     competition: "Low",
     probability: 0,
@@ -489,36 +491,44 @@ const OptimizeProduct = () => {
                    )}
                 </div>
 
-                <div className="bg-white p-8 rounded-[1.5rem] border border-slate-100 shadow-sm space-y-12">
-                   <div className="flex flex-col md:flex-row gap-12">
-                       <div className="flex-1 space-y-6">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">SaaS Valuation ($)</p>
-                            <input 
-                                type="number" step="0.01" value={registry.price} 
-                                onChange={(e) => setRegistry(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))}
-                                className="w-full text-7xl font-black text-slate-950 tracking-tighter outline-none bg-transparent"
-                            />
-                             {registry.marketStats && (
-                                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">
-                                    {registry.price < registry.marketStats.avg ? 'Competitive pricing locked' : 'Pricing above market midpoint'}
-                                </p>
-                             )}
-                       </div>
-                       <div className="w-full md:w-80 space-y-4">
-                            <div className="p-6 bg-slate-950 text-white rounded-2xl space-y-1 relative overflow-hidden">
-                                <span className="text-[9px] font-black uppercase opacity-40">AI Target Strategy</span>
-                                <p className="text-3xl font-black italic tracking-tighter">${registry.suggestedPrice}</p>
-                                <button onClick={() => setRegistry(p => ({ ...p, price: registry.suggestedPrice }))} className="mt-4 w-full py-2.5 bg-white text-slate-950 rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all">Execute Pivot</button>
+                <div className="space-y-12">
+                   <div className="bg-white p-8 rounded-[1.5rem] border border-slate-100 shadow-sm space-y-8">
+                      <div className="flex items-center justify-between">
+                         <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] flex items-center gap-2">
+                           <DollarSign size={16} className="text-primary-500" /> Procurement Logistics
+                         </h3>
+                      </div>
+                      <div className="flex flex-col md:flex-row gap-8 items-end">
+                         <div className="flex-1 space-y-4">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1 italic">Supplier Sourcing Cost (USD)</label>
+                            <div className="relative">
+                               <input 
+                                 type="number" step="0.01" value={registry.supplierCost} 
+                                 onChange={(e) => setRegistry(p => ({ ...p, supplierCost: parseFloat(e.target.value) || 0 }))}
+                                 className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl px-6 text-2xl font-black text-slate-900 outline-none focus:border-primary/50 transition-all"
+                               />
+                               <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase">Input Node</div>
                             </div>
-                            <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sales Probability</p>
-                                    <p className="text-2xl font-black text-slate-950">{registry.probability}%</p>
-                                </div>
-                                <Activity size={24} className="text-primary-500" />
-                            </div>
-                       </div>
+                         </div>
+                         <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
+                            <Shield size={16} className="text-emerald-500" />
+                            <p className="text-[9px] font-bold text-emerald-700 uppercase tracking-tight">Sourcing Logic Active</p>
+                         </div>
+                      </div>
                    </div>
+
+                   <ProfitMaximizer 
+                     product={{...originalProduct, price: registry.price, categoryId: registry.category}} 
+                     supplierCost={registry.supplierCost}
+                     onPriceChange={(newPrice, intel) => {
+                       setRegistry(p => ({ 
+                         ...p, 
+                         price: newPrice, 
+                         suggestedPrice: parseFloat(intel.suggestedPrice),
+                         probability: parseInt(intel.probability === 'High' ? 95 : (intel.probability === 'Medium' ? 70 : 40))
+                       }));
+                     }}
+                   />
                 </div>
              </div>
            )}

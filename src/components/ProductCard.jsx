@@ -4,106 +4,170 @@ import {
   Zap,
   ArrowRight,
   Package,
-  Search
+  Shield,
+  ExternalLink,
+  ChevronRight,
+  Target
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import sourcingService from '../services/sourcing';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
+const OPSRing = ({ score, color }) => {
+  const radius = 24;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <div className="relative w-14 h-14 flex items-center justify-center">
+      <svg className="w-full h-full transform -rotate-90">
+        <circle
+          cx="28"
+          cy="28"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="4"
+          fill="transparent"
+          className="text-slate-100"
+        />
+        <motion.circle
+          cx="28"
+          cy="28"
+          r={radius}
+          stroke={color}
+          strokeWidth="4"
+          fill="transparent"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="absolute text-[13px] font-black tracking-tighter" style={{ color }}>
+        {score}
+      </span>
+    </div>
+  );
+};
+
+const IntelligenceLabel = ({ label, value, color }) => (
+  <div className="flex flex-col">
+    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
+    <span className={cn("text-[10px] font-black", value === 'High' || value === 'Rising' || value === 'Low' ? "text-emerald-600" : "text-slate-600")}>
+      {value}
+    </span>
+  </div>
+);
+
 /**
- * Premium, Short & Smart Product Card (V5.5)
- * High information density, minimal vertical footprint.
+ * SaaS Innovation: Intelligence Panel Card (v6.0)
+ * Deterministic data overlay with OPS scoring integration.
  */
-const ProductCard = ({ product, onImport, compact = false }) => {
+const ProductCard = ({ product, onImport, onOptimize }) => {
   if (!product) return null;
+
+  const ops = sourcingService.calculateOPS(product);
+  const isHigh = ops.status === 'HIGH';
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      className={cn(
-        "group bg-white rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:border-primary/20 transition-all duration-500 overflow-hidden flex flex-col",
-        compact ? "h-auto" : "h-[420px]"
-      )}
+      whileHover={{ y: -8 }}
+      className="group relative bg-white rounded-[2.5rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(30,41,59,0.12)] hover:border-primary/20 transition-all duration-500 overflow-hidden flex flex-col h-[480px]"
     >
-      {/* Visual Header */}
-      <div className="relative h-44 overflow-hidden bg-slate-100">
-          <img 
-            src={product.thumbnail || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=400'} 
-            alt={product.title}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 group-hover:rotate-1"
-          />
-          <div className="absolute top-4 left-4 flex gap-2">
-            <div className="bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-xl">
-               <Zap size={10} className="text-primary fill-primary" />
-               <span className="opacity-80">{product.profitScore || 85}% Match</span>
-            </div>
+      {/* 1. TOP SECTION: Visual & OPS Overlay */}
+      <div className="relative h-48 overflow-hidden bg-slate-50">
+        <img 
+          src={product.thumbnail || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=400'} 
+          alt={product.title}
+          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+        />
+        <div className="absolute top-5 left-5">
+           <div className={cn(
+             "px-3 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 backdrop-blur-xl shadow-2xl border",
+             isHigh ? "bg-emerald-500/90 text-white border-emerald-400/50" : "bg-slate-900/90 text-white border-slate-700/50"
+           )}>
+             <Target size={12} className={cn(isHigh ? "text-white" : "text-primary")} />
+             OPS {ops.score}
+           </div>
+        </div>
+
+        {/* eBay Transparency Badge */}
+        <div className="absolute bottom-4 right-5">
+          <div className="bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-200 shadow-lg flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-[9px] font-black text-slate-900 tracking-tighter">eBay Market Live</span>
           </div>
-          
-          {/* Quick Hub Overlay */}
-          <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-500 bg-gradient-to-t from-slate-900/60 to-transparent">
-              <button 
-                onClick={() => onImport(product)}
-                className="w-full h-11 bg-white text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 hover:bg-primary hover:text-white transition-all overflow-hidden relative group/btn"
-              >
-                  <span className="relative z-10 flex items-center gap-2">
-                     Deep Scrutiny <ArrowRight size={14} />
-                  </span>
-                  <div className="absolute inset-0 bg-primary translate-x-[-100%] group-hover/btn:translate-x-0 transition-transform duration-300" />
-              </button>
-          </div>
+        </div>
       </div>
 
-      {/* Analytics Layer */}
-      <div className="p-6 flex-1 flex flex-col">
-          <div className="space-y-4">
-              <div className="flex justify-between items-start gap-3">
-                  <h3 className="text-[13px] font-bold text-slate-900 leading-snug line-clamp-2 min-h-[2.2rem] group-hover:text-primary transition-colors">
-                      {product.title}
-                  </h3>
-                  <div className="text-right shrink-0">
-                      <p className="text-lg font-black text-slate-900 leading-none tracking-tight">${product.price}</p>
-                      <p className="text-[9px] font-bold text-slate-400 line-through mt-1 opacity-60">
-                        ${product.originalPrice || (product.price * 1.4).toFixed(2)}
-                      </p>
-                  </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                  <div className={cn(
-                    "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider border",
-                    product.competition === 'LOW' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : 
-                    product.competition === 'MEDIUM' ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-rose-50 text-rose-600 border-rose-100"
-                  )}>
-                      {product.competition || 'N/A'} Intensity
-                  </div>
-                  <div className="w-1 h-1 rounded-full bg-slate-200" />
-                  <div className="flex items-center gap-1">
-                      <Package size={10} className="text-slate-300" />
-                      <span className="text-[9px] font-bold text-slate-400/80 uppercase tracking-widest">{product.soldCount || 0}+ Vol</span>
-                  </div>
-              </div>
+      {/* 2. CENTER: Title & Primary Metrics */}
+      <div className="p-6 flex-1 flex flex-col space-y-6">
+        <div className="space-y-2">
+          <h3 className="text-[14px] font-bold text-slate-900 leading-tight line-clamp-2 min-h-[2.5rem]">
+            {product.title}
+          </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-xl font-black text-slate-900 tracking-tighter">${product.price}</span>
+              <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1">
+                Avg: ${product.priceRange?.avg || (product.price * 1.05).toFixed(2)}
+              </span>
+            </div>
+            
+            {/* OPS Score Ring */}
+            <div className="flex items-center gap-3 bg-slate-50 pl-3 pr-1 py-1 rounded-3xl border border-slate-100">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Market<br/>Grade</span>
+              <OPSRing score={ops.score} color={ops.color} />
+            </div>
           </div>
+        </div>
 
-          <div className="mt-6 pt-5 border-t border-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                          <div key={i} className={cn("w-1 h-1 rounded-full", i < 4 ? "bg-amber-400" : "bg-slate-100")} />
-                      ))}
-                  </div>
-                  <span className="text-[9px] font-black text-slate-300 uppercase italic tracking-tighter">Market Hit</span>
+        {/* 3. INTELLIGENCE STACK */}
+        <div className="grid grid-cols-2 gap-y-4 gap-x-6 p-4 bg-slate-50/50 rounded-3xl border border-slate-100/50">
+           <IntelligenceLabel label="Demand" value={ops.labels.demand} />
+           <IntelligenceLabel label="Competition" value={ops.labels.competition} />
+           <IntelligenceLabel label="Profit Pot." value={ops.labels.profit} />
+           <IntelligenceLabel label="Trend" value={ops.labels.trend} />
+        </div>
+
+        {/* 4. RECOMMENDATION INSIGHT LAYER */}
+        <div className="flex-1 flex flex-col justify-end">
+           <div className="p-3.5 bg-primary/5 rounded-2xl border border-primary/10 flex items-start gap-3">
+              <div className="mt-1">
+                <Shield size={14} className="text-primary fill-primary/20" />
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
-                  <TrendingUp size={12} />
-                  +{(product.profitScore / 4).toFixed(1)}% ROI
+              <div className="space-y-0.5">
+                <span className="block text-[9px] font-black text-primary uppercase tracking-widest">Recommendation Pulse</span>
+                <p className="text-[11px] font-bold text-slate-700 leading-relaxed italic">
+                  "{ops.reasoning}"
+                </p>
               </div>
-          </div>
+           </div>
+        </div>
+      </div>
+
+      {/* 5. ACTIONS: SaaS Grade Buttons */}
+      <div className="px-6 pb-6 pt-2 flex gap-3">
+         <button 
+           onClick={() => window.open(`https://www.ebay.com/itm/${product.id}`, '_blank')}
+           className="flex-1 h-11 rounded-2xl border border-slate-100 bg-white text-slate-900 font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 hover:border-slate-300 transition-all group/btn"
+         >
+           View Product <ExternalLink size={12} className="opacity-40 group-hover/btn:opacity-100 transition-opacity" />
+         </button>
+         <button 
+           onClick={() => onOptimize(product)}
+           className="flex-1 h-11 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary transition-all shadow-xl shadow-slate-200 group/opt"
+         >
+           Optimize Listing <ChevronRight size={14} className="group-hover/opt:translate-x-1 transition-transform" />
+         </button>
       </div>
     </motion.div>
   );
