@@ -21,6 +21,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
+import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -63,6 +64,14 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <SupplierSourcing />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/product-import-preview" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProductImportPreview />
                   </Layout>
                 </ProtectedRoute>
               } />

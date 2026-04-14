@@ -39,6 +39,7 @@ const SupplierSourcing = () => {
     const [step, setStep] = useState('EPROLO'); // EPROLO, ALI_PROMPT, ALIEXPRESS, NO_MATCH
     const [loading, setLoading] = useState(true);
     const [rawResults, setRawResults] = useState([]);
+    const [extracting, setExtracting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
 
     // 1. ENGINE: Multi-Platform Sourcing Sequence
@@ -60,8 +61,18 @@ const SupplierSourcing = () => {
 
             setRawResults(matches);
             setStep(platform);
+            
+            // 🧠 SEARCH QUALITY GUARD (v1.2)
+            const lowQuality = matches.every(m => sourcingService.calculateMatchRelevance(targetProduct, m) < 60);
+            if (lowQuality && matches.length > 0) {
+                toast.warning("We found suppliers, but they may not closely match this product.", {
+                    description: "Please review variants carefully before importing.",
+                    duration: 5000
+                });
+            }
+
         } catch (e) {
-            toast.error("Sourcing bridge malfunction. Try manual search.");
+            toast.error(e.message || "Sourcing bridge malfunction. Try manual search.");
             setStep('NO_MATCH');
         } finally {
             setLoading(false);
@@ -87,7 +98,7 @@ const SupplierSourcing = () => {
 
                 return { ...res, relevance, roiRange, trust, hasVariantWarning };
             })
-            .filter(res => res.relevance >= 50) // STRICT MATCH FILTER (v1.1)
+            .filter(res => res.relevance >= 40) // Adjusted for more visibility (v1.2)
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct]);
 
@@ -97,21 +108,41 @@ const SupplierSourcing = () => {
         setConfirmModal(supplierProduct);
     };
 
-    const finalizeImport = (supplierProduct) => {
-        // Prepare product vector for future store publishing
-        const productVector = {
-            ...targetProduct,
-            sourceId: supplierProduct.sku || supplierProduct.id, // SKU = SOURCE ID
-            sourcePlatform: supplierProduct.source,
-            supplierData: supplierProduct,
-            finalPrice: targetProduct.price,
-            cost: supplierProduct.price + (supplierProduct.shipping || 0),
-            roiRange: supplierProduct.roiRange
-        };
+    const finalizeImport = async (supplierProduct) => {
+        setExtracting(true);
+        const loadingId = toast.loading("Extracting real product data from supplier chain...");
         
-        console.log("[SOURCING] Vector Exported:", productVector);
-        toast.success(`Success! Imported from ${supplierProduct.source} chain.`);
-        navigate('/products', { state: { importedProduct: productVector } });
+        try {
+            // ⚡ EXTRACTION MUST BE COMPLETE (NO PARTIAL DATA)
+            let fullProduct;
+            if (supplierProduct.source === 'Eprolo') {
+                fullProduct = await eproloService.getProductDetail(supplierProduct.id);
+            } else {
+                fullProduct = await aliexpressService.getProductDetail(supplierProduct.id);
+            }
+
+            // Structured storage and navigation to preview
+            toast.dismiss(loadingId);
+            toast.success("Extraction complete! Reviewing product specs.");
+            
+            navigate('/product-import-preview', { 
+                state: { 
+                    product: {
+                        ...fullProduct,
+                        pricing: {
+                            ...fullProduct.pricing,
+                            basePrice: targetProduct.price // Pass through target eBay price
+                        }
+                    } 
+                } 
+            });
+        } catch (error) {
+            toast.dismiss(loadingId);
+            toast.error(error.message || "Unable to retrieve full product details. Please try another supplier.");
+            console.error("[EXTRACTION FAILURE]", error);
+        } finally {
+            setExtracting(false);
+        }
     };
 
     if (!targetProduct) {
@@ -327,9 +358,14 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                     </div>
                     <button 
                         onClick={() => onContinue(product)}
-                        className="px-10 py-4 bg-white text-slate-950 hover:bg-emerald-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 group/btn"
+                        disabled={extracting}
+                        className={cn(
+                            "px-10 py-4 bg-white text-slate-950 hover:bg-emerald-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2 group/btn",
+                            extracting && "opacity-50 cursor-not-allowed"
+                        )}
                     >
-                        Continue <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                        {extracting ? "Extracting..." : "Continue"} 
+                        {!extracting && <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />}
                     </button>
                 </div>
             </div>

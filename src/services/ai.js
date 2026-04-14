@@ -39,28 +39,29 @@ class AIService {
       
       return hasSeo && hasBenefit;
   }
-
+  
   async optimizeListing(baselineTitle, currentPrice, competitorPrices = [], attempt = 1) {
-    const pricesStats = competitorPrices && competitorPrices.stats 
-        ? `Avg: $${competitorPrices.stats.avg}, Min: $${competitorPrices.stats.min}, Max: $${competitorPrices.stats.max}` 
-        : "Direct market telemetry unavailable";
-    
+    const pricesStats = competitorPrices.length > 0 
+      ? `Avg: $${(competitorPrices.reduce((a,b)=>a+b,0)/competitorPrices.length).toFixed(2)}` 
+      : "No market data";
+
     const prompt = `
-      ACT AS EBAY LISTING ARCHITECT. ZERO GENERIC DATA.
+      ACT AS A PROFESSIONAL EBAY LISTING EXPERT. 
+      Focus on creating clear, persuasive, and high-trust content for buyers.
       
       INPUT CONTEXT:
-      - ORIGINAL TITLE: ${baselineTitle}
-      - USER PRICE: $${currentPrice}
-      - MARKET TELEMETRY: ${pricesStats}
+      - PRODUCT TITLE: ${baselineTitle}
+      - CURRENT PRICE: $${currentPrice}
+      - MARKET PRICE DATA: ${pricesStats}
 
       REQUIRED OUTPUTS:
-      1. TITLES: Generate EXACTLY 3 UNIQUE archetypes (MAX 80 CHARS):
-         - SEO-FIRST: Keywords from original title at the beginning.
-         - BENEFIT-FIRST: Lead with value/solution.
-         - HOOK: High-engagement trigger words.
+      1. TITLES: Generate EXACTLY 3 UNIQUE and engaging title options (MAX 80 CHARS):
+         - CLEAR & SEARCHABLE: Lead with the most important keywords.
+         - BENEFIT-FOCUSED: Highlight the main value to the buyer.
+         - CURIOSITY-DRIVEN: Use an engaging hook to stand out.
       
-      2. DESCRIPTION: Structure strictly: [Feature Headline] -> [Value Benefits List] -> [Technical Specs] -> [Urgency CTA]. 
-         Use clean, semantic HTML5. No image tags.
+      2. DESCRIPTION: Structure for high readability: [Headline] -> [Key Benefits] -> [Product Features] -> [Call to Action]. 
+         Use professional HTML5 formatting. No image tags.
       
       3. TAGS: 15-20 hyper-relevant tags. MUST be derived from the product title and context. 
 
@@ -138,7 +139,7 @@ class AIService {
 
   async generateVideoScript(product) {
     if (!product) return null;
-    const prompt = `Generate 8 scene viral video script for ${product.title}. Return JSON array of 8 strings.`;
+    const prompt = `Act as an expert scriptwriter. Generate a high-impact, 8-scene video script for ${product.title} that focuses on customer benefits and emotional connection. Return a JSON array of 8 short, engaging strings (one for each scene).`;
     try {
       const response = await this.model.generateContent(prompt);
       const text = response.response.text();
@@ -160,7 +161,7 @@ class AIService {
   }
 
   async generateMarketingCopy(productTitle, channel = 'tiktok') {
-    const prompt = `Create ${channel} ad for ${productTitle}. JSON {headline, body, cta}.`;
+    const prompt = `Act as a senior marketing copywriter. Create a persuasive and natural ${channel} ad for ${productTitle}. Ensure a human-centric tone. Return JSON {headline, body, cta}.`;
     try {
       const response = await this.model.generateContent(prompt);
       const text = response.response.text();
