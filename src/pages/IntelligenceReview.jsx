@@ -82,11 +82,11 @@ const IntelligenceReview = () => {
             >
               <ArrowLeft size={28} />
             </button>
-             <div className="space-y-2">
-               <h1 className="text-5xl font-black text-slate-100 italic tracking-tighter uppercase leading-none drop-shadow-sm">Intelligence.</h1>
+            <div className="space-y-2">
+               <h1 className="text-5xl font-black text-slate-950 italic tracking-tighter uppercase leading-none drop-shadow-sm">Intelligence.</h1>
                <div className="flex items-center gap-4">
-                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">AI-Assisted Market Interpretation</p>
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                  <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em]">AI-Assisted Market Interpretation</p>
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
                   <ConfidenceBadge level={sellData.confidence} />
                </div>
             </div>
@@ -109,12 +109,12 @@ const IntelligenceReview = () => {
                   </div>
                </div>
             </div>
-             <div className="space-y-8 px-6">
-               <h2 className="text-4xl font-black text-white leading-[1.1] italic tracking-tight uppercase drop-shadow-md">{product.title}</h2>
+            <div className="space-y-8 px-6">
+               <h2 className="text-4xl font-black text-slate-900 leading-[1.1] italic tracking-tight uppercase drop-shadow-sm">{product.title}</h2>
                <div className="flex flex-col sm:flex-row sm:items-center gap-10">
                   <div className="flex flex-col gap-2">
                      <span className="text-[12px] font-black text-slate-500 uppercase tracking-widest leading-none">Marketplace Valuation</span>
-                     <span className="text-5xl font-black text-white italic tracking-tighter leading-none">${product.price.toFixed(2)}</span>
+                     <span className="text-5xl font-black text-slate-950 italic tracking-tighter leading-none">${product.price.toFixed(2)}</span>
                   </div>
                   <div className="hidden sm:block h-16 w-px bg-slate-800" />
                   <a 
@@ -230,7 +230,7 @@ const IntelligenceReview = () => {
          </div>
 
       </div>
-    </div>
+   </div>
   );
 };
 
