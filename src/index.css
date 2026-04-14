@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  /* 📐 GLOBAL LAYOUT SCALE (Rule 1 & 6) */
+  /* 📐 GLOBAL LAYOUT SCALE (v12.2 Stabalized) */
   --base-font-size: 16px;
   --radius: 12px;
   --spacing: 1rem;
   --max-content-width: 1700px;
 
-  /* 🎨 DEFAULT DARK THEME (SINGLE SOURCE OF TRUTH) */
+  /* 🎨 DEFAULT DARK THEME */
   --primary-500: #0e8ce9;
   --primary-600: #0a6fc2;
 
@@ -25,7 +25,7 @@
   --warning: #f59e0b;
   --danger: #ef4444;
 
-  /* Legacy Compat (To be phased out) */
+  /* Legacy Compat */
   --app-bg: var(--bg-app);
   --app-card: var(--bg-card);
   --app-card-hover: var(--bg-hover);
@@ -35,7 +35,7 @@
   --app-muted: var(--text-secondary);
 }
 
-/* 🎨 LIGHT THEME OVERRIDE */
+/* 🎨 THEME OVERRIDES */
 [data-theme="light"] {
   --bg-app: #f8fafc;
   --bg-card: #ffffff;
@@ -46,7 +46,6 @@
   --border-color: #e2e8f0;
 }
 
-/* 🎨 HIGH CONTRAST THEME OVERRIDE */
 [data-theme="contrast"] {
   --bg-app: #000000;
   --bg-card: #000000;
@@ -57,16 +56,16 @@
   --border-color: #ffffff;
 }
 
-/* 🧱 2. RESPONSIVE FOUNDATION (Rules 1, 2, 3, 4, 5) */
-
+/* 🧱 1. GLOBAL DEFAULTS */
 * {
-  box-sizing: border-box; /* Rule 3 */
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 html {
   font-size: var(--base-font-size);
+  height: 100%;
 }
 
 body {
@@ -74,59 +73,17 @@ body {
   color: var(--text-primary);
   font-family: 'Inter', 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden; /* Rule 3 */
   line-height: 1.5;
-  font-size: clamp(14px, 1.1vw, 16px); /* Rule 6: Responsive Font Scaling */
+  height: 100%;
+  overflow: hidden; /* Prevent body scroll, use container scroll */
 }
 
-/* 🔥 RULE 1 — REMOVE FIXED WIDTHS */
-img, video, canvas, svg {
-  max-width: 100%;
-  height: auto;
+/* 🧱 2. STABLE CONTAINERS */
+#root {
+  height: 100%;
 }
 
-section, .container, .main-content {
-  width: 100%;
-  max-width: var(--max-content-width);
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* 🔥 RULE 4 — BUTTON SAFETY */
-button, .btn {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 10px 16px;
-  border-radius: var(--radius);
-  font-size: clamp(12px, 0.9vw, 14px);
-  transition: all 0.3s ease;
-}
-
-/* 🔥 RULE 5 — TEXT WRAPPING FIX */
-h1, h2, h3, h4, h5, p, span, .card-title {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-/* 💎 PREMIUM COMPONENTS (UPGRADED TO TOKENS) */
-.saas-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 2rem;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  width: 100%; /* Rule 1 */
-}
-
-.saas-card:hover {
-  background-color: var(--bg-hover);
-  border-color: var(--primary-500);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
-}
-
-/* ⚡ GRID MIGRATION (Rule 2) */
+/* ⚡ GRID SYSTEM (Rule 2) */
 .dynamic-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -134,8 +91,48 @@ h1, h2, h3, h4, h5, p, span, .card-title {
   width: 100%;
 }
 
-/* CUSTOM INTERFACE SCROLLBARS */
-::-webkit-scrollbar { width: 6px; }
+/* 🧱 3. RELAXED GLOBAL SELECTORS (Recovery v12.2) */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Utility classes for "Unbreakable" UI (Opt-in) */
+.unbreakable {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flexible-button {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+/* Base button defaults - Relaxed */
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* 🧱 4. SCROLLBARS */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* Remove forced hidden overflow that hides content */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

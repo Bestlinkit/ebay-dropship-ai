@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Search, 
   Package, 
   Video, 
   Settings, 
@@ -14,13 +13,8 @@ import {
   X,
   Bell,
   Search as SearchIcon,
-  CheckCircle2,
-  AlertCircle,
-  TrendingUp,
-  Clock,
-  ChevronLeft,
   Shield,
-  Layers,
+  Clock,
   ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -128,11 +122,6 @@ const Layout = ({ children }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
     { icon: Package, label: 'Products', href: '/products' },
@@ -144,33 +133,33 @@ const Layout = ({ children }) => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] font-inter overflow-x-hidden">
+    <div className="flex h-screen w-full bg-[var(--bg-app)] text-[var(--text-primary)] font-inter overflow-hidden">
       
-      {/* SaaS Sidebar (Rule 1 & 3 Compliance) */}
+      {/* 🧩 SaaS SIDEBAR (Fixed/Overlay Transition v12.2) */}
       <aside 
         className={cn(
-          "fixed left-0 top-0 h-screen bg-[var(--bg-card)] transition-all duration-500 z-[80] flex flex-col pt-4 border-r border-[var(--border-color)] max-w-full",
-          collapsed ? "w-20" : "w-[240px]",
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "h-full bg-[var(--bg-card)] border-r border-[var(--border-color)] transition-all duration-500 overflow-hidden flex flex-col shrink-0 z-[100]",
+          collapsed ? "w-20" : "w-[260px]",
+          "fixed inset-y-0 left-0 lg:relative lg:translate-x-0 shadow-2xl lg:shadow-none",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="h-20 px-8 flex items-center justify-between shrink-0">
-          {!collapsed && (
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-2xl border border-white/5">
-                <Zap size={20} className="text-[var(--primary-500)] fill-[var(--primary-500)]" />
-              </div>
-              <span className="font-black text-xl tracking-tighter uppercase italic text-[var(--text-primary)]">DropAI</span>
+          <div className={cn("flex items-center gap-4 transition-all", collapsed && "mx-auto")}>
+            <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-2xl border border-white/5">
+              <Zap size={20} className="text-[var(--primary-500)] fill-[var(--primary-500)]" />
             </div>
-          )}
-          {collapsed && (
-            <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-2xl mx-auto border border-white/5">
-                <Zap size={20} className="text-[var(--primary-500)] fill-[var(--primary-500)]" />
-            </div>
-          )}
+            {!collapsed && <span className="font-black text-xl tracking-tighter uppercase italic text-[var(--text-primary)]">DropAI</span>}
+          </div>
+          <button 
+            onClick={() => setCollapsed(!collapsed)} 
+            className="hidden lg:flex w-8 h-8 items-center justify-center bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-white transition-all transform hover:scale-110"
+          >
+            {collapsed ? <ArrowRight size={14} /> : <X size={14} />}
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 space-y-1 py-12">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 space-y-1 py-10">
           {menuItems.map((item) => (
             <SidebarItem
               key={item.href}
@@ -182,99 +171,83 @@ const Layout = ({ children }) => {
           ))}
         </div>
 
-        <div className="p-6 space-y-6 shrink-0 border-t border-[var(--border-color)]">
+        <div className={cn("p-6 space-y-4 shrink-0 border-t border-[var(--border-color)]", collapsed && "items-center")}>
            {!collapsed && (
-              <div className="p-5 rounded-[2rem] bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-black border border-white/10 flex items-center justify-center font-black text-xs text-white">
+              <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border-color)] flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-black border border-white/10 flex items-center justify-center font-black text-xs text-white shrink-0">
                     {user?.email?.[0]?.toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase truncate text-[var(--text-primary)]">{user?.email?.split('@')[0]}</p>
-                    <p className="text-[9px] text-[var(--success)] font-black uppercase tracking-widest">Enterprise Link</p>
+                    <p className="text-[10px] font-black uppercase truncate text-[var(--text-primary)]">{user?.email?.split('@')[0]}</p>
+                    <p className="text-[8px] text-[var(--success)] font-black uppercase tracking-widest">Live Node</p>
                 </div>
               </div>
            )}
            <button 
-            onClick={handleLogout}
+            onClick={logout}
             className={cn(
-              "flex items-center gap-4 w-full px-5 py-4 text-[var(--text-secondary)] hover:text-[var(--danger)] transition-all font-black uppercase text-[10px] tracking-widest",
+              "flex items-center gap-4 w-full px-4 py-3 text-[var(--text-secondary)] hover:text-[var(--danger)] transition-all font-black uppercase text-[10px] tracking-widest",
               collapsed ? "justify-center" : ""
             )}
           >
             <LogOut size={18} />
-            {!collapsed && <span>System Exit</span>}
+            {!collapsed && <span>Exit Suite</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main Framework (Rule 2 Compliance) */}
-      <main 
-        className={cn(
-          "flex-1 min-w-0 transition-all duration-500 flex flex-col max-w-full",
-          collapsed ? "lg:ml-20" : "lg:ml-[240px]"
-        )}
-      >
-        {/* SaaS Navbar (Rule 4 & 6 Compliance) */}
-        <header className="h-20 flex items-center justify-between px-6 lg:px-12 sticky top-0 z-40 bg-[var(--bg-app)]/80 backdrop-blur-xl border-b border-[var(--border-color)]">
-            <div className="flex items-center gap-8">
-               <button onClick={() => setMobileOpen(true)} className="lg:hidden text-[var(--text-primary)]"><Menu size={24} /></button>
-               <div className="hidden md:flex items-center gap-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl px-5 py-3 w-80 group transition-all focus-within:ring-4 focus-within:ring-[var(--primary-500)]/10">
+      {/* 🧩 MAIN CONTENT FRAMEWORK (Flex-1 v12.2) */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        
+        {/* Mobile Header Overlay */}
+        <header className="h-20 flex items-center justify-between px-6 lg:px-12 shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-app)]/80 backdrop-blur-xl z-[90]">
+            <div className="flex items-center gap-6">
+               <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 text-[var(--text-primary)] bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] shadow-xl">
+                 <Menu size={22} />
+               </button>
+               <div className="hidden sm:flex items-center gap-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl px-5 py-3 w-80 group transition-all focus-within:ring-4 focus-within:ring-[var(--primary-500)]/10">
                   <SearchIcon size={16} className="text-[var(--text-secondary)]" />
-                  <input type="text" placeholder="Intelligence Registry (⌘K)" className="bg-transparent border-none text-[12px] font-bold text-[var(--text-primary)] placeholder:text-slate-600 focus:outline-none w-full" />
+                  <input type="text" placeholder="Intelligence Registry (⌘K)" className="bg-transparent border-none text-[12px] font-bold text-[var(--text-primary)] focus:outline-none w-full" />
                </div>
             </div>
 
-            <div className="flex items-center gap-8">
-                <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-[var(--success)]/10 text-[var(--success)] rounded-2xl border border-[var(--success)]/20 text-[10px] font-black uppercase tracking-widest">
-                    <div className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse" />
-                    Market Bridge: Active
+            <div className="flex items-center gap-6">
+                <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-[var(--success)]/10 text-[var(--success)] rounded-2xl border border-[var(--success)]/20 text-[10px] font-black uppercase tracking-widest leading-none">
+                    <div className="w-1.5 h-1.5 bg-[var(--success)] rounded-full animate-pulse" />
+                    Neural Link: Optimised
                 </div>
                  <div className="relative">
-                    <button onClick={() => setNotifOpen(!notifOpen)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] relative p-2">
-                        <Bell size={22} />
+                    <button onClick={() => setNotifOpen(!notifOpen)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] relative p-2 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] shadow-xl transition-all hover:scale-110 active:scale-95">
+                        <Bell size={20} />
                         {unreadCount > 0 && (
-                            <div className="absolute top-1 right-1 w-5 h-5 bg-[var(--primary-500)] rounded-full border-2 border-[var(--bg-app)] flex items-center justify-center text-[9px] font-black text-white animate-in zoom-in">
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--primary-500)] rounded-full border-2 border-[var(--bg-app)] flex items-center justify-center text-[9px] font-black text-white">
                                 {unreadCount}
                             </div>
                         )}
                     </button>
                     <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center font-black text-xs cursor-pointer ring-2 ring-[var(--border-color)] shadow-2xl">
+                <div className="w-10 h-10 rounded-2xl bg-black text-white flex items-center justify-center font-black text-xs cursor-pointer ring-2 ring-[var(--border-color)] shadow-2xl hover:scale-105 active:scale-95 transition-all">
                     {user?.email?.[0]?.toUpperCase()}
                 </div>
             </div>
         </header>
 
-        {/* Universal Container (Rule 1 Compliance) */}
-        <div className="flex-1 p-6 lg:p-12 w-full max-w-[var(--max-content-width)] mx-auto overflow-x-hidden">
-          {children}
-        </div>
+        {/* 🧩 SCROLLABLE CONTENT BODY */}
+        <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-12 w-full">
+           <div className="max-w-[var(--max-content-width)] mx-auto min-h-full">
+              {children}
+           </div>
+        </main>
 
-        {/* Footer Info (Centralized Branding) */}
-        <footer className="px-12 py-10 bg-[var(--bg-card)] flex flex-col md:flex-row items-center justify-between gap-6 border-t border-[var(--border-color)]">
-            <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.4em]">DropAI Intelligence Suite v12.0</p>
-            <div className="flex items-center gap-10">
-                <Link to="/privacy" className="text-[10px] font-black text-[var(--text-secondary)] hover:text-[var(--primary-500)] uppercase tracking-[0.2em] transition-colors">Privacy Protocol</Link>
-                <div className="flex items-center gap-2.5 text-[10px] font-black text-[var(--success)] uppercase tracking-[0.3em]">
-                    <Shield size={14} /> Neural Integrity Verified
-                </div>
-            </div>
-        </footer>
-      </main>
-
-      {/* Mobile Overlay */}
-      <AnimatePresence>
+        {/* Mobile Sidebar Overlay Dimmer */}
         {mobileOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div 
             onClick={() => setMobileOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] lg:hidden"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[95] lg:hidden"
           />
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 };
