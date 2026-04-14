@@ -82,10 +82,10 @@ const IntelligenceReview = () => {
             >
               <ArrowLeft size={28} />
             </button>
-            <div className="space-y-2">
-               <h1 className="text-5xl font-black text-[#EAF0FF] italic tracking-tighter uppercase leading-none">Intelligence.</h1>
+             <div className="space-y-2">
+               <h1 className="text-5xl font-black text-slate-100 italic tracking-tighter uppercase leading-none drop-shadow-sm">Intelligence.</h1>
                <div className="flex items-center gap-4">
-                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.3em]">AI-Assisted Market Interpretation</p>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">AI-Assisted Market Interpretation</p>
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
                   <ConfidenceBadge level={sellData.confidence} />
                </div>
@@ -109,21 +109,21 @@ const IntelligenceReview = () => {
                   </div>
                </div>
             </div>
-            <div className="space-y-8 px-6">
-               <h2 className="text-4xl font-black text-[#EAF0FF] leading-[1.1] italic tracking-tight uppercase">{product.title}</h2>
-               <div className="flex items-center gap-10">
+             <div className="space-y-8 px-6">
+               <h2 className="text-4xl font-black text-white leading-[1.1] italic tracking-tight uppercase drop-shadow-md">{product.title}</h2>
+               <div className="flex flex-col sm:flex-row sm:items-center gap-10">
                   <div className="flex flex-col gap-2">
-                     <span className="text-[12px] font-black text-slate-500 uppercase tracking-widest leading-none">Current Marketplace Price</span>
+                     <span className="text-[12px] font-black text-slate-500 uppercase tracking-widest leading-none">Marketplace Valuation</span>
                      <span className="text-5xl font-black text-white italic tracking-tighter leading-none">${product.price.toFixed(2)}</span>
                   </div>
-                  <div className="h-16 w-px bg-[#2A3A55]" />
+                  <div className="hidden sm:block h-16 w-px bg-slate-800" />
                   <a 
                     href={product.itemWebUrl || `https://www.ebay.com/itm/${product.id}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-[12px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-3 hover:text-white transition-all underline underline-offset-[12px] decoration-emerald-500/20"
+                    className="text-[12px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-3 hover:text-emerald-300 transition-all underline underline-offset-[12px] decoration-emerald-500/30 group/link"
                   >
-                     Analyze Live Listing <ExternalLink size={18} />
+                     View on eBay <ExternalLink size={18} className="group-hover/link:translate-x-1 transition-transform" />
                   </a>
                </div>
             </div>
@@ -147,19 +147,19 @@ const IntelligenceReview = () => {
                </div>
             </div>
 
-            {/* 📊 CORE ANALYTICS ARCHITECTURE */}
-            <div className="grid grid-cols-2 gap-10">
-               <div className="bg-[#111C33] border border-[#2A3A55] p-12 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl">
+             {/* 📊 CORE ANALYTICS ARCHITECTURE (CONTAINMENT HARDENED) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
+               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl relative overflow-hidden">
                   <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Adaptive Yield Score</p>
-                  <div className="flex items-end gap-6">
+                  <div className="flex flex-wrap items-center gap-6">
                      <span className="text-6xl font-black text-white italic tracking-tighter leading-none">{sellData.score}</span>
-                     <span className={cn("text-[12px] font-black uppercase px-3 py-1.5 rounded-xl border leading-none mb-2", sellData.isWinner ? "text-green-500 border-green-500/20 bg-green-500/5" : "text-yellow-400 border-yellow-500/20 bg-yellow-500/5")}>
+                     <span className={cn("text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border leading-none", sellData.isWinner ? "text-green-500 border-green-500/20 bg-green-500/5" : "text-yellow-400 border-yellow-500/20 bg-yellow-500/5")}>
                         {sellData.status}
                      </span>
                   </div>
                </div>
 
-               <div className="bg-[#111C33] border border-[#2A3A55] p-12 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl">
+               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl relative overflow-hidden">
                   <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Momentum Analysis</p>
                   <div className="flex items-center gap-6">
                      <Activity className={sellData.score >= 70 ? "text-emerald-400" : "text-slate-600"} size={40} />
@@ -210,19 +210,19 @@ const IntelligenceReview = () => {
                   </p>
                </div>
                
-               <div className="flex items-center gap-8">
+                <div className="flex flex-col sm:flex-row items-center gap-8">
                   <button 
                     onClick={handleConnectProvider}
-                    className="flex-1 px-12 py-6 bg-white text-slate-950 rounded-[2.5rem] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-emerald-500 hover:text-white transition-all active:scale-[0.98] shadow-3xl shadow-white/5 group"
+                    className="w-full sm:flex-[2] px-12 py-6 bg-white text-slate-950 rounded-[2rem] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-emerald-500 hover:text-white transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:shadow-[0_20px_40px_rgba(34,197,94,0.2)] group"
                   >
-                    Add to Store (Save for Review)
+                    Add to Store
                     <ArrowRight size={22} className="group-hover:translate-x-2 transition-transform duration-300" />
                   </button>
                   <button 
                     onClick={() => navigate('/discovery')}
-                    className="px-14 py-6 border border-[#2A3A55] text-slate-500 hover:text-white hover:border-white/20 rounded-[2.5rem] text-[12px] font-black uppercase tracking-widest transition-all"
+                    className="w-full sm:flex-1 px-14 py-6 border border-slate-800 text-slate-500 hover:text-white hover:border-white/20 hover:bg-red-500/5 hover:text-red-400 hover:border-red-500/30 rounded-[2rem] text-[12px] font-black uppercase tracking-widest transition-all"
                   >
-                    Discard Analysis
+                    Discard
                   </button>
                </div>
             </div>
