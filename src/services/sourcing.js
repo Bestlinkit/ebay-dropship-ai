@@ -1,130 +1,93 @@
 import ebayService from './ebay';
 
 /**
- * eBay Profit Decision Engine (v4.0)
- * Stage II: Intelligence Due Diligence & Risk Calculation
+ * Real Market Intelligence Engine (v5.0)
+ * Stage II: Context-Aware Due Diligence & Predicted Yield
  */
 class SourcingService {
   constructor() {
     this.weights = {
-      demand: 0.35,        // Prioritized revenue velocity
-      competition: 0.20,
-      priceStability: 0.10,
-      profitMargin: 0.25,   // Prioritized net yield
-      trend: 0.10
+      demand: 0.40,        // Revenue velocity
+      yield: 0.30,         // Price vs Batch Average
+      competition: 0.20,   // Density gap
+      trend: 0.10          // Trend direction
     };
   }
 
   /**
-   * Calculates the 'Sell Score' (Formerly OPS)
-   * High-integrity decision metric prioritizing sellability and profit.
+   * Calculates the 'Sell Score' (Context-Aware)
+   * Deterministic metrics relative to the current marketplace batch.
    */
-  calculateSellScore(product, supplierCost = null) {
-    if (!product) return { score: 0, labels: { demand: 'Low', competition: 'High', profit: 'Low', trend: 'Stable' } };
+  calculateSellScore(product, batchContext = null) {
+    if (!product) return { score: 0, confidence: 'Low' };
 
-    const signals = {
-      demand: this._calcDemandScore(product),
-      competition: this._calcCompetitionScore(product),
-      priceStability: this._calcPriceStability(product),
-      profitMargin: supplierCost ? this._calcProfitScore(product.price, supplierCost) : 65, 
-      trend: product.trendIndex || 50
-    };
+    // Batch Signals (Calculated in UI/Discovery before render)
+    const context = batchContext || { avgPrice: product.price || 50, totalResults: 500 };
+    
+    // 1. PRICE YIELD SIGNAL (Real market delta)
+    const priceDelta = (context.avgPrice - product.price) / (context.avgPrice || 1);
+    const yieldScore = Math.min(Math.max(50 + (priceDelta * 100), 10), 98);
 
-    const weightedScore = Object.keys(this.weights).reduce((acc, key) => {
-      return acc + (signals[key] * this.weights[key]);
-    }, 0);
+    // 2. COMPETITION DENSITY (Real search density)
+    const densityScore = product.totalFound < 300 ? 90 : (product.totalFound < 1000 ? 60 : 35);
 
-    const score = Math.round(weightedScore);
-    const risk = this.calculateRisk(score);
+    // 3. DEMAND PULSE (Product specific metadata)
+    const demandScore = product.soldCount > 0 ? 85 : 50;
+
+    // 4. SIGNAL AGGREGATION (Pure Market Data)
+    const weightedScore = Math.round(
+      (demandScore * this.weights.demand) +
+      (yieldScore * this.weights.yield) +
+      (densityScore * this.weights.competition) +
+      (50 * this.weights.trend) // Neutral fallback for trend
+    );
+
+    // 5. DETERMINISTIC CONFIDENCE LAYER
+    const confidence = this._calculateConfidence(product, context);
+    
+    // 6. MULTI-FACTOR WINNER VALIDATION
+    const isWinner = weightedScore >= 80 && confidence !== 'Low' && priceDelta > -0.15;
 
     return {
-      score,
-      risk,
-      labels: {
-        demand: this._getLabel(signals.demand, ['Low', 'Medium', 'High']),
-        competition: this._getLabel(signals.competition, ['High', 'Medium', 'Low']),
-        profit: this._getLabel(signals.profitMargin, ['Low', 'Medium', 'High']),
-        trend: this._getLabel(signals.trend, ['Declining', 'Stable', 'Rising'])
-      },
-      status: this._getStatus(score),
-      color: this._getColor(score),
-      summary: this.getAIIntelligenceSummary(score, signals, product)
+      score: weightedScore,
+      confidence,
+      isWinner,
+      status: isWinner ? 'TOP PICK' : (weightedScore >= 50 ? 'GOOD OPPORTUNITY' : 'LOW VALUE'),
+      color: isWinner ? '#22C55E' : (weightedScore >= 50 ? '#FBBF24' : '#EF4444'),
+      summary: this.getAIIntelligenceSummary(weightedScore, { yield: yieldScore, density: densityScore, demand: demandScore }, product, context),
+      metrics: {
+        priceYield: priceDelta.toFixed(2),
+        density: product.totalFound
+      }
     };
   }
 
   /**
-   * Investment Risk Classification
+   * AI-Driven Intelligence Review (Real Context)
    */
-  calculateRisk(score) {
-    if (score >= 80) return { label: 'Low Risk', level: 'Low', color: '#22C55E' };
-    if (score >= 55) return { label: 'Medium Risk', level: 'Medium', color: '#FBBF24' };
-    return { label: 'High Risk', level: 'High', color: '#EF4444' };
-  }
-
-  /**
-   * Deterministic Decision Layer (AI Broadcast)
-   */
-  getAIIntelligenceSummary(score, signals, product) {
-    const targetPrice = (product.price * 0.9).toFixed(2);
+  getAIIntelligenceSummary(score, signals, product, context) {
+    const priceDiff = ((product.price / context.avgPrice - 1) * 100).toFixed(1);
+    const sign = priceDiff > 0 ? "higher" : "lower";
     
     if (score >= 80) {
-      return `High marketplace demand paired with low saturation. Strong potential for resale if sourced below $${targetPrice}. Market winner protocol active.`;
+      return `Targeted arbitrage opportunity identified. Pricing is ${Math.abs(priceDiff)}% ${sign} than marketplace average with high demand velocity.`;
     }
-    if (score >= 50) {
-      return `Balanced market signals. Performance depends on supplier agility and pricing precision. Recommended for moderate inventory depth.`;
+    if (signals.density < 40) {
+      return `Oversaturated competitive environment. Margin degradation expected due to high listing density in this category.`;
     }
-    return `Oversaturated competitive node with yield degradation. High risk of idle inventory. Suggest skipping or alternative category node exploration.`;
+    return `Passive market performance. Stable pricing detected, but lacks high-velocity demand signals. Suggested as a secondary inventory node.`;
   }
 
-  _getStatus(score) {
-    if (score >= 80) return 'TOP PICK';
-    if (score >= 50) return 'GOOD OPPORTUNITY';
-    return 'LOW VALUE';
-  }
+  _calculateConfidence(product, context) {
+    let signals = 0;
+    if (product.price > 0) signals++;
+    if (product.totalFound > 0) signals++;
+    if (product.categoryId) signals++;
+    if (context.avgPrice > 0) signals++;
 
-  _getColor(score) {
-    if (score >= 80) return '#22C55E';
-    if (score >= 50) return '#FBBF24';
-    return '#EF4444';
-  }
-
-  _getLabel(value, labels) {
-    if (value >= 70) return labels[2];
-    if (value >= 40) return labels[1];
-    return labels[0];
-  }
-
-  _calcDemandScore(product) {
-    const sold = product.soldCount || 0;
-    if (sold > 120) return 95;
-    if (sold > 60) return 80;
-    if (sold > 15) return 55;
-    return 35;
-  }
-
-  _calcCompetitionScore(product) {
-    const count = product.totalFound || 1000;
-    if (count < 100) return 95;
-    if (count < 400) return 75;
-    if (count < 1500) return 45;
-    return 25;
-  }
-
-  _calcPriceStability(product) {
-    if (!product.priceRange) return 65;
-    const { min, max, avg } = product.priceRange;
-    const spread = (max - min) / (avg || 1);
-    if (spread < 0.12) return 95;
-    if (spread < 0.45) return 65;
-    return 35;
-  }
-
-  _calcProfitScore(marketPrice, supplierCost) {
-    const margin = (marketPrice - supplierCost) / marketPrice;
-    if (margin > 0.45) return 98;
-    if (margin > 0.30) return 85;
-    if (margin > 0.15) return 60;
-    return 30;
+    if (signals >= 4) return 'High';
+    if (signals >= 2) return 'Medium';
+    return 'Low';
   }
 
   getPricingIntelligence(product, supplierCost, categoryId = null) {

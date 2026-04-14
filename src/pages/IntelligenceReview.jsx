@@ -19,170 +19,197 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import sourcingService from '../services/sourcing';
 
+// Confidence Level Badge (Deterministic Metadata Quality Indicator)
+const ConfidenceBadge = ({ level }) => {
+    const styles = {
+      High: "bg-green-500/10 text-green-500 border-green-500/30",
+      Medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
+      Low: "bg-red-500/10 text-red-500 border-red-500/30"
+    };
+    const Icon = level === 'High' ? ShieldCheck : (level === 'Medium' ? ShieldQuestion : ShieldAlert);
+    
+    return (
+      <div className={cn("px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2", styles[level])}>
+        <Icon size={14} /> {level} Confidence Level
+      </div>
+    );
+  };
+
 /**
- * Stage II: Product Intelligence Review (Interstellar Due Diligence)
- * Enforcing 'One Decision at a Time' protocol.
+ * Stage II: Product Intelligence Review (Real-Data Due Diligence)
+ * Professional investment analysis for eBay marketplace opportunities.
  */
 const IntelligenceReview = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
   
-  // Retrieve product from state or mock for layout
-  const product = location.state?.product || {
-    id,
-    title: "Intelligence Buffer Empty - Please return to Discovery",
-    price: 0,
-    thumbnail: null
-  };
+  // Retrieve product & context from state
+  const product = location.state?.product;
+  const batchContext = location.state?.batchContext;
 
-  const sellData = useMemo(() => sourcingService.calculateSellScore(product), [product]);
-
-  const handleConnectProvider = () => {
-    // Stage III: Provider Selection / Inventory Import
-    toast.success("Intelligence Verified. Initializing Provider Connection...");
-    setTimeout(() => {
-        navigate('/products'); // Forward to Inventory after 'matching'
-    }, 1500);
-  };
-
-  if (!location.state?.product) {
+  if (!product) {
     return (
-      <div className="h-[60vh] flex flex-col items-center justify-center gap-6 animate-in fade-in">
-         <ShieldAlert size={64} className="text-slate-800" />
-         <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Protocol Sync Failure - Target ID Missing</p>
-         <button onClick={() => navigate('/discovery')} className="btn-decision btn-outline">Return to Stage I</button>
+      <div className="h-[70vh] flex flex-col items-center justify-center gap-8 animate-in fade-in">
+         <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-[2rem] flex items-center justify-center text-slate-700">
+            <ShieldAlert size={40} />
+         </div>
+         <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Market Intelligence Buffer Empty</p>
+         <button onClick={() => navigate('/discovery')} className="p-4 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-primary transition-all">
+            Return to Market Research <ArrowRight size={14} />
+         </button>
       </div>
     );
   }
 
+  const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product, batchContext]);
+
+  const handleConnectProvider = () => {
+    // Stage III: Provider Selection logic starts here
+    navigate('/products'); 
+  };
+
   return (
-    <div className="max-w-[1200px] mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 font-inter pb-32">
+    <div className="max-w-[1250px] mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-1000 font-inter pb-40">
       
       {/* 🧭 NAVIGATION HEADER */}
-      <div className="flex items-center gap-6">
-         <button 
-           onClick={() => navigate(-1)}
-           className="w-12 h-12 rounded-2xl border border-slate-800 flex items-center justify-center text-slate-500 hover:text-white hover:border-slate-600 transition-all"
-         >
-           <ArrowLeft size={20} />
-         </button>
-         <div>
-            <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Intelligence Review.</h1>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">Stage II: Investment Due Diligence Nodes</p>
+      <div className="flex items-center justify-between">
+         <div className="flex items-center gap-8">
+            <button 
+              onClick={() => navigate(-1)}
+              className="w-14 h-14 rounded-2xl border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-600 transition-all bg-slate-900 shadow-xl"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <div>
+               <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Market Intelligence.</h1>
+               <div className="flex items-center gap-4 mt-3">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest tracking-[0.2em]">Investment Due Diligence Review</p>
+                  <div className="w-1 h-1 rounded-full bg-slate-700" />
+                  <ConfidenceBadge level={sellData.confidence} />
+               </div>
+            </div>
          </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
          
          {/* 1. PRODUCT OVERVIEW (LEFT) */}
-         <div className="lg:col-span-5 space-y-8">
-            <div className="saas-card p-4 h-[400px] overflow-hidden">
+         <div className="lg:col-span-5 space-y-10">
+            <div className="bg-slate-900 border border-slate-800 p-5 h-[450px] overflow-hidden rounded-[2.5rem] shadow-2xl relative group">
                <img 
                  src={product.thumbnail || product.image_url} 
                  alt={product.title}
-                 className="w-full h-full object-cover rounded-2xl"
+                 className="w-full h-full object-cover rounded-[2rem] transition-transform duration-700 group-hover:scale-105"
                />
-            </div>
-            <div className="space-y-4">
-               <h2 className="text-2xl font-bold text-white leading-tight">{product.title}</h2>
-               <div className="flex items-center gap-6">
-                  <div className="flex flex-col">
-                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-2">Market Price</span>
-                     <span className="text-3xl font-black text-white italic tracking-tighter leading-none">${product.price}</span>
+               <div className="absolute top-8 right-8">
+                  <div className="px-4 py-2 bg-slate-950/80 backdrop-blur-md rounded-xl border border-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                     <Target size={14} className="text-primary" /> Live Listing
                   </div>
-                  <div className="h-10 w-px bg-slate-800" />
+               </div>
+            </div>
+            <div className="space-y-6 px-4">
+               <h2 className="text-3xl font-bold text-white leading-tight italic tracking-tight">{product.title}</h2>
+               <div className="flex items-center gap-8">
+                  <div className="flex flex-col">
+                     <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest leading-none mb-3">Target Price</span>
+                     <span className="text-4xl font-black text-white italic tracking-tighter leading-none">${product.price}</span>
+                  </div>
+                  <div className="h-12 w-px bg-slate-800" />
                   <a 
-                    href={`https://www.ebay.com/itm/${product.id}`} 
+                    href={product.itemWebUrl || `https://www.ebay.com/itm/${product.id}`} 
                     target="_blank" 
-                    className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2 hover:text-blue-300 transition-all"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-2 hover:text-white transition-all underline underline-offset-8 decoration-primary/30"
                   >
-                     eBay Reference <ExternalLink size={14} />
+                     Research Listing on eBay <ExternalLink size={16} />
                   </a>
                </div>
             </div>
          </div>
 
-         {/* 2. MARKET INSIGHTS PANEL (RIGHT) */}
-         <div className="lg:col-span-7 space-y-8">
+         {/* 2. MARKET ANALYTICS TERMINAL (RIGHT) */}
+         <div className="lg:col-span-7 space-y-10">
             
-            {/* 🧠 DECISION LAYER SUMMARY */}
-            <div className="bg-blue-500/5 border border-blue-500/20 p-8 rounded-[2.5rem] relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                  <ShieldCheck size={120} className="text-blue-400" />
+            {/* 🧠 STRATEGIC DECISION SUMMARY */}
+            <div className="bg-primary hover:bg-white text-slate-950 p-10 rounded-[3rem] relative overflow-hidden transition-all group shadow-2xl">
+               <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform">
+                  <ShieldCheck size={140} />
                </div>
-               <div className="relative z-10 space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-[10px] font-black uppercase tracking-widest">
-                     <Zap size={14} /> Intelligence Summary
+               <div className="relative z-10 space-y-5">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-950 rounded-xl text-white text-[10px] font-black uppercase tracking-widest">
+                     <Zap size={16} className="text-primary fill-primary" /> AI Intelligence Summary
                   </div>
-                  <p className="text-xl font-bold text-text-primary leading-relaxed italic max-w-lg">
+                  <p className="text-2xl font-black leading-tight max-w-lg italic tracking-tighter">
                     "{sellData.summary}"
                   </p>
                </div>
             </div>
 
             {/* 📊 CORE ANALYTICS GRID */}
-            <div className="grid grid-cols-2 gap-6">
-               <div className="saas-card p-8 space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sell Score</p>
-                  <div className="flex items-end gap-3">
-                     <span className="text-4xl font-black text-white italic tracking-tighter leading-none">{sellData.score}</span>
-                     <span className={cn("text-[10px] font-bold uppercase", sellData.score >= 80 ? "text-green-500" : "text-yellow-500")}>
+            <div className="grid grid-cols-2 gap-8">
+               <div className="bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] space-y-4 hover:border-slate-700 transition-all shadow-xl">
+                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Market Yield Score</p>
+                  <div className="flex items-end gap-4">
+                     <span className="text-5xl font-black text-white italic tracking-tighter leading-none">{sellData.score}</span>
+                     <span className={cn("text-[11px] font-black uppercase px-2 py-1 rounded border leading-none mb-1", sellData.isWinner ? "text-green-500 border-green-500/20 bg-green-500/5" : "text-yellow-500 border-yellow-500/20 bg-yellow-500/5")}>
                         {sellData.status}
                      </span>
                   </div>
                </div>
 
-               <div className="saas-card p-8 space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Risk Factor</p>
-                  <div className="flex items-center gap-3">
-                     {sellData.risk.level === 'Low' ? <ShieldCheck className="text-green-500" /> : <ShieldAlert className="text-yellow-500" />}
-                     <span className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">{sellData.risk.label}</span>
+               <div className="bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] space-y-4 hover:border-slate-700 transition-all shadow-xl">
+                  <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Price Distribution</p>
+                  <div className="flex items-center gap-4">
+                     <BarChart3 className={sellData.metrics.priceYield > 0.1 ? "text-green-400" : "text-slate-500"} size={28} />
+                     <span className="text-2xl font-black italic tracking-tighter text-white uppercase leading-none">
+                        {Math.abs(parseFloat(sellData.metrics.priceYield) * 100).toFixed(0)}% {parseFloat(sellData.metrics.priceYield) > 0 ? 'Under' : 'Over'} Avg
+                     </span>
                   </div>
                </div>
             </div>
 
-            {/* METRIC BREAKDOWN NODES */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* REAL-TIME MARKET SIGNALS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                {[
-                 { label: 'Demand', value: sellData.labels.demand, icon: CircleDot, color: 'text-green-500' },
-                 { label: 'Competition', value: sellData.labels.competition, icon: BarChart3, color: 'text-blue-400' },
-                 { label: 'Trend Node', value: sellData.labels.trend, icon: TrendingUp, color: 'text-purple-400' }
+                 { label: 'Demand Velocity', value: sellData.score >= 50 ? 'High' : 'Stable', icon: CircleDot, color: 'text-green-400' },
+                 { label: 'Market Density', value: product.totalFound < 500 ? 'Low Saturation' : 'Balanced', icon: Target, color: 'text-blue-400' },
+                 { label: 'Arbitrage Yield', value: sellData.metrics.priceYield > 0 ? 'Positive' : 'Baseline', icon: DollarSign, color: 'text-emerald-400' }
                ].map((m, i) => (
-                 <div key={i} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4">
-                    <m.icon className={m.color} size={18} />
+                 <div key={i} className="bg-slate-950 border border-slate-800 rounded-3xl p-6 flex items-center gap-5 hover:bg-slate-900 transition-colors">
+                    <div className={cn("w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center", m.color)}>
+                       <m.icon size={20} />
+                    </div>
                     <div className="flex flex-col">
-                       <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">{m.label}</span>
+                       <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-none mb-1.5">{m.label}</span>
                        <span className="text-[11px] font-black text-white uppercase tracking-tight leading-none">{m.value}</span>
                     </div>
                  </div>
                ))}
             </div>
 
-            <div className="h-px bg-slate-800/50" />
-
-            {/* 🔗 STAGE III BRIDGE */}
-            <div className="flex flex-col gap-6">
-               <div className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-2xl border border-slate-800">
-                  <Info size={16} className="text-slate-500 shrink-0" />
-                  <p className="text-[10px] font-medium text-slate-400 leading-relaxed italic">
-                    By proceeding, the system will initialize the provider connection sequence to match this product node with a high-margin supply chain variant.
+            {/* 🔗 STAGE III: SOURCE STRATEGY */}
+            <div className="flex flex-col gap-8 pt-6">
+               <div className="flex items-center gap-4 p-6 bg-slate-900/40 rounded-3xl border border-slate-800/50 italic">
+                  <Info size={20} className="text-primary shrink-0" />
+                  <p className="text-[11px] font-medium text-slate-400 leading-relaxed max-w-xl">
+                    By initializing sourcing, the system will verify supply chain compatibility with production-grade providers across AliExpress and eProlo.
                   </p>
                </div>
                
-               <div className="flex items-center gap-4">
+               <div className="flex items-center gap-6">
                   <button 
                     onClick={handleConnectProvider}
-                    className="btn-decision btn-primary flex-1 group"
+                    className="flex-1 px-10 py-5 bg-white text-slate-950 rounded-[2rem] text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-primary transition-all active:scale-[0.98] shadow-2xl shadow-white/5 group"
                   >
-                    Connect to Providers
-                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    Initialize Sourcing Bridge
+                    <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform duration-300" />
                   </button>
                   <button 
                     onClick={() => navigate('/discovery')}
-                    className="btn-decision btn-outline px-10"
+                    className="px-12 py-5 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-600 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all"
                   >
-                    Discard Node
+                    Discard Analysis
                   </button>
                </div>
             </div>

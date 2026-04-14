@@ -67,14 +67,14 @@ const NotificationDropdown = ({ isOpen, onClose }) => {
                         className="absolute right-0 mt-4 w-96 glass-card rounded-[2rem] p-4 z-50 shadow-2xl overflow-hidden border border-white/10"
                     >
                         <div className="flex items-center justify-between mb-6 px-4">
-                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">SaaS Intelligence Hub</h3>
-                            {notifications.length > 0 && <button onClick={clearAll} className="text-[9px] font-bold text-rose-500 hover:underline px-2 py-1">Purge Buffer</button>}
+                            <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">SaaS Market Hub</h3>
+                            {notifications.length > 0 && <button onClick={clearAll} className="text-[9px] font-bold text-rose-500 hover:underline px-2 py-1">Clear All</button>}
                         </div>
                         <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-hide">
                             {notifications.length === 0 ? (
                                 <div className="py-12 text-center space-y-4">
                                     <Bell className="mx-auto text-slate-100" size={48} />
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-relaxed">No new vectors monitored</p>
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-relaxed">No new alerts monitored</p>
                                 </div>
                             ) : (
                                 notifications.map((n) => (
@@ -136,7 +136,7 @@ const Layout = ({ children }) => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
     { icon: Package, label: 'Products', href: '/products' },
-    { icon: Zap, label: 'Optimization', href: '/discovery' },
+    { icon: Zap, label: 'Market Research', href: '/discovery' },
     { icon: Video, label: 'Video Lab', href: '/video' },
     { icon: BarChart3, label: 'Analytics', href: '/analytics' },
     { icon: Megaphone, label: 'Marketing', href: '/marketing' },
@@ -190,7 +190,7 @@ const Layout = ({ children }) => {
                 </div>
                 <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase truncate">{user?.email?.split('@')[0]}</p>
-                    <p className="text-[8px] text-emerald-500 font-black uppercase">Verified Node</p>
+                    <p className="text-[8px] text-emerald-500 font-black uppercase">Verified Professional</p>
                 </div>
               </div>
            )}

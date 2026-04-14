@@ -195,13 +195,14 @@ class eBayService {
                         id: item.itemId,
                         title: item.title,
                         price: parseFloat(item.price.value),
-                        thumbnail: image, // Unified field
-                        image_url: image, // Legacy compatibility
+                        thumbnail: image,
+                        image_url: image, // Legacy
+                        itemWebUrl: item.itemWebUrl, // Production-grade redirect URL
                         condition: item.condition,
                         categoryPath: item.categories?.map(c => c.categoryName).join(' > '),
                         categoryId: item.categories?.[0]?.categoryId,
                         seller: item.seller,
-                        totalFound: response.data.total
+                        totalFound: response.data.total // Used for 'competition density' signal
                     };
                 });
             }
