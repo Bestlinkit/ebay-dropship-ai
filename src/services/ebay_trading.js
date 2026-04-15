@@ -5,13 +5,14 @@ class EbayTradingService {
     this.useMock = false; // Forced live for production transition
     
     // Private Bridge Configuration (Production-Grade Free Proxy)
-    this.proxyUrl = import.meta.env.VITE_PROXY_URL;
+    const rawProxy = import.meta.env.VITE_PROXY_URL || "";
+    this.proxyUrl = rawProxy.endsWith("/") ? rawProxy.slice(0, -1) : rawProxy;
     
     this.route = (targetUrl) => {
       if (!this.proxyUrl) {
           return `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
       }
-      return `${this.proxyUrl}?url=${encodeURIComponent(targetUrl)}`;
+      return `${this.proxyUrl}/?url=${encodeURIComponent(targetUrl)}`;
     };
   }
 

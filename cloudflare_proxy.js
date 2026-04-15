@@ -179,27 +179,52 @@ export default {
             }
         }
 
-        // 3. FALLBACK: Generic Proxy (eBay / Identity)
+        // 3. FALLBACK: Generic Proxy (eBay / Identity / AI)
         const targetUrl = url.searchParams.get("url");
         if (targetUrl) {
             try {
+                // Use a fresh Headers object based on the incoming request
                 const headers = new Headers(request.headers);
-                const auth = url.searchParams.get("auth");
-                const marketplaceid = url.searchParams.get("marketplaceid");
-                if (auth) headers.set("Authorization", auth);
-                if (marketplaceid) headers.set("X-EBAY-C-MARKETPLACE-ID", marketplaceid);
+                
+                // Allow Override via Query Params (Useful for debugging/specific cases)
+                const authOverride = url.searchParams.get("auth");
+                const marketplaceOverride = url.searchParams.get("marketplaceid");
+                
+                if (authOverride) headers.set("Authorization", authOverride);
+                if (marketplaceOverride) headers.set("X-EBAY-C-MARKETPLACE-ID", marketplaceOverride);
 
+                // Scrub headers for proxy safety
                 headers.delete("Host");
-                const response = await fetch(targetUrl, {
+                headers.delete("CF-Connecting-IP");
+                headers.delete("Forwarded");
+                headers.delete("X-Forwarded-For");
+
+                const proxyResponse = await fetch(targetUrl, {
                     method: request.method,
                     headers: headers,
-                    body: (request.method !== "GET" && request.method !== "HEAD") ? await request.arrayBuffer() : undefined
+                    body: (request.method !== "GET" && request.method !== "HEAD") ? await request.arrayBuffer() : undefined,
+                    redirect: "follow"
                 });
-                return new Response(response.body, { 
-                    status: response.status, 
-                    headers: { ...corsHeaders, ...Object.fromEntries(response.headers) } 
+
+                // Return with CORS and all upstream headers
+                const responseHeaders = new Headers(corsHeaders);
+                proxyResponse.headers.forEach((v, k) => {
+                    // Avoid overriding critical CORS headers
+                    if (!k.toLowerCase().startsWith("access-control-")) {
+                        responseHeaders.set(k, v);
+                    }
                 });
-            } catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500 }); }
+
+                return new Response(proxyResponse.body, { 
+                    status: proxyResponse.status, 
+                    headers: responseHeaders 
+                });
+            } catch (err) { 
+                return new Response(JSON.stringify({ error: err.message, msg: "Bridge Fallback Error" }), { 
+                    status: 500, 
+                    headers: corsHeaders 
+                }); 
+            }
         }
 
         return new Response("Crystal Bridge: Active and Secure", { status: 200 });

@@ -7,7 +7,8 @@ class eBayService {
     this.baseUrl = 'https://api.ebay.com/buy/browse/v1';
     
     // Multi-Layer API Bridge (Fail-Safe Architecture)
-    this.proxyUrl = import.meta.env.VITE_PROXY_URL;
+    const rawProxy = import.meta.env.VITE_PROXY_URL || "";
+    this.proxyUrl = rawProxy.endsWith("/") ? rawProxy.slice(0, -1) : rawProxy;
     this.marketplaceId = 'EBAY_US'; // Default for production
 
     this.route = (targetUrl) => {
@@ -40,7 +41,7 @@ class eBayService {
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
+        this.proxyUrl ? `${this.proxyUrl}/?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
         `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
     ].filter(Boolean);
