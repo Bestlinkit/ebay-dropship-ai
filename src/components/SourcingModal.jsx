@@ -182,7 +182,9 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                     <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl mb-6">
                       <div className="flex flex-col">
                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Source Price</span>
-                         <span className="text-lg font-bold text-slate-900">${(match.price).toFixed(2)}</span>
+                         <span className="text-lg font-bold text-slate-900">
+                             {typeof match.price === 'number' ? `$${match.price.toFixed(2)}` : 'N/A'}
+                         </span>
                       </div>
                       <div className="flex flex-col items-end">
                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Est. Profits</span>
