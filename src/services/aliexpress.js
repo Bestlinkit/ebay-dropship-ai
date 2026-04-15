@@ -33,13 +33,17 @@ class AliExpressService {
             return { status: SourcingStatus.NETWORK_ERROR, data: [], debugInfo };
         }
 
-        // 1. BLOCK DETECTION
-        const blockPatterns = ["captcha", "security verification", "robot check", "verify your identity"];
+        // 1. BLOCK DETECTION (Captcha / Verify)
+        const blockPatterns = ["captcha", "security verification", "robot check", "verify your identity", "onfirmed by our systems"];
         if (blockPatterns.some(p => html.toLowerCase().includes(p))) {
             return { 
                 status: SourcingStatus.BLOCKED, 
                 data: [], 
-                debugInfo: { ...debugInfo, reason: "AliExpress anti-bot triggered" } 
+                debugInfo: { 
+                    ...debugInfo, 
+                    reason: "AliExpress anti-bot triggered",
+                    htmlLength: html.length 
+                } 
             };
         }
 

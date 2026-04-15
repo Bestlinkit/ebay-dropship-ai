@@ -264,15 +264,16 @@ class eBayService {
             seller: item.seller?.username || "eBay Competitor"
         }));
 
-        // Calculate Stats for AI Pricing Strat
-        if (results.length > 0) {
-            const prices = results.map(r => r.price);
-            results.stats = {
-                min: Math.min(...prices).toFixed(2),
-                max: Math.max(...prices).toFixed(2),
-                avg: (prices.reduce((a,b) => a+b, 0) / prices.length).toFixed(2)
-            };
-        }
+            // Calculate Stats for AI Pricing Strat
+            if (results.length > 0) {
+                const prices = results.map(r => r.price);
+                const avgPrice = prices.length > 0 ? prices.reduce((a,b) => a+b, 0) / prices.length : 0;
+                results.stats = {
+                    min: prices.length > 0 ? Math.min(...prices).toFixed(2) : '0.00',
+                    max: prices.length > 0 ? Math.max(...prices).toFixed(2) : '0.00',
+                    avg: avgPrice.toFixed(2)
+                };
+            }
 
         return results;
     } catch (e) {

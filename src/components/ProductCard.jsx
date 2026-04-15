@@ -129,8 +129,8 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         
         {/* LEFT: VISUAL */}
         <SafeImage 
-          src={product.thumbnail || product.image_url} 
-          alt={product.title} 
+          src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
+          alt={product?.title} 
           className="w-24 h-24 md:w-32 md:h-32 shadow-2xl" 
         />
 
@@ -138,7 +138,9 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         <div className="flex-1 min-w-0 space-y-4">
            {/* PRICE & CONFIDENCE ROW */}
            <div className="flex items-center gap-4">
-              <span className="text-3xl font-black text-white italic tracking-tighter">${product.price.toFixed(2)}</span>
+              <span className="text-3xl font-black text-white italic tracking-tighter">
+                {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'N/A'}
+              </span>
               <ConfidenceBadge level={sellData.confidence} />
            </div>
 
@@ -186,7 +188,13 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
            {/* ACTION STACK */}
            <div className="flex flex-col gap-2.5 order-2 md:order-2">
               <button 
-                onClick={() => onAdd(product)}
+                onClick={() => onAdd({
+                  ...product,
+                  id: product.id,
+                  title: product.title,
+                  price: Number(product.price) || 0,
+                  image: product.image || product.thumbnail || product.image_url || null
+                })}
                 className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
               >
                 Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />

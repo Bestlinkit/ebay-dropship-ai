@@ -116,26 +116,33 @@ class SourcingService {
    * Generates natural language insights with dynamic phrasing and actionable verdicts.
    */
   /**
-   * Sourcing Intelligence (v1.1)
-   * Calculates relevance between target eBay product and supplier result.
+   * Sourcing Intelligence (v2.0)
+   * Deterministic ROI-driven relevance score.
+   * Based on ROI (50%) + Data Completeness (50%).
    */
+  calculateScore(product, basePrice) {
+    const price = Number(product.price ?? 0);
+    const targetPrice = Number(basePrice ?? 0);
+
+    if (!price || !targetPrice) return 0;
+
+    // 1. ROI Contribution (Normalized to 100)
+    const roi = ((targetPrice - price) / price) * 100;
+    const roiScore = Math.min(Math.max(roi, 0), 100);
+
+    // 2. Data Completeness (Fixed 50pt scale)
+    const completeness = 
+      (product.title && product.title !== 'AliExpress Listing' ? 20 : 0) + 
+      (product.price > 0 ? 20 : 0) + 
+      (product.image ? 10 : 0);
+
+    // 3. Normalized output (0-100)
+    return Math.round((roiScore * 0.5) + (completeness));
+  }
+
   calculateMatchRelevance(target, supplier) {
-    if (!target || !supplier) return 0;
-    
-    // 1. Keyword Overlap (Title Parity)
-    const tWords = target.title.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    const sWords = supplier.title.toLowerCase().split(/\s+/);
-    const overlap = tWords.filter(w => sWords.includes(w)).length;
-    const titleScore = (overlap / tWords.length) * 100;
-
-    // 2. Category Check
-    const categoryMatch = supplier.category === target.category ? 20 : 0;
-
-    // 3. Price Context (Outlier Detection)
-    const priceRatio = Math.min(target.price, supplier.price) / Math.max(target.price, supplier.price);
-    const priceScore = priceRatio * 30; // 30 points for realistic price parity
-
-    return Math.round(Math.min(titleScore + categoryMatch + priceScore, 100));
+    // Redirect to the new normalized scoring engine
+    return this.calculateScore(supplier, target.price);
   }
 
   /**

@@ -26,7 +26,8 @@ class eBayMarketingService {
    * Based on the 10% threshold set by the user.
    */
   async sendOfferToWatchers(listingId, currentPrice) {
-    const discountedPrice = (currentPrice * (1 - this.defaultDiscount / 100)).toFixed(2);
+    const currentPriceNum = Number(currentPrice || 0);
+    const discountedPrice = (currentPriceNum * (1 - this.defaultDiscount / 100)).toFixed(2);
     
     if (this.useMock) {
       await new Promise(resolve => setTimeout(resolve, 2000));

@@ -96,11 +96,11 @@ const IntelligenceReview = () => {
          {/* 1. PRODUCT SPECIFICATION (LEFT) */}
          <div className="lg:col-span-5 space-y-12">
             <div className="bg-[#111C33] border border-[#2A3A55] p-6 h-[500px] overflow-hidden rounded-[3rem] shadow-3xl relative group">
-               <img 
-                 src={product.thumbnail || product.image_url} 
-                 alt={product.title}
-                 className="w-full h-full object-cover rounded-[2.5rem] transition-transform duration-1000 group-hover:scale-105"
-               />
+                <img 
+                  src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
+                  alt={product?.title}
+                  className="w-full h-full object-cover rounded-[2.5rem] transition-transform duration-1000 group-hover:scale-105"
+                />
                <div className="absolute top-10 right-10">
                   <div className="px-5 py-2.5 bg-[#0B1220]/80 backdrop-blur-xl rounded-2xl border border-white/10 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-3">
                      <Target size={16} className="text-emerald-500" /> Top Opportunity
@@ -211,7 +211,17 @@ const IntelligenceReview = () => {
                
                <div className="flex items-center gap-8">
                   <button 
-                    onClick={() => navigate('/supplier-sourcing', { state: { product, batchContext } })}
+                    onClick={() => navigate('/supplier-sourcing', { 
+                        state: { 
+                            ebayProduct: {
+                                id: product.id,
+                                title: product.title,
+                                price: Number(product.price) || 0,
+                                image: product.image || product.thumbnail || product.image_url || null
+                            },
+                            batchContext 
+                        } 
+                    })}
                     className="flex-[2] px-12 py-6 bg-white text-slate-950 rounded-[2rem] text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-4 hover:bg-emerald-500 hover:text-white transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-3xl shadow-white/5 group"
                   >
                     Add to Store

@@ -153,9 +153,11 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {matches.map((match, i) => {
+                const calculatedProfit = (ebayProduct.price || 0) - (match.price || 0) - ((ebayProduct.price || 0) * 0.12) - 0.30;
+                const calculatedMargin = ebayProduct.price > 0 ? (calculatedProfit / ebayProduct.price) * 100 : 0;
                 const profitCalc = {
-                    profit: (ebayProduct.price - (match.price || 0) - (ebayProduct.price * 0.12) - 0.30).toFixed(2),
-                    margin: (((ebayProduct.price - (match.price || 0) - (ebayProduct.price * 0.12) - 0.30) / ebayProduct.price) * 100).toFixed(0),
+                    profit: calculatedProfit.toFixed(2),
+                    margin: calculatedMargin.toFixed(0)
                 };
 
                 return (
@@ -169,8 +171,8 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                       </div>
                       <div className="space-y-2 flex-1">
                         <div className="flex justify-between items-start">
-                           <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", profitCalc.margin > 30 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500")}>
-                              {profitCalc.margin}% ROI Potential
+                           <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", calculatedMargin > 30 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500")}>
+                               {profitCalc.margin}% ROI Potential
                            </span>
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 line-clamp-2 leading-tight">

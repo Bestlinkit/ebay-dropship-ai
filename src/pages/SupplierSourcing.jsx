@@ -40,8 +40,12 @@ import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 const SupplierSourcing = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const targetProduct = location.state?.product;
-    const initialQuery = location.state?.query || targetProduct?.title || '';
+    
+    // SAFE READ: Handle both legacy and new standardized payloads
+    const ebayProduct = location?.state?.ebayProduct || location?.state?.product || null;
+    const initialQuery = location.state?.query || ebayProduct?.title || '';
+    
+    const targetProduct = ebayProduct; // Maintain logic compatibility
 
     const [loading, setLoading] = useState(true);
     const [rawResults, setRawResults] = useState([]);
@@ -50,17 +54,24 @@ const SupplierSourcing = () => {
     const [confirmModal, setConfirmModal] = useState(null);
     const [showAliExpansion, setShowAliExpansion] = useState(false);
 
-    // 1. ENGINE: Eprolo API Only
+    const [fullInquiryResult, setFullInquiryResult] = useState(null);
+
+    // 1. ENGINE: Eprolo API Only (Enhanced Resilience)
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct) return;
         
         setLoading(true);
+        setFullInquiryResult(null);
         console.info(`[Direct Sourcing] Inquiring Eprolo API for: ${query}`);
         
         try {
             const result = await eproloService.searchProducts(query);
-            // Service now returns standardized object
+            setFullInquiryResult(result);
             setRawResults(result.data || []);
+            
+            if (result.status === 'ERROR' || result.status === 'NETWORK_ERROR') {
+                toast.error(`Eprolo Bridge Fault: ${result.debugInfo?.statusCode || 'Blocked'}`);
+            }
         } catch (e) {
             console.error(`[Direct Sourcing] API Connection Failure:`, e);
             toast.error(`Eprolo API connection failed.`);
@@ -122,7 +133,27 @@ const SupplierSourcing = () => {
         setShowAliExpansion(true);
     };
 
-    if (!targetProduct) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">Target Selection Required</div>;
+    if (!targetProduct) {
+        return (
+            <div className="h-[60vh] flex flex-col items-center justify-center gap-8 bg-[#0B1220] text-center p-10">
+                <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-[2rem] flex items-center justify-center text-slate-700">
+                    <AlertCircle size={40} />
+                </div>
+                <div className="space-y-4">
+                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">Missing Product Context</h3>
+                    <p className="text-slate-500 text-sm max-w-sm mx-auto">
+                        Inquiry source not detected. Return to the Discovery hub to initiate a new sourcing request.
+                    </p>
+                </div>
+                <button 
+                    onClick={() => navigate('/discovery')} 
+                    className="px-10 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 hover:text-white transition-all shadow-3xl"
+                >
+                    Return to Discovery <ArrowRight size={14} />
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
@@ -190,6 +221,42 @@ const SupplierSourcing = () => {
                                  Search AliExpress Manually
                              </button>
                         </div>
+                    </div>
+                ) : fullInquiryResult?.status === 'BLOCKED' ? (
+                    <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10">
+                        <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
+                            <Globe size={40} />
+                        </div>
+                        <div className="space-y-4">
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Connection Interrupted</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
+                                AliExpress has temporarily blocked automated access (Anti-Bot Triggered).
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => performSourcing()}
+                            className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl flex items-center gap-3 mx-auto"
+                        >
+                            <RefreshCw size={16} /> Retry Global Search
+                        </button>
+                    </div>
+                ) : fullInquiryResult?.status === 'ERROR' || fullInquiryResult?.status === 'NETWORK_ERROR' ? (
+                    <div className="bg-rose-950/20 border border-rose-900/30 p-16 rounded-[4rem] text-center space-y-10">
+                        <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
+                            <AlertTriangle size={40} />
+                        </div>
+                        <div className="space-y-4">
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Eprolo API Error</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-xs font-mono bg-black/40 p-4 rounded-xl">
+                                {JSON.stringify(fullInquiryResult.debugInfo, null, 2)}
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => performSourcing()}
+                            className="px-8 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                        >
+                            Retry Inquiry
+                        </button>
                     </div>
                 ) : (
                     /* 🎯 GUIDED UI */

@@ -137,6 +137,9 @@ const Discovery = () => {
     return () => clearTimeout(timer);
   }, [filters.categoryId, filters.minPrice, filters.maxPrice, query, pagination.page]);
 
+  // Helper: Shuffle Array (Market Randomization)
+  const shuffleResults = (arr) => [...arr].sort(() => Math.random() - 0.5);
+
   // Init
   useEffect(() => { executeSearch(true); }, []);
 
@@ -308,7 +311,7 @@ const Discovery = () => {
                 <div key={i} className="h-36 bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-800/30" />
               ))
             ) : processedProducts.length > 0 ? (
-              processedProducts.map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
+              shuffleResults(processedProducts).map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
             ) : (
               <div className="col-span-full py-56 flex flex-col items-center justify-center gap-8 opacity-10">
                  <Waves size={80} className="text-slate-400" />

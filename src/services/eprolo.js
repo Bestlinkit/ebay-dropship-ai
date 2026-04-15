@@ -31,7 +31,12 @@ class EproloService {
             debugInfo.rawResponse = JSON.stringify(result);
 
             if (!response.ok) {
-                return { status: SourcingStatus.NETWORK_ERROR, data: [], debugInfo };
+                const errorText = await response.text();
+                return { 
+                    status: SourcingStatus.NETWORK_ERROR, 
+                    data: [], 
+                    debugInfo: { ...debugInfo, errorText, statusCode: response.status } 
+                };
             }
 
             // API ERROR (Non-zero code)
