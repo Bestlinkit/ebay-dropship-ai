@@ -55,6 +55,8 @@ const SupplierSourcing = () => {
     const [showAliExpansion, setShowAliExpansion] = useState(false);
 
     const [fullInquiryResult, setFullInquiryResult] = useState(null);
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 4;
 
     // 💡 INITIALIZATION ROOT: Ensure variables are declared before hook usage
     const targetPrice = targetProduct?.price || 0;
@@ -108,6 +110,10 @@ const SupplierSourcing = () => {
             .filter(res => res.relevance >= 35) 
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
+
+    const paginatedResults = useMemo(() => {
+        return processedResults.slice(0, page * PAGE_SIZE);
+    }, [processedResults, page]);
 
     const bestOption = useMemo(() => sourcingService.identifyBestOption(processedResults), [processedResults]);
 
@@ -167,24 +173,24 @@ const SupplierSourcing = () => {
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
             
             {/* 🧭 NAVIGATION */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-[#0B1220] border border-[#2A3A55] rounded-[3rem] shadow-2xl">
                 <div className="flex items-center gap-6">
-                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
+                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
                         <ArrowLeft size={24} />
                     </button>
                     <div>
                         <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Direct Sourcing</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <ShieldCheck size={12} className="text-blue-500" /> Eprolo API Bridge
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                             <ShieldCheck size={12} className="text-blue-400" /> Eprolo API Bridge
                         </p>
                     </div>
                 </div>
 
-                <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] flex items-center gap-6">
-                    <img src={targetProduct.thumbnail || targetProduct.image_url} alt="" className="w-16 h-16 rounded-xl border border-white/5 object-cover" />
+                <div className="bg-slate-900/50 border border-slate-700/50 p-6 rounded-[2rem] flex items-center gap-6">
+                    <img src={targetProduct.thumbnail || targetProduct.image_url} alt="" className="w-16 h-16 rounded-xl border border-white/10 object-cover shadow-lg" />
                     <div className="space-y-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Benchmark Price</p>
-                        <p className="text-lg font-black text-emerald-500 italic leading-none">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Benchmark Price</p>
+                        <p className="text-lg font-black text-emerald-400 italic leading-none">
                             {typeof targetPrice === 'number' ? `$${targetPrice.toFixed(2)}` : 'N/A'}
                         </p>
                     </div>
@@ -209,7 +215,7 @@ const SupplierSourcing = () => {
                     </div>
                 ) : processedResults.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6">
-                        {processedResults.map(res => (
+                        {paginatedResults.map(res => (
                             <SupplierResultRow 
                                 key={res.id} 
                                 product={res} 
@@ -219,12 +225,21 @@ const SupplierSourcing = () => {
                             />
                         ))}
                         
+                        {processedResults.length > paginatedResults.length && (
+                             <button 
+                                onClick={() => setPage(p => p + 1)}
+                                className="w-full py-8 bg-[#111C33] border border-[#2A3A55] text-white rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-500 transition-all shadow-xl font-inter"
+                             >
+                                 Show next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} opportunities
+                             </button>
+                        )}
+
                         {/* 💡 UPSORT: Option to expand */}
-                        <div className="mt-10 p-10 bg-slate-900/30 border border-slate-800 rounded-[3rem] text-center space-y-4">
+                        <div className="mt-10 p-10 bg-slate-950 border border-slate-800 rounded-[3rem] text-center space-y-4 shadow-3xl">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Need more variety or lower pricing?</p>
                              <button 
                                 onClick={handleExpandSearch}
-                                className="text-[11px] font-black text-white px-8 py-4 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all uppercase tracking-widest border border-white/5"
+                                className="text-[11px] font-black text-white px-8 py-4 bg-slate-900 hover:bg-[#0B1220] rounded-xl transition-all uppercase tracking-widest border border-white/5"
                              >
                                  Search AliExpress Manually
                              </button>

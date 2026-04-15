@@ -109,11 +109,19 @@ const AliSourcing = () => {
     };
 
     const finalizeImport = async (supplierProduct) => {
+        if (!targetProduct || !supplierProduct) {
+            toast.error("Process Desynchronized. Please restart sourcing.");
+            return;
+        }
+
         navigate('/product-import-preview', { 
             state: { 
                 product: {
                     ...supplierProduct,
-                    pricing: { basePrice: targetProduct.price },
+                    pricing: { 
+                        basePrice: Number(targetProduct.price) || 0,
+                        profitMargin: 30 // Default starting margin
+                    },
                     sourceType: 'manual_aliexpress'
                 } 
             } 
@@ -126,14 +134,14 @@ const AliSourcing = () => {
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
             
             {/* 🧭 NAVIGATION */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-[#0B1220] border border-[#2A3A55] rounded-[3rem] shadow-2xl">
                 <div className="flex items-center gap-6">
-                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
+                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
                         <ArrowLeft size={24} />
                     </button>
                     <div>
                         <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">AliExpress Discovery</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
                              Manual Discovery Mode
                         </p>
                     </div>

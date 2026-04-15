@@ -34,8 +34,8 @@ class SourcingService {
       price: Number(raw.price ?? 0),
       // Safe Image Chain
       images: Array.isArray(raw.images) ? raw.images : [raw.image || raw.thumbnail || raw.image_url].filter(Boolean),
-      image: raw.image || raw.images?.[0] || raw.thumbnail || raw.image_url || "/placeholder-product.png",
-      shipping: Number(raw.shipping ?? 0),
+      image: raw.image || raw.thumbnail || raw.image_url || "/placeholder-product.png",
+      shipping: typeof raw.shipping === 'number' ? raw.shipping : (String(raw.shipping || '').toLowerCase().includes('free') ? 0 : parseFloat(String(raw.shipping || '').replace(/[^\d.]/g, '')) || 0),
       delivery: raw.delivery || '15-25 days',
       rating: Number(raw.rating ?? 0),
       reviews: Number(raw.reviews ?? 0),

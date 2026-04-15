@@ -114,31 +114,50 @@ class AliExpressService {
 
   /**
    * Refined Stable Mapping: recovery over perfection.
+   * Now includes JUNK FILTER for Ads.
    */
   stableMap(items) {
     if (!Array.isArray(items)) return [];
     
+    // 🗑️ JUNK FILTER: Skip Ads and empty shells
+    const garbageKeywords = ['ad', 'sponsor', 'advertiser', 'why am i seeing this ad', 'suggested for you'];
+    
     return items.map(item => {
-        // If it's already mapped (from semantic/dom), keep it
-        if (item.source === 'AliExpress' && item.title) return item;
+        const title = item.title?.displayTitle || item.product_title || item.title || item.productTitle || "";
+        const titleLower = title.toLowerCase();
 
-        const title = item.title?.displayTitle || item.product_title || item.title || item.productTitle || null;
-        const price = parseFloat(item.prices?.salePrice?.minPrice || item.product_price || item.minPrice || item.price?.salePrice?.value || item.price) || null;
+        if (garbageKeywords.some(k => titleLower.includes(k))) return null;
+
+        // If it's already mapped (from semantic/dom), keep it
+        if (item.source === 'AliExpress' && item.title && item.price > 0) return item;
+
+        // 💰 PRICE EXTRACTION (Deterministic)
+        let price = null;
+        const priceObj = item.prices?.salePrice || item.prices?.minPrice || item.price || item.minPrice || item.skuPrice;
+        
+        if (typeof priceObj === 'object' && priceObj !== null) {
+            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.salePrice || priceObj.price);
+        } else {
+            price = parseFloat(priceObj) || parseFloat(item.product_price);
+        }
+
         const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;
 
-        // SIMPLE RULE: (title OR price OR image) must have something, but title is prioritized for display
-        if (!title && !price && !image) return null;
+        // REQUIRE AT LEAST TITLE AND (PRICE OR IMAGE)
+        if (!title || (!price && !image)) return null;
 
         return {
             id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
             title: title || "AliExpress Listing",
-            price: price, 
+            price: price > 0 ? price : 0, 
             image: image,
-            rating: 4.5,
+            rating: parseFloat(item.evaluation?.starRating || item.rating || 4.5),
             source: 'AliExpress',
-            url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#')
+            url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#'),
+            delivery: item.delivery?.displayAmount || "15-25 days",
+            shipsFrom: item.logistics?.shipsFrom || "CN"
         };
-    }).filter(Boolean);
+    }).filter(p => p && p.title && p.title.length > 5);
   }
 
   simpleDedupe(products) {

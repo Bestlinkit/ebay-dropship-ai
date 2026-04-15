@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Info,
   Activity,
-  Sparkles
+  Wand2 as Sparkles
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
