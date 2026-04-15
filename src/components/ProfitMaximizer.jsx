@@ -88,7 +88,9 @@ const ProfitMaximizer = ({ product, supplierCost, onPriceChange }) => {
               )}>
                 {intelligence.positioning.label} Strategy
               </div>
-              <span className="text-5xl font-black text-slate-900 tracking-tighter">${price.toFixed(2)}</span>
+              <span className="text-5xl font-black text-slate-900 tracking-tighter">
+                {typeof price === 'number' ? `$${price.toFixed(2)}` : 'N/A'}
+              </span>
            </div>
         </div>
       </div>
@@ -149,8 +151,8 @@ const ProfitMaximizer = ({ product, supplierCost, onPriceChange }) => {
               className="w-full h-3 bg-slate-100 rounded-full appearance-none cursor-pointer accent-slate-900 transition-all hover:h-4"
             />
             <div className="flex justify-between mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <span>$ {(marketAvg * 0.5).toFixed(2)} (Aggressive)</span>
-              <span>$ {(marketAvg * 1.5).toFixed(2)} (Premium)</span>
+              <span>$ {typeof marketAvg === 'number' ? (marketAvg * 0.5).toFixed(2) : '0.00'} (Aggressive)</span>
+              <span>$ {typeof marketAvg === 'number' ? (marketAvg * 1.5).toFixed(2) : '0.00'} (Premium)</span>
             </div>
           </div>
         </div>

@@ -154,10 +154,12 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
                     {product.totalFound < 300 ? 'Low Saturation' : 'Balanced Market'}
                  </span>
               </div>
-              <div className="flex flex-col gap-0.5">
-                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Market Demand</span>
-                 <span className="text-[9px] font-black text-white whitespace-nowrap">{sellData.status}</span>
-              </div>
+              <div className="flex flex-col">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Market Price</p>
+              <span className="text-3xl font-black text-white italic tracking-tighter">
+                {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'N/A'}
+              </span>
+            </div>
               <div className="hidden sm:block">
                  <MiniMomentumLine data={sellData.momentum} color={sellData.color} />
               </div>

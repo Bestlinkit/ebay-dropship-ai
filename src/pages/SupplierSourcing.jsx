@@ -144,9 +144,10 @@ const SupplierSourcing = () => {
                 <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] flex items-center gap-6">
                     <img src={targetProduct.thumbnail || targetProduct.image_url} alt="" className="w-16 h-16 rounded-xl border border-white/5 object-cover" />
                     <div className="space-y-1">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Target Selection</p>
-                        <p className="text-[11px] font-black text-white line-clamp-1 max-w-[200px]">{targetProduct.title}</p>
-                        <p className="text-lg font-black text-emerald-500 italic leading-none">${targetPrice.toFixed(2)}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Benchmark Price</p>
+                        <p className="text-lg font-black text-emerald-500 italic leading-none">
+                            {typeof targetPrice === 'number' ? `$${targetPrice.toFixed(2)}` : 'N/A'}
+                        </p>
                     </div>
                 </div>
             </div>

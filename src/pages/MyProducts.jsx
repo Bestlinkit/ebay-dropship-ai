@@ -179,7 +179,12 @@ const MyProducts = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-5">
-                                    <span className="text-xs font-black text-slate-950">${p.price.toFixed(2)}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">Price</span>
+                                        <span className="text-xs font-black text-slate-950">
+                                            {typeof p.price === 'number' ? `$${p.price.toFixed(2)}` : 'N/A'}
+                                        </span>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-5">
                                     <div className="flex items-center gap-3 text-slate-400">

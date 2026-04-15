@@ -53,9 +53,9 @@ const ProductImportPreview = () => {
         const margin = targetPrice > 0 ? (profit / targetPrice) * 100 : 0;
 
         return {
-            profit: profit.toFixed(2),
-            margin: Math.round(margin),
-            cost: cost.toFixed(2)
+            profit: typeof profit === 'number' ? profit.toFixed(2) : '0.00',
+            margin: typeof margin === 'number' ? Math.round(margin) : 0,
+            cost: typeof cost === 'number' ? cost.toFixed(2) : '0.00'
         };
     }, [selectedVariant, product]);
 
@@ -184,7 +184,9 @@ const ProductImportPreview = () => {
                         <div className="flex items-center gap-6">
                             <div className="flex flex-col">
                                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.3em]">Market Target</span>
-                                <span className="text-3xl font-black text-white italic tracking-tighter">${(product.pricing?.basePrice || 0).toFixed(2)}</span>
+                                <span className="text-3xl font-black text-white italic tracking-tighter">
+                                    {typeof (product.pricing?.basePrice || 0) === 'number' ? `$${(product.pricing?.basePrice || 0).toFixed(2)}` : '$0.00'}
+                                </span>
                             </div>
                             <div className="h-10 w-px bg-slate-800" />
                             <div className="flex flex-col">
@@ -207,11 +209,15 @@ const ProductImportPreview = () => {
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[11px]">
                                     <span className="text-slate-500">Selected Variant Cost</span>
-                                    <span className="text-white font-black">${(selectedVariant.price || 0).toFixed(2)}</span>
+                                    <span className="text-white font-black">
+                                        {typeof selectedVariant.price === 'number' ? `$${selectedVariant.price.toFixed(2)}` : 'N/A'}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
                                     <span className="text-slate-500">Shipping Mode Cost</span>
-                                    <span className="text-white font-black">${(product.shipping?.cost || 0).toFixed(2)}</span>
+                                    <span className="text-white font-black">
+                                        {typeof product.shipping?.cost === 'number' ? `$${product.shipping.cost.toFixed(2)}` : 'FREE'}
+                                    </span>
                                 </div>
                                 <div className="h-px bg-slate-800 my-2" />
                                 <div className="flex justify-between text-[11px]">

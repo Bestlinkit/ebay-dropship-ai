@@ -110,10 +110,12 @@ const IntelligenceReview = () => {
             <div className="space-y-8 px-6">
                <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-[1.1] italic tracking-tight uppercase drop-shadow-sm">{product.title}</h2>
                <div className="flex flex-col sm:flex-row sm:items-center gap-10">
-                  <div className="flex flex-col gap-2">
-                     <span className="text-[12px] font-black text-slate-500 uppercase tracking-widest leading-none">Marketplace Valuation</span>
-                     <span className="text-5xl font-black text-slate-950 italic tracking-tighter leading-none">${product.price.toFixed(2)}</span>
-                  </div>
+                  <div className="flex flex-col">
+                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Optimal Placement</span>
+                     <span className="text-5xl font-black text-slate-950 italic tracking-tighter leading-none">
+                        {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'N/A'}
+                     </span>
+                 </div>
                   <div className="hidden sm:block h-16 w-px bg-slate-200" />
                   <a 
                     href={product.itemWebUrl || `https://www.ebay.com/itm/${product.id}`} 

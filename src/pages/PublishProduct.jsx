@@ -162,7 +162,9 @@ const PublishProduct = () => {
                     <div className="pt-4 border-t border-white/10 flex justify-between items-end">
                        <div>
                           <p className="text-slate-400 text-[10px] font-bold uppercase">Net Profit</p>
-                          <p className="text-3xl font-black text-emerald-400">${(product.price - product.cost - 3.00).toFixed(2)}</p>
+                          <p className="text-3xl font-black text-emerald-400">
+                              {typeof product.price === 'number' ? `$${(product.price - product.cost - 3.00).toFixed(2)}` : 'N/A'}
+                          </p>
                        </div>
                        <div className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-1 rounded">
                           ROI: +154%

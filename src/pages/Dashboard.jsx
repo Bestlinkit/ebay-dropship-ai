@@ -237,7 +237,9 @@ const Dashboard = () => {
                                <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" /> High Integrity
                             </p>
                         </div>
-                        <span className="text-md font-black text-white italic tracking-tighter">${order.amount}</span>
+                        <span className="text-md font-black text-white italic tracking-tighter">
+                          {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : 'N/A'}
+                        </span>
                     </div>
                 )) : (
                    <div className="flex flex-col items-center justify-center h-full gap-4 opacity-20">
@@ -283,7 +285,9 @@ const Dashboard = () => {
                                 </div>
                             </td>
                             <td className="px-10 py-6">
-                                <span className="text-lg font-black text-white italic tracking-tighter leading-none">${order.amount.toFixed(2)}</span>
+                                <span className="text-lg font-black text-white italic tracking-tighter leading-none">
+                                  {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : 'N/A'}
+                                </span>
                             </td>
                             <td className="px-10 py-6">
                                 <div className="flex items-center gap-3">
