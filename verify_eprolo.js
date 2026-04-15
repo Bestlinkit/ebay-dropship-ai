@@ -25,7 +25,7 @@ function md5(string) {
 }
 
 async function verify() {
-    console.log("--- Eprolo API Diagnostics ---");
+    console.log("--- Eprolo API Diagnostics (MD5) ---");
     console.log(`API Key: ${apiKey ? 'PRESENT' : 'MISSING'}`);
     console.log(`API Secret: ${apiSecret ? 'PRESENT' : 'MISSING'}`);
 
