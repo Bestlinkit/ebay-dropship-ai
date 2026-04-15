@@ -56,6 +56,9 @@ const SupplierSourcing = () => {
 
     const [fullInquiryResult, setFullInquiryResult] = useState(null);
 
+    // 💡 INITIALIZATION ROOT: Ensure variables are declared before hook usage
+    const targetPrice = targetProduct?.price || 0;
+
     // 1. ENGINE: Eprolo API Only (Enhanced Resilience)
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct) return;
@@ -94,7 +97,7 @@ const SupplierSourcing = () => {
                 
                 const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
                 // PER-ITEM ROI CALCULATION
-                const roiRange = sourcingService.calculateSupplierROIRange(targetPrice || targetProduct.price, res.price + (res.shipping || 0));
+                const roiRange = sourcingService.calculateSupplierROIRange(targetPrice, res.price + (res.shipping || 0));
                 const trust = sourcingService.evaluateSupplierTrust(res);
                 
                 const hasVariantWarning = !targetProduct.title.toLowerCase().split(' ').every(w => 
@@ -106,7 +109,6 @@ const SupplierSourcing = () => {
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
 
-    const targetPrice = targetProduct?.price || 0;
     const bestOption = useMemo(() => sourcingService.identifyBestOption(processedResults), [processedResults]);
 
     const handleContinue = (supplierProduct) => {
