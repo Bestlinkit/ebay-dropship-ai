@@ -290,20 +290,26 @@ const SupplierSourcing = () => {
                             <AlertTriangle size={40} />
                         </div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Eprolo API Error</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-xs font-mono bg-black/40 p-4 rounded-xl">
-                                {JSON.stringify(fullInquiryResult.debugInfo, null, 2)}
-                            </p>
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Bridge Integrity Fault</h3>
+                            <div className="text-left space-y-2">
+                                <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest px-4">Diagnostic Context:</p>
+                                <pre className="text-slate-500 max-w-xl mx-auto text-[10px] font-mono bg-black/40 p-6 rounded-3xl border border-white/5 overflow-auto max-h-40 scrollbar-hide">
+                                    {JSON.stringify(fullInquiryResult.debugInfo, null, 2)}
+                                </pre>
+                            </div>
                         </div>
-                        <button 
-                            onClick={() => performSourcing()}
-                            className="px-8 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
-                        >
-                            Retry Inquiry
-                        </button>
+                        <div className="flex flex-col items-center gap-4">
+                             <button 
+                                onClick={() => performSourcing()}
+                                className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl"
+                             >
+                                Re-sync Discovery Pipe
+                             </button>
+                             <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Protocol Alpha v6.3 Active</p>
+                        </div>
                     </div>
-                ) : (
-                    /* 🎯 GUIDED UI */
+                ) : fullInquiryResult?.status === 'EMPTY' ? (
+                /* 🎯 GUIDED UI */
                     <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10 animate-in slide-in-from-bottom-10 fade-in duration-1000">
                         <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
                             <ShieldAlert size={40} />

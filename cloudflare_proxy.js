@@ -96,7 +96,7 @@ export default {
 
         // 0. ROUTE: /health
         if (pathname === "/health") {
-            return new Response(JSON.stringify({ status: "online", version: "6.1-SHIELD" }), {
+            return new Response(JSON.stringify({ status: "online", version: "6.3-SHIELD" }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" }
             });
         }
@@ -114,10 +114,12 @@ export default {
                     throw new Error("EPROLO_APP_KEY or EPROLO_SECRET missing in Worker environment.");
                 }
 
-                const timestamp = Math.floor(Date.now() / 1000);
+                // 🛡️ HIGH-FIDELITY AUTH (v6.3): Switching to Milliseconds as per test scripts
+                const timestamp = Date.now();
                 const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
                 
-                // 🛡️ HEADER-ONLY AUTH (Strict Correction v6.3)
+                // 🛡️ DUAL-PRESENCE AUTH (Strict Correction v6.3)
+                // Sending in headers AND body to eliminate "apiKey cannot be null" gateway drops
                 const headers = { 
                     "Content-Type": "application/json",
                     "apiKey": EPROLO_APP_KEY,
@@ -125,9 +127,14 @@ export default {
                 };
 
                 // 🔥 MANDATORY DEBUG LOG
-                console.log("EPROLO_REQUEST_HEADERS", headers);
+                console.log("EPROLO_AUTH_TRACE", { 
+                    keyLength: EPROLO_APP_KEY?.length, 
+                    tsType: typeof timestamp,
+                    tsValue: timestamp 
+                });
 
                 const eproloPayload = {
+                    apiKey: EPROLO_APP_KEY, // 👈 KEY ADDED TO BODY
                     timestamp: timestamp,
                     sign: signMD5,
                     keyword: keyword || "",
@@ -143,7 +150,7 @@ export default {
 
                 const result = await response.json();
                 
-                // 🛑 STRUCTURED HARD FAIL (IRON SHIELD v6.1)
+                // 🛑 STRUCTURED HARD FAIL (IRON SHIELD v6.1 / v6.3)
                 if (
                     result?.msg?.toLowerCase().includes("apikey") || 
                     result?.code === "-1" || 
@@ -153,6 +160,7 @@ export default {
                         status: "AUTH_FAILURE",
                         source: "EPROLO",
                         message: result.msg || "Eprolo Authentication Rejected",
+                        protocol: "v6.3-TriplePoint",
                         raw: result
                     }), { 
                         status: 401, 
@@ -192,20 +200,29 @@ export default {
                 });
 
                 const html = await response.text();
-                console.info(`[DEBUG] Ali HTML Length: ${html.length}`);
-                console.log(`[DEBUG] Ali HTML Preview: ${html.substring(0, 500)}`);
-
-                // BLOCKING DETECTION
+                
+                // 🛑 BLOCKING DETECTION (v6.3)
                 if (!html || html.length < 1000) {
-                    console.error("AliExpress Trace: Blocking detected (Length < 1000)");
-                    throw new Error("AliExpress sourcing currently blocked by network.");
+                    return new Response(JSON.stringify({
+                        status: "BLOCKED",
+                        source: "ALIEXPRESS",
+                        message: "AliExpress anti-bot triggered (HTML length check failure)",
+                        length: html?.length || 0
+                    }), { 
+                        status: 403, 
+                        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+                    });
                 }
 
                 return new Response(html, {
                     headers: { ...corsHeaders, "Content-Type": "text/html" }
                 });
             } catch (err) { 
-                return new Response(JSON.stringify({ error: err.message, msg: err.message }), { status: 500, headers: corsHeaders }); 
+                return new Response(JSON.stringify({ 
+                    status: "BRIDGE_ERROR",
+                    error: err.message, 
+                    msg: err.message 
+                }), { status: 500, headers: corsHeaders }); 
             }
         }
 
