@@ -1,9 +1,9 @@
 import { SourcingStatus } from '../constants/sourcing';
 
 /**
- * Probabilistic AliExpress Reconstruction Engine (v3.0 FINAL)
- * Resilient, high-integrity product data reconstruction with safe partial 
- * acceptance, multi-factor deduplication, and quality filtering.
+ * AliExpress Stability Fix (v1 STABLE)
+ * Simple, resilient extraction engine that prioritizes recovery over filtering.
+ * Never silently rejects results based on "quality" or "confidence."
  */
 class AliExpressService {
   constructor() {
@@ -18,10 +18,8 @@ class AliExpressService {
         endpoint: `${this.proxyUrl}/aliexpress-search?q=${encodeURIComponent(query)}`,
         timestamp: new Date().toISOString(),
         query,
-        extractionMethodUsed: "SEMANTIC_RECONSTRUCTION", // Default fallback
+        extractionMethodUsed: "STABLE_RECONSTRUCTION",
         parsedCount: 0,
-        jsonCandidatesFound: 0,
-        reconstructionConfidenceScore: 0,
         logs: []
     };
 
@@ -37,7 +35,7 @@ class AliExpressService {
 
         // 1. BLOCK DETECTION
         const blockPatterns = ["captcha", "security verification", "robot check", "verify your identity"];
-        if (blockPatterns.some(p => html.toLowerCase().includes(p)) || (html.length < 5000 && !html.includes("window."))) {
+        if (blockPatterns.some(p => html.toLowerCase().includes(p))) {
             return { 
                 status: SourcingStatus.BLOCKED, 
                 data: [], 
@@ -45,74 +43,57 @@ class AliExpressService {
             };
         }
 
-        let allProducts = [];
+        let allExtractedData = [];
 
-        // --- LAYER 1: PROBABILISTIC JSON DISCOVERY ---
-        debugInfo.logs.push("LAYER 1: Probabilistic JSON Search...");
+        // --- STEP 1: EXTRACT EVERYTHING ---
+        
+        // A. JSON Discovery
         const jsonCandidates = this.discoverJSONBlocks(html);
-        debugInfo.jsonCandidatesFound = jsonCandidates.length;
-
         if (jsonCandidates.length > 0) {
-            const bestCandidate = jsonCandidates
-                .map(c => ({ ...c, score: this.scoreJSONBlock(c.data) }))
-                .sort((a, b) => b.score - a.score)[0];
-
-            debugInfo.reconstructionConfidenceScore = bestCandidate.score;
-            const items = this.deepExtractItems(bestCandidate.data);
-            const reconstructed = this.mapAliItems(items);
-            if (reconstructed.length > 0) {
-                debugInfo.extractionMethodUsed = "PROBABILISTIC_JSON";
-                allProducts = [...reconstructed];
-            }
+            debugInfo.logs.push("JSON_SIGNAL_FOUND");
+            jsonCandidates.forEach(candidate => {
+                const items = this.deepExtractItems(candidate.data);
+                if (items.length > 0) {
+                    allExtractedData = [...allExtractedData, ...items];
+                }
+            });
         }
 
-        // --- LAYER 2: SCRIPT INTELLIGENCE MINING ---
-        if (allProducts.length === 0) {
-            debugInfo.logs.push("LAYER 2: Script Mining...");
-            const scriptResults = this.mineScripts(html);
-            if (scriptResults.length > 0) {
-                debugInfo.extractionMethodUsed = "SCRIPT_INTELLIGENCE";
-                allProducts = [...scriptResults];
-            }
+        // B. Script Mining
+        const scriptItems = this.mineScripts(html);
+        if (scriptItems.length > 0) {
+            allExtractedData = [...allExtractedData, ...scriptItems];
         }
 
-        // --- LAYER 3: SEMANTIC PATTERN EXTRACTION ---
-        if (allProducts.length === 0) {
-            debugInfo.logs.push("LAYER 3: Semantic Pattern Extraction...");
-            const semanticResults = this.semanticExtract(html);
-            if (semanticResults.length > 0) {
-                debugInfo.extractionMethodUsed = "SEMANTIC_RECONSTRUCTION";
-                allProducts = [...semanticResults];
-            }
+        // C. DOM Fallback
+        const domItems = this.domExtract(html);
+        if (domItems.length > 0) {
+            allExtractedData = [...allExtractedData, ...domItems];
         }
 
-        // --- LAYER 4: DOM FALLBACK ---
-        if (allProducts.length === 0) {
-            debugInfo.logs.push("LAYER 4: DOM Fallback...");
-            const domResults = this.domExtract(html);
-            if (domResults.length > 0) {
-                debugInfo.extractionMethodUsed = "DOM_FALLBACK";
-                allProducts = [...domResults];
-            }
+        // D. Semantic
+        const semanticItems = this.semanticExtract(html);
+        if (semanticItems.length > 0) {
+            allExtractedData = [...allExtractedData, ...semanticItems];
         }
 
-        // --- DEDUPLICATION, SCORING & FINALIZATION ---
-        const finalResults = this.dedupe(allProducts)
-            .map(p => ({ ...p, score: this.scoreProductCompleteness(p) }))
-            .sort((a, b) => b.score - a.score);
-
+        // --- STEP 2: MAP LOOSELY (NO REJECTION) ---
+        const mappedResults = this.stableMap(allExtractedData);
+        
+        // --- STEP 3: DEDUPE & FINALIZE ---
+        const finalResults = this.simpleDedupe(mappedResults);
         debugInfo.parsedCount = finalResults.length;
 
-        // --- STATUS DETERMINATION ---
-        const keywords = ["price", "sku", "product", "item"];
-        const hasSignals = keywords.some(k => html.toLowerCase().includes(k));
-
         if (finalResults.length > 0) {
+            debugInfo.logs.push(`PRODUCT_MAPPED: ${finalResults.length}`);
             return { status: SourcingStatus.SUCCESS, data: finalResults, debugInfo };
         }
 
+        // --- TRUTH ENFORCEMENT ---
+        const keywords = ["price", "sku", "product", "item"];
+        const hasSignals = keywords.some(k => html.toLowerCase().includes(k));
+
         if (hasSignals) {
-            debugInfo.logs.push("Signals found but zero products passed quality/acceptance filters.");
             return { status: SourcingStatus.PARSE_ERROR, data: [], debugInfo };
         }
 
@@ -128,85 +109,54 @@ class AliExpressService {
   }
 
   /**
-   * Refined Acceptance & Safe Mapping
+   * Refined Stable Mapping: recovery over perfection.
    */
-  mapAliItems(items) {
+  stableMap(items) {
     if (!Array.isArray(items)) return [];
     
     return items.map(item => {
+        // If it's already mapped (from semantic/dom), keep it
+        if (item.source === 'AliExpress' && item.title) return item;
+
         const title = item.title?.displayTitle || item.product_title || item.title || item.productTitle || null;
         const price = parseFloat(item.prices?.salePrice?.minPrice || item.product_price || item.minPrice || item.price?.salePrice?.value || item.price) || null;
         const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;
 
-        // Refined Acceptance Rule: (title AND (price OR image) AND titleQualityValid) OR (image AND price)
-        const titleValid = title && this.isTitleQualityValid(title);
-        const accepted = (titleValid && (price || image)) || (image && price);
-
-        if (!accepted) return null;
+        // SIMPLE RULE: (title OR price OR image) must have something, but title is prioritized for display
+        if (!title && !price && !image) return null;
 
         return {
             id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
-            title: title || "Untitled Product",
-            price: price, // null is acceptable for safe partial reconstruction
-            image: image, // null is acceptable
-            rating: parseFloat(item.evaluation?.starRating || item.starRating) || 4.5,
+            title: title || "AliExpress Listing",
+            price: price, 
+            image: image,
+            rating: 4.5,
             source: 'AliExpress',
             url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#')
         };
     }).filter(Boolean);
   }
 
-  /**
-   * Multi-Factor Deduplication
-   */
-  dedupe(products) {
-    const seen = new Set();
+  simpleDedupe(products) {
+    const seenIds = new Set();
+    const seenTitles = new Set();
     const result = [];
 
     for (const p of products) {
-        const normTitle = this.normalizeTitle(p.title);
-        const normImage = (p.image || "").split('?')[0].replace(/_\d+x\d+\..+$/, '');
-        
-        // Dedupe key: Normalized Title (60 chars) OR Normalized Image URL
-        const titleKey = `t:${normTitle}`;
-        const imageKey = normImage ? `i:${normImage}` : null;
+        const idKey = String(p.id);
+        const titleKey = (p.title || "").toLowerCase().trim();
 
-        const isDuplicate = seen.has(titleKey) || (imageKey && seen.has(imageKey));
-
-        // Also check for price proximity (±5%) among similar titles if needed, 
-        // but title + image keys usually catch 99% of AliExpress dupes.
-        if (!isDuplicate) {
-            seen.add(titleKey);
-            if (imageKey) seen.add(imageKey);
+        if (!seenIds.has(idKey) && !seenTitles.has(titleKey)) {
+            seenIds.add(idKey);
+            seenTitles.add(titleKey);
             result.push(p);
         }
     }
     return result;
   }
 
-  normalizeTitle(title) {
-    if (!title) return "";
-    return title.toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .trim()
-        .substring(0, 60);
-  }
-
-  isTitleQualityValid(title) {
-    if (!title || title.length < 5) return false;
-    const genericTerms = ["aliexpress", "item", "product", "shipping", "free", "cheap", "good", "quality"];
-    const words = title.toLowerCase().split(/\s+/).filter(w => !genericTerms.includes(w) && w.length > 2);
-    return words.length >= 1; // Must have at least one non-generic word > 2 chars
-  }
-
-  scoreProductCompleteness(p) {
-    return (p.title && p.title !== "Untitled Product" ? 2 : 0) +
-           (p.price ? 2 : 0) +
-           (p.image ? 1 : 0);
-  }
-
   /**
-   * Layer 1 Helper: Discover JSON blocks
+   * Discovers all large JSON-like blocks within the HTML
    */
   discoverJSONBlocks(html) {
     const candidates = [];
@@ -235,22 +185,6 @@ class AliExpressService {
     return candidates;
   }
 
-  scoreJSONBlock(data) {
-    let score = 0;
-    const stringData = JSON.stringify(data).toLowerCase();
-    const signals = [
-        { key: "productid", weight: 5 }, { key: "product_id", weight: 5 },
-        { key: "itemid", weight: 5 }, { key: "saleprice", weight: 10 },
-        { key: "producttitle", weight: 10 }, { key: "resultlist", weight: 15 }
-    ];
-    signals.forEach(s => { if (stringData.includes(s.key)) score += s.weight; });
-    if (Array.isArray(data)) score += 5;
-    return score;
-  }
-
-  /**
-   * Layer 2 Helper: Mine Script clusters
-   */
   mineScripts(html) {
     const rawItems = [];
     const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gm;
@@ -259,20 +193,17 @@ class AliExpressService {
         const clusters = match[1].match(/{[^{}]{10,1000}}/g);
         if (clusters) {
             clusters.forEach(cluster => {
-                if (cluster.includes("price") && (cluster.includes("title") || cluster.includes("image"))) {
+                if (cluster.includes("price") || cluster.includes("title") || cluster.includes("image")) {
                     try { rawItems.push(JSON.parse(cluster)); } catch (e) {}
                 }
             });
         }
     }
-    return this.mapAliItems(rawItems);
+    return rawItems;
   }
 
-  /**
-   * Layer 3 Helper: Semantic Extraction
-   */
   semanticExtract(html) {
-    const rawItems = [];
+    const products = [];
     const priceRegex = /(?:US\s+)?\$\s*(\d+\.\d{2})/g;
     const imgRegex = /https:\/\/[^"'\s]+\.(?:jpg|png|webp|jpeg)/g;
     const prices = [...html.matchAll(priceRegex)];
@@ -283,51 +214,59 @@ class AliExpressService {
         const nearbyImg = images.find(iMatch => Math.abs(iMatch.index - pIdx) < 800);
         if (nearbyImg) {
             const contextText = html.substring(pIdx - 150, pIdx + 150).replace(/<[^>]*>/g, ' ').trim();
-            rawItems.push({
-                product_title: contextText.split(' ').slice(0, 8).join(' '),
-                price: pMatch[1],
-                image: nearbyImg[0]
+            products.push({
+                title: contextText.split(' ').slice(0, 8).join(' '),
+                price: parseFloat(pMatch[1]),
+                image: nearbyImg[0],
+                source: 'AliExpress'
             });
         }
     });
-    return this.mapAliItems(rawItems);
+    return products;
   }
 
-  /**
-   * Layer 4 Helper: DOM
-   */
   domExtract(html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
-    const itemNodes = [...doc.querySelectorAll('[data-item-id], [data-sku-id]')];
-    const rawItems = itemNodes.map(el => ({
-        product_id: el.getAttribute('data-item-id') || el.getAttribute('data-sku-id'),
-        product_title: el.querySelector('[class*="title"], h3, h1')?.textContent?.trim(),
-        price: el.textContent.match(/\$\s*(\d+\.\d{2})/)?.[1],
-        image: el.querySelector('img')?.src || el.querySelector('img')?.getAttribute('data-src') || null,
-        productDetailUrl: el.querySelector('a')?.href
-    }));
-    return this.mapAliItems(rawItems);
+    const itemNodes = [...doc.querySelectorAll('[data-item-id], [data-sku-id], div[class*="item"], div[class*="product"]')];
+    return itemNodes.map(el => {
+        const title = el.querySelector('[class*="title"], h3, h1')?.textContent?.trim();
+        const price = el.textContent.match(/\$\s*(\d+\.\d{2})/)?.[1];
+        const image = el.querySelector('img')?.src || el.querySelector('img')?.getAttribute('data-src') || null;
+        
+        if (!title && !price && !image) return null;
+
+        return {
+            id: el.getAttribute('data-item-id') || el.getAttribute('data-sku-id') || Math.random().toString(36).substr(2, 9),
+            title: title || "AliExpress Listing",
+            price: parseFloat(price) || null,
+            image: image,
+            source: 'AliExpress',
+            url: el.querySelector('a')?.href || '#'
+        };
+    }).filter(Boolean);
   }
 
   deepExtractItems(data) {
     if (!data) return [];
+    const results = [];
     const findItems = (obj) => {
         if (Array.isArray(obj)) {
-            if (obj.some(o => o && (o.productId || o.product_id || o.productTitle || o.title))) return obj;
+            if (obj.some(o => o && (o.productId || o.product_id || o.productTitle || o.title))) {
+                results.push(...obj);
+                return;
+            }
             for (const item of obj) {
-                const res = findItems(item); 
-                if (res) return res;
+                findItems(item);
             }
         } else if (typeof obj === 'object' && obj !== null) {
             for (const key in obj) {
-                const res = findItems(obj[key]);
-                if (res) return res;
+                findItems(obj[key]);
             }
         }
-        return null;
     };
-    return findItems(data) || [];
+    findItems(data);
+    return results;
   }
 }
 
