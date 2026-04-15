@@ -55,7 +55,9 @@ const VideoLab = () => {
                     price: p.price
                 }));
                 setInventory(mapped);
-                setSelectedProduct(mapped[0]);
+                if (mapped?.[0]) {
+                  setSelectedProduct(mapped[0]);
+                }
             }
         } catch (error) {
             console.error("Video Lab Inventory Sync Fail:", error);

@@ -12,6 +12,37 @@ class SourcingService {
       categoryFit: 0.15,   // Category Norms
       momentum: 0.10       // Real-time Momentum (Estimated)
     };
+    
+    // STRICT SCHEMA REGISTRY
+    this.ProductSource = {
+      EBAY: 'ebay',
+      EPROLO: 'eprolo',
+      ALIEXPRESS: 'aliexpress'
+    };
+  }
+
+  /**
+   * Deterministic Data Normalization (ProductSchema Enforcement)
+   * Ensures every product node entering the UI is valid and typed.
+   */
+  normalize(raw, source = 'aliexpress') {
+    if (!raw) return null;
+    
+    return {
+      id: raw.id || raw.itemId || `node_${Math.random().toString(36).slice(2, 9)}`,
+      title: raw.title || 'Untitled Product',
+      price: Number(raw.price ?? 0),
+      // Safe Image Chain
+      images: Array.isArray(raw.images) ? raw.images : [raw.image || raw.thumbnail || raw.image_url].filter(Boolean),
+      image: raw.image || raw.images?.[0] || raw.thumbnail || raw.image_url || "/placeholder-product.png",
+      shipping: Number(raw.shipping ?? 0),
+      delivery: raw.delivery || '15-25 days',
+      rating: Number(raw.rating ?? 0),
+      reviews: Number(raw.reviews ?? 0),
+      shipsFrom: raw.shipsFrom || 'CN',
+      source: source,
+      url: raw.url || raw.itemWebUrl || ""
+    };
   }
 
   /**
@@ -146,23 +177,27 @@ class SourcingService {
   }
 
   /**
-   * Calculates realistic ROI ranges for business planning.
+   * Calculates deterministic ROI for a single product comparison.
+   * Formula: ROI = ((ebayPrice - totalSupplierCost) / totalSupplierCost) * 100
    */
+  calculateROI(ebayPrice, supplierCost, shipping = 0) {
+    const totalCost = Number(supplierCost) + Number(shipping);
+    const targetPrice = Number(ebayPrice);
+
+    if (!totalCost || totalCost <= 0 || !targetPrice) return 0;
+
+    const profit = targetPrice - totalCost;
+    return Math.round((profit / totalCost) * 100);
+  }
+
   calculateSupplierROIRange(ebayPrice, supplierCost) {
     const totalCost = Number(supplierCost);
     if (!totalCost || totalCost <= 0) return { conservative: 0, expected: 0 };
 
-    // Expected: Current eBay baseline
-    const expectedProfit = (ebayPrice - totalCost) / totalCost;
-    
-    // Conservative: Under-cut market by 10%
-    const conservativePrice = ebayPrice * 0.90;
-    const conservativeProfit = (conservativePrice - totalCost) / totalCost;
+    const expected = this.calculateROI(ebayPrice, supplierCost);
+    const conservative = this.calculateROI(ebayPrice * 0.90, supplierCost);
 
-    return {
-      conservative: Math.round(conservativeProfit * 100),
-      expected: Math.round(expectedProfit * 100)
-    };
+    return { conservative, expected };
   }
 
   /**

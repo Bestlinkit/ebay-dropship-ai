@@ -78,19 +78,25 @@ const SupplierSourcing = () => {
         } finally {
             setLoading(false);
         }
-    }, [targetProduct, searchQuery]);
+    }, [targetProduct?.id, searchQuery]);
 
-    useEffect(() => { performSourcing(); }, []);
+    // FIX: Dependency on targetProduct.id ensures refresh when search context changes
+    useEffect(() => { performSourcing(); }, [targetProduct?.id]);
 
-    // 2. INTELLIGENCE LAYER
+    // 2. INTELLIGENCE LAYER: ROI CALCULATED PER-ITEM (DETERMINISTIC)
     const processedResults = useMemo(() => {
         if (!targetProduct || rawResults.length === 0) return [];
         
         return rawResults
-            .map(res => {
+            .map(raw => {
+                // FORCE NORMALIZATION BEFORE RENDERING
+                const res = sourcingService.normalize(raw, 'eprolo');
+                
                 const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
+                // PER-ITEM ROI CALCULATION
                 const roiRange = sourcingService.calculateSupplierROIRange(targetPrice || targetProduct.price, res.price + (res.shipping || 0));
                 const trust = sourcingService.evaluateSupplierTrust(res);
+                
                 const hasVariantWarning = !targetProduct.title.toLowerCase().split(' ').every(w => 
                     w.length < 4 || res.title.toLowerCase().includes(w)
                 );
@@ -98,7 +104,7 @@ const SupplierSourcing = () => {
             })
             .filter(res => res.relevance >= 35) 
             .sort((a, b) => b.relevance - a.relevance);
-    }, [rawResults, targetProduct]);
+    }, [rawResults, targetProduct, targetPrice]);
 
     const targetPrice = targetProduct?.price || 0;
     const bestOption = useMemo(() => sourcingService.identifyBestOption(processedResults), [processedResults]);

@@ -41,7 +41,7 @@ const ProductImportPreview = () => {
         );
     }
 
-    const [selectedVariant, setSelectedVariant] = useState(product.variants[0] || {});
+    const [selectedVariant, setSelectedVariant] = useState(product?.variants?.[0] || {});
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
     // 💰 REAL-TIME ROI RECALCULATION

@@ -92,8 +92,9 @@ const Dashboard = () => {
                 ebayTrading.getOrders(token)
             ]);
             setSellerName(name);
+            const revenueCalc = Array.isArray(orders) ? orders.reduce((sum, order) => sum + (Number(order.amount) || 0), 0) : summary.revenue;
             setStats({
-                revenue: orders.reduce((sum, order) => sum + order.amount, 0) || summary.revenue,
+                revenue: revenueCalc,
                 activeListings: summary.activeListings,
                 syncStatus: 100,
                 efficiency: name ? 98 : 0,
@@ -238,7 +239,7 @@ const Dashboard = () => {
                             </p>
                         </div>
                         <span className="text-md font-black text-white italic tracking-tighter">
-                          {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : 'N/A'}
+                          {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : (order.amount ? `$${Number(order.amount).toFixed(2)}` : 'N/A')}
                         </span>
                     </div>
                 )) : (
@@ -286,7 +287,7 @@ const Dashboard = () => {
                             </td>
                             <td className="px-10 py-6">
                                 <span className="text-lg font-black text-white italic tracking-tighter leading-none">
-                                  {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : 'N/A'}
+                                  {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : (order.amount ? `$${Number(order.amount).toFixed(2)}` : 'N/A')}
                                 </span>
                             </td>
                             <td className="px-10 py-6">

@@ -42,6 +42,8 @@ const AliSourcing = () => {
     const [debugInfo, setDebugInfo] = useState(null);
     const [showDebug, setShowDebug] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 10;
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct) return;
@@ -50,6 +52,7 @@ const AliSourcing = () => {
         setUiState(SourcingUIState.ALIEXPRESS_SEARCHING);
         setDebugInfo(null);
         setMatches([]);
+        setPage(1);
 
         try {
             const result = await aliexpressService.searchProducts(query);
@@ -77,14 +80,24 @@ const AliSourcing = () => {
         if (!targetProduct || matches.length === 0) return [];
         
         return matches
-            .map(res => {
+            .map(raw => {
+                // FORCE NORMALIZATION
+                const res = sourcingService.normalize(raw, 'aliexpress');
+                
                 const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
+                // PER-ITEM ROI CALCULATION (Deterministic)
                 const roiRange = sourcingService.calculateSupplierROIRange(targetProduct.price, res.price + (res.shipping || 0));
                 const trust = sourcingService.evaluateSupplierTrust(res);
                 return { ...res, relevance, roiRange, trust };
             })
             .sort((a, b) => b.relevance - a.relevance);
     }, [matches, targetProduct]);
+
+    const paginatedResults = useMemo(() => {
+        return processedResults.slice(0, page * PAGE_SIZE);
+    }, [processedResults, page]);
+
+    const hasMore = paginatedResults.length < processedResults.length;
 
     const handleSearchSubmit = (e) => {
         e.preventDefault();
@@ -225,7 +238,7 @@ const AliSourcing = () => {
                     </div>
                 ) : processedResults.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6">
-                        {processedResults.map(res => (
+                        {paginatedResults.map(res => (
                             <SupplierResultRow 
                                 key={res.id} 
                                 product={res} 
@@ -234,6 +247,17 @@ const AliSourcing = () => {
                                 onContinue={handleContinue}
                             />
                         ))}
+
+                        {hasMore && (
+                            <div className="flex justify-center pt-10">
+                                <button 
+                                    onClick={() => setPage(p => p + 1)}
+                                    className="px-12 py-5 bg-slate-900 border border-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-3 shadow-xl"
+                                >
+                                    <ChevronDown size={14} /> Load More Results
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : uiState === SourcingUIState.ALIEXPRESS_EMPTY ? (
                     <div className="py-20 text-center space-y-6">
