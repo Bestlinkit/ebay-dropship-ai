@@ -25,27 +25,58 @@ import { cn } from '../lib/utils';
  */
 const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
   const [loading, setLoading] = useState(false);
-  const [source, setSource] = useState('eprolo'); // 'eprolo' or 'aliexpress'
+  const [source, setSource] = useState('eprolo'); 
   const [matches, setMatches] = useState([]);
+  const [state, setState] = useState('IDLE'); 
 
   useEffect(() => {
     if (isOpen && ebayProduct) {
-      fetchMatches();
+      performSourcing();
     }
-  }, [isOpen, ebayProduct, source]);
+  }, [isOpen, ebayProduct]);
 
-  const fetchMatches = async () => {
+  const performSourcing = async () => {
     setLoading(true);
+    setMatches([]);
+    
     try {
-      let results = [];
-      if (source === 'eprolo') {
-        results = await eproloService.findMatches(ebayProduct);
-      } else {
-        results = await aliExpressService.searchProducts(ebayProduct.title);
+      // 1. Try Eprolo First
+      setState('SEARCHING_EPROLO');
+      console.log("[Sourcing Waterfall] Attempting Eprolo probe...");
+      const eproloResults = await eproloService.findMatches(ebayProduct);
+      
+      if (eproloResults && eproloResults.length > 0) {
+        setMatches(eproloResults);
+        setSource('eprolo');
+        setState('RESULTS');
+        setLoading(false);
+        return;
       }
-      setMatches(results);
-    } catch (error) {
-      toast.error(`Failed to find ${source} matches.`);
+      
+      throw new Error("No Eprolo results found");
+
+    } catch (e) {
+      // 2. Fallback to AliExpress
+      console.warn("[Sourcing Waterfall] Eprolo failed or empty. Switching to AliExpress fallback...");
+      setState('SWITCHING_TO_FALLBACK');
+      
+      // Artificial delay for UX "Searching alternative sources..." as per patch
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      try {
+        const aliResults = await aliExpressService.searchProducts(ebayProduct.title);
+        
+        if (aliResults && aliResults.length > 0) {
+          setMatches(aliResults);
+          setSource('aliexpress');
+          setState('RESULTS');
+        } else {
+          setState('FINAL_NO_RESULTS');
+        }
+      } catch (err) {
+        console.error("[Sourcing Waterfall] Both sources failed.");
+        setState('FINAL_NO_RESULTS');
+      }
     } finally {
       setLoading(false);
     }
@@ -102,13 +133,21 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4">
               <Loader2 className="animate-spin text-primary" size={40} />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Scanning {source} catalog...</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
+                {state === 'SEARCHING_EPROLO' ? 'Scanning Eprolo catalog...' : 'Searching alternative sources...'}
+              </p>
             </div>
-          ) : matches.length === 0 ? (
+          ) : (state === 'FINAL_NO_RESULTS' || matches.length === 0) ? (
             <div className="text-center py-40 space-y-4">
               <AlertCircle className="mx-auto text-slate-200" size={48} />
               <h3 className="text-lg font-bold text-slate-900">No Matches Identified</h3>
-              <p className="text-sm text-slate-400 font-medium max-w-xs mx-auto">Smart filters couldn't find a direct product match for this SKU.</p>
+              <p className="text-sm text-slate-400 font-medium max-w-xs mx-auto">Smart filters couldn't find a direct product match for this SKU across Eprolo or AliExpress.</p>
+              <button 
+                onClick={performSourcing}
+                className="mt-4 px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-all"
+              >
+                Retry Search
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -1,8 +1,6 @@
-import axios from 'axios';
-
 /**
- * Hardened AliExpress Sourcing Bridge (v1.2)
- * Pro-Level Discovery for Non-Eprolo Items.
+ * Crystal AliExpress Scraper Bridge (v2.0)
+ * Uses route-based HTML extraction and frontend DOM parsing.
  */
 class AliExpressService {
   constructor() {
@@ -10,136 +8,62 @@ class AliExpressService {
   }
 
   /**
-   * Performs a real search via proxy and prioritizes USA shipping.
+   * Scrapes AliExpress products using the secure Worker proxy.
    */
   async searchProducts(query) {
     if (!query) return [];
 
     try {
-        console.info(`[AliExpress Bridge] Dispatching sourcing probe for "${query}"...`);
+        console.info(`[AliExpress Scraper] Initiating wholesale probe for "${query}"...`);
         
-        // We Use the proxy to hit the search URL
-        // In a production environment with a robust proxy, we'd parse the HTML for JSON.
-        // For this hardening, we attempt to hit the unofficial search API if accessible, 
-        // otherwise we fall back to a specific scraping route on the worker.
-        const searchUrl = `https://www.aliexpress.com/globase/search/api.htm?SearchText=${encodeURIComponent(query)}&catId=0`;
-        const proxyUrl = `${this.proxyUrl}?url=${encodeURIComponent(searchUrl)}`;
-        
-        const response = await axios.get(proxyUrl, { timeout: 10000 });
-        
-        // 🔍 DEEP DEBUGGING (Step 2 Patch)
-        console.log("INTERNAL ALI_PROXY_RESPONSE:", response.data);
-        
-        // If we get a response that isn't JSON or seems blocked, we throw.
-        if (!response.data || typeof response.data !== 'object') {
-            throw new Error("Live AliExpress search is currently unavailable. Bridge response invalid.");
+        const response = await fetch(`${this.proxyUrl}/aliexpress-search?q=${encodeURIComponent(query)}`);
+        const html = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        // The selectors below are common for AliExpress wholesale lists.
+        // We look for items in the search results grid.
+        const itemNodes = [...doc.querySelectorAll('.list-item, .search-item-card, [data-index]')];
+
+        if (itemNodes.length === 0) {
+            console.warn("[AliExpress Scraper] No HTML nodes found. IP may be rate-limited.");
+            return [];
         }
 
-        const rawItems = response.data.items || response.data.itemList || response.data.list || [];
-        
-        let processedResults = rawItems.map(item => {
-            // 🧱 ROBUST DATA MAPPING (Step 2 Patch)
-            const title = item.title || item.name || item.subject || "AliExpress Insight Product";
-            const image = item.imageUrl || item.image || item.thumbnail || (item.img && item.img.url) || "";
-            const price = parseFloat(item.price || (item.minPrice && item.minPrice.value) || 0);
+        const results = itemNodes.map(el => {
+            const title = el.querySelector('.title, .item-title, h1, h3')?.textContent?.trim() || "AliExpress Product";
+            const priceText = el.querySelector('.price, .item-price, .current-price')?.textContent?.trim() || "0";
+            const image = el.querySelector('img')?.src || "";
+            const rating = el.querySelector('.rating, .item-rating')?.textContent?.trim() || "4.5";
+            
+            // Clean price text (e.g. "$12.34" -> 12.34)
+            const price = parseFloat(priceText.replace(/[^0-9.]/g, '')) || 0;
 
             return {
-                id: item.productId || item.id,
-                title: title,
-                price: isNaN(price) ? 0 : price,
-                image: image,
-                ordersCount: item.orders || 0,
-                rating: parseFloat(item.rating || 4.5),
-                shipping: parseFloat(item.shippingFee || 0),
-                delivery: item.deliveryTime || '12-15 days',
-                shipsFrom: item.shipsFrom || 'China',
+                id: Math.random().toString(36).substr(2, 9),
+                title,
+                price,
+                image,
+                rating: parseFloat(rating) || 4.5,
+                shipping: 0,
+                delivery: '12-15 days',
+                shipsFrom: 'China', // Default for wholesale scraping
                 source: 'AliExpress',
-                category: item.categoryName || 'General',
-                availabilityScore: 90
+                url: el.querySelector('a')?.href || '#'
             };
-        });
+        }).filter(item => item.price > 0);
 
-        // 🧠 USA-FIRST PRIORITY ENFORCEMENT
-        // Sort by USA shipping and delivery speed
-        processedResults.sort((a, b) => {
-            if (a.shipsFrom === 'USA' && b.shipsFrom !== 'USA') return -1;
-            if (b.shipsFrom === 'USA' && a.shipsFrom !== 'USA') return 1;
-            return 0; // Maintain relevance if both or neither ships from USA
-        });
+        return results;
 
-        if (processedResults.length === 0) {
-            console.warn("[AliExpress] No live matches found in search probe.");
-        }
-
-        return processedResults;
     } catch (e) {
-        console.error("AliExpress Sourcing Bridge Malfunction:", e.message);
-        // CRITICAL: Throw error to ensure UI shows "Live search unavailable" instead of mock data.
-        throw new Error("Live AliExpress search is currently unavailable. Please check API configuration or use Eprolo.");
+        console.error("AliExpress Scraping Malfunction:", e.message);
+        throw new Error("Live AliExpress sourcing is currently unstable. Fallback to Eprolo recommended.");
     }
   }
 
   /**
-   * Extracts full product details including variants and description from AliExpress.
-   */
-  async getProductDetail(productId) {
-    try {
-        const productUrl = `https://www.aliexpress.com/item/${productId}.html`;
-        const proxyUrl = `${this.proxyUrl}?url=${encodeURIComponent(productUrl)}`;
-        
-        const response = await axios.get(proxyUrl, { timeout: 15000 });
-        const html = response.data;
-
-        // Extracting data from window.runParams script tag
-        // Standard AliExpress scraping logic:
-        const dataMatch = html.match(/window\.runParams\s*=\s*(\{.*?\});/);
-        if (!dataMatch) {
-            throw new Error("This supplier product is missing critical data. Please select another option.");
-        }
-
-        const data = JSON.parse(dataMatch[1]);
-        const productData = data.data || data;
-
-        // Validate extraction integrity
-        if (!productData.skuModule || !productData.imageModule || !productData.titleModule) {
-            throw new Error("This supplier product is missing critical data. Please select another option.");
-        }
-
-        const price = productData.priceModule?.minActivityAmount?.value || productData.priceModule?.regularPrice?.value;
-        const variants = productData.skuModule.skuComponentLayoutOrder.map((sku, idx) => ({
-            id: sku.skuId || `v_${idx}`,
-            title: sku.skuVal || 'Standard Variant',
-            sku: sku.skuIdStr || productId,
-            price: parseFloat(price),
-            stock: 999,
-            image: productData.imageModule.imagePathList[0]
-        }));
-
-        return {
-            title: productData.titleModule.subject,
-            description: productData.descriptionModule?.description || "High-quality supplier product.",
-            images: productData.imageModule.imagePathList,
-            variants: variants,
-            pricing: {
-                basePrice: parseFloat(price),
-                currency: 'USD'
-            },
-            shipping: {
-                cost: 0, // Fallback if not easily parsed
-                estimate: '12-15 days',
-                method: 'AliExpress Standard'
-            },
-            sourcePlatform: 'AliExpress',
-            sourceId: productId
-        };
-    } catch (e) {
-        console.error("AliExpress Detail Extraction Error:", e.message);
-        throw new Error("Unable to retrieve full product details. Please try another supplier.");
-    }
-  }
-
-  /**
-   * Calculates profit for AliExpress items (legacy support for SourcingModal)
+   * Calculates profit for AliExpress items.
    */
   calculateProfit(ebayPrice, supplierPrice, shipping) {
     const cost = Number(supplierPrice) + Number(shipping || 0);

@@ -1,130 +1,27 @@
 /**
- * Hardened Eprolo Sourcing Bridge (v2.0)
- * Aligned with official Eprolo Open API specification.
+ * Hardened Eprolo Sourcing Bridge (v3.0)
+ * Offloads signing logic to secure Cloudflare Worker.
  */
 class EproloService {
     constructor() {
-        this.baseUrl = 'https://openapi.eprolo.com';
-        this.apiKey = import.meta.env.VITE_EPROLO_API_KEY;
-        this.apiSecret = import.meta.env.VITE_EPROLO_API_SECRET;
         this.proxyUrl = import.meta.env.VITE_PROXY_URL;
-        
-        this.isConfigured = !!(this.apiKey && !this.apiKey.includes('YOUR_') && this.apiSecret && !this.apiSecret.includes('YOUR_'));
     }
 
     /**
-     * Minimal MD5 Implementation (Self-Contained)
-     * Standard implementation for Eprolo sign generation.
-     */
-    md5(string) {
-        function md5cycle(x, k) {
-            var a = x[0], b = x[1], c = x[2], d = x[3];
-            a = ff(a, b, c, d, k[0], 7, -680876936); d = ff(d, a, b, c, k[1], 12, -389564586);
-            c = ff(c, d, a, b, k[2], 17, 606105819); b = ff(b, c, d, a, k[3], 22, -1044525330);
-            a = ff(a, b, c, d, k[4], 7, -176418897); d = ff(d, a, b, c, k[5], 12, 1200080426);
-            c = ff(c, d, a, b, k[6], 17, -1473231341); b = ff(b, c, d, a, k[7], 22, -45705983);
-            a = ff(a, b, c, d, k[8], 7, 1770035416); d = ff(d, a, b, c, k[9], 12, -1958414417);
-            c = ff(c, d, a, b, k[10], 17, -42063); b = ff(b, c, d, a, k[11], 22, -1990404162);
-            a = ff(a, b, c, d, k[12], 7, 1804603682); d = ff(d, a, b, c, k[13], 12, -40341101);
-            c = ff(c, d, a, b, k[14], 17, -1502002290); b = ff(b, c, d, a, k[15], 22, 1236535329);
-            a = gg(a, b, c, d, k[1], 5, -165796510); d = gg(d, a, b, c, k[6], 9, -1069501632);
-            c = gg(c, d, a, b, k[11], 14, 643717713); b = gg(b, c, d, a, k[0], 20, -373897302);
-            a = gg(a, b, c, d, k[5], 5, -701558691); d = gg(d, a, b, c, k[10], 9, 38016083);
-            c = gg(c, d, a, b, k[15], 14, -660478335); b = gg(b, c, d, a, k[4], 20, -405537848);
-            a = gg(a, b, c, d, k[9], 5, 568446438); d = gg(d, a, b, c, k[14], 9, -1019803690);
-            c = gg(c, d, a, b, k[3], 14, -187363961); b = gg(b, c, d, a, k[8], 20, 1163531501);
-            a = gg(a, b, c, d, k[13], 5, -1444681467); d = gg(d, a, b, c, k[2], 9, -51403784);
-            c = gg(c, d, a, b, k[7], 14, 1735328473); b = gg(b, c, d, a, k[12], 20, -1926607734);
-            a = hh(a, b, c, d, k[5], 4, -378558); d = hh(d, a, b, c, k[8], 11, -2022574463);
-            c = hh(c, d, a, b, k[11], 16, 1839030562); b = hh(b, c, d, a, k[14], 23, -35309556);
-            a = hh(a, b, c, d, k[1], 4, -1530992060); d = hh(d, a, b, c, k[4], 11, 1272893353);
-            c = hh(c, d, a, b, k[7], 16, -155497632); b = hh(b, c, d, a, k[10], 23, -1094730640);
-            a = hh(a, b, c, d, k[13], 4, 681279174); d = hh(d, a, b, c, k[0], 11, -358537222);
-            c = hh(c, d, a, b, k[3], 16, -722521979); b = hh(b, c, d, a, k[6], 23, 76029189);
-            a = hh(a, b, c, d, k[9], 4, -640364487); d = hh(d, a, b, c, k[12], 11, -421815835);
-            c = hh(c, d, a, b, k[15], 16, 530742520); b = hh(b, c, d, a, k[2], 23, -995338651);
-            a = ii(a, b, c, d, k[0], 6, -198630844); d = ii(d, a, b, c, k[7], 10, 1126891415);
-            c = ii(c, d, a, b, k[14], 15, -1416354905); b = ii(b, c, d, a, k[5], 21, -57434055);
-            a = ii(a, b, c, d, k[12], 6, 1700485571); d = ii(d, a, b, c, k[3], 10, -1894986606);
-            c = ii(c, d, a, b, k[10], 15, -1051523); b = ii(b, c, d, a, k[1], 21, -2054922799);
-            a = ii(a, b, c, d, k[8], 6, 1873313359); d = ii(d, a, b, c, k[15], 10, -30611744);
-            c = ii(c, d, a, b, k[6], 15, -1560198380); b = ii(b, c, d, a, k[13], 21, 1309151649);
-            a = ii(a, b, c, d, k[4], 6, -145523070); d = ii(d, a, b, c, k[11], 10, -1120210379);
-            c = ii(c, d, a, b, k[2], 15, 718787280); b = ii(b, c, d, a, k[9], 21, -343485551);
-            x[0] = add32(a, x[0]); x[1] = add32(b, x[1]); x[2] = add32(c, x[2]); x[3] = add32(d, x[3]);
-        }
-        function cmn(q, a, b, x, s, t) { a = add32(add32(a, q), add32(x, t)); return add32((a << s) | (a >>> (32 - s)), b); }
-        function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
-        function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
-        function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
-        function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
-        function md51(s) {
-            var n = s.length, state = [1732584193, -271733879, -1732584194, 271733878], i;
-            for (i = 64; i <= n; i += 64) md5cycle(state, md5blk(s.substring(i - 64, i)));
-            s = s.substring(i - 64);
-            var tail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            for (i = 0; i < s.length; i++) tail[i >> 2] |= s.charCodeAt(i) << ((i % 4) << 3);
-            tail[i >> 2] |= 0x80 << ((i % 4) << 3);
-            if (i > 55) {
-                md5cycle(state, tail);
-                for (i = 0; i < 16; i++) tail[i] = 0;
-            }
-            tail[14] = n * 8;
-            md5cycle(state, tail);
-            return state;
-        }
-        function md5blk(s) {
-            var md5blks = [], i;
-            for (i = 0; i < 64; i += 4) md5blks[i >> 2] = s.charCodeAt(i) + (s.charCodeAt(i + 1) << 8) + (s.charCodeAt(i + 2) << 16) + (s.charCodeAt(i + 3) << 24);
-            return md5blks;
-        }
-        var hex_chr = '0123456789abcdef'.split('');
-        function rhex(n) { var s = '', j = 0; for (; j < 4; j++) s += hex_chr[(n >> (j * 8 + 4)) & 0x0F] + hex_chr[(n >> (j * 8)) & 0x0F]; return s; }
-        function hex(x) { for (var i = 0; i < x.length; i++) x[i] = rhex(x[i]); return x.join(''); }
-        function add32(a, b) { return (a + b) & 0xFFFFFFFF; }
-        return hex(md51(string));
-    }
-
-    /**
-     * Generates a valid Eprolo API signature.
-     */
-    generateAuth() {
-        const timestamp = Date.now();
-        const sign = this.md5(`${this.apiKey}${timestamp}${this.apiSecret}`);
-        return { sign, timestamp };
-    }
-
-    /**
-     * Fetches products from Eprolo catalog.
+     * Fetches products from Eprolo catalog via secure Worker route.
      */
     async searchProducts(query, page = 0) {
-        if (!this.isConfigured) {
-            throw new Error("Live Eprolo search is currently unavailable. Please check API configuration.");
-        }
-
         try {
-            const { sign, timestamp } = this.generateAuth();
+            console.log(`[Eprolo Hub] Dispatching secure sourcing probe for "${query}"...`);
             
-            // Per documentation, eprolo_product_list.html provides items across the platform.
-            const url = `${this.baseUrl}/eprolo_product_list.html`;
-            
-            const params = {
-                apiKey: this.apiKey,
-                sign: sign,
-                timestamp: timestamp,
-                page_index: page,
-                page_size: 20
-            };
-
-            const fullUrl = `${this.proxyUrl}?url=${encodeURIComponent(url)}`;
-            
-            console.log(`[Eprolo Open API] Fetching from platform catalog...`);
-            const response = await fetch(`${fullUrl}&${new URLSearchParams(params).toString()}`, {
-                method: 'GET',
-                headers: {
-                    'apiKey': this.apiKey,
-                    'Content-Type': 'application/json'
-                }
+            const response = await fetch(`${this.proxyUrl}/eprolo-search`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    keyword: query,
+                    page_index: page,
+                    page_size: 20
+                })
             });
 
             const result = await response.json();
@@ -133,64 +30,43 @@ class EproloService {
                 throw new Error(result.msg || `Eprolo Error: ${result.code}`);
             }
 
-            const rawItems = result.data || [];
+            // Map results based on Production Patch requirements
+            const rawItems = result.data || result.products || [];
             
             return rawItems.map(item => ({
-                id: item.id,
-                title: item.title,
-                price: parseFloat(item.variantlist?.[0]?.cost || 0),
-                image: item.imagefirst || item.imagelist?.[0]?.src || '',
+                id: item.id || item.product_id,
+                title: item.product_name || item.title || "Unnamed Product",
+                price: parseFloat(item.price || item.min_price || (item.variantlist?.[0]?.cost) || 0),
+                image: item.image_url || item.image || item.imagefirst || (item.imagelist?.[0]?.src) || '',
                 source: 'Eprolo',
                 shipping: 0, 
-                delivery: '8-15 days',
-                shipsFrom: 'China',
+                delivery: item.delivery_time || '8-15 days',
+                shipsFrom: item.ships_from || 'China',
                 rating: 4.8,
-                variants: item.variantlist?.map(v => ({
+                url: item.product_url || '',
+                variants: (item.variantlist || item.variants || []).map(v => ({
                     id: v.id,
                     sku: v.sku,
-                    price: parseFloat(v.cost),
-                    stock: v.inventory_quantity
+                    price: parseFloat(v.cost || v.price),
+                    stock: v.inventory_quantity || v.stock
                 }))
             }));
 
         } catch (e) {
-            console.error("Eprolo Open API Bridge Failure:", e.message);
+            console.error("Eprolo Global Bridge Failure:", e.message);
             throw e;
         }
     }
 
     /**
-     * Retrieves specific product details including logistics.
+     * Retrieves specific product details.
      */
     async getProductDetail(productId) {
-        if (!this.isConfigured) {
-            throw new Error("Eprolo configuration missing.");
-        }
-
         try {
-            const { sign, timestamp } = this.generateAuth();
-            const url = `${this.baseUrl}/getproduct.html`;
-            
-            const params = {
-                apiKey: this.apiKey,
-                sign: sign,
-                timestamp: timestamp,
-                id: productId
-            };
-
-            const fullUrl = `${this.proxyUrl}?url=${encodeURIComponent(url)}&${new URLSearchParams(params).toString()}`;
-            const response = await fetch(fullUrl);
-            const result = await response.json();
-
-            if (result.code !== '0' && result.code !== 0) {
-                throw new Error(result.msg || "Endpoint rejected request.");
-            }
-
-            const item = result.data?.[0] || result.data;
-            return {
-                ...item,
-                sourcePlatform: 'Eprolo'
-            };
+            // Note: For now we reuse the search logic or a dedicated detail route if the worker is updated for it.
+            // But search results usually contain enough data for sourcing.
+            const results = await this.searchProducts(productId);
+            return results[0] || null;
         } catch (e) {
             console.error("Eprolo Detail Retrieval Error:", e.message);
             throw e;
@@ -203,4 +79,3 @@ class EproloService {
 }
 
 export default new EproloService();
-
