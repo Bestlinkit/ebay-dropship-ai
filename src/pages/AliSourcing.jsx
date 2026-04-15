@@ -3,18 +3,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Search, 
-  Globe, 
   RefreshCw, 
   AlertCircle, 
   ShieldAlert,
   Search as SearchIcon,
   CheckCircle2,
-  Lock
+  Terminal,
+  ChevronDown,
+  ChevronUp,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import aliexpressService from '../services/aliexpress';
 import sourcingService from '../services/sourcing';
+import { interpretSupplierResponse } from '../utils/sourcingInterpreter';
+import { SourcingUIState } from '../constants/sourcing';
 import { toast } from 'sonner';
 
 // 🏗️ MODULAR COMPONENTS
@@ -22,8 +26,8 @@ import SourcingStatusHeader from '../components/sourcing/SourcingStatusHeader';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 
 /**
- * Isolated AliExpress Manual Explorer (v1.0)
- * Deterministic scraping-only engine with zero Eprolo dependency.
+ * AliExpress Manual Search (v2.0)
+ * Isolated, truth-based scraping flow with zero automatic transitions.
  */
 const AliSourcing = () => {
     const location = useLocation();
@@ -32,39 +36,35 @@ const AliSourcing = () => {
     const initialQuery = location.state?.query || targetProduct?.title || '';
 
     const [loading, setLoading] = useState(false);
-    const [rawResults, setRawResults] = useState([]);
+    const [matches, setMatches] = useState([]);
+    const [uiState, setUiState] = useState(SourcingUIState.IDLE);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
-    const [extracting, setExtracting] = useState(false);
+    const [debugInfo, setDebugInfo] = useState(null);
+    const [showDebug, setShowDebug] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
-    const [errorMessage, setErrorMessage] = useState(null);
 
     // 1. ENGINE: Strictly Manual Scrape
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct) return;
         
         setLoading(true);
-        setErrorMessage(null);
-        console.log("SOURCE: ALIEXPRESS MANUAL");
-        console.info(`[AliExplorer] Initiating isolated manual scrape for: ${query}`);
-        
-        try {
-            const matches = await aliexpressService.searchProducts(query);
-            
-            // SCHEMA HARMONIZATION
-            const mappedMatches = matches.map(m => ({
-                ...m,
-                image: m.image || m.thumbnail
-            }));
+        setUiState(SourcingUIState.ALIEXPRESS_SEARCHING);
+        setDebugInfo(null);
+        setMatches([]);
 
-            setRawResults(mappedMatches);
+        try {
+            const result = await aliexpressService.searchProducts(query);
+            const nextState = interpretSupplierResponse(result, 'aliexpress');
             
-            if (mappedMatches.length === 0) {
-                toast.info("No matches found for this query.");
+            setDebugInfo(result.debugInfo);
+            setUiState(nextState);
+            
+            if (nextState === SourcingUIState.ALIEXPRESS_SUCCESS) {
+                setMatches(result.data);
             }
         } catch (e) {
-            console.error(`[AliExplorer] Scraping Node Failure:`, e.message);
-            setErrorMessage(e.message || "AliExpress scraping blocked.");
-            toast.error(e.message || "Scraping Blocked");
+            setUiState(SourcingUIState.ALIEXPRESS_ERROR);
+            setDebugInfo({ error: e.message, timestamp: new Date().toISOString() });
         } finally {
             setLoading(false);
         }
@@ -74,20 +74,20 @@ const AliSourcing = () => {
         if (initialQuery) performSourcing(initialQuery);
     }, []);
 
-    // 2. INTELLIGENCE LAYER
+    // 2. INTELLIGENCE LAYER (Harmonized with Market Node)
     const processedResults = useMemo(() => {
-        if (!targetProduct || rawResults.length === 0) return [];
+        if (!targetProduct || matches.length === 0) return [];
         
-        return rawResults
+        return matches
             .map(res => {
                 const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
                 const roiRange = sourcingService.calculateSupplierROIRange(targetProduct.price, res.price + (res.shipping || 0));
                 const trust = sourcingService.evaluateSupplierTrust(res);
                 return { ...res, relevance, roiRange, trust };
             })
-            .filter(res => res.relevance >= 20) // Permissive for manual exploration
+            .filter(res => res.relevance >= 20) 
             .sort((a, b) => b.relevance - a.relevance);
-    }, [rawResults, targetProduct]);
+    }, [matches, targetProduct]);
 
     const handleSearchSubmit = (e) => {
         e.preventDefault();
@@ -99,29 +99,18 @@ const AliSourcing = () => {
     };
 
     const finalizeImport = async (supplierProduct) => {
-        setExtracting(true);
-        const loadingId = toast.loading("Syncing manual source data...");
-        try {
-            // Note: Reuse existing detail extraction logic but mark as manual
-            navigate('/product-import-preview', { 
-                state: { 
-                    product: {
-                        ...supplierProduct,
-                        pricing: { basePrice: targetProduct.price },
-                        sourceType: 'manual_aliexpress'
-                    } 
+        navigate('/product-import-preview', { 
+            state: { 
+                product: {
+                    ...supplierProduct,
+                    pricing: { basePrice: targetProduct.price },
+                    sourceType: 'manual_aliexpress'
                 } 
-            });
-            toast.success("Extraction complete.");
-        } catch (error) {
-            toast.error("Extraction failed.");
-        } finally {
-            toast.dismiss(loadingId);
-            setExtracting(false);
-        }
+            } 
+        });
     };
 
-    if (!targetProduct) return <div className="p-20 text-center">No market node selected.</div>;
+    if (!targetProduct) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">Market Node Required</div>;
 
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
@@ -133,9 +122,9 @@ const AliSourcing = () => {
                         <ArrowLeft size={24} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Ali Explorer.</h1>
+                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">AliExpress Manual Search</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-blue-500" /> Isolated Manual Scraping Flow
+                             Direct Scraper Flow (Deterministic)
                         </p>
                     </div>
                 </div>
@@ -146,55 +135,96 @@ const AliSourcing = () => {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Manually refine AliExpress tokens..."
+                        placeholder="Refine AliExpress query..."
                         className="flex-1 bg-transparent border-none outline-none text-sm text-white py-2"
                     />
                     <button 
                         type="submit"
                         disabled={loading}
-                        className="bg-white text-slate-950 px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all disabled:opacity-50"
+                        className="bg-white text-slate-950 px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50"
                     >
-                        {loading ? 'Probing...' : 'Scrape Now'}
+                        {loading ? 'Scraping...' : 'Search Now'}
                     </button>
                 </form>
             </div>
 
             {/* 🔍 STATUS BAR */}
-            <SourcingStatusHeader 
-                state={loading ? 'searching' : 'results'} 
-                loading={loading}
-                resultsCount={processedResults.length}
-                isGlobal={true}
-            />
+            <div className="bg-slate-950 border border-slate-900 p-8 rounded-[2rem] flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                    <div className={cn("w-3 h-3 rounded-full", loading ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{loading ? "Active Scrape Pipeline" : "Inquiry Results"}</p>
+                        <h3 className="text-white font-bold text-sm">
+                            {uiState === SourcingUIState.ALIEXPRESS_SEARCHING && "Bypassing automation... connecting to global node"}
+                            {uiState === SourcingUIState.ALIEXPRESS_SUCCESS && `${processedResults.length} Valid matches identified`}
+                            {uiState === SourcingUIState.ALIEXPRESS_EMPTY && "Zero matches found for this query"}
+                            {uiState === SourcingUIState.ALIEXPRESS_BLOCKED && "Access Denied: Scraper Resistance Detected"}
+                            {uiState === SourcingUIState.ALIEXPRESS_ERROR && "Technical Scrape Failure"}
+                            {uiState === SourcingUIState.IDLE && "Ready for manual exploration"}
+                        </h3>
+                    </div>
+                </div>
+
+                {debugInfo && (
+                    <button 
+                        onClick={() => setShowDebug(!showDebug)}
+                        className="flex items-center gap-2 px-4 py-2 border border-slate-800 rounded-xl text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-all"
+                    >
+                        <Terminal size={12} />
+                        {showDebug ? "Hide Technical Details" : "Show Technical Details"}
+                    </button>
+                )}
+            </div>
+
+            {/* 🚥 DEBUG CONSOLE */}
+            <AnimatePresence>
+                {showDebug && debugInfo && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="bg-slate-950 border border-slate-800 p-8 rounded-[2rem] font-mono text-emerald-400 text-xs">
+                             <pre className="whitespace-pre-wrap break-all max-h-60 overflow-y-auto custom-scrollbar">
+                                {JSON.stringify(debugInfo, null, 2)}
+                             </pre>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* 🏗️ SOURCING FEED */}
             <div className="space-y-8">
-                {loading ? (
+                {uiState === SourcingUIState.ALIEXPRESS_SEARCHING ? (
                     <div className="space-y-8">
-                        <div className="text-center space-y-4">
-                             <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em] animate-pulse italic">Connecting to global node... bypassing deterministic chain</p>
-                        </div>
-                        <div className="space-y-6">
-                            {Array(3).fill(0).map((_, i) => (
-                               <div key={i} className="h-40 bg-slate-900/50 rounded-[2.5rem] animate-pulse border border-slate-800/20" />
-                            ))}
-                        </div>
+                        {Array(3).fill(0).map((_, i) => (
+                           <div key={i} className="h-40 bg-slate-900/50 rounded-[2.5rem] animate-pulse border border-slate-800/20" />
+                        ))}
                     </div>
-                ) : errorMessage ? (
-                    <div className="py-24 text-center space-y-8 bg-slate-900/40 border border-slate-800/50 rounded-[4rem] animate-in zoom-in-95 duration-500">
-                        <div className="w-24 h-24 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+                ) : uiState === SourcingUIState.ALIEXPRESS_BLOCKED ? (
+                    <div className="py-24 text-center space-y-8 bg-amber-950/10 border border-amber-950/20 rounded-[4rem]">
+                        <div className="w-24 h-24 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
                              <ShieldAlert size={48} />
                         </div>
                         <div className="space-y-3">
-                             <h4 className="text-2xl font-black text-white italic uppercase tracking-tighter">Manual Scrape Inhibited</h4>
-                             <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">{errorMessage}</p>
+                             <h4 className="text-2xl font-black text-white italic uppercase tracking-tighter">Access Inhibited</h4>
+                             <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
+                                AliExpress network has detected scraping behavior. Please wait a few minutes or refine your keyword to bypass resistance.
+                             </p>
                         </div>
-                        <button 
-                            onClick={() => performSourcing()}
-                            className="bg-slate-800 text-white px-10 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all"
-                        >
-                            Retry Scrape Sequence
-                        </button>
+                        <button onClick={() => performSourcing()} className="bg-amber-600 text-white px-10 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 transition-all">Retry Sequence</button>
+                    </div>
+                ) : uiState === SourcingUIState.ALIEXPRESS_ERROR ? (
+                    <div className="py-24 text-center space-y-8 bg-red-950/10 border border-red-950/20 rounded-[4rem]">
+                        <div className="w-24 h-24 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+                             <AlertCircle size={48} />
+                        </div>
+                        <div className="space-y-3">
+                             <h4 className="text-2xl font-black text-white italic uppercase tracking-tighter">Scrape Failure</h4>
+                             <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">The scraping node failed to initialize or parse correctly. Verify technical details below.</p>
+                        </div>
+                        <button onClick={() => performSourcing()} className="bg-slate-800 text-white px-10 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all">Re-initialize Node</button>
                     </div>
                 ) : processedResults.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6">
@@ -208,17 +238,17 @@ const AliSourcing = () => {
                             />
                         ))}
                     </div>
-                ) : (
+                ) : uiState === SourcingUIState.ALIEXPRESS_EMPTY ? (
                     <div className="py-20 text-center space-y-6">
                         <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center mx-auto text-slate-800 border border-slate-800">
                              <AlertCircle size={40} />
                         </div>
                         <div className="space-y-2">
-                             <h4 className="text-xl font-black text-white italic uppercase">Zero Global Matches</h4>
-                             <p className="text-slate-600 text-sm max-w-md mx-auto">AliExpress scraping returned no relevant data for this keyword node.</p>
+                             <h4 className="text-xl font-black text-white italic uppercase">No results found on AliExpress</h4>
+                             <p className="text-slate-600 text-sm max-w-md mx-auto">Scraping returned zero relevant entries for this inquiry.</p>
                         </div>
                     </div>
-                )}
+                ) : null}
             </div>
 
             {/* CONFIRMATION MODAL */}
@@ -235,12 +265,9 @@ const AliSourcing = () => {
                                 <Globe size={32} />
                             </div>
                             <div className="space-y-4">
-                                <div className="inline-block px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-[8px] font-black text-blue-500 uppercase tracking-widest mb-2">
-                                    Sourced via Manual Scrape
-                                </div>
-                                <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">Lock Manual Source?</h3>
+                                <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Import Manual Source?</h3>
                                 <p className="text-slate-400 text-sm leading-relaxed">
-                                    This product is sourced via global scraping and carries higher volatility. Confirming will import this selection into your store.
+                                    This product is sourced via manual scraping and carries higher structural volatility. Do you wish to proceed?
                                 </p>
                             </div>
                             <div className="flex gap-4">

@@ -157,7 +157,12 @@ export default {
                     headers: { ...corsHeaders, "Content-Type": "application/json" } 
                 });
             } catch (err) { 
-                return new Response(JSON.stringify({ error: err.message, msg: err.message }), { status: 500, headers: corsHeaders }); 
+                console.error("Worker Critical Error:", err.message);
+                return new Response(JSON.stringify({ 
+                    error: err.message, 
+                    code: 'WORKER_ERROR',
+                    msg: "Cloudflare Bridge Failure"
+                }), { status: 500, headers: corsHeaders }); 
             }
         }
 

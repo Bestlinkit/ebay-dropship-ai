@@ -5,21 +5,20 @@ import {
   ShieldCheck, 
   ChevronRight, 
   Clock, 
-  Zap, 
-  Target 
+  Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 
 /**
- * Supplier Result Row Component (v2.0)
- * Unified intelligence display for Eprolo and Global searches.
+ * Supplier Result Row Component (v3.0)
+ * Truth-based intelligence display for Eprolo and AliExpress searches.
  */
 const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
     // 💡 SOURCE INTELLIGENCE MAPPING
     const getPriceLabel = (roi) => {
         if (roi > 40) return { text: "High Yield", color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" };
-        if (roi > 20) return { text: "Market Parity", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" };
+        if (roi > 20) return { text: "Market Match", color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" };
         return { text: "Thin Margin", color: "text-slate-500", bg: "bg-slate-900", border: "border-slate-800" };
     };
 
@@ -43,7 +42,7 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
         >
             {isBest && (
                 <div className="absolute -top-4 left-10 px-4 py-1.5 bg-emerald-500 rounded-full flex items-center gap-2 text-[8px] font-black text-white uppercase tracking-widest shadow-lg">
-                    <Star size={10} className="fill-white" /> Best Supplier Option
+                    <Star size={10} className="fill-white" /> Optimal Selection
                 </div>
             )}
 
@@ -60,7 +59,7 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                             "px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border",
                             product.source === 'Eprolo' ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-orange-500/10 text-orange-400 border-orange-500/20"
                         )}>
-                            Sourced via {product.source === 'Eprolo' ? 'Verified Network' : 'Global Search'}
+                            Source: {product.source === 'Eprolo' ? 'Eprolo API' : 'AliExpress Scraper'}
                         </span>
                         
                         {/* 🧠 INTELLIGENCE BADGES */}
@@ -73,7 +72,7 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
 
                         {product.hasVariantWarning && (
                             <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 text-yellow-500 rounded-md text-[7px] font-black uppercase tracking-widest border border-yellow-500/20">
-                                <AlertTriangle size={8} /> Variation may differ
+                                <AlertTriangle size={8} /> Variation Alert
                             </div>
                         )}
                     </div>

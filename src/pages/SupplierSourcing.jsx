@@ -34,8 +34,8 @@ import SourcingStatusHeader from '../components/sourcing/SourcingStatusHeader';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 
 /**
- * Verified Supplier Hub (v2.0-STABLE)
- * Primary sourcing engine targeting highly-vetted US/Global networks.
+ * Eprolo Supplier Sourcing (v3.0)
+ * Direct API bridge for verified supplier discovery.
  */
 const SupplierSourcing = () => {
     const location = useLocation();
@@ -50,26 +50,20 @@ const SupplierSourcing = () => {
     const [confirmModal, setConfirmModal] = useState(null);
     const [showAliExpansion, setShowAliExpansion] = useState(false);
 
-    // 1. ENGINE: Verified Network Only (Eprolo)
+    // 1. ENGINE: Eprolo API Only
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct) return;
         
         setLoading(true);
-        console.info(`[Verified Hub] Searching primary network for: ${query}`);
+        console.info(`[Direct Sourcing] Inquiring Eprolo API for: ${query}`);
         
         try {
-            const matches = await eproloService.searchProducts(query);
-            
-            // SCHEMA HARMONIZATION
-            const mappedMatches = matches.map(m => ({
-                ...m,
-                image: m.image || m.thumbnail
-            }));
-
-            setRawResults(mappedMatches);
+            const result = await eproloService.searchProducts(query);
+            // Service now returns standardized object
+            setRawResults(result.data || []);
         } catch (e) {
-            console.error(`[Verified Hub] API Node Failure:`, e);
-            toast.error(`Primary network connection unstable. Checking alternatives...`);
+            console.error(`[Direct Sourcing] API Connection Failure:`, e);
+            toast.error(`Eprolo API connection failed.`);
         } finally {
             setLoading(false);
         }
@@ -97,7 +91,6 @@ const SupplierSourcing = () => {
 
     const targetPrice = targetProduct?.price || 0;
     const bestOption = useMemo(() => sourcingService.identifyBestOption(processedResults), [processedResults]);
-    const suggestedKeywords = useMemo(() => sourcingService.generateSuggestedKeywords(targetProduct?.title), [targetProduct]);
 
     const handleContinue = (supplierProduct) => {
         setConfirmModal(supplierProduct);
@@ -105,7 +98,7 @@ const SupplierSourcing = () => {
 
     const finalizeImport = async (supplierProduct) => {
         setExtracting(true);
-        const loadingId = toast.loading("Syncing with supplier chain...");
+        const loadingId = toast.loading("Syncing with supplier...");
         try {
             const fullProduct = await eproloService.getProductDetail(supplierProduct.id);
             navigate('/product-import-preview', { 
@@ -118,19 +111,18 @@ const SupplierSourcing = () => {
             });
             toast.success("Intelligence extraction complete.");
         } catch (error) {
-            toast.error("Unable to retrieve full details. Try another match.");
+            toast.error("Unable to retrieve full details.");
         } finally {
             toast.dismiss(loadingId);
             setExtracting(false);
         }
     };
 
-    // Navigation to Global Sourcing (AliExpress)
     const handleExpandSearch = () => {
         setShowAliExpansion(true);
     };
 
-    if (!targetProduct) return <div className="p-20 text-center">No market node selected.</div>;
+    if (!targetProduct) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">Market Node Required</div>;
 
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
@@ -142,9 +134,9 @@ const SupplierSourcing = () => {
                         <ArrowLeft size={24} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Sourcing Hub.</h1>
+                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Direct Sourcing</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <ShieldCheck size={12} className="text-blue-500" /> Primary Verified Network
+                             <ShieldCheck size={12} className="text-blue-500" /> Eprolo API Bridge
                         </p>
                     </div>
                 </div>
@@ -187,56 +179,37 @@ const SupplierSourcing = () => {
                             />
                         ))}
                         
-                        {/* 💡 UPSORT: Option to expand even if results exist */}
+                        {/* 💡 UPSORT: Option to expand */}
                         <div className="mt-10 p-10 bg-slate-900/30 border border-slate-800 rounded-[3rem] text-center space-y-4">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Need more variety or lower pricing?</p>
                              <button 
                                 onClick={handleExpandSearch}
                                 className="text-[11px] font-black text-white px-8 py-4 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all uppercase tracking-widest border border-white/5"
                              >
-                                 Expand to Global Marketplaces (AliExpress)
+                                 Search AliExpress Manually
                              </button>
                         </div>
                     </div>
                 ) : (
-                    /* 🎯 GUIDED FALLBACK UI */
+                    /* 🎯 GUIDED UI */
                     <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10 animate-in slide-in-from-bottom-10 fade-in duration-1000">
                         <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
                             <ShieldAlert size={40} />
                         </div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Verified Match Not Found</h3>
+                            <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">No matching results on Eprolo</h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
-                                We couldn’t find verified suppliers for this product in our primary network. 
+                                We couldn’t find a direct match in the Eprolo catalog for this selection.
                                 <br />
-                                <span className="text-slate-300 font-bold">You can expand your search to global marketplaces for more options.</span>
+                                <span className="text-slate-300 font-bold">You can perform a manual global search instead.</span>
                             </p>
-                        </div>
-
-                        {/* 🛣️ SOURCE CONTEXT CARD */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-                             <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-2">
-                                <Globe size={20} className="text-blue-500 mx-auto" />
-                                <p className="text-[9px] font-black text-white uppercase tracking-widest">More Variety</p>
-                                <p className="text-[8px] text-slate-600">Access millions of global vendors</p>
-                             </div>
-                             <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-2">
-                                <Zap size={20} className="text-emerald-500 mx-auto" />
-                                <p className="text-[9px] font-black text-white uppercase tracking-widest">Competitive Pricing</p>
-                                <p className="text-[8px] text-slate-600">Direct-to-factory cost points</p>
-                             </div>
-                             <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-2">
-                                <Clock size={20} className="text-amber-500 mx-auto" />
-                                <p className="text-[9px] font-black text-white uppercase tracking-widest">Standard Shipping</p>
-                                <p className="text-[8px] text-slate-600">7-15 day delivery windows</p>
-                             </div>
                         </div>
 
                         <button 
                             onClick={handleExpandSearch}
                             className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all transform active:scale-95 shadow-3xl"
                         >
-                            👉 Search More Suppliers (AliExpress)
+                            🚀 Search AliExpress Manually
                         </button>
                     </div>
                 )}
@@ -256,9 +229,9 @@ const SupplierSourcing = () => {
                                 <Globe size={32} />
                             </div>
                             <div className="space-y-4">
-                                <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">Global Expansion</h3>
+                                <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">Global Scraper</h3>
                                 <p className="text-slate-500 text-sm leading-relaxed">
-                                    Moving to the Global Search Engine to find more supplier variety and potentially lower pricing.
+                                    Initiating manual AliExpress scraping flow. This will bypass the Eprolo API.
                                 </p>
                             </div>
                             <div className="space-y-4">
@@ -269,7 +242,7 @@ const SupplierSourcing = () => {
                                     Proceed to AliExpress Search
                                 </button>
                                 <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-700 uppercase tracking-widest hover:text-white transition-colors">
-                                    Stay on Verified Network
+                                    Stay on Eprolo
                                 </button>
                             </div>
                          </motion.div>
@@ -291,12 +264,9 @@ const SupplierSourcing = () => {
                                 <CheckCircle2 size={32} />
                             </div>
                             <div className="space-y-4">
-                                <div className="inline-block px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-full text-[8px] font-black text-blue-500 uppercase tracking-widest mb-2">
-                                    Sourced via Verified Network
-                                </div>
                                 <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">Commit Choice?</h3>
                                 <p className="text-slate-400 text-sm leading-relaxed">
-                                    You are selecting this product for store import. This will lock in your profit baseline of <span className="text-emerald-500 font-bold">{confirmModal.roiRange?.expected}% ROI</span>.
+                                    Confirming this product will import it into your store. Estimated profit: <span className="text-emerald-500 font-bold">{confirmModal.roiRange?.expected}% ROI</span>.
                                 </p>
                             </div>
                             <div className="flex gap-4">

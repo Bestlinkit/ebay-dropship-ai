@@ -134,10 +134,10 @@ const MyProducts = () => {
             {loading ? (
                 <div className="py-40 flex flex-col items-center gap-6">
                     <RefreshCw className="animate-spin text-slate-200" size={32} />
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Hydrating Registry Nodes...</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Loading product data...</p>
                 </div>
             ) : filteredProducts.length === 0 ? (
-                <div className="py-40 text-center opacity-30 italic text-[10px] font-black uppercase tracking-[0.3em]">No target nodes identified</div>
+                <div className="py-40 text-center opacity-30 italic text-[10px] font-black uppercase tracking-[0.3em]">No items found</div>
             ) : (
                 <table className="w-full text-left">
                     <thead>
