@@ -178,11 +178,18 @@ const SupplierSourcing = () => {
                     <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
                         <ArrowLeft size={24} />
                     </button>
-                    <div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Direct Sourcing</h1>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <ShieldCheck size={12} className="text-blue-400" /> Eprolo API Bridge
-                        </p>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="w-12 h-12 bg-white/10 rounded-xl overflow-hidden border border-white/10">
+                                <img src={targetProduct?.image} className="w-full h-full object-cover" alt="Focus" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-black text-emerald-400 italic tracking-tighter uppercase leading-none">Eprolo Discovery</h1>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                    <ShieldCheck size={12} className="text-emerald-500" /> Secure API Bridge
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

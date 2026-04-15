@@ -139,12 +139,14 @@ class AliExpressService {
             item.skuModule?.skuPrice || 
             item.skuModule?.skuActivityAmount ||
             item.priceModule?.minAmount ||
+            item.prices?.discountedPrice ||
+            item.prices?.originalPrice ||
             item.skuPrice ||
             item.price || 
             item.minPrice;
         
         if (typeof priceObj === 'object' && priceObj !== null) {
-            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.salePrice || priceObj.price || priceObj.amount || priceObj.activityAmount);
+            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.salePrice || priceObj.price || priceObj.amount || priceObj.activityAmount || priceObj.discountedPrice);
         } else {
             price = parseFloat(priceObj) || parseFloat(item.product_price);
         }
@@ -152,8 +154,9 @@ class AliExpressService {
         // GREEDY FALLBACK: If price is still missing/0, attempt regex recovery from raw item string
         if (!price || price === 0) {
             const rawStr = JSON.stringify(item);
-            const priceMatch = rawStr.match(/["'](?:price|amount|value)["']\s*:\s*["']?(\d+\.\d{2})["']?/i);
-            if (priceMatch) price = parseFloat(priceMatch[1]);
+            // 🔍 Scan for contiguous price-like data
+            const priceMatch = rawStr.match(/["'](?:price|amount|value|salePrice|minPrice)["']\s*:\s*(?:["']?(\d+\.\d{1,2})["']?|(\d+))/i);
+            if (priceMatch) price = parseFloat(priceMatch[1] || priceMatch[2]);
         }
 
         const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;
@@ -194,15 +197,19 @@ class AliExpressService {
   }
 
   /**
-   * Discovers all large JSON-like blocks within the HTML
+   * Discovers all large JSON-like blocks within the HTML,
+   * now supporting window assignments (window.__SSR_DATA__ = {...})
    */
   discoverJSONBlocks(html) {
     const candidates = [];
-    const regex = /{[\s\S]{500,200000}}/g; 
+    // 🔍 Target script assignments and raw objects
+    const regex = /(?:window\.(?:__SSR_DATA__|runParams|initialData)\s*=\s*)?({[\s\S]{500,500000}})/g; 
     let match;
     while ((match = regex.exec(html)) !== null) {
-        const potential = match[0];
+        let potential = match[1];
+        
         try {
+            // Primitive balancing to ensure we catch the right closing brace
             let balance = 0;
             let endIdx = -1;
             for (let i = 0; i < potential.length; i++) {

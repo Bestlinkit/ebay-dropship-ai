@@ -105,63 +105,57 @@ export default {
         if (pathname === "/eprolo-search") {
             try {
                 const body = await request.json();
-                const timestamp = Date.now();
+                
+                // 🛡️ SECURITY ISOLATION: Destructure only search parameters. 
+                // Ignore any 'apiKey' or 'sign' sent from frontend to prevent corruption.
+                const { keyword, page_index, page_size } = body;
+                
                 const EPROLO_APP_KEY = env.EPROLO_APP_KEY;
                 const EPROLO_SECRET = env.EPROLO_SECRET;
                 
                 if (!EPROLO_APP_KEY || !EPROLO_SECRET) {
-                    console.error("Eprolo Trace: Missing Credentials");
-                    throw new Error("Eprolo configuration missing. Please set API credentials in Cloudflare Worker settings.");
+                    throw new Error("EPROLO_APP_KEY or EPROLO_SECRET missing in Worker environment.");
                 }
+
+                const timestamp = Math.floor(Date.now() / 1000);
                 
-                // --- DUAL-AUTH DISPATCH ---
-                // Attempt 1: SHA-256 (Modern Standard)
-                const signSHA = await sha256(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
-                console.info(`[DEBUG] Eprolo Signature (SHA): ${signSHA}`);
-                console.info(`[DEBUG] Eprolo Payload: ${JSON.stringify(body)}`);
-                console.log("SOURCE: EPROLO");
-                console.log("Eprolo Trace: Attempting SHA-256 Handshake...");
+                // --- AUTH SIGNATURE GENERATION ---
+                // Eprolo documentation requires MD5(apiKey + timestamp + secret)
+                const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
+                
+                const eproloPayload = {
+                    apiKey: EPROLO_APP_KEY,
+                    timestamp: timestamp,
+                    sign: signMD5,
+                    keyword: keyword || "",
+                    page_index: page_index || 0,
+                    page_size: page_size || 20
+                };
+
+                console.info(`[DEBUG] Eprolo Outbound Payload: ${JSON.stringify(eproloPayload)}`);
                 
                 const response = await fetch("https://openapi.eprolo.com/eprolo_product_list.html", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        apiKey: EPROLO_APP_KEY,
-                        timestamp: timestamp,
-                        sign: signSHA,
-                        ...body
-                    })
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "apiKey": EPROLO_APP_KEY,      // Redundant header for safety
+                        "apiSecret": EPROLO_SECRET    // Redundant header for safety
+                    },
+                    body: JSON.stringify(eproloPayload)
                 });
 
-                let result = await response.json();
+                const result = await response.json();
                 console.log("EPROLO RESPONSE STATUS:", response.status);
-                console.log("EPROLO RESPONSE DATA:", JSON.stringify(result).substring(0, 500));
-
-                // Attempt 2: MD5 Fallback (Legacy Compatibility)
-                if (result.code === "-1" || result.msg?.includes("sign error")) {
-                    console.warn(`[DEBUG] Eprolo Error Response: ${JSON.stringify(result)}`);
-                    console.warn("Eprolo Trace: SHA-256 Failed. Falling back to MD5...");
-                    const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
-                    console.info(`[DEBUG] Eprolo Fallback Signature (MD5): ${signMD5}`);
-                    const fallbackUrl = `https://openapi.eprolo.com/eprolo_product_list.html?apiKey=${EPROLO_APP_KEY}&sign=${signMD5}&timestamp=${timestamp}`;
-                    
-                    const fbResponse = await fetch(fallbackUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(body)
-                    });
-                    result = await fbResponse.json();
-                }
-
+                
                 return new Response(JSON.stringify(result), { 
                     headers: { ...corsHeaders, "Content-Type": "application/json" } 
                 });
             } catch (err) { 
-                console.error("Worker Critical Error:", err.message);
+                console.error("Eprolo Bridge Critical Failure:", err.message);
                 return new Response(JSON.stringify({ 
                     error: err.message, 
                     code: 'WORKER_ERROR',
-                    msg: "Cloudflare Bridge Failure"
+                    msg: "Eprolo Bridge Failure"
                 }), { status: 500, headers: corsHeaders }); 
             }
         }
@@ -176,8 +170,11 @@ export default {
                 const target = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
                 const response = await fetch(target, {
                     headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                        "Accept-Language": "en-US,en;q=0.9"
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "Referer": "https://www.aliexpress.com/",
+                        "Origin": "https://www.aliexpress.com"
                     }
                 });
 
