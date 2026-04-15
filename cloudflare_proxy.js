@@ -144,12 +144,23 @@ export default {
         if (targetUrl) {
             try {
                 const headers = new Headers(request.headers);
+                
+                // Extract injected headers (used by eBay service)
+                const auth = url.searchParams.get("auth");
+                const marketplaceid = url.searchParams.get("marketplaceid");
+                
+                if (auth) headers.set("Authorization", auth);
+                if (marketplaceid) headers.set("X-EBAY-C-MARKETPLACE-ID", marketplaceid);
+
+                // Clean up headers for the target
                 headers.delete("Host");
+                
                 const response = await fetch(targetUrl, {
                     method: request.method,
                     headers: headers,
-                    body: request.method !== "GET" ? await request.arrayBuffer() : undefined
+                    body: (request.method !== "GET" && request.method !== "HEAD") ? await request.arrayBuffer() : undefined
                 });
+
                 return new Response(response.body, {
                     status: response.status,
                     headers: { ...corsHeaders, ...Object.fromEntries(response.headers) }
