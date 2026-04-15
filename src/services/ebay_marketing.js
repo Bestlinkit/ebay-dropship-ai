@@ -27,7 +27,7 @@ class eBayMarketingService {
    */
   async sendOfferToWatchers(listingId, currentPrice) {
     const currentPriceNum = Number(currentPrice || 0);
-    const discountedPrice = (currentPriceNum * (1 - this.defaultDiscount / 100)).toFixed(2);
+    const discountedPrice = (currentPriceNum * (1 - this.defaultDiscount / 100) || 0).toFixed(2);
     
     if (this.useMock) {
       await new Promise(resolve => setTimeout(resolve, 2000));

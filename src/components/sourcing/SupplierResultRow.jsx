@@ -83,13 +83,13 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                     <div className="flex flex-col">
                         <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Base Cost</span>
                         <span className="text-xl font-black text-white italic tracking-tighter">
-                            {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'N/A'}
+                            {product.price ? `$${product.price.toFixed(2)}` : 'N/A'}
                         </span>
                     </div>
                     <div className="flex flex-col">
                         <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Shipping</span>
                         <span className="text-[11px] font-black text-slate-400 whitespace-nowrap">
-                            {(typeof product.shipping === 'number' && product.shipping > 0) ? `$${product.shipping.toFixed(2)}` : 'FREE'} ({product.delivery || 'Standard'})
+                            {product.shipping ? `$${product.shipping.toFixed(2)}` : 'FREE'} ({product.delivery || 'Standard'})
                         </span>
                     </div>
                     <div className="flex flex-col">

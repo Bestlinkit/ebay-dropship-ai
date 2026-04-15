@@ -163,7 +163,7 @@ const PublishProduct = () => {
                        <div>
                           <p className="text-slate-400 text-[10px] font-bold uppercase">Net Profit</p>
                           <p className="text-3xl font-black text-emerald-400">
-                              {typeof product.price === 'number' ? `$${(product.price - product.cost - 3.00).toFixed(2)}` : 'N/A'}
+                              {product.price ? `$${(product.price - product.cost - 3.00).toFixed(2)}` : 'N/A'}
                           </p>
                        </div>
                        <div className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2 py-1 rounded">

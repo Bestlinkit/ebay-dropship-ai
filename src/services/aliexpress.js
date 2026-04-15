@@ -114,21 +114,29 @@ class AliExpressService {
 
   /**
    * Refined Stable Mapping: recovery over perfection.
-   * Now includes JUNK FILTER for Ads.
+   * IRON SHIELD v6.1: Enforces strict blocklist for Ads and Null prices.
    */
   stableMap(items) {
     if (!Array.isArray(items)) return [];
     
-    // 🗑️ JUNK FILTER: Skip Ads and empty shells
-    const garbageKeywords = ['ad', 'sponsor', 'advertiser', 'why am i seeing this ad', 'suggested for you'];
-    
+    const isBlockedTitle = (title = "") => {
+        const t = (title || "").toLowerCase();
+        return [
+            "why am i seeing this ad",
+            "who is the advertiser",
+            "ad targeting",
+            "sponsored",
+            "suggested for you"
+        ].some(b => t.includes(b));
+    };
+
     return items.map(item => {
         const title = item.title?.displayTitle || item.product_title || item.title || item.productTitle || "";
-        const titleLower = title.toLowerCase();
+        
+        // 🗑️ AD BLOCKER (IRON SHIELD)
+        if (isBlockedTitle(title)) return null;
 
-        if (garbageKeywords.some(k => titleLower.includes(k))) return null;
-
-        // If it's already mapped (from semantic/dom), keep it
+        // If it's already mapped (from semantic/dom), verify it
         if (item.source === 'AliExpress' && item.title && item.price > 0) return item;
 
         // 💰 PRICE EXTRACTION (Deterministic Recovery Engine)
@@ -154,20 +162,23 @@ class AliExpressService {
         // GREEDY FALLBACK: If price is still missing/0, attempt regex recovery from raw item string
         if (!price || price === 0) {
             const rawStr = JSON.stringify(item);
-            // 🔍 Scan for contiguous price-like data
             const priceMatch = rawStr.match(/["'](?:price|amount|value|salePrice|minPrice)["']\s*:\s*(?:["']?(\d+\.\d{1,2})["']?|(\d+))/i);
             if (priceMatch) price = parseFloat(priceMatch[1] || priceMatch[2]);
         }
 
+        // 🛑 NULL ENFORCEMENT (No $0.00 fakes)
+        price = price > 0 ? price : null;
+
         const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;
 
-        // REQUIRE AT LEAST TITLE AND (PRICE OR IMAGE)
-        if (!title || (!price && !image)) return null;
+        // 🛡️ STRICT ACCEPTANCE RULE (v6.1)
+        const hasCoreData = (image && (price || title));
+        if (!hasCoreData || isBlockedTitle(title)) return null;
 
         return {
             id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
             title: title || "AliExpress Listing",
-            price: price > 0 ? price : 0, 
+            price: price, 
             image: image,
             rating: parseFloat(item.evaluation?.starRating || item.rating || 4.5),
             source: 'AliExpress',

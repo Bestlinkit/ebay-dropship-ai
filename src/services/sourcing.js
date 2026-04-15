@@ -98,7 +98,7 @@ class SourcingService {
       profitLevel,
       summary: this._getHumanizedSummary(resellScore, priceZ, profitLevel),
       metrics: {
-        priceYield: typeof margin === 'number' ? margin.toFixed(2) : '0.00',
+        priceYield: margin ? margin.toFixed(2) : '0.00',
         sellerStatus: sellerStatus
       }
     };

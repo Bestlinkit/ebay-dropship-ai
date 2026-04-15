@@ -63,7 +63,7 @@ const SupplierSourcing = () => {
 
     // 1. ENGINE: Eprolo API Only (Enhanced Resilience)
     const performSourcing = useCallback(async (query = searchQuery) => {
-        if (!targetProduct) return;
+        if (!targetProduct || !query?.trim()) return;
         
         setLoading(true);
         setFullInquiryResult(null);
@@ -74,8 +74,8 @@ const SupplierSourcing = () => {
             setFullInquiryResult(result);
             setRawResults(result.data || []);
             
-            if (result.status === 'ERROR' || result.status === 'NETWORK_ERROR') {
-                toast.error(`Eprolo Bridge Fault: ${result.debugInfo?.statusCode || 'Blocked'}`);
+            if (result.status === 'AUTH_FAILURE' || result.status === 'ERROR') {
+                toast.error(`Eprolo Bridge Fault: ${result.message || 'Authentication Failed'}`);
             }
         } catch (e) {
             console.error(`[Direct Sourcing] API Connection Failure:`, e);
@@ -85,8 +85,12 @@ const SupplierSourcing = () => {
         }
     }, [targetProduct?.id, searchQuery]);
 
-    // FIX: Dependency on targetProduct.id ensures refresh when search context changes
-    useEffect(() => { performSourcing(); }, [targetProduct?.id]);
+    // FIX: Guarded auto-fire on mount
+    useEffect(() => { 
+        if (searchQuery?.trim()) {
+            performSourcing(); 
+        }
+    }, [targetProduct?.id]);
 
     // 2. INTELLIGENCE LAYER: ROI CALCULATED PER-ITEM (DETERMINISTIC)
     const processedResults = useMemo(() => {
@@ -94,20 +98,30 @@ const SupplierSourcing = () => {
         
         return rawResults
             .map(raw => {
-                // FORCE NORMALIZATION BEFORE RENDERING
                 const res = sourcingService.normalize(raw, 'eprolo');
-                
                 const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
-                // PER-ITEM ROI CALCULATION
-                const roiRange = sourcingService.calculateSupplierROIRange(targetPrice, res.price + (res.shipping || 0));
-                const trust = sourcingService.evaluateSupplierTrust(res);
                 
-                const hasVariantWarning = !targetProduct.title.toLowerCase().split(' ').every(w => 
-                    w.length < 4 || res.title.toLowerCase().includes(w)
-                );
-                return { ...res, relevance, roiRange, trust, hasVariantWarning };
+                // 🛡️ ROI SAFETY (IRON SHIELD v6.1)
+                const cost = res.price;
+                const sellingPrice = targetProduct.price || targetPrice;
+                
+                let roiValue = null;
+                let expectedProfit = null;
+
+                if (cost && cost > 0 && sellingPrice && sellingPrice > 0) {
+                    expectedProfit = sellingPrice - cost - (sellingPrice * 0.12) - 0.30;
+                    roiValue = Math.round((expectedProfit / cost) * 100);
+                }
+
+                return { 
+                    ...res, 
+                    relevance, 
+                    roi: roiValue,
+                    profit: expectedProfit,
+                    roiRange: { expected: roiValue } // Backwards compatibility for UI components
+                };
             })
-            .filter(res => res.relevance >= 35) 
+            .filter(res => res.relevance >= 35)
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
 
@@ -198,7 +212,7 @@ const SupplierSourcing = () => {
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Benchmark Price</p>
                         <p className="text-lg font-black text-emerald-400 italic leading-none">
-                            {typeof targetPrice === 'number' ? `$${targetPrice.toFixed(2)}` : 'N/A'}
+                            {targetPrice ? `$${targetPrice.toFixed(2)}` : 'N/A'}
                         </p>
                     </div>
                 </div>

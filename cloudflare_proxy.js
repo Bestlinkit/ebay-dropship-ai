@@ -105,9 +105,6 @@ export default {
         if (pathname === "/eprolo-search") {
             try {
                 const body = await request.json();
-                
-                // 🛡️ SECURITY ISOLATION: Destructure only search parameters. 
-                // Ignore any 'apiKey' or 'sign' sent from frontend to prevent corruption.
                 const { keyword, page_index, page_size } = body;
                 
                 const EPROLO_APP_KEY = env.EPROLO_APP_KEY;
@@ -118,13 +115,19 @@ export default {
                 }
 
                 const timestamp = Math.floor(Date.now() / 1000);
-                
-                // --- AUTH SIGNATURE GENERATION ---
-                // Eprolo documentation requires MD5(apiKey + timestamp + secret)
                 const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
                 
+                // 🛡️ HEADER-ONLY AUTH (Strict Correction v6.3)
+                const headers = { 
+                    "Content-Type": "application/json",
+                    "apiKey": EPROLO_APP_KEY,
+                    "apiSecret": EPROLO_SECRET
+                };
+
+                // 🔥 MANDATORY DEBUG LOG
+                console.log("EPROLO_REQUEST_HEADERS", headers);
+
                 const eproloPayload = {
-                    apiKey: EPROLO_APP_KEY,
                     timestamp: timestamp,
                     sign: signMD5,
                     keyword: keyword || "",
@@ -132,21 +135,31 @@ export default {
                     page_size: page_size || 20
                 };
 
-                console.info(`[DEBUG] Eprolo Outbound Payload: ${JSON.stringify(eproloPayload)}`);
-                
                 const response = await fetch("https://openapi.eprolo.com/eprolo_product_list.html", {
                     method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "apiKey": EPROLO_APP_KEY,      // Redundant header for safety
-                        "apiSecret": EPROLO_SECRET    // Redundant header for safety
-                    },
+                    headers: headers,
                     body: JSON.stringify(eproloPayload)
                 });
 
                 const result = await response.json();
-                console.log("EPROLO RESPONSE STATUS:", response.status);
                 
+                // 🛑 STRUCTURED HARD FAIL (IRON SHIELD v6.1)
+                if (
+                    result?.msg?.toLowerCase().includes("apikey") || 
+                    result?.code === "-1" || 
+                    result?.code === -1
+                ) {
+                    return new Response(JSON.stringify({
+                        status: "AUTH_FAILURE",
+                        source: "EPROLO",
+                        message: result.msg || "Eprolo Authentication Rejected",
+                        raw: result
+                    }), { 
+                        status: 401, 
+                        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+                    });
+                }
+
                 return new Response(JSON.stringify(result), { 
                     headers: { ...corsHeaders, "Content-Type": "application/json" } 
                 });

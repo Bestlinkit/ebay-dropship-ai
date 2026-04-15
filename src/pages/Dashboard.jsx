@@ -239,7 +239,7 @@ const Dashboard = () => {
                             </p>
                         </div>
                         <span className="text-md font-black text-white italic tracking-tighter">
-                          {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : (order.amount ? `$${Number(order.amount).toFixed(2)}` : 'N/A')}
+                          {order.amount ? `$${Number(order.amount).toFixed(2)}` : 'N/A'}
                         </span>
                     </div>
                 )) : (
@@ -287,7 +287,7 @@ const Dashboard = () => {
                             </td>
                             <td className="px-10 py-6">
                                 <span className="text-lg font-black text-white italic tracking-tighter leading-none">
-                                  {typeof order.amount === 'number' ? `$${order.amount.toFixed(2)}` : (order.amount ? `$${Number(order.amount).toFixed(2)}` : 'N/A')}
+                                  {order.amount ? `$${Number(order.amount).toFixed(2)}` : 'N/A'}
                                 </span>
                             </td>
                             <td className="px-10 py-6">

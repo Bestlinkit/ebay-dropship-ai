@@ -269,9 +269,9 @@ class eBayService {
                 const prices = results.map(r => r.price);
                 const avgPrice = prices.length > 0 ? prices.reduce((a,b) => a+b, 0) / prices.length : 0;
                 results.stats = {
-                    min: prices.length > 0 ? Math.min(...prices).toFixed(2) : '0.00',
-                    max: prices.length > 0 ? Math.max(...prices).toFixed(2) : '0.00',
-                    avg: avgPrice.toFixed(2)
+                    min: prices.length > 0 ? (Math.min(...prices) || 0).toFixed(2) : '0.00',
+                    max: prices.length > 0 ? (Math.max(...prices) || 0).toFixed(2) : '0.00',
+                    avg: (avgPrice || 0).toFixed(2)
                 };
             }
 

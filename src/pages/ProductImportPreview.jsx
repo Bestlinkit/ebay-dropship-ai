@@ -62,22 +62,32 @@ const ProductImportPreview = () => {
 
     const handleConfirmImport = () => {
         // Enforce Structured Storage Format (Production Vector)
+        
+        // 🧪 PRE-FLIGHT VALIDATION (IRON SHIELD v6.1)
+        if (!product.title || !product.images?.length) {
+            console.error("[IMPORT_BLOCKED] PRODUCT_INCOMPLETE", { title: product.title, images: product.images?.length });
+            toast.error("Cannot import product — missing critical data (Title or Images).", {
+                description: "The supplier data for this item is incomplete. Please choose a different result."
+            });
+            return;
+        }
+
         const finalProductVector = {
             title: product.title,
-            description: product.description,
-            images: product.images,
-            variants: product.variants,
+            description: product.description || "No description provided.",
+            images: Array.isArray(product.images) ? product.images.filter(Boolean) : [],
+            variants: Array.isArray(product.variants) ? product.variants : [],
             selectedVariant: selectedVariant,
             pricing: {
                 ...product.pricing,
-                selectedVariantPrice: selectedVariant.price,
-                totalCost: parseFloat(roiMetrics.cost),
-                profit: parseFloat(roiMetrics.profit),
-                margin: roiMetrics.margin
+                selectedVariantPrice: selectedVariant.price || 0,
+                totalCost: parseFloat(roiMetrics.cost || 0),
+                profit: parseFloat(roiMetrics.profit || 0),
+                margin: roiMetrics.margin || 0
             },
-            shipping: product.shipping,
-            sourcePlatform: product.sourcePlatform,
-            sourceId: product.sourceId,
+            shipping: product.shipping || { cost: 0, estimate: 'N/A', method: 'N/A' },
+            sourcePlatform: product.sourcePlatform || 'Unknown',
+            sourceId: product.sourceId || 'N/A',
             importedAt: new Date().toISOString()
         };
 
@@ -91,8 +101,6 @@ const ProductImportPreview = () => {
             } 
         });
     };
-
-    return (
         <div className="max-w-[1400px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             
             {/* 🧭 HEADER & SOURCE LABELS */}
@@ -186,7 +194,7 @@ const ProductImportPreview = () => {
                             <div className="flex flex-col">
                                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.3em]">Market Target</span>
                                 <span className="text-3xl font-black text-white italic tracking-tighter">
-                                    {typeof (product.pricing?.basePrice || 0) === 'number' ? `$${(product.pricing?.basePrice || 0).toFixed(2)}` : '$0.00'}
+                                    {(product.pricing?.basePrice || 0) ? `$${(product.pricing?.basePrice || 0).toFixed(2)}` : '$0.00'}
                                 </span>
                             </div>
                             <div className="h-10 w-px bg-slate-800" />
@@ -211,13 +219,13 @@ const ProductImportPreview = () => {
                                 <div className="flex justify-between text-[11px]">
                                     <span className="text-slate-500">Selected Variant Cost</span>
                                     <span className="text-white font-black">
-                                        {typeof selectedVariant.price === 'number' ? `$${selectedVariant.price.toFixed(2)}` : 'N/A'}
+                                        {selectedVariant.price ? `$${selectedVariant.price.toFixed(2)}` : 'N/A'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
                                     <span className="text-slate-500">Shipping Mode Cost</span>
                                     <span className="text-white font-black">
-                                        {typeof product.shipping?.cost === 'number' ? `$${product.shipping.cost.toFixed(2)}` : 'FREE'}
+                                        {product.shipping?.cost ? `$${product.shipping.cost.toFixed(2)}` : 'FREE'}
                                     </span>
                                 </div>
                                 <div className="h-px bg-slate-800 my-2" />

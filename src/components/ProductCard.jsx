@@ -139,7 +139,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
            {/* PRICE & CONFIDENCE ROW */}
            <div className="flex items-center gap-4">
               <span className="text-3xl font-black text-white italic tracking-tighter">
-                {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'N/A'}
+                {product.price ? `$${product.price.toFixed(2)}` : 'N/A'}
               </span>
               <ConfidenceBadge level={sellData.confidence} />
            </div>

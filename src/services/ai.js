@@ -42,7 +42,7 @@ class AIService {
   
   async optimizeListing(baselineTitle, currentPrice, competitorPrices = [], attempt = 1) {
     const pricesStats = competitorPrices.length > 0 
-      ? `Avg: $${(competitorPrices.reduce((a,b)=>a+b,0)/competitorPrices.length).toFixed(2)}` 
+      ? `Avg: $${((competitorPrices.reduce((a,b)=>a+b,0)/competitorPrices.length) || 0).toFixed(2)}` 
       : "No market data";
 
     const prompt = `
