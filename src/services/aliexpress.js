@@ -34,13 +34,25 @@ class AliExpressService {
             for (const pattern of jsonPatterns) {
                 const match = html.match(pattern);
                 if (match) {
+                    console.info(`[DEBUG] Ali Match Pattern: ${pattern.toString().slice(0, 30)}...`);
                     try {
                         data = JSON.parse(match[1]);
-                        if (data?.mods?.itemList?.content) break; 
-                        if (data?.actionValues) break; // Alternative Ali structure
-                    } catch (e) { continue; }
+                        if (data?.mods?.itemList?.content) {
+                            console.log("[DEBUG] Ali Extraction: Found 'itemList.content'");
+                            break; 
+                        }
+                        if (data?.actionValues) {
+                            console.log("[DEBUG] Ali Extraction: Found 'actionValues'");
+                            break; 
+                        }
+                    } catch (e) { 
+                        console.warn(`[DEBUG] Ali JSON Parse Error for pattern: ${pattern}`);
+                        continue; 
+                    }
                 }
             }
+
+            if (!data) console.warn("[DEBUG] Ali Extraction: No valid JSON patterns matched in HTML.");
 
             if (data) {
                 const items = data.mods?.itemList?.content || data.actionValues?.itemList || [];
@@ -69,8 +81,8 @@ class AliExpressService {
         const itemNodes = [...doc.querySelectorAll('.list-item, .search-item-card, [data-index], .pro-item')];
 
         if (itemNodes.length === 0) {
-            if (html.includes("security-check") || html.length < 5000) {
-                throw new Error("AliExpress blocked. Searching alternative supplier sources...");
+            if (html.includes("security-check") || html.length < 1000) {
+                throw new Error("AliExpress scraping blocked. Try a different keyword or retry later.");
             }
             return [];
         }
@@ -96,7 +108,7 @@ class AliExpressService {
 
     } catch (e) {
         console.error("AliExpress Scraping Malfunction:", e.message);
-        throw new Error("Searching alternative supplier sources...");
+        throw new Error(e.message || "Global node unreachable.");
     }
   }
 

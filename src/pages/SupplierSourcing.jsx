@@ -263,10 +263,10 @@ const SupplierSourcing = () => {
                             </div>
                             <div className="space-y-4">
                                 <button 
-                                    onClick={() => navigate('/global-sourcing', { state: { product: targetProduct, query: searchQuery } })}
+                                    onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
                                     className="w-full py-6 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-2xl"
                                 >
-                                    Proceed to Global Search
+                                    Proceed to AliExpress Search
                                 </button>
                                 <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-700 uppercase tracking-widest hover:text-white transition-colors">
                                     Stay on Verified Network

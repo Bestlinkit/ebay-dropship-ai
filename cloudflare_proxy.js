@@ -106,12 +106,20 @@ export default {
             try {
                 const body = await request.json();
                 const timestamp = Date.now();
-                const EPROLO_APP_KEY = env.EPROLO_APP_KEY || "7D57B61F51C2485285A0B9526548AB32";
-                const EPROLO_SECRET = env.EPROLO_SECRET || "DEC24B77A8B84678AAB7BAAF35502798ED288A1A91E84DDB86D6B04F1BFAC6B8";
+                const EPROLO_APP_KEY = env.EPROLO_APP_KEY;
+                const EPROLO_SECRET = env.EPROLO_SECRET;
+                
+                if (!EPROLO_APP_KEY || !EPROLO_SECRET) {
+                    console.error("Eprolo Trace: Missing Credentials");
+                    throw new Error("Eprolo configuration missing. Please set API credentials in Cloudflare Worker settings.");
+                }
                 
                 // --- DUAL-AUTH DISPATCH ---
                 // Attempt 1: SHA-256 (Modern Standard)
                 const signSHA = await sha256(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
+                console.info(`[DEBUG] Eprolo Signature (SHA): ${signSHA}`);
+                console.info(`[DEBUG] Eprolo Payload: ${JSON.stringify(body)}`);
+                console.log("SOURCE: EPROLO");
                 console.log("Eprolo Trace: Attempting SHA-256 Handshake...");
                 
                 const response = await fetch("https://openapi.eprolo.com/eprolo_product_list.html", {
@@ -126,11 +134,15 @@ export default {
                 });
 
                 let result = await response.json();
+                console.log("EPROLO RESPONSE STATUS:", response.status);
+                console.log("EPROLO RESPONSE DATA:", JSON.stringify(result).substring(0, 500));
 
                 // Attempt 2: MD5 Fallback (Legacy Compatibility)
                 if (result.code === "-1" || result.msg?.includes("sign error")) {
+                    console.warn(`[DEBUG] Eprolo Error Response: ${JSON.stringify(result)}`);
                     console.warn("Eprolo Trace: SHA-256 Failed. Falling back to MD5...");
                     const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
+                    console.info(`[DEBUG] Eprolo Fallback Signature (MD5): ${signMD5}`);
                     const fallbackUrl = `https://openapi.eprolo.com/eprolo_product_list.html?apiKey=${EPROLO_APP_KEY}&sign=${signMD5}&timestamp=${timestamp}`;
                     
                     const fbResponse = await fetch(fallbackUrl, {
@@ -155,6 +167,7 @@ export default {
                 const query = url.searchParams.get("q");
                 if (!query) throw new Error("Missing query");
 
+                console.log("SOURCE: ALIEXPRESS MANUAL");
                 const target = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
                 const response = await fetch(target, {
                     headers: {
@@ -164,6 +177,8 @@ export default {
                 });
 
                 const html = await response.text();
+                console.info(`[DEBUG] Ali HTML Length: ${html.length}`);
+                console.log(`[DEBUG] Ali HTML Preview: ${html.substring(0, 500)}`);
 
                 // BLOCKING DETECTION
                 if (!html || html.length < 1000) {

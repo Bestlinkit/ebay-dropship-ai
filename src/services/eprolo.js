@@ -35,6 +35,7 @@ class EproloService {
             });
 
             const result = await response.json();
+            console.info(`[DEBUG] Eprolo Raw Response: ${JSON.stringify(result).substring(0, 500)}...`);
             
             if (result.code !== '0' && result.code !== 0) {
                 throw new Error(result.msg || `Eprolo Error: ${result.code}`);

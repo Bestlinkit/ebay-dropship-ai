@@ -22,6 +22,7 @@ import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
 import GlobalSourcing from './pages/GlobalSourcing';
+import AliSourcing from './pages/AliSourcing';
 import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -73,6 +74,14 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <GlobalSourcing />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/ali-sourcing" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AliSourcing />
                   </Layout>
                 </ProtectedRoute>
               } />
