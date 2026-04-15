@@ -4,7 +4,9 @@
  */
 class EproloService {
     constructor() {
-        this.proxyUrl = import.meta.env.VITE_PROXY_URL;
+        // Normalize Proxy URL: Ensure no trailing slash for consistent route construction
+        const rawProxy = import.meta.env.VITE_PROXY_URL || "";
+        this.proxyUrl = rawProxy.endsWith("/") ? rawProxy.slice(0, -1) : rawProxy;
     }
 
     /**
@@ -14,6 +16,7 @@ class EproloService {
         try {
             console.log(`[Eprolo Hub] Dispatching secure sourcing probe for "${query}"...`);
             
+            // Explicit Absolute Worker Route
             const response = await fetch(`${this.proxyUrl}/eprolo-search`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

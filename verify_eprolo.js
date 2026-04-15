@@ -1,31 +1,23 @@
-import fs from 'fs';
-import path from 'path';
-import axios from 'axios';
-import crypto from 'crypto';
+const crypto = require('crypto');
+const axios = require('axios');
+const dotenv = require('dotenv');
 
-// Manual .env parsing to avoid dependency issues
-const envPath = path.resolve('.env');
-const envContent = fs.readFileSync(envPath, 'utf8');
-const env = Object.fromEntries(
-    envContent.split('\n')
-        .filter(line => line.includes('=') && !line.startsWith('#'))
-        .map(line => {
-            const [key, ...val] = line.split('=');
-            return [key.trim(), val.join('=').trim().replace(/^["']|["']$/g, '')];
-        })
-);
+dotenv.config();
 
-const apiKey = env.VITE_EPROLO_API_KEY;
-const apiSecret = env.VITE_EPROLO_API_SECRET;
-const baseUrl = 'https://openapi.eprolo.com';
+const apiKey = process.env.VITE_EPROLO_API_KEY;
+const apiSecret = process.env.VITE_EPROLO_API_SECRET;
+const baseUrl = 'https://openapi.eprolo.com/eprolo_product_list.html';
 
+function sha256(string) {
+    return crypto.createHash('sha256').update(string).digest('hex');
+}
 
 function md5(string) {
     return crypto.createHash('md5').update(string).digest('hex');
 }
 
 async function verify() {
-    console.log("--- Eprolo API Diagnostics (MD5) ---");
+    console.log("--- Eprolo API Diagnostics (Dual-Auth) ---");
     console.log(`API Key: ${apiKey ? 'PRESENT' : 'MISSING'}`);
     console.log(`API Secret: ${apiSecret ? 'PRESENT' : 'MISSING'}`);
 
@@ -35,44 +27,51 @@ async function verify() {
     }
 
     const timestamp = Date.now();
-    const sign = md5(`${apiKey}${timestamp}${apiSecret}`);
-
-    console.log(`Timestamp: ${timestamp}`);
-    console.log(`Generated Sign: ${sign}`);
-
-    const url = `${baseUrl}/eprolo_product_list.html?apiKey=${apiKey}&sign=${sign}&timestamp=${timestamp}&page_index=0&page_size=3`;
-
-    console.log(`Requesting URL: ${url}`);
-
+    
+    // Test 1: SHA-256
+    const signSHA = sha256(`${apiKey}${timestamp}${apiSecret}`);
+    console.log(`\n[Stage 1] Testing SHA-256...`);
+    console.log(`Generated Sign: ${signSHA}`);
+    
     try {
-        const response = await axios.get(url, {
-            headers: { 'apiKey': apiKey }
+        const response = await axios.post(baseUrl, {
+            apiKey: apiKey,
+            timestamp: timestamp,
+            sign: signSHA,
+            page_index: 0,
+            page_size: 1
         });
-
-        console.log(`Status: ${response.status} ${response.statusText}`);
         
-        const data = response.data;
-        console.log("Response Data Preview:", JSON.stringify(data).substring(0, 500));
-
-        if (data.code === '0' || data.code === 0) {
-            console.log("\n✅ SUCCESS: Eprolo Open API is connected and responding correctly!");
-            if (data.data && data.data.length > 0) {
-                console.log(`Found ${data.data.length} products in page 0.`);
-                console.log(`Sample Product: ${data.data[0].title}`);
-            } else {
-                console.log("Empty product list returned (this is normal if page is empty).");
-            }
+        console.log(`Status: ${response.status}`);
+        console.log(`Response Data: ${JSON.stringify(response.data)}`);
+        
+        if (response.data.code === "0") {
+            console.log("\n✅ SUCCESS: Eprolo accepts SHA-256!");
         } else {
-            console.error(`\n❌ FAILED: API Error - ${data.msg} (Code: ${data.code})`);
+            console.warn(`\n⚠️ Stage 1 Failed: ${response.data.msg}`);
+            
+            // Test 2: MD5 Fallback
+            console.log("\n[Stage 2] Testing MD5 Fallback...");
+            const signMD5 = md5(`${apiKey}${timestamp}${apiSecret}`);
+            const fbUrl = `${baseUrl}?apiKey=${apiKey}&sign=${signMD5}&timestamp=${timestamp}`;
+            
+            const fbResponse = await axios.post(fbUrl, {
+                page_index: 0,
+                page_size: 1
+            });
+            
+            console.log(`Status: ${fbResponse.status}`);
+            console.log(`Response Data: ${JSON.stringify(fbResponse.data)}`);
+            
+            if (fbResponse.data.code === "0") {
+                console.log("\n✅ SUCCESS: Eprolo requires MD5 (Dual-Auth logic is VITAL).");
+            } else {
+                console.error("\n❌ FATAL: Both SHA-256 and MD5 failed.");
+            }
         }
-
     } catch (e) {
-        console.error(`\n❌ CRITICAL: Request failed - ${e.message}`);
-        if (e.response) {
-            console.error("Error Response Data:", e.response.data);
-        }
+        console.error(`\n❌ Network Error: ${e.message}`);
     }
 }
 
 verify();
-

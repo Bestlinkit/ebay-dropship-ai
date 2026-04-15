@@ -39,10 +39,10 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
     setLoading(true);
     setMatches([]);
     
+    // 1. STAGE: Eprolo Probe (Primary Source)
     try {
-      // 1. Try Eprolo First
       setState('SEARCHING_EPROLO');
-      console.log("[Sourcing Waterfall] Attempting Eprolo probe...");
+      console.log("[Sourcing Waterfall] Dispatching primary Eprolo probe...");
       const eproloResults = await eproloService.findMatches(ebayProduct);
       
       if (eproloResults && eproloResults.length > 0) {
@@ -52,31 +52,31 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
         setLoading(false);
         return;
       }
-      
-      throw new Error("No Eprolo results found");
-
+      throw new Error("Eprolo returned empty results.");
     } catch (e) {
-      // 2. Fallback to AliExpress
-      console.warn("[Sourcing Waterfall] Eprolo failed or empty. Switching to AliExpress fallback...");
-      setState('SWITCHING_TO_FALLBACK');
+      console.warn("[Sourcing Waterfall] Eprolo signal lost or empty. Attempting alternative sources...");
+    }
+
+    // 2. STAGE: AliExpress Fallback (Secondary Source)
+    try {
+      setState('SWITCHING_TO_FALLBACK'); 
+      console.info("[Sourcing Waterfall] Initiating AliExpress recovery sequence...");
       
-      // Artificial delay for UX "Searching alternative sources..." as per patch
+      // UX Delay for "Searching alternative sources..." message parity
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      try {
-        const aliResults = await aliExpressService.searchProducts(ebayProduct.title);
-        
-        if (aliResults && aliResults.length > 0) {
-          setMatches(aliResults);
-          setSource('aliexpress');
-          setState('RESULTS');
-        } else {
-          setState('FINAL_NO_RESULTS');
-        }
-      } catch (err) {
-        console.error("[Sourcing Waterfall] Both sources failed.");
+      const aliResults = await aliExpressService.searchProducts(ebayProduct.title);
+      
+      if (aliResults && aliResults.length > 0) {
+        setMatches(aliResults);
+        setSource('aliexpress');
+        setState('RESULTS');
+      } else {
         setState('FINAL_NO_RESULTS');
       }
+    } catch (err) {
+      console.error("[Sourcing Waterfall] Final fallback failover reached.");
+      setState('FINAL_NO_RESULTS');
     } finally {
       setLoading(false);
     }

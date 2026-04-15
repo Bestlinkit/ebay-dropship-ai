@@ -1,10 +1,9 @@
 /**
- * Universal Crystal Bridge (v5.9-SHIELD)
- * Optimized for Eprolo Open API and AliExpress Scraping
- * Self-contained MD5 logic for production stability.
+ * Universal Crystal Bridge (v6.0-SHIELD)
+ * Production-Ready Sourcing Pipeline
  */
 
-// 1. SELF-CONTAINED MD5 IMPLEMENTATION (For Cloudflare Compatibility)
+// 1. MD5 HELPER (Legacy Compatibility)
 const md5 = (string) => {
     function md5cycle(x, k) {
         var a = x[0], b = x[1], c = x[2], d = x[3];
@@ -74,6 +73,12 @@ const md5 = (string) => {
     return hex(md51(string));
 };
 
+// 2. SHA-256 HELPER
+const sha256 = async (string) => {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(string));
+    return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, "0")).join("");
+};
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -83,40 +88,60 @@ export default {
             "Access-Control-Allow-Headers": "*"
         };
 
-        // 1. Handle Preflight
-        if (request.method === "OPTIONS") {
-            return new Response(null, { headers: corsHeaders });
-        }
+        // Standard Monitoring
+        console.log(`Route hit: ${url.pathname} [${request.method}]`);
 
-        // 2. ROUTE: /eprolo-search
+        if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+        // 1. ROUTE: /eprolo-search
         if (url.pathname === "/eprolo-search") {
             try {
                 const body = await request.json();
                 const timestamp = Date.now();
-                
-                // USER-PROVIDED HARDCODED CREDENTIALS
                 const EPROLO_APP_KEY = env.EPROLO_APP_KEY || "7D57B61F51C2485285A0B9526548AB32";
                 const EPROLO_SECRET = env.EPROLO_SECRET || "DEC24B77A8B84678AAB7BAAF35502798ED288A1A91E84DDB86D6B04F1BFAC6B8";
                 
-                const sign = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
-                const eproloUrl = "https://openapi.eprolo.com/eprolo_product_list.html";
+                // --- DUAL-AUTH DISPATCH ---
+                // Attempt 1: SHA-256 (Modern Standard)
+                const signSHA = await sha256(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
+                console.log("Eprolo Trace: Attempting SHA-256 Handshake...");
                 
-                const response = await fetch(`${eproloUrl}?apiKey=${EPROLO_APP_KEY}&sign=${sign}&timestamp=${timestamp}`, {
+                const response = await fetch("https://openapi.eprolo.com/eprolo_product_list.html", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({
+                        apiKey: EPROLO_APP_KEY,
+                        timestamp: timestamp,
+                        sign: signSHA,
+                        ...body
+                    })
                 });
 
-                const data = await response.text();
-                return new Response(data, { 
+                let result = await response.json();
+
+                // Attempt 2: MD5 Fallback (Legacy Compatibility)
+                if (result.code === "-1" || result.msg?.includes("sign error")) {
+                    console.warn("Eprolo Trace: SHA-256 Failed. Falling back to MD5...");
+                    const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
+                    const fallbackUrl = `https://openapi.eprolo.com/eprolo_product_list.html?apiKey=${EPROLO_APP_KEY}&sign=${signMD5}&timestamp=${timestamp}`;
+                    
+                    const fbResponse = await fetch(fallbackUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body)
+                    });
+                    result = await fbResponse.json();
+                }
+
+                return new Response(JSON.stringify(result), { 
                     headers: { ...corsHeaders, "Content-Type": "application/json" } 
                 });
-            } catch (err) {
-                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+            } catch (err) { 
+                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders }); 
             }
         }
 
-        // 3. ROUTE: /aliexpress-search
+        // 2. ROUTE: /aliexpress-search
         if (url.pathname === "/aliexpress-search") {
             try {
                 const query = url.searchParams.get("q");
@@ -131,43 +156,42 @@ export default {
                 });
 
                 const html = await response.text();
+
+                // BLOCKING DETECTION
+                if (!html || html.length < 1000) {
+                    console.error("AliExpress Trace: Blocking detected (Length < 1000)");
+                    throw new Error("AliExpress sourcing currently blocked by network.");
+                }
+
                 return new Response(html, {
                     headers: { ...corsHeaders, "Content-Type": "text/html" }
                 });
-            } catch (err) {
-                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+            } catch (err) { 
+                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders }); 
             }
         }
 
-        // 4. FALLBACK: Generic Proxy
+        // 3. FALLBACK: Generic Proxy (eBay / Identity)
         const targetUrl = url.searchParams.get("url");
         if (targetUrl) {
             try {
                 const headers = new Headers(request.headers);
-                
-                // Extract injected headers (used by eBay service)
                 const auth = url.searchParams.get("auth");
                 const marketplaceid = url.searchParams.get("marketplaceid");
-                
                 if (auth) headers.set("Authorization", auth);
                 if (marketplaceid) headers.set("X-EBAY-C-MARKETPLACE-ID", marketplaceid);
 
-                // Clean up headers for the target
                 headers.delete("Host");
-                
                 const response = await fetch(targetUrl, {
                     method: request.method,
                     headers: headers,
                     body: (request.method !== "GET" && request.method !== "HEAD") ? await request.arrayBuffer() : undefined
                 });
-
-                return new Response(response.body, {
-                    status: response.status,
-                    headers: { ...corsHeaders, ...Object.fromEntries(response.headers) }
+                return new Response(response.body, { 
+                    status: response.status, 
+                    headers: { ...corsHeaders, ...Object.fromEntries(response.headers) } 
                 });
-            } catch (err) {
-                return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-            }
+            } catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500 }); }
         }
 
         return new Response("Crystal Bridge: Active and Secure", { status: 200 });
