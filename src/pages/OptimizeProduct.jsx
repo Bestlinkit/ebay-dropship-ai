@@ -1,59 +1,37 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Sparkles, 
   RefreshCw,
-  ArrowRight,
   Type,
   Camera,
   DollarSign,
   ChevronRight,
-  CheckCircle,
-  Cpu,
-  Target,
-  Zap,
-  Tag,
-  Layers,
-  Info,
   AlertCircle,
   Image as ImageIcon,
-  Trash2,
-  Eye,
-  Terminal,
-  Search,
-  ExternalLink,
-  Loader2,
-  Star,
+  X,
   Activity,
   Box,
   Globe,
-  Monitor,
-  TrendingUp,
-  Percent,
-  BarChart3,
-  X,
-  ChevronDown,
-  ChevronLeft,
-  Check,
-  LayoutDashboard,
-  Package,
-  Edit3,
-  Shield
+  Tag,
+  Layers,
+  Shield,
+  Loader2,
+  Zap
 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { cn } from '../lib/utils';
 import aiService from '../services/ai';
+import ebayService from '../services/ebay';
 import ebayTrading from '../services/ebay_trading';
 import sourcingService from '../services/sourcing';
 import NanoBanana from '../components/NanoBanana';
 import ProfitMaximizer from '../components/ProfitMaximizer';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import ebayTrading from '../services/ebay_trading';
-import { cn } from '../lib/utils';
 import { matchPrimaryCategory, PRIMARY_CATEGORIES } from '../constants/ebayTaxonomy';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const OptimizeProduct = () => {
   const { id } = useParams();
@@ -298,7 +276,11 @@ const OptimizeProduct = () => {
         addSystemLog(`Deployment failure: ${e.message}`, 'error');
     } finally {
         setIsDeploying(false);
-        toast.dismiss(toas  if (loading) return (
+        toast.dismiss(toastId);
+    }
+  };
+
+  if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <Loader2 className="animate-spin text-slate-200" size={64} strokeWidth={1} />
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Hydrating SaaS Environment...</p>
