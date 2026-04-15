@@ -86,7 +86,7 @@ const OptimizeProduct = () => {
     const hydrateStudio = async () => {
         setLoading(true);
         try {
-            // Case A: Product passed via Discovery Hub State (Internal Node)
+            // Case A: Product passed via Discovery State (Internal)
             if (location.state?.ebayProduct) {
                 const ep = location.state.ebayProduct;
                 setOriginalProduct(ep);
@@ -138,7 +138,7 @@ const OptimizeProduct = () => {
                     category: matchedId || '', 
                 }));
 
-                addSystemLog("Supplier extraction node ingested successfully.", 'success');
+                addSystemLog("Supplier extraction successful.", 'success');
                 setLoading(false);
 
                 // 🔥 AUTO-SWEEP (Step 4): Trigger AI Optimization immediately for new imports
@@ -177,7 +177,7 @@ const OptimizeProduct = () => {
         const subs = await ebayService.getSubCategories(parentId);
         setCurrentLevelLevels(subs);
     } catch (e) {
-        toast.error("Taxonomy node retrieval failed.");
+        toast.error("Taxonomy retrieval failed.");
     } finally {
         setCategoryLoading(false);
     }
@@ -240,7 +240,7 @@ const OptimizeProduct = () => {
     }
 
     setIsDeploying(true);
-    const toastId = toast.loading(id === 'new' ? "Initial Node Deployment..." : "Broadcasting Registry Update...");
+    const toastId = toast.loading(id === 'new' ? "Initial Deployment..." : "Broadcasting Update...");
     
     try {
         const token = user?.ebayToken || import.meta.env.VITE_EBAY_USER_TOKEN;
@@ -262,13 +262,13 @@ const OptimizeProduct = () => {
             toast.success("Product successfully materialized on eBay.");
             addSystemLog(`Deployment successful. New Item ID: ${newId}`, 'success');
             
-            // Redirect to the newly created product node (Revision path)
+            // Redirect to the newly created product (Revision path)
             setTimeout(() => navigate(`/optimize/${newId}`), 2000);
         } else {
-            console.log("[PRODUCTION UPDATE] Initiating ReviseItem call for node:", id);
+            console.log("[PRODUCTION UPDATE] Initiating ReviseItem call for item:", id);
             await ebayTrading.reviseItem(token, id, itemPayload);
             toast.success("Production update confirmed.");
-            addSystemLog("Node successfully updated on eBay.", 'success');
+            addSystemLog("Item successfully updated on eBay.", 'success');
         }
     } catch (e) {
         console.error("eBay Deployment Fault:", e);
@@ -297,7 +297,7 @@ const OptimizeProduct = () => {
            </div>
            <div>
               <h1 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">Optimization Studio.</h1>
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Status: Stable Connectivity Node {id}</p>
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Status: Stable Connectivity {id}</p>
            </div>
         </div>
         <button 
@@ -398,7 +398,7 @@ const OptimizeProduct = () => {
                       {!registry.marketStats ? (
                         <div className="flex flex-col items-center justify-center p-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center gap-3">
                             <AlertCircle className="text-slate-300" size={32} />
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Market telemetry not available for this node</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Market telemetry not available</p>
                             <button onClick={runFullOptimization} className="mt-2 text-[9px] font-black text-primary-500 uppercase underline">Retry Vector</button>
                         </div>
                       ) : (
@@ -488,7 +488,7 @@ const OptimizeProduct = () => {
                     ))}
                     <div className="aspect-square bg-slate-100 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 text-slate-300 border border-dashed border-slate-200 group cursor-pointer hover:bg-slate-200/50 hover:text-slate-500 transition-all">
                         <ImageIcon size={32} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Add Node</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Add Product</span>
                     </div>
                 </div>
              </div>
@@ -517,7 +517,7 @@ const OptimizeProduct = () => {
                                 {i < categoryStack.length - 1 && <ChevronRight className="text-slate-300" size={14} />}
                             </div>
                         ))}
-                        {categoryLoading && <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse"><RefreshCw className="animate-spin" size={12} /> Syncing Node...</div>}
+                        {categoryLoading && <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse"><RefreshCw className="animate-spin" size={12} /> Syncing...</div>}
                    </div>
 
                    {currentLevelLevels.length > 0 && (
@@ -552,7 +552,7 @@ const OptimizeProduct = () => {
                                  onChange={(e) => setRegistry(p => ({ ...p, supplierCost: parseFloat(e.target.value) || 0 }))}
                                  className="w-full h-16 bg-slate-50 border border-slate-100 rounded-2xl px-6 text-2xl font-black text-slate-900 outline-none focus:border-primary/50 transition-all"
                                />
-                               <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase">Input Node</div>
+                               <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase">Input Item</div>
                             </div>
                          </div>
                          <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">

@@ -122,7 +122,7 @@ const SupplierSourcing = () => {
         setShowAliExpansion(true);
     };
 
-    if (!targetProduct) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">Market Node Required</div>;
+    if (!targetProduct) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">Target Selection Required</div>;
 
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">

@@ -157,7 +157,7 @@ const Login = () => {
                   {authState === 'forgot' && "Recover Access."}
                </h2>
                <p className="text-sm font-medium text-slate-400 leading-relaxed">
-                  {authState === 'login' && "Connect your eBay nodes and start AI-driven fulfillment."}
+                  {authState === 'login' && "Connect your eBay store and start AI-driven fulfillment."}
                   {authState === 'signup' && "Create your enterprise hub credentials to begin."}
                   {authState === 'forgot' && "Enter your identity identifier to reset security protocols."}
                </p>
@@ -250,12 +250,12 @@ const Login = () => {
 
             <div className="text-center">
                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  {authState === 'login' ? "New Identity node?" : "Already indexed?"}
+                  {authState === 'login' ? "New account?" : "Already registered?"}
                   <button 
                      onClick={() => setAuthState(authState === 'login' ? 'signup' : 'login')}
                      className="ml-2 text-primary-500 hover:underline"
                   >
-                     {authState === 'login' ? "Deploy New Node" : "Access Terminal"}
+                     {authState === 'login' ? "Register Store" : "Access Terminal"}
                   </button>
                </p>
             </div>

@@ -1,10 +1,10 @@
 import { SourcingStatus, SourcingUIState } from '../constants/sourcing';
 
 /**
- * Truth-Based Sourcing Interpreter (v2.0)
+ * Truth-Based Sourcing Interpreter (v4.0)
  * The sole authority for mapping supplier responses to UI states.
  * 
- * CORE RULE: NEVER downgrade errors or blocking signals to "Empty".
+ * CORE RULE: NEVER guess failure reason; only map explicit statuses.
  */
 export const interpretSupplierResponse = (result, platform) => {
   const { status } = result;
@@ -33,6 +33,7 @@ export const interpretSupplierResponse = (result, platform) => {
       case SourcingStatus.BLOCKED:
         return SourcingUIState.ALIEXPRESS_BLOCKED;
       case SourcingStatus.PARSE_ERROR:
+        return SourcingUIState.ALIEXPRESS_ERROR; // Maps to "AliExpress Parser Outdated" or similar
       case SourcingStatus.API_ERROR:
       case SourcingStatus.NETWORK_ERROR:
         return SourcingUIState.ALIEXPRESS_ERROR;

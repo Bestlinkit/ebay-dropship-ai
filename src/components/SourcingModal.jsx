@@ -18,12 +18,12 @@ import {
 import eproloService from '../services/eprolo';
 import { interpretSupplierResponse } from '../utils/sourcingInterpreter';
 import { SourcingUIState } from '../constants/sourcing';
-import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 
 /**
- * Truth-Based Sourcing Modal (v2.0)
+ * Truth-Based Sourcing Modal (v4.0)
  * Uses a deterministic state machine for platform discovery.
+ * Strictly manual AliExpress exploration.
  */
 const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
   const navigate = useNavigate();
@@ -76,7 +76,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
       
       <div className="relative bg-white w-full max-w-5xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-500 border border-slate-200">
         
-        {/* Header (Purged of abstractions) */}
+        {/* Header */}
         <div className="p-8 border-b border-slate-100 flex items-center justify-between">
             <div className="space-y-1">
                 <div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                    <h2 className="text-xl font-bold text-slate-900 italic tracking-tight">Eprolo Discovery</h2>
                 </div>
                 <p className="text-xs text-slate-400 font-medium line-clamp-1 max-w-md">
-                    Target Product: <span className="text-slate-900">{ebayProduct.title}</span>
+                    Target: <span className="text-slate-900">{ebayProduct.title}</span>
                 </p>
             </div>
 
@@ -114,7 +114,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
               <div className="space-y-3">
                  <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter">No results found on Eprolo</h3>
                  <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
-                   The Eprolo catalog does not currently contain a match for this market selection.
+                   Eprolo catalog contains no direct match.
                  </p>
               </div>
               <button 
@@ -132,7 +132,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
               <div className="space-y-3">
                  <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter text-red-600">Eprolo API Error</h3>
                  <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
-                   The inquiry failed due to a technical error. Please check your Eprolo credentials or endpoint status.
+                   Technical connection failure. Check credentials or endpoint status.
                  </p>
               </div>
               <div className="flex flex-col items-center gap-4">
@@ -146,7 +146,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                    onClick={handleManualAliSearch}
                    className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-500 transition-colors"
                 >
-                  Continue to AliExpress Manual Search
+                  Search AliExpress Instead
                 </button>
               </div>
             </div>
@@ -172,10 +172,6 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                            <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", profitCalc.margin > 30 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500")}>
                               {profitCalc.margin}% ROI Potential
                            </span>
-                           <div className="flex items-center gap-1.5 text-slate-400">
-                             <Truck size={12} className="text-slate-400" />
-                             <span className="text-[9px] font-bold uppercase">{match.shipsFrom}</span>
-                           </div>
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 line-clamp-2 leading-tight">
                            {match.title}
@@ -218,7 +214,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                 <div className="flex items-center gap-4">
                    <div className="flex items-center gap-2">
                      <div className={cn("w-2 h-2 rounded-full", loading ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
-                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{loading ? "Probing..." : "Inquiry Standby"}</p>
+                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{loading ? "Searching..." : "Ready"}</p>
                    </div>
                    {debugInfo && (
                        <button 
@@ -232,7 +228,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                 </div>
                 <div className="flex items-center gap-3 opacity-30">
                      <ShieldCheck size={14} className="text-slate-900" />
-                     <p className="text-[9px] font-black text-slate-900 uppercase tracking-widest italic">Truth-Based Engine v2.0</p>
+                     <p className="text-[9px] font-black text-slate-900 uppercase tracking-widest italic">Truth-Based Engine v4.0</p>
                 </div>
             </div>
 

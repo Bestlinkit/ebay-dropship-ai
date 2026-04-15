@@ -25,7 +25,7 @@ class ErrorBoundary extends React.Component {
                         </div>
                         <div className="space-y-2">
                             <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter italic">System Fault.</h2>
-                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Node Desynchronization</p>
+                            <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">System Desynchronization</p>
                         </div>
                         
                         {this.state.error && (
@@ -37,14 +37,14 @@ class ErrorBoundary extends React.Component {
                         )}
 
                         <p className="text-slate-400 text-xs font-bold leading-relaxed max-w-[280px] mx-auto">
-                            The terminal encountered a critical vector mismatch. This usually occurs during a session timeout or API link failure.
+                            The terminal encountered a critical system mismatch. This usually occurs during a session timeout or API link failure.
                         </p>
                         <div className="grid grid-cols-2 gap-4 pt-4">
                             <button 
                                 onClick={() => window.location.reload()}
                                 className="h-12 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
                             >
-                                <RefreshCw size={14} /> Restart Node
+                                <RefreshCw size={14} /> Restart System
                             </button>
                             <button 
                                 onClick={() => window.location.href = '/'}

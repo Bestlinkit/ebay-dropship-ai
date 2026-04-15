@@ -117,7 +117,7 @@ class AIService {
             { id: "benefit", title: `BEST ${baselineTitle} FOR PROFESSIONAL RESULTS`, score: 85, type: "Benefit" },
             { id: "hook", title: `TRANSFORM YOUR EXPERIENCE WITH ${baselineTitle}`, score: 80, type: "Hook" }
         ],
-        description: `<h1>${baselineTitle}</h1><p>High performance product node.</p>`,
+        description: `<h1>${baselineTitle}</h1><p>High performance marketplace listing.</p>`,
         tags: [{ text: "Quality", score: 10 }],
         pricing: { suggested: currentPrice, competition: "Medium", salesProbability: 50, feedback: "Market signal unavailable" }
       };

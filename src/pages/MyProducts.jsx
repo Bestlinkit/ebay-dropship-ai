@@ -69,7 +69,7 @@ const MyProducts = () => {
     toast.promise(
         new Promise(resolve => setTimeout(resolve, 3000)),
         {
-            loading: `Optimizing ${selectedIds.length} listing nodes...`,
+            loading: `Optimizing ${selectedIds.length} listings...`,
             success: `Registry synchronized! ${selectedIds.length} products updated.`,
             error: 'Bulk throughput failure.'
         }
@@ -95,7 +95,7 @@ const MyProducts = () => {
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Inventory Registry.</h1>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] flex items-center gap-2">
-            <Layers size={14} className="text-primary-500" /> Distributed Node Control Hub
+            <Layers size={14} className="text-primary-500" /> Distributed Control Hub
           </p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
@@ -209,8 +209,8 @@ const MyProducts = () => {
                     className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-950 text-white px-8 py-4 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-12 z-[100]"
                 >
                     <div className="flex flex-col">
-                        <span className="text-[9px] font-black uppercase tracking-widest text/50">Registry Nodes Selected</span>
-                        <span className="text-lg font-black tracking-tighter leading-none">{selectedIds.length} Nodes</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text/50">Listings Selected</span>
+                        <span className="text-lg font-black tracking-tighter leading-none">{selectedIds.length} Items</span>
                     </div>
                     <div className="flex gap-3">
                         <button 

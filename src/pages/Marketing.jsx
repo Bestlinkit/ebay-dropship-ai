@@ -53,7 +53,7 @@ const Marketing = () => {
 
   const handleGenerateCopy = async (channel) => {
     if (!selectedProduct) {
-        toast.error("Select a listing node first.");
+        toast.error("Select a listing first.");
         return;
     }
     setSelectedChannel(channel);
@@ -430,7 +430,7 @@ const Marketing = () => {
                 <div className="space-y-8">
                     {[
                         { msg: 'Global signals synchronized. Bridge health verified at 100%.', time: '02:14 UTC', color: 'bg-emerald-500' },
-                        { msg: 'Production node handshake confirmed for connected account.', time: '01:50 UTC', color: 'bg-primary-500' },
+                        { msg: 'Production handshake confirmed for connected account.', time: '01:50 UTC', color: 'bg-primary-500' },
                         { msg: 'Market scanning active across target products.', time: '00:12 UTC', color: 'bg-indigo-500' }
                     ].map((m, i) => (
                         <div key={i} className="flex gap-4 group">

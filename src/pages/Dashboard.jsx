@@ -110,7 +110,6 @@ const Dashboard = () => {
     loadLiveStats();
   }, [isStoreConnected, user]);
 
-  // 📈 DETERMINISTIC DATA BINDING
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -139,7 +138,6 @@ const Dashboard = () => {
   };
 
   const lineChartData = useMemo(() => {
-    // Group orders by day for the last 7 days
     const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     const today = new Date().getDay();
     const labels = [];
@@ -147,7 +145,6 @@ const Dashboard = () => {
         labels.push(days[(today - i + 7) % 7]);
     }
 
-    // Bind real data if available, else zero-fill
     const dataPoints = stats.recentOrders.length > 0 
       ? labels.map((_, i) => stats.recentOrders[i]?.amount || 0) 
       : [0, 0, 0, 0, 0, 0, 0];
@@ -171,12 +168,12 @@ const Dashboard = () => {
   return (
     <div className="space-y-10 max-w-[1700px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       
-      {/* Page Header Vector */}
+      {/* Page Header */}
       <div className="flex items-center justify-between">
          <div className="space-y-1">
             <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Performance Hub.</h1>
             <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] flex items-center gap-2">
-               <Activity size={14} className="text-primary" /> Active Synchronization Node {sellerName || 'Pending'}
+               <Layers size={14} className="text-primary-500" /> Distributed Control Hub
             </p>
          </div>
          <button className="flex items-center gap-3 px-6 py-3 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest hover:border-primary/50 transition-all shadow-xl">
@@ -187,7 +184,7 @@ const Dashboard = () => {
 
       {/* Row 1: Intelligence Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
-        <StatCard label="Total Inventory" value={stats.activeListings} trend="+2.4k node depth" icon={Package} />
+        <StatCard label="Total Inventory" value={stats.activeListings} trend="+2.4k listings" icon={Package} />
         <StatCard label="Cloud Sync" value="100%" trend="Registry Stable" icon={Zap} />
         <StatCard label="Gross Revenue" value={`$${stats.revenue.toLocaleString()}`} trend="+14% movement" icon={DollarSign} />
         <StatCard label="Strategy Score" value={`${stats.efficiency}%`} trend="Optimal Sourcing" icon={TrendingUp} trendType="up" />
@@ -196,7 +193,6 @@ const Dashboard = () => {
       {/* Row 2: Analytics Terminal */}
       <div className="grid grid-cols-1 2xl:grid-cols-10 gap-8">
         <div className="2xl:col-span-7 bg-slate-900 p-10 rounded-[3rem] border border-slate-800 shadow-2xl h-[500px] flex flex-col relative overflow-hidden group">
-            {/* Visual Background Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[100px] -mr-32 -mt-32" />
             
             <div className="relative z-10 flex items-center justify-between mb-12">
@@ -218,7 +214,7 @@ const Dashboard = () => {
                      </div>
                      <div className="text-center space-y-1">
                         <p className="text-[12px] font-black text-white uppercase tracking-widest leading-none">No analytics available yet</p>
-                        <p className="text-[10px] font-bold text-slate-600 italic">Initialize sourcing nodes to begin data ingestion</p>
+                        <p className="text-[10px] font-bold text-slate-600 italic">Initialize supplier discovery to begin data ingestion</p>
                      </div>
                   </div>
                 ) : null}
@@ -236,7 +232,7 @@ const Dashboard = () => {
                     <div key={i} className="flex items-center gap-5 p-5 bg-slate-950 border border-slate-800/50 rounded-3xl hover:border-primary/30 transition-all cursor-pointer group">
                         <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center font-black text-slate-500 text-[11px] group-hover:text-primary transition-all">#{i+1}</div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">Node Sequence {order.id.slice(-6)}</p>
+                            <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">Sequence {order.id.slice(-6)}</p>
                             <p className="text-[9px] text-emerald-500 font-black uppercase mt-1 tracking-widest flex items-center gap-1.5 leading-none">
                                <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" /> High Integrity
                             </p>
@@ -268,7 +264,7 @@ const Dashboard = () => {
             <table className="w-full text-left">
                 <thead>
                     <tr className="bg-slate-950/40">
-                        <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Sourcing Node</th>
+                        <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Supplier Source</th>
                         <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Valuation Registry</th>
                         <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Protocol Status</th>
                         <th className="px-10 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Yield Performance</th>

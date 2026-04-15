@@ -16,7 +16,7 @@ class SourcingService {
 
   /**
    * Actionable Intelligence Layer
-   * Returns deterministic analytics for eBay product nodes.
+   * Returns deterministic analytics for eBay products.
    */
   calculateSellScore(product, batchStats = null) {
     if (!product) return { resellScore: 0, confidence: 'Low' };

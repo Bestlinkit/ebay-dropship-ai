@@ -21,7 +21,6 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
-import GlobalSourcing from './pages/GlobalSourcing';
 import AliSourcing from './pages/AliSourcing';
 import ProductImportPreview from './pages/ProductImportPreview';
 
@@ -70,13 +69,6 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              <Route path="/global-sourcing" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <GlobalSourcing />
-                  </Layout>
-                </ProtectedRoute>
-              } />
 
               <Route path="/ali-sourcing" element={
                 <ProtectedRoute>

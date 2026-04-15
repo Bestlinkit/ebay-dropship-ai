@@ -1,8 +1,8 @@
 import { SourcingStatus } from '../constants/sourcing';
 
 /**
- * Truth-Based AliExpress Scraper (v3.0)
- * Standardized response schema with explicit blocking/parsing detection.
+ * Truth-Based AliExpress Scraper (v4.0)
+ * Hybrid HTML/JSON Extractor with deep script-mining and explicit block detection.
  */
 class AliExpressService {
   constructor() {
@@ -19,7 +19,9 @@ class AliExpressService {
         query,
         htmlLength: 0,
         httpStatus: null,
-        parseMethod: null
+        extractionMethodUsed: "NONE",
+        parsedCount: 0,
+        logs: []
     };
 
     try {
@@ -32,80 +34,118 @@ class AliExpressService {
             return { status: SourcingStatus.NETWORK_ERROR, data: [], debugInfo };
         }
 
-        // 1. BLOCKING DETECTION
-        if (html.includes("security-check") || html.length < 1000) {
-            return { status: SourcingStatus.BLOCKED, data: [], debugInfo };
+        // 1. BLOCK DETECTION (CRITICAL)
+        const blockPatterns = ["captcha", "security verification", "robot check", "verify your identity"];
+        if (blockPatterns.some(p => html.toLowerCase().includes(p)) || (html.length < 5000 && !html.includes("window."))) {
+            return { 
+                status: SourcingStatus.BLOCKED, 
+                data: [], 
+                debugInfo: { ...debugInfo, reason: "AliExpress anti-bot triggered" } 
+            };
         }
 
-        // 2. ATTEMPT JSON EXTRACTION
+        let mappedItems = [];
+
+        // 2. STAGE 1: HYBRID JSON BLOCK DETECTION
         const jsonPatterns = [
-            /window\.runParams\s*=\s*({.+?});/,
-            /_init_data_\s*=\s*({.+?});/,
-            /window\.data\s*=\s*({.+?});/
+            { id: "INITIAL_STATE", regex: /window\.__INITIAL_STATE__\s*=\s*({.+?});/ },
+            { id: "RUN_PARAMS", regex: /window\.runParams\s*=\s*({.+?});/ },
+            { id: "APOLLO_STATE", regex: /window\.__APOLLO_STATE__\s*=\s*({.+?});/ }
         ];
 
         for (const pattern of jsonPatterns) {
-            const match = html.match(pattern);
+            const match = html.match(pattern.regex);
             if (match) {
                 try {
                     const data = JSON.parse(match[1]);
-                    const items = data.mods?.itemList?.content || data.actionValues?.itemList || [];
+                    // Deep extract based on known paths
+                    const items = this.deepExtractItems(data);
                     
                     if (items.length > 0) {
-                        debugInfo.parseMethod = 'JSON_NEURAL';
-                        const mappedItems = items.map(item => ({
-                            id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
-                            title: item.title?.displayTitle || item.product_title || "AliExpress Product",
-                            price: parseFloat(item.prices?.salePrice?.minPrice || item.product_price) || 0,
-                            image: item.image?.imgUrl || item.product_main_image_url || "",
-                            rating: parseFloat(item.evaluation?.starRating) || 4.5,
-                            shipping: 0,
-                            delivery: '12-15 days',
-                            source: 'AliExpress',
-                            url: `https://www.aliexpress.com/item/${item.productId}.html`
-                        })).filter(i => i.price > 0);
-
-                        return { status: SourcingStatus.SUCCESS, data: mappedItems, debugInfo };
+                        debugInfo.extractionMethodUsed = `JSON_${pattern.id}`;
+                        mappedItems = this.mapAliItems(items);
+                        if (mappedItems.length > 0) {
+                            debugInfo.parsedCount = mappedItems.length;
+                            return { status: SourcingStatus.SUCCESS, data: mappedItems, debugInfo };
+                        }
                     }
                 } catch (e) {
-                    continue;
+                    debugInfo.logs.push(`${pattern.id} direct parse failed: ${e.message}`);
                 }
             }
         }
 
-        // 3. ATTEMPT DOM PARSING
+        // 3. STAGE 2: DEEP SCRIPT MINING
+        debugInfo.logs.push("Attempting Stage 2 Script Mining...");
+        const scriptMatch = html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/gm);
+        if (scriptMatch) {
+            for (const scriptContent of scriptMatch) {
+                if (scriptContent.length > 1000) {
+                    // Look for JSON-like blobs inside script
+                    const jsonBlobs = scriptContent.match(/{[\s\S]*?}/g);
+                    if (jsonBlobs) {
+                        for (const blob of jsonBlobs) {
+                            if (blob.length > 1000 && (blob.includes("productId") || blob.includes("productTitle"))) {
+                                try {
+                                    const cleanedBlob = blob.replace(/^[\s\S]*?{/, '{').replace(/}[\s\S]*?$/, '}');
+                                    const data = JSON.parse(cleanedBlob);
+                                    const items = this.deepExtractItems(data);
+                                    if (items.length > 0) {
+                                        debugInfo.extractionMethodUsed = "SCRIPT_MINING";
+                                        mappedItems = this.mapAliItems(items);
+                                        if (mappedItems.length > 0) {
+                                            debugInfo.parsedCount = mappedItems.length;
+                                            return { status: SourcingStatus.SUCCESS, data: mappedItems, debugInfo };
+                                        }
+                                    }
+                                } catch (e) {
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. STAGE 3: FALLBACK DOM SCRAPE (REFINED SELECTORS)
+        debugInfo.logs.push("Attempting Stage 3 DOM Fallback...");
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-        const itemNodes = [...doc.querySelectorAll('.list-item, .search-item-card, [data-index], .pro-item')];
+        
+        // Modern generic selectors
+        const itemNodes = [...doc.querySelectorAll('[data-item-id], [class*="item"], [class*="product"], .search-item-card, .pro-item')];
 
         if (itemNodes.length > 0) {
-            debugInfo.parseMethod = 'DOM_SELECTOR';
-            const mappedItems = itemNodes.map(el => {
-                const title = el.querySelector('.title, .item-title, h1, h3')?.textContent?.trim() || "AliExpress Product";
-                const priceText = el.querySelector('.price, .item-price, .current-price, .pro-price')?.textContent?.trim() || "0";
-                const image = el.querySelector('img')?.src || "";
+            debugInfo.extractionMethodUsed = "DOM_FALLBACK";
+            mappedItems = itemNodes.map(el => {
+                const titleNode = el.querySelector('[class*="title"], [class*="name"], h1, h3');
+                const priceNode = el.querySelector('[class*="price"], [class*="current"]');
+                const imgNode = el.querySelector('img');
+                
+                const title = titleNode?.textContent?.trim() || "AliExpress Product";
+                const priceText = priceNode?.textContent?.trim() || "0";
+                const image = imgNode?.src || imgNode?.getAttribute('data-src') || "";
                 const price = parseFloat(priceText.replace(/[^0-9.]/g, '')) || 0;
 
                 return {
-                    id: Math.random().toString(36).substr(2, 9),
+                    id: el.getAttribute('data-item-id') || Math.random().toString(36).substr(2, 9),
                     title,
                     price,
                     image,
                     rating: 4.5,
-                    shipping: 0,
-                    delivery: '12-15 days',
                     source: 'AliExpress',
                     url: el.querySelector('a')?.href || '#'
                 };
-            }).filter(item => item.price > 0);
+            }).filter(item => item.price > 0 && item.image);
 
             if (mappedItems.length > 0) {
+                debugInfo.parsedCount = mappedItems.length;
                 return { status: SourcingStatus.SUCCESS, data: mappedItems, debugInfo };
             }
         }
 
-        // 4. IF WE GOT HERE -> NO RESULTS OR PARSE ERROR
-        // If HTML exists but no items found, it might be a valid "No match" or a changed structure
+        // 5. FINAL EXHAUSTION
         return { 
             status: html.includes("no results") ? SourcingStatus.EMPTY : SourcingStatus.PARSE_ERROR, 
             data: [], 
@@ -119,6 +159,60 @@ class AliExpressService {
             debugInfo: { ...debugInfo, errorStack: e.message } 
         };
     }
+  }
+
+  /**
+   * Deep extract items from unknown JSON structures
+   */
+  deepExtractItems(data) {
+    if (!data) return [];
+    
+    // Check known paths
+    const paths = [
+        data.mods?.itemList?.content,
+        data.actionValues?.itemList,
+        data.items,
+        data.products,
+        data.resultList
+    ];
+    
+    for (const path of paths) {
+        if (Array.isArray(path) && path.length > 0) return path;
+    }
+
+    // Recursive search for arrays containing "productId"
+    const findItems = (obj) => {
+        if (Array.isArray(obj)) {
+            if (obj.some(o => o && (o.productId || o.product_id || o.productTitle))) return obj;
+            for (const item of obj) {
+                const res = findItems(item);
+                if (res) return res;
+            }
+        } else if (typeof obj === 'object' && obj !== null) {
+            for (const key in obj) {
+                const res = findItems(obj[key]);
+                if (res) return res;
+            }
+        }
+        return null;
+    };
+
+    return findItems(data) || [];
+  }
+
+  /**
+   * Map different Ali JSON formats to standard schema
+   */
+  mapAliItems(items) {
+    return items.map(item => ({
+        id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
+        title: item.title?.displayTitle || item.product_title || item.title || item.productTitle || "AliExpress Product",
+        price: parseFloat(item.prices?.salePrice?.minPrice || item.product_price || item.minPrice || item.price?.salePrice?.value) || 0,
+        image: item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || "",
+        rating: parseFloat(item.evaluation?.starRating || item.starRating) || 4.5,
+        source: 'AliExpress',
+        url: item.productDetailUrl || `https://www.aliexpress.com/item/${item.productId}.html`
+    })).filter(i => i.price > 0 && i.image);
   }
 
   calculateProfit(ebayPrice, supplierPrice, shipping) {

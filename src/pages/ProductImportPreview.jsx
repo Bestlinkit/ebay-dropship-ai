@@ -33,7 +33,7 @@ const ProductImportPreview = () => {
     if (!product) {
         return (
             <div className="p-20 text-center space-y-6">
-                <p className="text-slate-500 uppercase tracking-widest font-black text-xs">No active extraction node detected.</p>
+                <p className="text-slate-500 uppercase tracking-widest font-black text-xs">No active extraction detected.</p>
                 <button onClick={() => navigate('/discovery')} className="px-8 py-4 bg-white text-slate-950 rounded-xl font-black text-[10px] uppercase tracking-widest">
                     Return to Discovery
                 </button>

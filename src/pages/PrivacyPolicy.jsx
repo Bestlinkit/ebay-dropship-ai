@@ -35,7 +35,7 @@ const PrivacyPolicy = () => {
                     How We Use Data
                 </h2>
                 <p>
-                    Your data is used exclusively to orchestrate marketplace listings, sync inventory, and generate AI insights. We do not sell, trade, or expose your data to ternary nodes.
+                    Your data is used exclusively to orchestrate marketplace listings, sync inventory, and generate AI insights. We do not sell, trade, or expose your data to third parties.
                 </p>
             </div>
 
