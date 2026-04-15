@@ -23,17 +23,34 @@ class AliExpressService {
 
         // 1. ATTEMPT ROBUST JSON EXTRACTION (Hidden in script tags)
         try {
-            const jsonMatch = html.match(/window\.runParams\s*=\s*({.+?});/);
-            if (jsonMatch) {
-                const data = JSON.parse(jsonMatch[1]);
-                const items = data.mods?.itemList?.content || [];
+            // Updated Regex: Supports window.runParams, _init_data_, and window.data
+            const jsonPatterns = [
+                /window\.runParams\s*=\s*({.+?});/,
+                /_init_data_\s*=\s*({.+?});/,
+                /window\.data\s*=\s*({.+?});/
+            ];
+
+            let data = null;
+            for (const pattern of jsonPatterns) {
+                const match = html.match(pattern);
+                if (match) {
+                    try {
+                        data = JSON.parse(match[1]);
+                        if (data?.mods?.itemList?.content) break; 
+                        if (data?.actionValues) break; // Alternative Ali structure
+                    } catch (e) { continue; }
+                }
+            }
+
+            if (data) {
+                const items = data.mods?.itemList?.content || data.actionValues?.itemList || [];
                 if (items.length > 0) {
                     console.log("[AliExpress Scraper] Extraction Success: Neural JSON Mode.");
                     return items.map(item => ({
-                        id: item.productId,
-                        title: item.title?.displayTitle || "AliExpress Product",
-                        price: parseFloat(item.prices?.salePrice?.minPrice) || 0,
-                        image: item.image?.imgUrl || "",
+                        id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
+                        title: item.title?.displayTitle || item.product_title || "AliExpress Product",
+                        price: parseFloat(item.prices?.salePrice?.minPrice || item.product_price) || 0,
+                        image: item.image?.imgUrl || item.product_main_image_url || "",
                         rating: parseFloat(item.evaluation?.starRating) || 4.5,
                         shipping: 0,
                         delivery: '12-15 days',

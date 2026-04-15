@@ -90,11 +90,19 @@ export default {
 
         // Standard Monitoring
         console.log(`Route hit: ${url.pathname} [${request.method}]`);
+        const pathname = url.pathname.replace(/\/+$/, '') || '/';
 
         if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+        // 0. ROUTE: /health
+        if (pathname === "/health") {
+            return new Response(JSON.stringify({ status: "online", version: "6.1-SHIELD" }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
+
         // 1. ROUTE: /eprolo-search
-        if (url.pathname === "/eprolo-search") {
+        if (pathname === "/eprolo-search") {
             try {
                 const body = await request.json();
                 const timestamp = Date.now();
@@ -137,12 +145,12 @@ export default {
                     headers: { ...corsHeaders, "Content-Type": "application/json" } 
                 });
             } catch (err) { 
-                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders }); 
+                return new Response(JSON.stringify({ error: err.message, msg: err.message }), { status: 500, headers: corsHeaders }); 
             }
         }
 
         // 2. ROUTE: /aliexpress-search
-        if (url.pathname === "/aliexpress-search") {
+        if (pathname === "/aliexpress-search") {
             try {
                 const query = url.searchParams.get("q");
                 if (!query) throw new Error("Missing query");
@@ -167,7 +175,7 @@ export default {
                     headers: { ...corsHeaders, "Content-Type": "text/html" }
                 });
             } catch (err) { 
-                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders }); 
+                return new Response(JSON.stringify({ error: err.message, msg: err.message }), { status: 500, headers: corsHeaders }); 
             }
         }
 

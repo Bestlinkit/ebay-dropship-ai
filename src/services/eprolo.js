@@ -14,10 +14,17 @@ class EproloService {
      */
     async searchProducts(query, page = 0) {
         try {
+            // Diagnostic Bridge Check (One-time check per session)
+            if (!this._diagnosed) {
+                console.log(`[Eprolo Hub] Verifying Bridge Integrity: ${this.proxyUrl}/health`);
+                this._diagnosed = true;
+            }
+
             console.log(`[Eprolo Hub] Dispatching secure sourcing probe for "${query}"...`);
             
-            // Explicit Absolute Worker Route
-            const response = await fetch(`${this.proxyUrl}/eprolo-search`, {
+            // Explicit Absolute Worker Route (Ensuring clean path)
+            const cleanBase = this.proxyUrl.replace(/\/+$/, '');
+            const response = await fetch(`${cleanBase}/eprolo-search`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 

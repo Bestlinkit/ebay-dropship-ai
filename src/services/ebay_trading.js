@@ -361,7 +361,24 @@ class EbayTradingService {
         'Content-Type': 'text/xml'
       }
     });
-    return response.data;
+
+    const ack = response.data.match(/<Ack>(.*?)<\/Ack>/)?.[1];
+    if (ack === 'Failure' || ack === 'Error') {
+        const longMsg = response.data.match(/<LongMessage>(.*?)<\/LongMessage>/)?.[1] || "eBay API Rejected Listing";
+        throw new Error(longMsg);
+    }
+
+    const itemId = response.data.match(/<ItemID>(.*?)<\/ItemID>/)?.[1];
+    const startTime = response.data.match(/<StartTime>(.*?)<\/StartTime>/)?.[1];
+    const fees = [...response.data.matchAll(/<Fee>.*?<Name>(.*?)<\/Name>.*?<Fee.*?>(.*?)<\/Fee>.*?<\/Fee>/gs)].map(m => ({ name: m[1], amount: m[2] }));
+
+    return {
+      success: true,
+      itemId,
+      startTime,
+      fees,
+      raw: response.data
+    };
   }
 
   async refreshEbayToken(refreshToken) {

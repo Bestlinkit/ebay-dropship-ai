@@ -92,9 +92,11 @@ const OptimizeProduct = () => {
 
   // UI States
   const [activeTab, setActiveTab] = useState('intelligence');
+  const [persona, setPersona] = useState('Professional');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [systemLogs, setSystemLogs] = useState([]);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   
   const addSystemLog = (message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
@@ -228,7 +230,7 @@ const OptimizeProduct = () => {
       const keyword = registry.selectedTitle.split(' ').slice(0, 4).join(' ');
       const competitors = await ebayService.getCompetitorInsights(keyword);
       
-      const opt = await aiService.optimizeListing(registry.selectedTitle, registry.price, competitors);
+      const opt = await aiService.optimizeListing(registry.selectedTitle, registry.price, competitors, persona);
       
       setRegistry(prev => ({
         ...prev,
@@ -277,16 +279,13 @@ const OptimizeProduct = () => {
         if (id === 'new') {
             console.log("[PRODUCTION DEPLOY] Initiating AddItem call for new listing:", itemPayload);
             const result = await ebayTrading.publishItem(itemPayload, token);
-            
-            // Extract New Item ID from XML Response
-            const itemIdMatch = result.match(/<ItemID>(.*?)<\/ItemID>/);
-            const newId = itemIdMatch ? itemIdMatch[1] : 'unknown';
+            const newId = result.itemId || 'unknown';
             
             toast.success("Product successfully materialized on eBay.");
             addSystemLog(`Deployment successful. New Item ID: ${newId}`, 'success');
             
             // Redirect to the newly created product node (Revision path)
-            setTimeout(() => navigate(`/optimize-product/${newId}`), 2000);
+            setTimeout(() => navigate(`/optimize/${newId}`), 2000);
         } else {
             console.log("[PRODUCTION UPDATE] Initiating ReviseItem call for node:", id);
             await ebayTrading.reviseItem(token, id, itemPayload);
@@ -299,11 +298,7 @@ const OptimizeProduct = () => {
         addSystemLog(`Deployment failure: ${e.message}`, 'error');
     } finally {
         setIsDeploying(false);
-        toast.dismiss(toastId);
-    }
-  };
-
-  if (loading) return (
+        toast.dismiss(toas  if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <Loader2 className="animate-spin text-slate-200" size={64} strokeWidth={1} />
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Hydrating SaaS Environment...</p>
@@ -682,4 +677,14 @@ const OptimizeProduct = () => {
   );
 };
 
-export default OptimizeProduct;
+export default OptimizeProduct;iv>
+  );
+};
+
+// HELPER FOR DISCARD ICON
+const LinkIcon = ({ className, size }) => (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+    </svg>
+);eProduct;
