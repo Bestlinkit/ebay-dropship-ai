@@ -21,6 +21,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
+import GlobalSourcing from './pages/GlobalSourcing';
 import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -64,6 +65,14 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <SupplierSourcing />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/global-sourcing" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <GlobalSourcing />
                   </Layout>
                 </ProtectedRoute>
               } />
