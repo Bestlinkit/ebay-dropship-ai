@@ -14,7 +14,7 @@ import {
   Package,
   Zap,
   Activity,
-  Sparkles,
+  Wand2 as Sparkles,
   Megaphone,
   Play,
   Layers,

@@ -187,7 +187,7 @@ const SupplierSourcing = () => {
                 </div>
 
                 <div className="bg-slate-900/50 border border-slate-700/50 p-6 rounded-[2rem] flex items-center gap-6">
-                    <img src={targetProduct.thumbnail || targetProduct.image_url} alt="" className="w-16 h-16 rounded-xl border border-white/10 object-cover shadow-lg" />
+                    <img src={targetProduct.image} alt="" className="w-16 h-16 rounded-xl border border-white/10 object-cover shadow-lg" />
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Benchmark Price</p>
                         <p className="text-lg font-black text-emerald-400 italic leading-none">
@@ -302,6 +302,20 @@ const SupplierSourcing = () => {
                         >
                             🚀 Search AliExpress Manually
                         </button>
+
+                        {/* ⚙️ ADVANCED DIAGNOSTICS */}
+                        {fullInquiryResult?.debugInfo && (
+                            <div className="pt-10 border-t border-slate-800/50 mt-10 text-left">
+                                <details className="group">
+                                    <summary className="text-[9px] font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:text-slate-400 transition-colors list-none flex items-center gap-2">
+                                        <Info size={10} /> Technical Diagnostics (Empty State)
+                                    </summary>
+                                    <div className="mt-4 p-6 bg-black/60 rounded-2xl border border-white/5 font-mono text-[9px] text-slate-400 overflow-x-auto">
+                                        <pre>{JSON.stringify(fullInquiryResult.debugInfo, null, 2)}</pre>
+                                    </div>
+                                </details>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

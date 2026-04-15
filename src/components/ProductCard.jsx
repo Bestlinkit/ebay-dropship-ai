@@ -8,7 +8,7 @@ import {
   ExternalLink,
   Plus,
   ArrowRight,
-  Sparkles,
+  Wand2 as Sparkles,
   BarChart3,
   DollarSign,
   ShieldCheck,

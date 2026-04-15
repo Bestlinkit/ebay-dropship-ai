@@ -15,7 +15,8 @@ import {
   Activity,
   ChevronRight,
   ChevronLeft,
-  ExternalLink
+  ExternalLink,
+  Wand2 as Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';

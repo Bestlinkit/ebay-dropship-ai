@@ -12,7 +12,7 @@ import {
   DollarSign,
   AlertCircle,
   TrendingUp,
-  Sparkles,
+  Wand2 as Sparkles,
   Zap,
   Filter,
   X,

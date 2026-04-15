@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Zap, 
-  Sparkles, 
+  Wand2 as Sparkles, 
   CheckCircle2, 
   Loader2, 
   LayoutGrid, 

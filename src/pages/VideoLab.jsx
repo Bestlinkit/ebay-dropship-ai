@@ -3,7 +3,7 @@ import {
   Video, 
   Plus, 
   Trash2, 
-  Sparkles, 
+  Wand2 as Sparkles, 
   Music,
   Loader2,
   CheckCircle,

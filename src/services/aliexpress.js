@@ -131,14 +131,29 @@ class AliExpressService {
         // If it's already mapped (from semantic/dom), keep it
         if (item.source === 'AliExpress' && item.title && item.price > 0) return item;
 
-        // 💰 PRICE EXTRACTION (Deterministic)
+        // 💰 PRICE EXTRACTION (Deterministic Recovery Engine)
         let price = null;
-        const priceObj = item.prices?.salePrice || item.prices?.minPrice || item.price || item.minPrice || item.skuPrice;
+        const priceObj = 
+            item.prices?.salePrice || 
+            item.prices?.minPrice || 
+            item.skuModule?.skuPrice || 
+            item.skuModule?.skuActivityAmount ||
+            item.priceModule?.minAmount ||
+            item.skuPrice ||
+            item.price || 
+            item.minPrice;
         
         if (typeof priceObj === 'object' && priceObj !== null) {
-            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.salePrice || priceObj.price);
+            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.salePrice || priceObj.price || priceObj.amount || priceObj.activityAmount);
         } else {
             price = parseFloat(priceObj) || parseFloat(item.product_price);
+        }
+
+        // GREEDY FALLBACK: If price is still missing/0, attempt regex recovery from raw item string
+        if (!price || price === 0) {
+            const rawStr = JSON.stringify(item);
+            const priceMatch = rawStr.match(/["'](?:price|amount|value)["']\s*:\s*["']?(\d+\.\d{2})["']?/i);
+            if (priceMatch) price = parseFloat(priceMatch[1]);
         }
 
         const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;

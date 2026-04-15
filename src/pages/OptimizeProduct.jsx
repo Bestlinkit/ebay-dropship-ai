@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Sparkles, 
+  Wand2 as Sparkles, 
   RefreshCw,
   Type,
   Camera,
