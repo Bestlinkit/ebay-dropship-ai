@@ -21,7 +21,8 @@ import {
   RefreshCw,
   AlertCircle,
   Globe,
-  Clock
+  Clock,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -224,9 +225,9 @@ const SupplierSourcing = () => {
                                     <div>
                                         <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Eprolo Discovery</h1>
                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                                            {pipelineState.sources.eprolo === 'OK' ? (
+                                            {pipelineState?.sources?.eprolo === 'OK' ? (
                                                 <><ShieldCheck size={12} className="text-emerald-500" /> Secure API Bridge Active</>
-                                            ) : pipelineState.sources.eprolo === 'CONFIG_ERROR' ? (
+                                            ) : pipelineState?.sources?.eprolo === 'CONFIG_ERROR' ? (
                                                 <><AlertTriangle size={12} className="text-amber-500" /> Credentials Required</>
                                             ) : (
                                                 <><Lock size={12} className="text-rose-500" /> Authentication Blocked</>

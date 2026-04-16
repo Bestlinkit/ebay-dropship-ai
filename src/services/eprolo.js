@@ -38,8 +38,8 @@ class EproloService {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
-                    "apiKey": appKey,
-                    "apiSecret": secret
+                    "apiKey": String(appKey),
+                    "apiSecret": String(secret)
                 },
                 body: JSON.stringify({ 
                     keyword: query, 
@@ -142,8 +142,8 @@ class EproloService {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
-                    "apiKey": appKey,
-                    "apiSecret": secret
+                    "apiKey": String(appKey),
+                    "apiSecret": String(secret)
                 },
                 body: JSON.stringify({ product_id: productId })
             });

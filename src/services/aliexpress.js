@@ -12,10 +12,25 @@ class AliExpressService {
   }
 
   async fetchWithTimeout(url, options = {}, timeout = 8000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    // 🚨 6. ENVIRONMENT HARDENING (Iron Flow 7.4)
+    let controller = null;
     try {
-      const response = await fetch(url, { ...options, signal: controller.signal });
+        if (typeof AbortController !== 'undefined') {
+            controller = new AbortController();
+        }
+    } catch (e) {
+        console.warn("AbortController not constructible:", e);
+    }
+
+    const id = setTimeout(() => {
+        if (controller) controller.abort();
+    }, timeout);
+
+    try {
+      const fetchOptions = { ...options };
+      if (controller) fetchOptions.signal = controller.signal;
+      
+      const response = await fetch(url, fetchOptions);
       clearTimeout(id);
       return response;
     } catch (e) {
@@ -435,25 +450,36 @@ class AliExpressService {
   }
 
   domExtract(html) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const itemNodes = [...doc.querySelectorAll('[data-item-id], [data-sku-id], div[class*="item"], div[class*="product"]')];
-    return itemNodes.map(el => {
-        const title = el.querySelector('[class*="title"], h3, h1')?.textContent?.trim();
-        const price = el.textContent.match(/\$\s*(\d+\.\d{2})/)?.[1];
-        const image = el.querySelector('img')?.src || el.querySelector('img')?.getAttribute('data-src') || null;
-        
-        if (!title && !price && !image) return null;
+    // 🚨 6. ENVIRONMENT HARDENING (Iron Flow 7.4)
+    if (typeof DOMParser === 'undefined') {
+        console.error("DOMParser unavailable in current environment");
+        return [];
+    }
 
-        return {
-            id: el.getAttribute('data-item-id') || el.getAttribute('data-sku-id') || Math.random().toString(36).substr(2, 9),
-            title: title || "AliExpress Listing",
-            price: parseFloat(price) || null,
-            image: image,
-            source: 'AliExpress',
-            url: el.querySelector('a')?.href || '#'
-        };
-    }).filter(Boolean);
+    try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const itemNodes = [...doc.querySelectorAll('[data-item-id], [data-sku-id], div[class*="item"], div[class*="product"]')];
+        return itemNodes.map(el => {
+            const title = el.querySelector('[class*="title"], h3, h1')?.textContent?.trim();
+            const price = el.textContent.match(/\$\s*(\d+\.\d{2})/)?.[1];
+            const image = el.querySelector('img')?.src || el.querySelector('img')?.getAttribute('data-src') || null;
+            
+            if (!title && !price && !image) return null;
+
+            return {
+                id: el.getAttribute('data-item-id') || el.getAttribute('data-sku-id') || Math.random().toString(36).substr(2, 9),
+                title: title || "AliExpress Listing",
+                price: parseFloat(price) || null,
+                image: image,
+                source: 'AliExpress',
+                url: el.querySelector('a')?.href || '#'
+            };
+        }).filter(Boolean);
+    } catch (e) {
+        console.error("DOM Parsing Failed:", e);
+        return [];
+    }
   }
 
   deepExtractItems(data) {

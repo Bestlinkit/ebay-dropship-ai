@@ -391,7 +391,14 @@ class SourcingService {
    */
   async safeFetch(fn, label) {
     return Promise.race([
-      fn(),
+      (async () => {
+        try {
+          return await fn();
+        } catch (e) {
+          // Normalize error to standard Error if needed
+          throw (e instanceof Error) ? e : new Error(String(e));
+        }
+      })(),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), 8000)
       )
