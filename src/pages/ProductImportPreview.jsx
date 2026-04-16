@@ -120,9 +120,9 @@ const ProductImportPreview = () => {
                                 Source: {product.sourcePlatform}
                              </span>
                         </div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Review Import.</h1>
+                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Review Import.</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
-                            Source ID (SKU): <span className="text-white">{product.sourceId}</span>
+                            Source ID (SKU): <span className="text-slate-950">{product.sourceId}</span>
                         </p>
                     </div>
                 </div>
@@ -130,7 +130,7 @@ const ProductImportPreview = () => {
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={handleConfirmImport}
-                        className="px-12 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-500 hover:text-white transition-all transform active:scale-95 shadow-2xl"
+                        className="px-12 py-5 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-emerald-600 transition-all transform active:scale-95 shadow-xl"
                     >
                         Continue to Optimization <Sparkles size={16} className="text-emerald-500" />
                     </button>
@@ -189,13 +189,13 @@ const ProductImportPreview = () => {
                     
                     {/* TITLE & PRICE */}
                     <div className="space-y-4">
-                        <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase leading-tight">
+                        <h2 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
                             {product.title}
                         </h2>
                         <div className="flex items-center gap-6">
                             <div className="flex flex-col">
                                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.3em]">Market Target</span>
-                                <span className="text-3xl font-black text-white italic tracking-tighter">
+                                <span className="text-3xl font-black text-slate-950 italic tracking-tighter">
                                     {(product.pricing?.basePrice || 0) ? `$${(product.pricing?.basePrice || 0).toFixed(2)}` : '$0.00'}
                                 </span>
                             </div>
@@ -249,7 +249,7 @@ const ProductImportPreview = () => {
                                         <Activity size={20} />
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-white font-black tracking-tighter uppercase">{product.shipping?.estimate}</p>
+                                        <p className="text-[10px] text-slate-950 font-black tracking-tighter uppercase">{product.shipping?.estimate}</p>
                                         <p className="text-[8px] text-slate-500 font-black uppercase">{product.shipping?.method}</p>
                                     </div>
                                 </div>
@@ -310,9 +310,9 @@ const ProductImportPreview = () => {
                              <Zap size={18} className="text-slate-500" />
                              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Extracted Description</h3>
                         </div>
-                        <div className="bg-slate-900/30 p-8 rounded-[3rem] border border-slate-800/50">
+                        <div className="bg-slate-50 p-8 rounded-[3rem] border border-slate-200">
                              <div 
-                                className="text-slate-400 text-sm leading-relaxed prose prose-invert max-w-none prose-p:text-slate-400 prose-headings:text-white"
+                                className="text-slate-600 text-sm leading-relaxed prose prose-slate max-w-none prose-p:text-slate-600 prose-headings:text-slate-950"
                                 dangerouslySetInnerHTML={{ __html: product.description }}
                              />
                         </div>
