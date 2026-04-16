@@ -321,11 +321,25 @@ const SupplierSourcing = () => {
                     </div>
                 )}
 
-                {pipelineState.sources.aliexpress === 'PARSE_FAILURE' && (
+                {pipelineState.sources.aliexpress === 'WRONG_PAGE_TYPE' && (
+                    <div className="p-6 bg-amber-600 border border-amber-500 rounded-3xl flex items-center gap-6 shadow-xl">
+                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0">
+                            <Box size={24} />
+                        </div>
+                        <div className="space-y-1">
+                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Redirect to Single Item Blocked</h4>
+                            <p className="text-[10px] font-medium text-amber-100 leading-relaxed uppercase leading-tight">
+                                High-speed extraction requires the Listing Page. Use more general keywords or the Global Scraper.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {pipelineState.sources.aliexpress === 'PARSER_FAILURE' && (
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-4">
                         <AlertTriangle size={16} className="text-red-500 shrink-0" />
                         <p className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-relaxed">
-                            Critical Alert: Extraction Layer Broken. AliExpress returned 200 OK but scraper failed to map attributes. Maintenance required.
+                            Extraction Logic Broken: AliExpress DOM structure has changed. Maintenance Required.
                         </p>
                     </div>
                 )}
@@ -576,45 +590,12 @@ const SupplierSourcing = () => {
                             </div>
                         </div>
 
-                        {pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' && (
+                        {pipelineState.sources.aliexpress === 'WRONG_PAGE_TYPE' && (
                             <div className="max-w-md mx-auto p-8 bg-amber-50 border border-amber-100 rounded-[2.5rem] space-y-6">
-                                <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">AliExpress Discovery Suspended</p>
-                                
-                                <div className="space-y-4">
-                                     <button 
-                                        onClick={() => window.open(sourcingService.getGlobalSearchUrl('aliexpress', searchQuery), '_blank')}
-                                        className="w-full py-5 bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-700 transition-all flex items-center justify-center gap-3"
-                                    >
-                                        <ExternalLink size={16} /> 1. Find Product Manually
-                                    </button>
-                                    
-                                    <div className="pt-4 border-t border-amber-200 space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">2. Sync Snapshot</p>
-                                            {manualSnapshot.length > 0 && (
-                                                <button 
-                                                    onClick={() => handleManualImport(manualSnapshot)}
-                                                    className="px-3 py-1 bg-amber-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all flex items-center gap-2"
-                                                >
-                                                    <Zap size={10} /> Capture Intelligence
-                                                </button>
-                                            )}
-                                        </div>
-                                        <div className="group relative">
-                                            <textarea 
-                                                value={manualSnapshot}
-                                                onChange={(e) => setManualSnapshot(e.target.value)}
-                                                placeholder="Paste page content or JSON here..."
-                                                className="w-full h-24 bg-white border-2 border-amber-200 rounded-xl p-4 text-[10px] font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                                            />
-                                            {manualSnapshot.length === 0 && (
-                                                <div className="absolute top-2 right-2 px-2 py-1 bg-amber-100 text-amber-600 rounded text-[8px] font-black uppercase">Paste to Start</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Listing Mode Active</p>
                                 <p className="text-[9px] font-medium text-amber-700 uppercase italic leading-relaxed">
-                                    Anti-bot protection active. Visit AliExpress, copy the product page content (Ctrl+A &rarr; Ctrl+C), and paste it here to extract 100% accurate data.
+                                    The sourcing engine was redirected to a single item page. For best results, AliExpress must be searched as a listing directory. 
+                                    Try a broader keyword or use the Manual Capture below.
                                 </p>
                             </div>
                         )}
