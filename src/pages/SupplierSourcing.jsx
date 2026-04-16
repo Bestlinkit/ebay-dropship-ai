@@ -453,9 +453,19 @@ const SupplierSourcing = () => {
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={handleExpandSearch} className="px-6 py-3 bg-white border border-amber-200 text-amber-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors shrink-0">
-                                Solve Blockage
-                            </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                                <button 
+                                    onClick={handleRetryConnection}
+                                    className="px-6 py-3 bg-white border border-amber-200 text-amber-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center gap-2 shadow-sm"
+                                >
+                                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Re-check Connection
+                                </button>
+                                <button onClick={handleExpandSearch} className="px-6 py-3 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors flex items-center gap-2">
+                                    Solve Blockage
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 ) : null}
@@ -630,6 +640,9 @@ const SupplierSourcing = () => {
                         )}
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                            <button onClick={handleRetryConnection} className="w-full sm:w-auto px-12 py-5 bg-white border-2 border-slate-200 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all transform hover:scale-105 italic flex items-center justify-center gap-3 shadow-sm">
+                                <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> Re-check Connection
+                            </button>
                             <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105 italic">Optimize Strategy</button>
                             
                             <div className="flex flex-col gap-3 w-full sm:w-auto">
