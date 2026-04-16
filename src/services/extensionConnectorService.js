@@ -3,8 +3,8 @@
  * Communicates directly with the Extension using chrome.runtime.sendMessage.
  */
 
-// 🚨 PLACEHOLDER ID: Replace with your actual Extension ID from chrome://extensions
-const EXTENSION_ID = "ihijndhgbpjomfepjldofobkchjebhgn"; 
+// 🚨 ACTUAL ID: Linked to your specific installation
+const EXTENSION_ID = "dbboapfmlgjakkmedihbokcgaogcihcd"; 
 
 class ExtensionConnector {
     constructor() {
