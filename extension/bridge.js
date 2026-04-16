@@ -9,9 +9,16 @@ window.__DROP_AI_BRIDGE_ACTIVE__ = true;
 window.addEventListener("message", (event) => {
     if (event.source !== window || !event.data) return;
 
-    // A. HEARTBEAT
+    // A. HEARTBEAT (v21.3 Real Handshake)
     if (event.data.type === "EXT_PING") {
-        window.postMessage({ type: "EXT_PONG" }, "*");
+        console.log("[DropAI-Bridge] Handshake Relay Initiated");
+        chrome.runtime.sendMessage({ type: "EXT_PING" }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn("[DropAI-Bridge] Handshake Failed:", chrome.runtime.lastError.message);
+                return; // Let the app timeout naturally
+            }
+            window.postMessage({ type: "EXT_PONG", ...response }, "*");
+        });
         return;
     }
 

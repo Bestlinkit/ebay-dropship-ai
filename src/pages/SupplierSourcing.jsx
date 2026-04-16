@@ -69,6 +69,7 @@ const SupplierSourcing = () => {
     const [isFallback, setIsFallback] = useState(false);
     const [telemetry, setTelemetry] = useState({ eprolo: null, aliexpress: null });
     const [showDebug, setShowDebug] = useState(false);
+    const [connectionHealth, setConnectionHealth] = useState("NOT_INSTALLED");
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
@@ -110,12 +111,21 @@ const SupplierSourcing = () => {
         } finally {
             setLoading(false);
             setActiveTier(null);
+            // Re-sync health after search
+            const health = await extensionConnector.testConnection();
+            setConnectionHealth(health);
         }
     }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
 
+    const checkInitialHealth = useCallback(async () => {
+        const health = await extensionConnector.testConnection();
+        setConnectionHealth(health);
+    }, []);
+
     useEffect(() => { 
+        checkInitialHealth();
         if (searchQuery?.trim()) performSourcing(); 
-    }, [targetProduct?.id]);
+    }, [targetProduct?.id, checkInitialHealth]);
 
     const processedResults = useMemo(() => {
         if (!targetProduct || products.length === 0) return [];
@@ -165,16 +175,21 @@ const SupplierSourcing = () => {
     const handleExpandSearch = () => setShowAliExpansion(true);
 
     const handleRetryConnection = async () => {
-        const isActive = await extensionConnector.testConnection();
-        if (isActive) {
+        setLoading(true);
+        const health = await extensionConnector.testConnection();
+        setConnectionHealth(health);
+        setLoading(false);
+
+        if (health === "CONNECTED") {
             toast.success("Extension Bridge Connected", {
                 description: "Heartbeat detected. Re-initiating search..."
             });
             performSourcing();
         } else {
-            toast.error("Extension Still Disconnected", {
-                description: "Make sure 'Drop-AI Data Bridge' is enabled in chrome://extensions"
-            });
+            const msg = health === "NOT_INSTALLED" ? "Extension not detected in browser" :
+                        health === "TIMEOUT" ? "Handshake timeout. Try reloading the extension." :
+                        "Service worker is unreachable.";
+            toast.error("Connection Failed", { description: msg });
         }
     };
 
@@ -364,26 +379,32 @@ const SupplierSourcing = () => {
                     </motion.div>
                 )}
 
-                {!loading && (pipelineState.sources.aliexpress === 'EXTENSION_NOT_LOADED' || pipelineState.sources.eprolo === 'EXTENSION_NOT_LOADED') && (
+                {!loading && connectionHealth !== "CONNECTED" && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="bg-slate-100 border border-slate-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
                             <div className="flex items-center gap-5">
-                                <div className="w-12 h-12 bg-slate-900/5 text-slate-900 rounded-xl flex items-center justify-center shrink-0">
-                                    <Globe size={26} className="text-slate-400" />
+                                <div className={cn(
+                                    "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+                                    connectionHealth === "TIMEOUT" ? "bg-amber-500/10 text-amber-500" : "bg-slate-900/5 text-slate-900"
+                                )}>
+                                    {connectionHealth === "NOT_INSTALLED" ? <Globe size={26} className="text-slate-400" /> : <Clock size={26} />}
                                 </div>
                                 <div className="space-y-1">
-                                    <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">Drop-AI Extension Disconnected</h4>
+                                    <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">
+                                        Extension {connectionHealth === "NOT_INSTALLED" ? "Missing" : connectionHealth === "TIMEOUT" ? "Unresponsive" : "Disconnected"}
+                                    </h4>
                                     <p className="text-[10px] font-medium text-slate-600 max-w-md italic">
-                                        The browser data bridge is not active. Please ensure the extension is loaded in Chrome Developer Mode and refresh the page.
+                                        {connectionHealth === "NOT_INSTALLED" ? "The browser data bridge is not detected. Please load the extension in Chrome." : 
+                                         "The background worker failed to respond. Try refreshing the extension in chrome://extensions."}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                                 <button 
-                                    onClick={performSourcing}
+                                    onClick={handleRetryConnection}
                                     className="px-6 py-3 bg-white border border-slate-200 text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
                                 >
-                                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Re-check Connection
+                                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> {loading ? "Pinging..." : "Test Connection"}
                                 </button>
                                 <button 
                                     onClick={() => window.open('https://github.com/Bestlinkit/ebay-dropship-ai/tree/main/extension#setup', '_blank')} 

@@ -7,7 +7,8 @@ console.log("[Drop-AI Worker] v21.2 - Reset Directive Active");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "PING" || request.type === "EXT_PING") {
-        sendResponse({ status: "SUCCESS", pong: true });
+        console.log("[Drop-AI Worker] PING received. Sending PONG.");
+        sendResponse({ status: "SUCCESS", pong: true, version: "v21.3" });
         return true;
     }
 
