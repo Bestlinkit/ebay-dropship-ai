@@ -82,16 +82,17 @@ const SupplierSourcing = () => {
 
             setPipelineState({ status: result.status, sources: result.sources });
             
+            // ⚡ RESTORE FLOW (v7.1): Set initial results immediately to show skeleton/baseline
+            setRawResults(result.data);
+
             // 💰 PARALLEL AUTO-ENRICHMENT (Limited Concurrency)
-            let finalItems = result.data;
             if (result.sources.aliexpress === 'OK') {
                 const aliItems = result.data.filter(p => p.source === 'AliExpress');
                 if (aliItems.length > 0) {
-                    finalItems = await aliexpressService.enrichWithLimit(result.data, 2);
+                    const enrichedItems = await aliexpressService.enrichWithLimit(result.data, 2);
+                    setRawResults(enrichedItems); // Update UI after hydration
                 }
             }
-
-            setRawResults(finalItems);
             
             if (result.status === 'SYSTEM_DOWN') {
                 toast.error("System Failure: Unable to reach any supplier networks.");
@@ -136,7 +137,7 @@ const SupplierSourcing = () => {
                     enrichmentStatus: raw.enrichmentStatus || (raw.enriched ? "DONE" : "PENDING")
                 };
             })
-            .filter(res => res.relevance >= 20) // Lower floor for unified visibility
+            .filter(res => res.title && res.image) // MINIMUM DISPLAY RULE (v7.1)
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
 
@@ -303,14 +304,35 @@ const SupplierSourcing = () => {
                     </div>
                 )}
 
+                {/* 5. LOW QUALITY / PARTIAL DATA (v7.1 Split States) */}
                 {!loading && processedResults.length === 0 && pipelineState.status === sourcingService.Status.COMPLETE && (
                     <div className="bg-slate-50 border border-slate-200 p-16 rounded-[4rem] text-center space-y-10">
                         <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><ShieldAlert size={40} /></div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">Zero Matches Found</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">Both supplier networks returned no valid results for this query. Try a more generic title.</p>
+                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">No Strong Matches</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
+                                We couldn't find high-quality supplier matches for this title. Try a broader keyword or search manually below.
+                            </p>
                         </div>
-                        <button onClick={() => navigate('/discovery')} className="bg-slate-950 text-white px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">Back to Discovery</button>
+                        <div className="flex flex-wrap justify-center gap-4">
+                            <button onClick={handleExpandSearch} className="bg-slate-950 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">🚀 Manual AliExpress Search</button>
+                            <button onClick={() => navigate('/discovery')} className="bg-white border border-slate-200 text-slate-950 px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all shadow-xl">Back to Discovery</button>
+                        </div>
+                    </div>
+                )}
+
+                {/* 6. PARTIAL DATA ADVISORY */}
+                {!loading && processedResults.length > 0 && pipelineState.status === sourcingService.Status.PARTIAL && (
+                    <div className="p-6 bg-slate-900 text-white rounded-[2rem] flex items-center justify-between shadow-2xl">
+                         <div className="flex items-center gap-4">
+                             <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400">
+                                <Info size={20} />
+                             </div>
+                             <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Partial Data Mode</p>
+                                <p className="text-[11px] font-medium text-slate-400">Eprolo offline. Showing AliExpress baseline results (deep data still loading).</p>
+                             </div>
+                         </div>
                     </div>
                 )}
             </div>

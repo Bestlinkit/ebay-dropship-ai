@@ -222,28 +222,12 @@ class SourcingService {
     return { expected, conservative };
   }
 
-  /**
-   * Calculates deterministic ROI for a single product comparison.
-   * Formula: ROI = ((ebayPrice - totalSupplierCost) / totalSupplierCost) * 100
-   */
-  calculateROI(ebayPrice, supplierCost, shipping = 0) {
-    const totalCost = Number(supplierCost) + Number(shipping);
-    const targetPrice = Number(ebayPrice);
-
-    if (!totalCost || totalCost <= 0 || !targetPrice) return null;
-
-    const profit = targetPrice - totalCost;
-    return Math.round((profit / totalCost) * 100);
-  }
-
   calculateSupplierROIRange(ebayPrice, supplierCost) {
     const totalCost = Number(supplierCost);
     if (!totalCost || totalCost <= 0) return { conservative: null, expected: null };
 
-    const expected = this.calculateROI(ebayPrice, supplierCost);
-    const conservative = this.calculateROI(ebayPrice * 0.90, supplierCost);
-
-    return { conservative, expected };
+    const res = this.calculateROI(ebayPrice, supplierCost);
+    return res || { conservative: null, expected: null };
   }
 
   /**
@@ -375,6 +359,14 @@ class SourcingService {
 
     // 4. Deduplication & Finalization
     const finalData = this.dedupe(rawData);
+
+    // 🕵️ PIPELINE DEBUG LOG (Iron Flow 7.1)
+    console.log("PIPELINE DEBUG", {
+      eproloCount: (eproloRes.status === 'fulfilled' ? eproloRes.value.data.length : 0),
+      aliCount: (aliRes.status === 'fulfilled' ? aliRes.value.data.length : 0),
+      finalCount: finalData.length,
+      timestamp: new Date().toISOString()
+    });
 
     return {
       status,

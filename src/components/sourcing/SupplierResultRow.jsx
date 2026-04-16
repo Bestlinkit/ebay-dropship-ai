@@ -127,7 +127,7 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                             {isEnriching ? (
                                 'Calculating...'
                             ) : (
-                                product.roiRange?.expected !== null ? (
+                                (product.roiRange && product.roiRange.expected !== undefined && product.roiRange.expected !== null) ? (
                                     `${product.roiRange.conservative}% – ${product.roiRange.expected}%`
                                 ) : (
                                     '--- %'

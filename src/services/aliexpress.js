@@ -290,17 +290,18 @@ class AliExpressService {
             if (priceMatch) price = parseFloat(priceMatch[1] || priceMatch[2]);
         }
 
-        // 🛑 NULL ENFORCEMENT (No $0.00 fakes)
+        // 🛑 NULL ENFORCEMENT
         price = price > 0 ? price : null;
 
         const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;
 
-        // 🛡️ STRICT ACCEPTANCE RULE (v6.1)
-        const hasCoreData = (image && (price || title));
-        if (!hasCoreData || isBlockedTitle(title)) return null;
+        // 🛡️ SOFT VALIDATION RULE (v7.1)
+        // Only block if it's an Ad OR completely missing both title and image
+        const isCoreDataMissing = !(title && title.length > 5) && !image;
+        if (isCoreDataMissing || isBlockedTitle(title)) return null;
 
         return {
-            id: item.productId || item.product_id || Math.random().toString(36).substr(2, 9),
+            id: item.productId || item.product_id || `ali_${Math.random().toString(36).slice(2, 9)}`,
             title: title || "AliExpress Listing",
             price: price, 
             image: image,
@@ -310,7 +311,9 @@ class AliExpressService {
             delivery: item.delivery?.displayAmount || "15-25 days",
             shipsFrom: item.logistics?.shipsFrom || "CN",
             enrichmentStatus: "PENDING",
-            enriched: false
+            enriched: false,
+            isValid: !!(title && image),
+            hasPrice: !!price
         };
     }).filter(p => p && p.title && p.title.length > 5);
   }
