@@ -439,7 +439,7 @@ const SupplierSourcing = () => {
                             </div>
                         </div>
                     </motion.div>
-                ) : !loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') ? (
+                ) : !loading && !pipelineState.sources.aliexpress?.includes('EXTENSION_NOT_LOADED') && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') ? (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
                             <div className="flex items-center gap-5">

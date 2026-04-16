@@ -1,9 +1,8 @@
 /**
- * Drop-AI Extension Connector Service (v19.6 - Hybrid Identity Bridge)
- * FEATURES: Direct Identity PING (via ID), Static Detection, and Message Relay.
+ * Drop-AI Extension Connector Service (v19.7 - Hardened Hybrid)
+ * Synchronized with Deterministic Worker Architecture.
  */
 
-// User-provided stable Extension ID for live testing
 const EXT_ID = "dbboapfmlgjakkmedihbokcgaogcihcd";
 
 class ExtensionConnector {
@@ -15,52 +14,54 @@ class ExtensionConnector {
         if (typeof window !== "undefined") {
             window.addEventListener("message", this.handleMessage.bind(this));
             this.isInitialized = true;
-            console.log(`[Ext-Connector] Production Bridge v19.6 Active (Target: ${EXT_ID})`);
+            console.log(`[Ext-Connector] v19.7 Deterministic Bridge ready (ID: ${EXT_ID})`);
         }
     }
 
     /**
-     * HYBRID DETECTION (v19.6)
+     * UNIFIED DETECTION (v19.7)
      */
     async isExtensionActive() {
-        // 1. Direct Identity Channel (Most Reliable for Live)
-        if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+        // 1. Direct Identity Channel (Tier 1 - Most Robust)
+        if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
             try {
                 const response = await new Promise((resolve) => {
-                    chrome.runtime.sendMessage(EXT_ID, { type: "EXT_PING" }, (res) => {
+                    chrome.runtime.sendMessage(EXT_ID, { type: "PING" }, (res) => {
                         if (chrome.runtime.lastError) resolve(null);
                         else resolve(res);
                     });
                 });
-                if (response?.type === "EXT_PONG") {
-                    console.log("[Ext-Connector] Extension reached via DIRECT IDENTITY BRIDGE.");
+                
+                if (response?.status === "PONG") {
+                    console.log("[Ext-Connector] Extension Verified via IDENTITY BRIDGE.");
                     return true;
                 }
             } catch (e) {
-                console.warn("[Ext-Connector] Direct Identity Ping failed. Trying relay...");
+                console.warn("[Ext-Connector] Identity Ping failed, trying relay...");
             }
         }
 
-        // 2. Level 2: Static Check
+        // 2. Static Flag (Tier 2 - Zero Latency)
         if (typeof window !== "undefined" && window.__DROP_AI_BRIDGE_ACTIVE__) {
-            console.log("[Ext-Connector] Extension reached via STATIC RELAY.");
+            console.log("[Ext-Connector] Extension Verified via STATIC FLAG.");
             return true;
         }
 
-        // 3. Level 3: Message-based Heartbeat (1s Tolerance)
+        // 3. PostMessage Heartbeat (Tier 3 - Fallback)
         return new Promise((resolve) => {
             const timer = setTimeout(() => {
                 this.pongResolvers = this.pongResolvers.filter(r => r !== resolver);
                 resolve(false);
             }, 1000);
 
-            const resolver = () => {
+            const resolver = (data) => {
                 clearTimeout(timer);
-                resolve(true);
+                if (data?.status === "PONG") resolve(true);
+                else resolve(false);
             };
 
             this.pongResolvers.push(resolver);
-            window.postMessage({ type: "EXT_PING" }, "*");
+            window.postMessage({ type: "PING" }, "*");
         });
     }
 
@@ -68,27 +69,19 @@ class ExtensionConnector {
         return await this.isExtensionActive();
     }
 
-    /**
-     * REQUEST DATA FROM EXTENSION
-     */
     async request(source, query) {
         if (!this.isInitialized) return { status: "INIT_ERROR", error: "Not in browser context" };
 
         let isActive = await this.isExtensionActive();
-        if (!isActive) {
-            console.error("[Ext-Connector] Extension NOT DETECTED.");
-            return { status: "EXTENSION_NOT_LOADED", error: "Extension not detected" };
-        }
+        if (!isActive) return { status: "EXTENSION_NOT_LOADED", error: "Extension not detected" };
 
         const maxAttempts = 2;
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            console.log(`[Ext-Connector] Attempt ${attempt}/${maxAttempts} for ${source}: ${query}`);
-            
             try {
-                // Try Direct Channel for Search too (If ID bridge is open)
+                // Try Direct Channel for Search (If identity bridge confirmed)
                 let response = null;
-                if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+                if (typeof chrome !== "undefined" && chrome.runtime?.sendMessage) {
                     response = await new Promise((resolve) => {
                         chrome.runtime.sendMessage(EXT_ID, { 
                             type: "SUPPLIER_SEARCH", 
@@ -98,17 +91,15 @@ class ExtensionConnector {
                     });
                 }
 
-                // If Direct Channel failed or not available, use Relay
+                // Fallback to Relay
                 if (!response || response.status === "FAILED") {
-                    response = await this.singleRequest(source, query, 10000);
+                    response = await this.singleRequest(source, query, 12000);
                 }
 
                 if (response.status === "SUCCESS") return response;
-                
                 if (attempt < maxAttempts) await new Promise(r => setTimeout(r, 1000));
 
             } catch (e) {
-                console.error(`[Ext-Connector] Crash:`, e);
                 if (attempt === maxAttempts) throw e;
             }
         }
@@ -141,10 +132,11 @@ class ExtensionConnector {
     handleMessage(event) {
         if (event.source !== window || !event.data) return;
 
-        if (event.data.type === "EXT_PONG") {
+        // Unified PONG handler
+        if (event.data.status === "PONG" || event.data.type === "EXT_PONG") {
             const resolvers = [...this.pongResolvers];
             this.pongResolvers = [];
-            resolvers.forEach(r => r());
+            resolvers.forEach(r => r(event.data));
             return;
         }
 

@@ -1,79 +1,117 @@
 /**
- * Drop-AI Background Orchestration Engine (v19.4)
- * FAST-PATH DETERMINISTIC LIFECYCLE
+ * Drop-AI Background Orchestration Engine (v19.7 - DETERMINISTIC API LAYER)
  */
 
+console.log("[Drop-AI Worker Active] Engine v19.7");
+
+// 1. UNIFIED MESSAGE ROUTER (CRITICAL - Guaranteed Response Path)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === "SUPPLIER_SEARCH") {
-        (async () => {
-            try {
-                const result = await handleSearch(request);
-                sendResponse(result);
-            } catch (err) {
-                console.error("[Bridge-BG] Critical Error:", err);
-                sendResponse({ 
-                    status: "FAILED", 
-                    error: err.message, 
-                    requestId: request.requestId 
+    console.log(`[Drop-AI Worker] Request: ${request.type}`);
+    
+    switch (request.type) {
+        case "PING":
+        case "EXT_PING":
+            sendResponse({ status: "PONG", active: true });
+            return true;
+
+        case "SUPPLIER_SEARCH":
+        case "EXT_SEARCH_REQUEST":
+            handleSearch(request)
+                .then(result => {
+                    console.log("[Drop-AI Worker] Search Success");
+                    sendResponse(result);
+                })
+                .catch(err => {
+                    console.error("[Drop-AI Worker] Search Failed:", err);
+                    sendResponse({
+                        status: "FAILED",
+                        error: err.message,
+                        requestId: request.requestId,
+                        source: request.source
+                    });
                 });
-            }
-        })();
-        return true;
+            return true;
+
+        default:
+            sendResponse({
+                status: "FAILED",
+                error: "UNKNOWN_MESSAGE_TYPE"
+            });
+            return true;
     }
 });
 
-// 🚀 DIRECT EXTERNAL BRIDGE (v19.6)
-// Handles direct communication from Authorized Live Domains
+// 2. HARDENED EXTERNAL ROUTER (ID-based Direct Channel)
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
-    if (request.type === "EXT_PING") {
-        console.log(`[Bridge-BG] Direct External PING from ${sender.url}`);
-        sendResponse({ type: "EXT_PONG", status: "ONLINE" });
+    console.log(`[Drop-AI Worker] External Request from ${sender.url}: ${request.type}`);
+    
+    switch (request.type) {
+        case "PING":
+            sendResponse({ status: "PONG", active: true });
+            return true;
+
+        case "SUPPLIER_SEARCH":
+            handleSearch(request)
+                .then(sendResponse)
+                .catch(err => sendResponse({
+                    status: "FAILED",
+                    error: err.message,
+                    requestId: request.requestId,
+                    source: request.source
+                }));
+            return true;
+
+        default:
+            sendResponse({ status: "FAILED", error: "UNKNOWN_MESSAGE_TYPE" });
+            return true;
     }
-    return true;
 });
 
+/**
+ * DETERMINISTIC SEARCH EXECUTION
+ */
 async function handleSearch(request) {
     const { source, query, requestId } = request;
-    console.log(`[Bridge-BG] Executing ${source} search: ${query}`);
-
-    let targetUrl = "";
-    if (source === "aliexpress") {
-        targetUrl = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
-    } else if (source === "eprolo") {
-        targetUrl = `https://eprolo.com/app/newProductsCatalog.html?keyword=${encodeURIComponent(query)}&type=us`;
-    }
-
-    if (!targetUrl) return { status: "FAILED", error: "INVALID_SOURCE", requestId };
+    console.log(`[Drop-AI Worker] Executing ${source} search: ${query}`);
 
     let tabId = null;
-
     try {
-        // 1. OPEN TAB (Faster create & active)
-        const tab = await chrome.tabs.create({ url: targetUrl, active: true });
+        const url = source === 'aliexpress' 
+            ? `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`
+            : `https://www.eprolo.com/all-products.html?keyword=${encodeURIComponent(query)}`;
+
+        // 1. Create Control Tab
+        const tab = await chrome.tabs.create({ url, active: true });
         tabId = tab.id;
 
-        // 2. LOOSER WAIT (Wait 1.5s max vs 10s 'complete')
-        // [v19.4] Most pages are interactive enough after 1.5-2.5s to extract runParams.
+        // 2. DETERMINISTIC Micro-wait (2s) - Adjust if needed
         await new Promise(r => setTimeout(r, 2000));
 
-        // 3. ATOMIC INJECTION
-        const parserFile = source === "aliexpress" ? "parsers/ali_parser.js" : "parsers/eprolo_parser.js";
+        // 3. Inject & Extract
+        const file = source === 'aliexpress' ? 'parsers/ali_parser.js' : 'parsers/eprolo_parser.js';
+        
         const results = await chrome.scripting.executeScript({
             target: { tabId },
-            files: [parserFile]
+            files: [file]
         });
 
-        const extractionResult = results?.[0]?.result;
+        // 4. HARDEN executeScript RESULT HANDLING (v19.7)
+        const extractionResult = results?.[0]?.result ?? {
+            status: "FAILED",
+            error: "NO_PARSER_RESULT",
+            source
+        };
 
-        // 4. CLEANUP (ALWAYS)
-        if (tabId) await chrome.tabs.remove(tabId);
+        return {
+            ...extractionResult,
+            requestId,
+            source
+        };
 
-        if (!extractionResult) throw new Error("EXTRACTION_NULL");
-        
-        return { ...extractionResult, requestId };
-
-    } catch (e) {
-        if (tabId) chrome.tabs.remove(tabId).catch(() => {});
-        return { status: "FAILED", error: e.message, requestId };
+    } finally {
+        // ALWAYS CLOSE TAB (Atomic Lifecycle)
+        if (tabId) {
+            chrome.tabs.remove(tabId).catch(err => console.warn("[Drop-AI Worker] Cleanup Warning:", err.message));
+        }
     }
 }
