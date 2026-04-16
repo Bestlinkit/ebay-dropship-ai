@@ -39,14 +39,23 @@ const SupplierProductDetail = () => {
 
     useEffect(() => {
         const fetchDeepDetails = async () => {
+            // 🚀 Bypassing API if snapshot was manually imported or pre-fetched
+            if (location.state?.preFetchedProduct) {
+                const data = location.state.preFetchedProduct;
+                setProduct(data);
+                if (data.variants && data.variants.length > 0) {
+                    setSelectedVariant(data.variants[0]);
+                }
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             try {
                 let data = null;
                 if (source.toLowerCase() === 'eprolo') {
                     data = await eproloService.getProductDetail(id);
                 } else if (source.toLowerCase() === 'aliexpress') {
-                    // AliExpress uses the URL as the identifier in Stage 2
-                    // If we only have an ID, we might need to reconstruct the URL
                     const url = location.state?.productUrl || `https://www.aliexpress.com/item/${id}.html`;
                     const res = await aliexpressService.getProductDetails(url);
                     if (res.status !== 'SUCCESS') throw new Error("Enrichment failed");
@@ -62,7 +71,6 @@ const SupplierProductDetail = () => {
             } catch (error) {
                 console.error("Deep Enrichment Crash:", error);
                 toast.error(`Detail retrieval failed: ${error.message}`);
-                // Fallback or navigate back if critical
             } finally {
                 setLoading(false);
             }

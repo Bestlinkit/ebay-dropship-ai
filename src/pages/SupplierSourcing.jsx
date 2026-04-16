@@ -142,7 +142,8 @@ const SupplierSourcing = () => {
             state: { 
                 targetProduct, 
                 targetPrice,
-                productUrl: product.url 
+                productUrl: product.url,
+                preFetchedProduct: product // 🚀 Pass full object to bypass blocked API calls
             } 
         });
     };
