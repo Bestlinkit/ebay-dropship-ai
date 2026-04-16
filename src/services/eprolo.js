@@ -36,7 +36,11 @@ class EproloService {
         try {
             const response = await fetch(debugInfo.endpoint, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "apiKey": appKey,
+                    "apiSecret": secret
+                },
                 body: JSON.stringify({ 
                     keyword: query, 
                     page_index: page, 
@@ -125,10 +129,22 @@ class EproloService {
             productId
         };
 
+        // 🚨 1. AUTH CONFIG VALIDATION (Iron Flow 7.2)
+        const appKey = import.meta.env.VITE_EPROLO_APP_KEY;
+        const secret = import.meta.env.VITE_EPROLO_SECRET;
+
+        if (!appKey || !secret) {
+            throw new Error("CONFIG_ERROR");
+        }
+
         try {
             const response = await fetch(debugInfo.endpoint, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "apiKey": appKey,
+                    "apiSecret": secret
+                },
                 body: JSON.stringify({ product_id: productId })
             });
 

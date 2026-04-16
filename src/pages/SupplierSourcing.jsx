@@ -84,15 +84,16 @@ const SupplierSourcing = () => {
 
             setPipelineState({ status: result.status, sources: result.sources });
             
-            // ⚡ RESTORE FLOW (v7.1): Set initial results immediately to show skeleton/baseline
+            // ⚡ RESTORE FLOW (v7.1): Set initial results immediately
             setRawResults(result.data);
 
             // 💰 PARALLEL AUTO-ENRICHMENT (Limited Concurrency)
             if (result.sources.aliexpress === 'OK') {
-                const aliItems = result.data.filter(p => p.source === 'AliExpress');
+                const aliItems = result.data.filter(p => p.source === 'ALIEXPRESS');
                 if (aliItems.length > 0) {
-                    const enrichedItems = await aliexpressService.enrichWithLimit(result.data, 2);
-                    setRawResults(enrichedItems); // Update UI after hydration
+                    // 🚀 Iron Flow 7.3: Pass targetPrice for post-enrichment ROI calculation
+                    const enrichedItems = await aliexpressService.enrichWithLimit(result.data, context.targetPrice, 2);
+                    setRawResults(enrichedItems); 
                 }
             }
             
@@ -135,7 +136,7 @@ const SupplierSourcing = () => {
                 return { 
                     ...res, 
                     relevance, 
-                    roiRange,
+                    roiRange: raw.roiRange || roiRange, // Preference for pre-calculated ROI (v7.3)
                     enrichmentStatus: raw.enrichmentStatus || (raw.enriched ? "DONE" : "PENDING")
                 };
             })
@@ -211,24 +212,30 @@ const SupplierSourcing = () => {
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-white border border-slate-200 rounded-[3rem] shadow-sm">
-                <div className="flex items-center gap-6">
-                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50">
-                        <ArrowLeft size={24} />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
-                                <img src={targetProduct?.image} className="w-full h-full object-cover" alt="Focus" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Eprolo Discovery</h1>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                                    <ShieldCheck size={12} className="text-emerald-500" /> Secure API Bridge
-                                </p>
+                        <div className="flex items-center gap-6">
+                            <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50">
+                                <ArrowLeft size={24} />
+                            </button>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-4 mb-2">
+                                    <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
+                                        <img src={targetProduct?.image} className="w-full h-full object-cover" alt="Focus" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Eprolo Discovery</h1>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                            {pipelineState.sources.eprolo === 'OK' ? (
+                                                <><ShieldCheck size={12} className="text-emerald-500" /> Secure API Bridge Active</>
+                                            ) : pipelineState.sources.eprolo === 'CONFIG_ERROR' ? (
+                                                <><AlertTriangle size={12} className="text-amber-500" /> Credentials Required</>
+                                            ) : (
+                                                <><Lock size={12} className="text-rose-500" /> Authentication Blocked</>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
                 <div className="bg-slate-50 border border-slate-200 p-6 rounded-[2rem] flex items-center gap-6">
                     <img src={targetProduct.image} alt="" className="w-16 h-16 rounded-xl border border-slate-200 object-cover shadow-lg" />
                     <div className="space-y-1">

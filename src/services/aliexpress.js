@@ -203,7 +203,7 @@ class AliExpressService {
    * Concurrent Auto-Enrichment (Iron Flow 7.0)
    * Limits concurrency to avoid anti-bot triggers.
    */
-  async enrichWithLimit(items, limit = 2) {
+  async enrichWithLimit(items, targetPrice, limit = 2) {
     if (!items || items.length === 0) return [];
     
     // 🔍 Select candidates that actually need hydration
@@ -211,6 +211,17 @@ class AliExpressService {
     const candidates = items.filter(needsEnrichment).slice(0, 5);
     
     if (candidates.length === 0) return items;
+
+    // Helper for ROI sequencing (Iron Flow 7.3)
+    const calculateInternalROI = (ebayPrice, supplierCost) => {
+        const cost = Number(supplierCost);
+        const target = Number(ebayPrice);
+        if (!cost || cost <= 0 || !target || target <= 0) return null;
+        
+        const expected = Math.round(((target - cost) / cost) * 100);
+        const conservative = Math.round(((target - (cost * 1.2)) / cost) * 100);
+        return { expected, conservative };
+    };
 
     const enrichedItems = [...items];
 
@@ -220,15 +231,22 @@ class AliExpressService {
             chunk.map(async (item) => {
                 const enrichment = await this.getProductDetails(item.url);
                 if (enrichment.status === SourcingStatus.SUCCESS) {
+                    const price = enrichment.data.price || item.price;
                     return { 
                         ...item, 
                         ...enrichment.data, 
+                        roiRange: calculateInternalROI(targetPrice, price),
                         enrichmentStatus: "DONE", 
                         enriched: true,
-                        status: "READY" // 🚀 Iron Flow 7.2: Promotion to READY
+                        status: "READY"
                     };
                 }
-                return { ...item, enrichmentStatus: "FAILED", status: "READY" }; // Ready even if failed, to allow manual review
+                return { 
+                    ...item, 
+                    roiRange: calculateInternalROI(targetPrice, item.price),
+                    enrichmentStatus: "FAILED", 
+                    status: "READY" 
+                };
             })
         );
         

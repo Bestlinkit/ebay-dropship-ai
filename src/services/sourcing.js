@@ -18,7 +18,9 @@ class SourcingService {
     this.Status = {
       LOADING: 'LOADING',
       PARTIAL: 'PARTIAL',
-      COMPLETE: 'COMPLETE'
+      COMPLETE: 'COMPLETE',
+      AUTH_ERROR: 'AUTH_ERROR',
+      CONFIG_ERROR: 'CONFIG_ERROR'
     };
 
     this.SourceStatus = {
