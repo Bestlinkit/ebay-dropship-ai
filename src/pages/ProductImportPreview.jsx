@@ -101,6 +101,8 @@ const ProductImportPreview = () => {
             } 
         });
     };
+
+    return (
         <div className="max-w-[1400px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             
             {/* 🧭 HEADER & SOURCE LABELS */}

@@ -34,18 +34,16 @@ import SourcingStatusHeader from '../components/sourcing/SourcingStatusHeader';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 
 /**
- * Eprolo Supplier Sourcing (v3.0)
- * Direct API bridge for verified supplier discovery.
+ * Eprolo Supplier Sourcing (v3.1)
+ * Optimized for build stability and API transparency.
  */
 const SupplierSourcing = () => {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // SAFE READ: Handle both legacy and new standardized payloads
     const ebayProduct = location?.state?.ebayProduct || location?.state?.product || null;
     const initialQuery = location.state?.query || ebayProduct?.title || '';
-    
-    const targetProduct = ebayProduct; // Maintain logic compatibility
+    const targetProduct = ebayProduct;
 
     const [loading, setLoading] = useState(true);
     const [rawResults, setRawResults] = useState([]);
@@ -53,21 +51,17 @@ const SupplierSourcing = () => {
     const [extracting, setExtracting] = useState(false);
     const [confirmModal, setConfirmModal] = useState(null);
     const [showAliExpansion, setShowAliExpansion] = useState(false);
-
     const [fullInquiryResult, setFullInquiryResult] = useState(null);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 4;
 
-    // 💡 INITIALIZATION ROOT: Ensure variables are declared before hook usage
     const targetPrice = targetProduct?.price || 0;
 
-    // 1. ENGINE: Eprolo API Only (Enhanced Resilience)
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct || !query?.trim()) return;
         
         setLoading(true);
         setFullInquiryResult(null);
-        console.info(`[Direct Sourcing] Inquiring Eprolo API for: ${query}`);
         
         try {
             const result = await eproloService.searchProducts(query);
@@ -75,24 +69,19 @@ const SupplierSourcing = () => {
             setRawResults(result.data || []);
             
             if (result.status === 'AUTH_FAILURE' || result.status === 'ERROR') {
-                toast.error(`Eprolo Bridge Fault: ${result.message || 'Authentication Failed'}`);
+                toast.error(`Eprolo Fault: ${result.message || 'Auth Failed'}`);
             }
         } catch (e) {
-            console.error(`[Direct Sourcing] API Connection Failure:`, e);
             toast.error(`Eprolo API connection failed.`);
         } finally {
             setLoading(false);
         }
     }, [targetProduct?.id, searchQuery]);
 
-    // FIX: Guarded auto-fire on mount
     useEffect(() => { 
-        if (searchQuery?.trim()) {
-            performSourcing(); 
-        }
+        if (searchQuery?.trim()) performSourcing(); 
     }, [targetProduct?.id]);
 
-    // 2. INTELLIGENCE LAYER: ROI CALCULATED PER-ITEM (DETERMINISTIC)
     const processedResults = useMemo(() => {
         if (!targetProduct || rawResults.length === 0) return [];
         
@@ -100,8 +89,6 @@ const SupplierSourcing = () => {
             .map(raw => {
                 const res = sourcingService.normalize(raw, 'eprolo');
                 const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
-                
-                // 🛡️ ROI SAFETY (IRON SHIELD v6.1)
                 const cost = res.price;
                 const sellingPrice = targetProduct.price || targetPrice;
                 
@@ -118,22 +105,18 @@ const SupplierSourcing = () => {
                     relevance, 
                     roi: roiValue,
                     profit: expectedProfit,
-                    roiRange: { expected: roiValue } // Backwards compatibility for UI components
+                    roiRange: { expected: roiValue }
                 };
             })
             .filter(res => res.relevance >= 35)
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
 
-    const paginatedResults = useMemo(() => {
-        return processedResults.slice(0, page * PAGE_SIZE);
-    }, [processedResults, page]);
-
+    const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);
     const bestOption = useMemo(() => sourcingService.identifyBestOption(processedResults), [processedResults]);
 
-    const handleContinue = (supplierProduct) => {
-        setConfirmModal(supplierProduct);
-    };
+    const handleContinue = (supplierProduct) => setConfirmModal(supplierProduct);
+    const handleExpandSearch = () => setShowAliExpansion(true);
 
     const finalizeImport = async (supplierProduct) => {
         setExtracting(true);
@@ -150,15 +133,11 @@ const SupplierSourcing = () => {
             });
             toast.success("Intelligence extraction complete.");
         } catch (error) {
-            toast.error("Unable to retrieve full details.");
+            toast.error("Unable to retrieve details.");
         } finally {
             toast.dismiss(loadingId);
             setExtracting(false);
         }
-    };
-
-    const handleExpandSearch = () => {
-        setShowAliExpansion(true);
     };
 
     if (!targetProduct) {
@@ -169,14 +148,9 @@ const SupplierSourcing = () => {
                 </div>
                 <div className="space-y-4">
                     <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">Missing Product Context</h3>
-                    <p className="text-slate-500 text-sm max-w-sm mx-auto">
-                        Inquiry source not detected. Return to the Discovery hub to initiate a new sourcing request.
-                    </p>
+                    <p className="text-slate-500 text-sm max-w-sm mx-auto">Inquiry source not detected.</p>
                 </div>
-                <button 
-                    onClick={() => navigate('/discovery')} 
-                    className="px-10 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 hover:text-white transition-all shadow-3xl"
-                >
+                <button onClick={() => navigate('/discovery')} className="px-10 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 hover:text-white transition-all shadow-3xl">
                     Return to Discovery <ArrowRight size={14} />
                 </button>
             </div>
@@ -185,8 +159,6 @@ const SupplierSourcing = () => {
 
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
-            
-            {/* 🧭 NAVIGATION */}
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-[#0B1220] border border-[#2A3A55] rounded-[3rem] shadow-2xl">
                 <div className="flex items-center gap-6">
                     <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
@@ -206,89 +178,65 @@ const SupplierSourcing = () => {
                         </div>
                     </div>
                 </div>
-
                 <div className="bg-slate-900/50 border border-slate-700/50 p-6 rounded-[2rem] flex items-center gap-6">
                     <img src={targetProduct.image} alt="" className="w-16 h-16 rounded-xl border border-white/10 object-cover shadow-lg" />
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Benchmark Price</p>
-                        <p className="text-lg font-black text-emerald-400 italic leading-none">
-                            {targetPrice ? `$${targetPrice.toFixed(2)}` : 'N/A'}
-                        </p>
+                        <p className="text-lg font-black text-emerald-400 italic leading-none">{targetPrice ? `$${targetPrice.toFixed(2)}` : 'N/A'}</p>
                     </div>
                 </div>
             </div>
 
-            {/* 🔍 STATUS BAR */}
-            <SourcingStatusHeader 
-                state={loading ? 'searching' : 'results'} 
-                loading={loading}
-                resultsCount={processedResults.length}
-                isGlobal={false}
-            />
+            <SourcingStatusHeader state={loading ? 'searching' : 'results'} loading={loading} resultsCount={processedResults.length} isGlobal={false} />
 
-            {/* 🏗️ SOURCING FEED */}
             <div className="space-y-8">
-                {loading ? (
+                {/* 1. LOADING */}
+                {loading && (
                     <div className="space-y-6">
                         {Array(3).fill(0).map((_, i) => (
                            <div key={i} className="h-40 bg-slate-900/50 rounded-[2.5rem] animate-pulse border border-slate-800/30" />
                         ))}
                     </div>
-                ) : processedResults.length > 0 ? (
+                )}
+
+                {/* 2. SUCCESS RESULTS */}
+                {!loading && processedResults.length > 0 && (
                     <div className="grid grid-cols-1 gap-6">
                         {paginatedResults.map(res => (
-                            <SupplierResultRow 
-                                key={res.id} 
-                                product={res} 
-                                targetPrice={targetPrice}
-                                isBest={bestOption?.id === res.id}
-                                onContinue={handleContinue}
-                            />
+                            <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} isBest={bestOption?.id === res.id} onContinue={handleContinue} />
                         ))}
-                        
                         {processedResults.length > paginatedResults.length && (
-                             <button 
-                                onClick={() => setPage(p => p + 1)}
-                                className="w-full py-8 bg-[#111C33] border border-[#2A3A55] text-white rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-500 transition-all shadow-xl font-inter"
-                             >
+                             <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-[#111C33] border border-[#2A3A55] text-white rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-500 transition-all shadow-xl">
                                  Show next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} opportunities
                              </button>
                         )}
-
-                        {/* 💡 UPSORT: Option to expand */}
                         <div className="mt-10 p-10 bg-slate-950 border border-slate-800 rounded-[3rem] text-center space-y-4 shadow-3xl">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Need more variety or lower pricing?</p>
-                             <button 
-                                onClick={handleExpandSearch}
-                                className="text-[11px] font-black text-white px-8 py-4 bg-slate-900 hover:bg-[#0B1220] rounded-xl transition-all uppercase tracking-widest border border-white/5"
-                             >
+                             <button onClick={handleExpandSearch} className="text-[11px] font-black text-white px-8 py-4 bg-slate-900 hover:bg-[#0B1220] rounded-xl transition-all uppercase tracking-widest border border-white/5">
                                  Search AliExpress Manually
                              </button>
                         </div>
                     </div>
-                ) : fullInquiryResult?.status === 'BLOCKED' ? (
+                )}
+
+                {/* 3. BLOCKED */}
+                {!loading && processedResults.length === 0 && fullInquiryResult?.status === 'BLOCKED' && (
                     <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10">
-                        <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
-                            <Globe size={40} />
-                        </div>
+                        <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><Globe size={40} /></div>
                         <div className="space-y-4">
                             <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Connection Interrupted</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
-                                AliExpress has temporarily blocked automated access (Anti-Bot Triggered).
-                            </p>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">AliExpress has temporarily blocked automated access (Anti-Bot Triggered).</p>
                         </div>
-                        <button 
-                            onClick={() => performSourcing()}
-                            className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl flex items-center gap-3 mx-auto"
-                        >
+                        <button onClick={() => performSourcing()} className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl flex items-center gap-3 mx-auto">
                             <RefreshCw size={16} /> Retry Global Search
                         </button>
                     </div>
-                ) : fullInquiryResult?.status === 'ERROR' || fullInquiryResult?.status === 'NETWORK_ERROR' ? (
+                )}
+
+                {/* 4. ERROR/AUTH */}
+                {!loading && processedResults.length === 0 && (fullInquiryResult?.status === 'ERROR' || fullInquiryResult?.status === 'NETWORK_ERROR' || fullInquiryResult?.status === 'AUTH_FAILURE') && (
                     <div className="bg-rose-950/20 border border-rose-900/30 p-16 rounded-[4rem] text-center space-y-10">
-                        <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
-                            <AlertTriangle size={40} />
-                        </div>
+                        <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><AlertTriangle size={40} /></div>
                         <div className="space-y-4">
                             <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Bridge Integrity Fault</h3>
                             <div className="text-left space-y-2">
@@ -299,107 +247,51 @@ const SupplierSourcing = () => {
                             </div>
                         </div>
                         <div className="flex flex-col items-center gap-4">
-                             <button 
-                                onClick={() => performSourcing()}
-                                className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl"
-                             >
-                                Re-sync Discovery Pipe
-                             </button>
+                             <button onClick={() => performSourcing()} className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl">Re-sync Discovery Pipe</button>
                              <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Protocol Alpha v6.3 Active</p>
                         </div>
                     </div>
-                ) : fullInquiryResult?.status === 'EMPTY' ? (
-                /* 🎯 GUIDED UI */
-                    <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10 animate-in slide-in-from-bottom-10 fade-in duration-1000">
-                        <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto">
-                            <ShieldAlert size={40} />
-                        </div>
+                )}
+
+                {/* 5. EMPTY MATCHES */}
+                {!loading && processedResults.length === 0 && fullInquiryResult?.status === 'EMPTY' && (
+                    <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10">
+                        <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><ShieldAlert size={40} /></div>
                         <div className="space-y-4">
                             <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">No matching results on Eprolo</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
-                                We couldn’t find a direct match in the Eprolo catalog for this selection.
-                                <br />
-                                <span className="text-slate-300 font-bold">You can perform a manual global search instead.</span>
-                            </p>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">No direct match in the Eprolo catalog. Try a manual search below.</p>
                         </div>
-
-                        <button 
-                            onClick={handleExpandSearch}
-                            className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all transform active:scale-95 shadow-3xl"
-                        >
-                            🚀 Search AliExpress Manually
-                        </button>
-
-                        {/* ⚙️ ADVANCED DIAGNOSTICS */}
-                        {fullInquiryResult?.debugInfo && (
-                            <div className="pt-10 border-t border-slate-800/50 mt-10 text-left">
-                                <details className="group">
-                                    <summary className="text-[9px] font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:text-slate-400 transition-colors list-none flex items-center gap-2">
-                                        <Info size={10} /> Technical Diagnostics (Empty State)
-                                    </summary>
-                                    <div className="mt-4 p-6 bg-black/60 rounded-2xl border border-white/5 font-mono text-[9px] text-slate-400 overflow-x-auto">
-                                        <pre>{JSON.stringify(fullInquiryResult.debugInfo, null, 2)}</pre>
-                                    </div>
-                                </details>
-                            </div>
-                        )}
+                        <button onClick={handleExpandSearch} className="bg-white text-slate-950 px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-3xl">🚀 Search AliExpress Manually</button>
                     </div>
                 )}
             </div>
 
-            {/* EXPANSION PRE-FLIGHT MODAL */}
             <AnimatePresence>
                 {showAliExpansion && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/80">
-                         <motion.div 
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-slate-950 border border-slate-800 p-12 rounded-[4rem] max-w-lg w-full text-center space-y-8 shadow-3xl"
-                         >
-                            <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20">
-                                <Globe size={32} />
-                            </div>
+                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-950 border border-slate-800 p-12 rounded-[4rem] max-w-lg w-full text-center space-y-8 shadow-3xl">
+                            <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20"><Globe size={32} /></div>
                             <div className="space-y-4">
                                 <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">Global Scraper</h3>
-                                <p className="text-slate-500 text-sm leading-relaxed">
-                                    Initiating manual AliExpress scraping flow. This will bypass the Eprolo API.
-                                </p>
+                                <p className="text-slate-500 text-sm leading-relaxed">Initiating manual AliExpress scraping flow.</p>
                             </div>
                             <div className="space-y-4">
-                                <button 
-                                    onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
-                                    className="w-full py-6 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-2xl"
-                                >
-                                    Proceed to AliExpress Search
-                                </button>
-                                <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-700 uppercase tracking-widest hover:text-white transition-colors">
-                                    Stay on Eprolo
-                                </button>
+                                <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="w-full py-6 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-2xl">Proceed</button>
+                                <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-700 uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
                             </div>
                          </motion.div>
                     </div>
                 )}
             </AnimatePresence>
 
-            {/* CONFIRMATION MODAL */}
             <AnimatePresence>
                 {confirmModal && (
                     <div className="fixed inset-0 z-[101] flex items-center justify-center p-6 backdrop-blur-md bg-black/60">
-                        <motion.div 
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-slate-950 border border-slate-800 p-12 rounded-[3.5rem] max-w-xl w-full shadow-3xl text-center space-y-10"
-                        >
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-950 mx-auto shadow-2xl">
-                                <CheckCircle2 size={32} />
-                            </div>
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-950 border border-slate-800 p-12 rounded-[3.5rem] max-w-xl w-full shadow-3xl text-center space-y-10">
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-950 mx-auto shadow-2xl"><CheckCircle2 size={32} /></div>
                             <div className="space-y-4">
                                 <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">Commit Choice?</h3>
-                                <p className="text-slate-400 text-sm leading-relaxed">
-                                    Confirming this product will import it into your store. Estimated profit: <span className="text-emerald-500 font-bold">{confirmModal.roiRange?.expected}% ROI</span>.
-                                </p>
+                                <p className="text-slate-400 text-sm leading-relaxed">Estimated profit: <span className="text-emerald-500 font-bold">{confirmModal.roiRange?.expected}% ROI</span>.</p>
                             </div>
                             <div className="flex gap-4">
                                 <button onClick={() => setConfirmModal(null)} className="flex-1 py-5 border border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all">Back</button>
