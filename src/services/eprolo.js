@@ -71,7 +71,11 @@ class EproloService {
             const rawItems = result.data || result.products || [];
             
             if (rawItems.length === 0) {
-                return { status: SourcingStatus.EMPTY, data: [], debugInfo };
+                return { 
+                    status: SourcingStatus.EMPTY_CATALOG_RESULT, 
+                    data: [], 
+                    debugInfo: { ...debugInfo, status: 'EMPTY_CATALOG' } 
+                };
             }
 
             // 3. DETERMINISTIC MAPPING

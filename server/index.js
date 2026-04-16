@@ -28,29 +28,33 @@ app.post('/api/eprolo/search', async (req, res) => {
         }
 
         const timestamp = Date.now();
-        const sign = generateMD5(appKey + timestamp + secret);
-
-        const payload = {
+        
+        // 🚨 ALIGNED SIGNATURE (Per Tech Support Screenshot)
+        // Sign the body content + secret/appKey
+        const bodyContent = {
             timestamp,
-            sign,
             keyword,
             page_index,
             page_size
         };
+        const sign = generateMD5(JSON.stringify(bodyContent) + secret);
 
-        // Try standard header-based auth
+        const payload = {
+            ...bodyContent,
+            sign
+        };
+
         const response = await axios.post('https://openapi.eprolo.com/eprolo_product_list.html', payload, {
             headers: {
                 'Content-Type': 'application/json',
                 'apiKey': appKey,
-                'apiSecret': secret
+                'apiSecret': secret,
+                'md5sign': sign // Header-based verification also used by Eprolo
             },
             timeout: 10000
         });
 
-        // 🚨 LOGGING FOR DISCOVERY: code 1 = Success, -1 = Auth Fail
         console.log(`[Eprolo] Search: "${keyword}" -> Code: ${response.data.code}, Items: ${response.data.data?.length || 0}`);
-
         res.json(response.data);
     } catch (error) {
         console.error("Eprolo Search Error:", error.message);
@@ -69,19 +73,17 @@ app.post('/api/eprolo/detail', async (req, res) => {
         }
 
         const timestamp = Date.now();
-        const sign = generateMD5(appKey + timestamp + secret);
+        const bodyContent = { timestamp, product_id };
+        const sign = generateMD5(JSON.stringify(bodyContent) + secret);
 
-        const payload = {
-            timestamp,
-            sign,
-            product_id
-        };
+        const payload = { ...bodyContent, sign };
 
         const response = await axios.post('https://openapi.eprolo.com/eprolo_product_detail.html', payload, {
             headers: {
                 'Content-Type': 'application/json',
                 'apiKey': appKey,
-                'apiSecret': secret
+                'apiSecret': secret,
+                'md5sign': sign
             },
             timeout: 10000
         });

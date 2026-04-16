@@ -129,6 +129,17 @@ class SourcingService {
   }
 
   /**
+   * Global Search Utilities
+   */
+  getGlobalSearchUrl(source, query) {
+    if (!query) return '#';
+    const q = encodeURIComponent(query);
+    if (source === 'eprolo') return `https://www.eprolo.com/all-products.html?keyword=${q}`;
+    if (source === 'aliexpress') return `https://www.aliexpress.com/wholesale?SearchText=${q}`;
+    return '#';
+  }
+
+  /**
    * Utilities & Intent Extraction (v10.0)
    */
   detectCategory(title) {
@@ -208,6 +219,7 @@ class SourcingService {
     let finalResult = {
         status: 'EMPTY',
         sources: { eprolo: 'PENDING', aliexpress: 'PENDING' },
+        telemetry: { eprolo: null, aliexpress: null },
         data: [],
         successfulTier: null
     };
@@ -219,18 +231,25 @@ class SourcingService {
         
         const result = await this.runUnifiedPipeline({ query: tierQuery, targetPrice: context.targetPrice }, fetchers(tierQuery));
         
+        // Merge telemetry
+        finalResult.telemetry = { ...finalResult.telemetry, ...result.telemetry };
+        finalResult.sources = { ...finalResult.sources, ...result.sources };
+
         if (result.data.length > 0) {
             finalResult = {
-                ...result,
+                ...finalResult,
+                status: result.status,
+                data: result.data,
                 successfulTier: tierQuery,
                 isFallback: tierQuery === tiers[tiers.length - 1] && tiers.length > 1
             };
             break; 
         }
 
-        // If even the last tier fails, mark as FULL_FALLBACK
+        // If even the last tier fails, check if we had any technical failures
         if (tierQuery === searchSequence[searchSequence.length - 1]) {
-            finalResult.status = 'BROADER_CATEGORY_REQUIRED';
+            const hasTechFailure = Object.values(result.sources).some(s => ['PARSE_FAILURE', 'BLOCKED_RESPONSE', 'API_ERROR'].includes(s));
+            finalResult.status = hasTechFailure ? 'TECHNICAL_FAILURE' : 'BROADER_CATEGORY_REQUIRED';
         }
     }
 
@@ -253,9 +272,14 @@ class SourcingService {
       aliexpress: aliRes.status === 'fulfilled' ? (aliRes.value.status || 'OK') : 'FAILED'
     };
 
+    const telemetry = {
+      eprolo: eproloRes.status === 'fulfilled' ? eproloRes.value.debugInfo : null,
+      aliexpress: aliRes.status === 'fulfilled' ? aliRes.value.debugInfo : null
+    };
+
     let status = this.Status.COMPLETE;
-    if (Object.values(sources).some(s => s === 'FAILED' || s === 'BLOCKED')) status = this.Status.PARTIAL;
-    if (Object.values(sources).every(s => s === 'FAILED' || s === 'BLOCKED')) status = 'SYSTEM_DOWN';
+    if (Object.values(sources).some(s => s === 'FAILED' || s === 'BLOCKED' || s === 'BLOCKED_RESPONSE' || s === 'PARSE_FAILURE')) status = this.Status.PARTIAL;
+    if (Object.values(sources).every(s => s === 'FAILED' || s === 'BLOCKED' || s === 'BLOCKED_RESPONSE' || s === 'PARSE_FAILURE')) status = 'SYSTEM_DOWN';
 
     const rawData = [
       ...(eproloRes.status === 'fulfilled' ? (eproloRes.value.data || []) : []),
@@ -265,6 +289,7 @@ class SourcingService {
     return {
       status,
       sources,
+      telemetry,
       data: this.dedupe(rawData)
     };
   }

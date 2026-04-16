@@ -17,14 +17,32 @@ class AliExpressService {
   async searchProducts(query) {
     if (!query) return { status: SourcingStatus.EMPTY, data: [] };
 
+    const debugInfo = {
+        source: 'AliExpress',
+        method: 'JSON_JS_HYBRID',
+        responseLength: 0,
+        blocksFound: 0,
+        status: null
+    };
+
     try {
       const response = await fetch(`${this.apiBase}/search?q=${encodeURIComponent(query)}`);
+      debugInfo.httpStatus = response.status;
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const html = await response.text();
-      if (!html || html.length < 1000) return { status: SourcingStatus.BLOCKED, data: [] };
+      debugInfo.responseLength = html?.length || 0;
+
+      // 1. BLOCKED DETECTION
+      const isBlocked = !html || html.length < 2000 || html.includes('captcha') || html.includes('punish') || html.includes('Slide to verify');
+      if (isBlocked) {
+          return { status: SourcingStatus.BLOCKED_RESPONSE, data: [], debugInfo: { ...debugInfo, status: 'BLOCKED' } };
+      }
 
       const jsonBlocks = this.discoverJSONBlocks(html);
+      debugInfo.blocksFound = jsonBlocks.length;
+
       let rawItems = [];
 
       for (const block of jsonBlocks) {
@@ -40,14 +58,21 @@ class AliExpressService {
       const mapped = this.parseDiscovery(rawItems);
       const unique = this.simpleDedupe(mapped);
 
+      // 2. PARSE FAILURE DETECTION (Crucial: HTML is large and has signals, but 0 items)
+      const hasProductSignals = html.includes('runParams') || html.includes('initialData') || html.includes('productId');
+      if (unique.length === 0 && hasProductSignals) {
+          return { status: SourcingStatus.PARSE_FAILURE, data: [], debugInfo: { ...debugInfo, status: 'PARSE_FAILURE' } };
+      }
+
       return {
           status: unique.length > 0 ? SourcingStatus.SUCCESS : SourcingStatus.EMPTY,
-          data: unique
+          data: unique,
+          debugInfo: { ...debugInfo, status: unique.length > 0 ? 'SUCCESS' : 'EMPTY' }
       };
 
     } catch (e) {
       console.error("AliExpress Discovery Internal Core Fault:", e);
-      return { status: SourcingStatus.NETORK_ERROR, data: [] };
+      return { status: SourcingStatus.NETWORK_ERROR, data: [], debugInfo: { ...debugInfo, error: e.message } };
     }
   }
 

@@ -65,6 +65,8 @@ const SupplierSourcing = () => {
 
     const [activeTier, setActiveTier] = useState(null);
     const [isFallback, setIsFallback] = useState(false);
+    const [telemetry, setTelemetry] = useState({ eprolo: null, aliexpress: null });
+    const [showDebug, setShowDebug] = useState(false);
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
@@ -92,6 +94,7 @@ const SupplierSourcing = () => {
 
             setPipelineState({ status: result.status, sources: result.sources });
             setRawResults(result.data);
+            setTelemetry(result.telemetry || { eprolo: null, aliexpress: null });
             setIsFallback(result.isFallback || result.status === 'BROADER_CATEGORY_REQUIRED');
 
             if (result.data.length > 0 && result.successfulTier !== query) {
@@ -145,6 +148,119 @@ const SupplierSourcing = () => {
     };
 
     const handleExpandSearch = () => setShowAliExpansion(true);
+
+    const copyDiagnosticBundle = () => {
+        const bundle = {
+            timestamp: new Date().toISOString(),
+            query: searchQuery,
+            originalTarget: ebayProduct?.title,
+            eprolo: {
+                status: pipelineState.sources.eprolo,
+                http: telemetry.eprolo?.httpStatus,
+                itemsFound: rawResults.filter(r => r.source === 'eprolo').length,
+                auth: telemetry.eprolo?.status
+            },
+            aliexpress: {
+                status: pipelineState.sources.aliexpress,
+                http: telemetry.aliexpress?.httpStatus,
+                length: telemetry.aliexpress?.responseLength,
+                blocks: telemetry.aliexpress?.blocksFound,
+                method: telemetry.aliexpress?.method
+            }
+        };
+
+        const text = `--- DROP-AI TECHNICAL DIAGNOSTIC SNAPSHOT ---\n` +
+                     `Date: ${bundle.timestamp}\n` +
+                     `Search Query: "${bundle.query}"\n` +
+                     `Target: ${bundle.originalTarget}\n\n` +
+                     `EPROLO STATUS: ${bundle.eprolo.status}\n` +
+                     `EPROLO HTTP: ${bundle.eprolo.http}\n` +
+                     `EPROLO AUTH: ${bundle.eprolo.auth}\n` +
+                     `EPROLO ITEMS: ${bundle.eprolo.itemsFound}\n\n` +
+                     `ALIEXPRESS STATUS: ${bundle.aliexpress.status}\n` +
+                     `ALIEXPRESS HTTP: ${bundle.aliexpress.http}\n` +
+                     `ALIEXPRESS METHOD: ${bundle.aliexpress.method}\n` +
+                     `------------------------------------------\n` +
+                     `Note to Support: Code Page / Signature Verification requested by Paul.`;
+
+        navigator.clipboard.writeText(text);
+        toast.success("Support Snapshot Copied", {
+            description: "You can now paste this into your email to rick@eprolo.com"
+        });
+    };
+
+    const DiagnosticHub = () => {
+        if (!telemetry.eprolo && !telemetry.aliexpress) return null;
+        
+        return (
+            <div className="bg-slate-950 rounded-[2.5rem] p-8 border border-slate-800 space-y-6 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div className="flex items-center gap-3">
+                        <Activity size={18} className="text-emerald-500" />
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest italic">Technical Diagnostic Hub</h3>
+                    </div>
+                    <div className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg text-[9px] font-black uppercase">Real-time Telemetry</div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* EPROLO TRACE */}
+                    <div className="space-y-4 p-5 bg-slate-900/50 rounded-2xl border border-slate-800">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node: Eprolo</span>
+                            <span className={cn(
+                                "text-[9px] font-black px-2 py-0.5 rounded uppercase",
+                                pipelineState.sources.eprolo === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                            )}>{pipelineState.sources.eprolo}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-black tracking-tighter">
+                            <div className="text-slate-500">HTTP STATUS: <span className="text-white ml-1">{telemetry.eprolo?.httpStatus || 'N/A'}</span></div>
+                            <div className="text-slate-500">DATA POINTS: <span className="text-white ml-1">{rawResults.filter(r => r.source === 'eprolo').length}</span></div>
+                            <div className="text-slate-500">MODE: <span className="text-white ml-1">DIRECT_API</span></div>
+                            <div className="text-slate-500">AUTH: <span className={telemetry.eprolo?.status === 'AUTH_ERROR' ? "text-red-500" : "text-emerald-500"}>{telemetry.eprolo?.status === 'AUTH_ERROR' ? "FAILED" : "VERIFIED"}</span></div>
+                        </div>
+                    </div>
+
+                    {/* ALIEXPRESS TRACE */}
+                    <div className="space-y-4 p-5 bg-slate-900/50 rounded-2xl border border-slate-800">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node: AliExpress</span>
+                            <span className={cn(
+                                "text-[9px] font-black px-2 py-0.5 rounded uppercase",
+                                pipelineState.sources.aliexpress === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+                            )}>{pipelineState.sources.aliexpress}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-black tracking-tighter">
+                            <div className="text-slate-500">HTTP STATUS: <span className="text-white ml-1">{telemetry.aliexpress?.httpStatus || 'N/A'}</span></div>
+                            <div className="text-slate-500">SCRAPE METHOD: <span className="text-white ml-1">{telemetry.aliexpress?.method || 'N/A'}</span></div>
+                            <div className="text-slate-500">HTML SIZE: <span className="text-white ml-1">{(telemetry.aliexpress?.responseLength / 1024).toFixed(1)}KB</span></div>
+                            <div className="text-slate-500">JSON BLOCKS: <span className="text-white ml-1">{telemetry.aliexpress?.blocksFound || 0}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                {pipelineState.sources.aliexpress === 'PARSE_FAILURE' && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-4">
+                        <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                        <p className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-relaxed">
+                            Critical Alert: Extraction Layer Broken. AliExpress returned 200 OK but scraper failed to map attributes. Maintenance required.
+                        </p>
+                    </div>
+                )}
+
+                <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
+                    <p className="text-[9px] font-medium text-slate-500">
+                        Requested by Eprolo Tech? Export the code-page trace for verification.
+                    </p>
+                    <button 
+                        onClick={copyDiagnosticBundle}
+                        className="px-4 py-2 bg-emerald-500 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-colors flex items-center gap-2"
+                    >
+                        <ExternalLink size={12} /> Copy Diagnostic Bundle
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     if (!targetProduct) {
         return (
@@ -210,7 +326,7 @@ const SupplierSourcing = () => {
                     </motion.div>
                 )}
 
-                {!loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.eprolo === 'FAILED') && (
+                {!loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
                             <div className="flex items-center gap-5">
@@ -218,11 +334,11 @@ const SupplierSourcing = () => {
                                     <ShieldAlert size={26} />
                                 </div>
                                 <div className="space-y-1">
-                                    <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Partial Match Integrity</h4>
+                                    <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Security Interruption Detected</h4>
                                     <p className="text-[10px] font-medium text-amber-700/80 max-w-md">
-                                        {pipelineState.sources.aliexpress === 'BLOCKED' 
-                                            ? "AliExpress detection is currently intercepted. Switch to Global Scraper for browser-bypass discovery." 
-                                            : "One or more supplier nodes are offline. Displaying available catalog matches."}
+                                        {pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE'
+                                            ? "AliExpress detection is strictly blocked by anti-bot measures. Switch to Global Scraper for browser-bypass discovery." 
+                                            : "One or more supplier nodes are offline (API Error). Displaying available catalog matches."}
                                     </p>
                                 </div>
                             </div>
@@ -230,6 +346,30 @@ const SupplierSourcing = () => {
                                 Solve Blockage
                             </button>
                         </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Diagnostic Button */}
+            {!loading && (
+                <div className="flex justify-end">
+                    <button 
+                        onClick={() => setShowDebug(!showDebug)} 
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                            showDebug ? "bg-slate-950 text-emerald-500" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        )}
+                    >
+                        {showDebug ? <ChevronRight className="rotate-90" size={14} /> : <Activity size={14} />}
+                        Technical Diagnostic Trace
+                    </button>
+                </div>
+            )}
+
+            <AnimatePresence>
+                {showDebug && (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}>
+                        <DiagnosticHub />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -280,20 +420,85 @@ const SupplierSourcing = () => {
                 {/* 3. FALLBACK / EMPTY STATE */}
                 {!loading && processedResults.length === 0 && (
                     <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
-                        <div className="w-24 h-24 bg-slate-50 border border-slate-100 text-slate-300 rounded-[3rem] flex items-center justify-center mx-auto shadow-inner"><Box size={48} /></div>
-                        <div className="space-y-4">
-                            <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">BROADER CATEGORY SEARCH ONLY</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                We've analyzed the query intent and determined that exact matches are currently unavailable across our supply chain. 
-                                <br />
-                                <span className="text-slate-950 font-bold">Try searching for the basic category (soap, watch, etc) instead.</span>
-                            </p>
+                        <div className={cn(
+                            "w-24 h-24 border rounded-[3rem] flex items-center justify-center mx-auto shadow-inner",
+                            pipelineState.status === 'TECHNICAL_FAILURE' ? "bg-red-50 border-red-100 text-red-300" : "bg-slate-50 border-slate-100 text-slate-300"
+                        )}>
+                            {pipelineState.status === 'TECHNICAL_FAILURE' ? <AlertTriangle size={48} /> : <Box size={48} />}
                         </div>
+                        <div className="space-y-4">
+                            <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
+                                {pipelineState.status === 'TECHNICAL_FAILURE' ? "SYSTEM EXTRACTION FAILURE" : "BROADER CATEGORY SEARCH ONLY"}
+                            </h3>
+                            <div className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
+                                {pipelineState.status === 'TECHNICAL_FAILURE' ? (
+                                    <>
+                                        One or more supplier nodes are returning content that cannot be parsed. 
+                                        <br />
+                                        <span className="text-red-600 font-bold">A specific technical error was detected instead of a missing result.</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        We've analyzed the query intent and determined that exact matches are currently unavailable across our supply chain. 
+                                        <br />
+                                        <span className="text-slate-950 font-bold">Try searching for the basic category (soap, watch, etc) instead.</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* DIAGNOSTIC HIGHLIGHT FOR NON-DEBUGS */}
+                        {!showDebug && (
+                            <div className="max-w-md mx-auto grid grid-cols-2 gap-4">
+                               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                  <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-1">Eprolo Status</p>
+                                  <p className={cn("text-[11px] font-black uppercase", pipelineState.sources.eprolo === 'SUCCESS' ? "text-emerald-500" : "text-amber-500")}>
+                                     {pipelineState.sources.eprolo?.replace('_', ' ')}
+                                  </p>
+                               </div>
+                               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                  <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-1">AliExpress Status</p>
+                                  <p className={cn("text-[11px] font-black uppercase", pipelineState.sources.aliexpress === 'SUCCESS' ? "text-emerald-500" : "text-red-500")}>
+                                     {pipelineState.sources.aliexpress?.replace('_', ' ')}
+                                  </p>
+                               </div>
+                            </div>
+                        )}
+
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                            <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105">Change Discovery Query</button>
-                            <button onClick={handleExpandSearch} className="w-full sm:w-auto bg-emerald-500 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 transform hover:scale-105 flex items-center justify-center gap-3">
-                               <Globe size={18} /> Forced Global Search
-                            </button>
+                            <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105 italic">Optimize Strategy</button>
+                            
+                            <div className="flex flex-col gap-3 w-full sm:w-auto">
+                                <button 
+                                    onClick={() => window.open(sourcingService.getGlobalSearchUrl('eprolo', searchQuery), '_blank')} 
+                                    className="w-full bg-emerald-500 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
+                                >
+                                    <Globe size={18} /> Search Eprolo Catalog
+                                </button>
+                                <button 
+                                    onClick={handleExpandSearch} 
+                                    className="w-full bg-slate-950 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
+                                >
+                                    <Activity size={18} /> Forced Global Search
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* WORKFLOW EDUCATION */}
+                        <div className="mt-12 p-8 bg-blue-50 border border-blue-100 rounded-[2.5rem] flex items-start gap-6 text-left">
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-500 shadow-sm border border-blue-100 shrink-0">
+                                <Info size={24} />
+                            </div>
+                            <div className="space-y-3">
+                                <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-widest leading-none">Strategy Tip: Eprolo Sync Workflow</h4>
+                                <p className="text-[11px] font-medium text-blue-700/80 leading-relaxed">
+                                    The Eprolo API primarily searches your <span className="font-bold">Import List</span>. If a product exists in the catalog but doesn't show up here, follow this path:
+                                    <br />
+                                    <span className="inline-block mt-2 font-black text-blue-900">
+                                        Eprolo Website → Search Catalog → Add to Import List → Sync
+                                    </span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}
