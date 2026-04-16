@@ -1,20 +1,11 @@
 import ebayService from './ebay';
 
 /**
- * Humanized Decision Intelligence Engine (v12.1)
- * Transforms technical metrics into actionable business advice.
+ * Stable Sourcing Intelligence (v8.0)
+ * Deterministic logic for ROI, Trust, and Scoring.
  */
 class SourcingService {
   constructor() {
-    this.weights = {
-      pricePosition: 0.40, // Price vs Batch Dispersion
-      demandPulse: 0.35,   // Density & Velocity Signals
-      categoryFit: 0.15,   // Category Norms
-      momentum: 0.10       // Real-time Momentum (Estimated)
-    };
-    
-    // STRICT SCHEMA REGISTRY
-    // 🏛️ PIPELINE STATUS REGISTRY
     this.Status = {
       LOADING: 'LOADING',
       PARTIAL: 'PARTIAL',
@@ -22,413 +13,131 @@ class SourcingService {
       AUTH_ERROR: 'AUTH_ERROR',
       CONFIG_ERROR: 'CONFIG_ERROR'
     };
-
-    this.SourceStatus = {
-      OK: 'OK',
-      FAILED: 'FAILED',
-      PENDING: 'PENDING'
-    };
   }
 
   /**
-   * Frozen Context Factory (Iron Flow 7.0)
-   * Prevents mutation bugs across async stages.
-   */
-  createContext(query, ebayProduct) {
-    return Object.freeze({
-      query,
-      targetPrice: Number(ebayProduct?.price || 0)
-    });
-  }
-
-  /**
-   * Deterministic Data Normalization (ProductSchema Enforcement)
-   * Ensures every product node entering the UI is valid and typed.
-   */
-  normalize(raw, sourceInput = 'ALIEXPRESS') {
-    if (!raw) return null;
-    
-    // 🚨 2. HARD SOURCE TAGGING (Iron Flow 7.2)
-    const source = (sourceInput || '').toUpperCase();
-    
-    return {
-      id: raw.id || raw.itemId || `node_${Math.random().toString(36).slice(2, 9)}`,
-      title: raw.title || 'Untitled Product',
-      price: Number(raw.price ?? 0),
-      // Safe Image Chain
-      images: Array.isArray(raw.images) ? raw.images : [raw.image || raw.thumbnail || raw.image_url].filter(Boolean),
-      image: raw.image || raw.thumbnail || raw.image_url || "/placeholder-product.png",
-      shipping: typeof raw.shipping === 'number' ? raw.shipping : (String(raw.shipping || '').toLowerCase().includes('free') ? 0 : parseFloat(String(raw.shipping || '').replace(/[^\d.]/g, '')) || 0),
-      delivery: raw.delivery || '15-25 days',
-      rating: Number(raw.rating ?? 0),
-      reviews: Number(raw.reviews ?? 0),
-      shipsFrom: raw.shipsFrom || 'CN',
-      source: source,
-      url: raw.url || raw.itemWebUrl || "",
-      // STATUS MACHINE (v7.2)
-      status: source === 'EPROLO' ? 'READY' : (raw.enriched ? 'READY' : 'FETCHED')
-    };
-  }
-
-  /**
-   * Actionable Intelligence Layer
-   * Returns deterministic analytics for eBay products.
-   */
-  calculateSellScore(product, batchStats = null) {
-    if (!product) return { resellScore: 0, confidence: 'Low' };
-
-    const stats = batchStats || { avgPrice: product.price || 50, stdDev: 10, totalResults: 500 };
-    
-    // 1. Price Position (Z-Score)
-    const priceZ = (stats.avgPrice - product.price) / (stats.stdDev || 5);
-    const priceScore = Math.min(Math.max(50 + (priceZ * 15), 10), 98);
-
-    // 2. Competition Density
-    const relativeDensity = product.totalFound < (stats.totalResults / 2) ? 90 : 50;
-
-    // 3. Confidence Evaluation
-    const confidenceLevel = this._evaluateConfidence(product, stats);
-    
-    // 4. Demand Trend (Momentum)
-    const momentumData = this.getTrendData(product, stats);
-    const lastPoint = momentumData[momentumData.length - 1].y;
-    const momentumScore = lastPoint > 50 ? 80 : 40;
-
-    // 5. Aggregation (Deterministic Resell Score)
-    const resellScore = Math.round(
-      (priceScore * this.weights.pricePosition) +
-      (relativeDensity * this.weights.demandPulse) +
-      (momentumScore * this.weights.momentum) +
-      (50 * this.weights.categoryFit)
-    );
-
-    const margin = this._calculateEstimatedMargin(product, stats);
-    const profitLevel = margin > 0.25 ? 'High' : (margin > 0.10 ? 'Medium' : 'Low');
-
-    const isWinner = resellScore >= 80 && confidenceLevel !== 'Low' && margin > 0.05;
-
-    // Determine Seller Status (Actionable)
-    let sellerStatus = 'Low Demand (Hard to sell)';
-    if (resellScore >= 80) sellerStatus = 'High Demand (Easy to sell)';
-    else if (resellScore >= 60) sellerStatus = 'Moderate Demand (Requires effort)';
-
-    return {
-      resellScore,
-      score: resellScore, // Registry legacy support
-      confidence: confidenceLevel,
-      isWinner,
-      status: sellerStatus,
-      color: resellScore >= 80 ? '#22C55E' : (resellScore >= 60 ? '#FBBF24' : '#EF4444'),
-      momentum: momentumData,
-      profitLevel,
-      summary: this._getHumanizedSummary(resellScore, priceZ, profitLevel),
-      metrics: {
-        priceYield: margin ? margin.toFixed(2) : '0.00',
-        sellerStatus: sellerStatus
-      }
-    };
-  }
-
-  getTrendData(product, stats) {
-    const points = [];
-    const seed = (parseInt(product.id.toString().slice(-3)) || 50) % 100;
-    const volatility = stats.stdDev / stats.avgPrice;
-    
-    for (let i = 0; i < 10; i++) {
-        const trend = (i / 10) * (product.price < stats.avgPrice ? 1.2 : 0.8);
-        const noise = Math.sin(seed + i) * volatility * 10;
-        points.push({ 
-          x: i, 
-          y: Math.min(Math.max(40 + (trend * 30) + noise, 10), 90) 
-        });
-    }
-    return points;
-  }
-
-  _evaluateConfidence(product, stats) {
-    const priceDiff = Math.abs(product.price - stats.avgPrice);
-    const isOutlier = priceDiff > (stats.stdDev * 3);
-    
-    let strength = 0;
-    if (product.price > 0 && !isOutlier) strength += 2;
-    if (product.totalFound > 0) strength += 1;
-    if (product.categoryId) strength += 1;
-    if (stats.stdDev > 0) strength += 1;
-
-    if (strength >= 5) return 'High';
-    if (strength >= 3) return 'Medium';
-    return 'Low';
-  }
-
-  _calculateEstimatedMargin(product, stats) {
-    const fees = ebayService.getCategoryFee(product.categoryId);
-    const targetPrice = product.price;
-    const hypotheticalCost = targetPrice * 0.70;
-    const ebayFee = (targetPrice * fees.percentage) + fees.fixed;
-    return (targetPrice - hypotheticalCost - ebayFee) / targetPrice;
-  }
-
-  /**
-   * Generates natural language insights with dynamic phrasing and actionable verdicts.
-   */
-  /**
-   * Sourcing Intelligence (v2.0)
-   * Deterministic ROI-driven relevance score.
-   * Based on ROI (50%) + Data Completeness (50%).
-   */
-  calculateScore(product, basePrice) {
-    const price = Number(product.price ?? 0);
-    const targetPrice = Number(basePrice ?? 0);
-
-    let score = 0;
-
-    // 1. ROI Contribution (Normalized to 100)
-    if (price > 0 && targetPrice > 0) {
-        const roi = ((targetPrice - price) / price) * 100;
-        const roiScore = Math.min(Math.max(roi, 0), 100);
-        score += (roiScore * 0.5);
-    } else {
-        score -= 25; // 🛑 HEAVY PENALTY FOR MISSING PRICE
-    }
-
-    // 2. Data Completeness (Fixed 50pt scale)
-    const hasTitle = product.title && product.title !== 'AliExpress Listing' && product.title.length > 10;
-    const hasImage = !!product.image && !product.image.includes('placeholder');
-    const hasDescription = !!product.description && product.description.length > 50;
-    const hasGallery = Array.isArray(product.images) && product.images.length > 1;
-
-    score += (hasTitle ? 20 : 0);
-    score += (price > 0 ? 15 : 0);
-    score += (hasImage ? 10 : 0);
-    score += (hasDescription ? 10 : 0);
-    score += (hasGallery ? 5 : 0);
-
-    // 3. FINAL ADJUSTMENTS
-    if (!hasImage) score -= 15;
-    if (!hasTitle) score -= 10;
-
-    // 4. Normalized output (0-100+)
-    return Math.max(0, Math.round(score));
-  }
-
-  /**
-   * Calculates deterministic ROI range for a single product comparison.
-   * Formula (Expected): ROI = ((ebayPrice - totalSupplierCost) / totalSupplierCost) * 100
-   * Formula (Conservative): Logic includes a 20% cost buffer for fees/fluctuations.
+   * Deterministic ROI Engine (Rule 7)
+   * Calculates ROI only when both prices exist. No fakes.
    */
   calculateROI(ebayPrice, supplierCost, shipping = 0) {
-    const totalCost = Number(supplierCost) + Number(shipping);
-    const targetPrice = Number(ebayPrice);
+    const cost = Number(supplierCost);
+    const ship = Number(shipping);
+    const target = Number(ebayPrice);
 
-    // 🚨 4. ROI ENGINE GUARD (Iron Flow 7.2)
-    // ROI only after price exists
-    if (!totalCost || totalCost <= 0 || !targetPrice || targetPrice <= 0) {
-      return null; // NOT "0%" or "---"
+    // 🚨 STABLE FLOW GUARD: No missing or zero prices permitted for ROI
+    if (!cost || cost <= 0 || !target || target <= 0) {
+      return null; 
     }
 
-    // ROI = (Target - Cost) / Cost
-    const expected = Math.round(((targetPrice - totalCost) / totalCost) * 100);
-    const conservative = Math.round(((targetPrice - (totalCost * 1.2)) / totalCost) * 100);
+    const totalCost = cost + ship;
+    const expected = Math.round(((target - totalCost) / totalCost) * 100);
+    const conservative = Math.round(((target - (totalCost * 1.2)) / totalCost) * 100);
 
     return { expected, conservative };
   }
 
-  calculateSupplierROIRange(ebayPrice, supplierCost) {
-    const totalCost = Number(supplierCost);
-    if (!totalCost || totalCost <= 0) return { conservative: null, expected: null };
+  /**
+   * Supplier Trust Evaluator (Rule 4)
+   * AliExpress specific trust metrics.
+   */
+  evaluateSupplierTrust(product) {
+    // Return early if no trust data
+    if (product.source === 'aliexpress') {
+      if (!product.rating) return { level: 'Low', score: 0, label: "No rating available" };
+      
+      let score = 0;
+      if (product.rating >= 4.8) score = 90;
+      else if (product.rating >= 4.5) score = 70;
+      else if (product.rating >= 4.0) score = 50;
+      else score = 30;
 
-    const res = this.calculateROI(ebayPrice, supplierCost);
-    return res || { conservative: null, expected: null };
+      const level = score >= 80 ? 'High' : (score >= 50 ? 'Medium' : 'Low');
+      return { level, score, label: `${product.rating} / 5` };
+    }
+
+    // Eprolo Trust (Pattern-based)
+    if (product.source === 'EPROLO') {
+      return { level: 'High', score: 95, label: "Verified Eprolo Catalog" };
+    }
+
+    return { level: 'Medium', score: 50, label: "Unknown Source" };
   }
 
   /**
-   * Grades supplier reliability based on delivery and ratings.
+   * Unified Opportunity Score (v8.0)
+   * Weighted by ROI and Trust.
    */
-  evaluateSupplierTrust(supplier) {
+  calculateOpportunityScore(product, targetPrice) {
+    const roi = this.calculateROI(targetPrice, product.price, product.shipping || 0);
+    const trust = this.evaluateSupplierTrust(product);
+    
     let score = 0;
     
-    // 1. Ratings (AliExpress context)
-    if (supplier.rating >= 4.5) score += 40;
-    else if (supplier.rating >= 4.0) score += 20;
-
-    // 2. Shipping Speed
-    const deliveryDays = parseInt(supplier.delivery || '15');
-    if (deliveryDays <= 7) score += 40;
-    else if (deliveryDays <= 12) score += 20;
-
-    // 3. Provenance (USA Priority)
-    if (supplier.shipsFrom === 'USA') score += 20;
-
-    if (score >= 80) return 'High';
-    if (score >= 50) return 'Medium';
-    return 'Low';
-  }
-
-  /**
-   * Identifies the 'Best Option' for the store.
-   */
-  identifyBestOption(results) {
-    if (!results || results.length === 0) return null;
-    return [...results].sort((a, b) => {
-      // Sort by USA shipping first, then ROI, then Match Score
-      if (a.shipsFrom === 'USA' && b.shipsFrom !== 'USA') return -1;
-      if (b.shipsFrom === 'USA' && a.shipsFrom !== 'USA') return 1;
-      return (b.roiRange?.expected || 0) - (a.roiRange?.expected || 0);
-    })[0];
-  }
-
-  /**
-   * Generates broader, higher-match keywords by removing noise (brands, colors, specs).
-   */
-  generateSuggestedKeywords(title) {
-    if (!title) return "";
-    
-    // 1. Remove special characters and noise
-    let clean = title.replace(/[^\w\s]/gi, ' ');
-    
-    // 2. Filter out short words and common stop words
-    const stopWords = ['with', 'for', 'from', 'and', 'the', 'new', 'top', 'best', 'pro', 'hot', 'sale', 'free', 'shipping'];
-    const words = clean.split(/\s+/)
-      .filter(w => w.length > 3)
-      .filter(w => !stopWords.includes(w.toLowerCase()));
-    
-    // 3. Return a more "generic" but descriptive slice (first 4-6 strong words)
-    return words.slice(0, 6).join(' ');
-  }
-
-  _getHumanizedSummary(score, priceZ, profitLevel) {
-    const posHooks = [
-      "This product is a good option to sell because",
-      "There is a strong opportunity here due to",
-      "This item has good selling potential because"
-    ];
-    const negHooks = [
-      "This product may not perform well because",
-      "It’s risky to sell this item due to",
-      "You may want to avoid this product because"
-    ];
-    const midHooks = [
-      "This product has moderate demand, but",
-      "There is some potential here, however",
-      "You can test this item, but"
-    ];
-
-    const pick = (list) => list[Math.floor(Math.random() * list.length)];
-    
-    let text = "";
-    let verdict = "";
-
-    if (score >= 80) {
-      text = `${pick(posHooks)} it has strong market demand and relatively low competition. Pricing is highly competitive, which gives you a great chance to make consistent sales.`;
-      verdict = "Overall, this is a good product to sell.";
-    } else if (score >= 60) {
-      text = `${pick(midHooks)} competition is increasing in this category. Success will depend on your ability to maintain a competitive pricing strategy.`;
-      verdict = "Overall, this is worth testing but not a top priority.";
+    // 1. ROI Contribution (60%)
+    if (roi) {
+      const roiVal = Math.min(Math.max(roi.expected, 0), 100);
+      score += (roiVal * 0.6);
     } else {
-      text = `${pick(negHooks)} the competition is too high and profit margins are tight. It will be difficult to stand out or generate stable sales.`;
-      verdict = "Overall, this product is risky and should be avoided.";
+      score -= 20; // Penalty for missing price data
     }
 
-    return `${text} ${verdict}`;
+    // 2. Trust Contribution (40%)
+    score += (trust.score * 0.4);
+
+    return Math.max(0, Math.min(100, Math.round(score)));
   }
 
   /**
-   * Unified Pipeline Orchestrator (v7.0)
-   * Parallelizes Eprolo and AliExpress searches with absolute independence.
+   * Humanized Summary Generator
    */
-  async runUnifiedPipeline(context, fetchers) {
-    const { fetchEprolo, fetchAliExpress } = fetchers;
+  getActionableSummary(product, targetPrice) {
+    const roi = this.calculateROI(targetPrice, product.price, product.shipping || 0);
+    const trust = this.evaluateSupplierTrust(product);
+
+    if (!roi) return "Awaiting pricing data to calculate feasibility.";
     
-    // 1. Parallel Launch with Safe Wrappers
-    const results = await Promise.allSettled([
-      this.safeFetch(() => this.fetchWithRetry(fetchEprolo), "EPROLO"),
-      this.safeFetch(fetchAliExpress, "ALIEXPRESS")
-    ]);
-
-    const eproloRes = results[0];
-    const aliRes = results[1];
-
-    // 2. State & Source Status Mapping
-    const sources = {
-      eprolo: eproloRes.status === 'fulfilled' ? 'OK' : 'FAILED',
-      aliexpress: aliRes.status === 'fulfilled' ? 'OK' : 'FAILED'
-    };
-
-    // 3. Pipeline Overall Status
-    let status = this.Status.COMPLETE;
-    if (sources.eprolo === 'FAILED' || sources.aliexpress === 'FAILED') {
-        status = this.Status.PARTIAL;
+    if (roi.expected > 40 && trust.level === 'High') {
+      return `Strong opportunity. High ROI (${roi.expected}%) combined with a trusted supplier makes this a top candidate for optimization.`;
     }
-    if (sources.eprolo === 'FAILED' && sources.aliexpress === 'FAILED') {
-        status = 'SYSTEM_DOWN'; // Dual failure exception
+    
+    if (roi.expected > 20) {
+      return `Viable option. Moderate ROI potential. Verify variants and shipping times before proceeding.`;
     }
 
-    const rawData = [
-      ...(eproloRes.status === 'fulfilled' ? eproloRes.value.data : []),
-      ...(aliRes.status === 'fulfilled' ? aliRes.value.data : [])
-    ];
-
-    // 4. Deduplication & Finalization
-    const finalData = this.dedupe(rawData);
-
-    // 🚨 5. SOURCE DEBUG (v7.2)
-    console.log("SOURCE DEBUG", {
-      eproloCount: (eproloRes.status === 'fulfilled' ? eproloRes.value.data.length : 0),
-      aliCount: (aliRes.status === 'fulfilled' ? aliRes.value.data.length : 0),
-      finalCount: finalData.length,
-      timestamp: new Date().toISOString()
-    });
-
-    return {
-      status,
-      sources,
-      data: finalData
-    };
-  }
-
-  /**
-   * Safe Fetch with Timeout Protection
-   */
-  async safeFetch(fn, label) {
-    return Promise.race([
-      (async () => {
-        try {
-          return await fn();
-        } catch (e) {
-          // Normalize error to standard Error if needed
-          throw (e instanceof Error) ? e : new Error(String(e));
-        }
-      })(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), 8000)
-      )
-    ]);
-  }
-
-  /**
-   * Single Retry logic for brittle API endpoints.
-   */
-  async fetchWithRetry(fn) {
-    try {
-      return await fn();
-    } catch (err) {
-      console.warn("Retrying Eprolo extraction...");
-      return await fn();
-    }
+    return `Marginal feasibility. The ROI (${roi.expected}%) may be too tight after fees and marketing costs.`;
   }
 
   /**
    * Content-Aware Deduplication
-   * Keys off title fragments and image URLs to eliminate redundant listings.
    */
   dedupe(products) {
     const seen = new Set();
     return products.filter(p => {
-      const key = `${(p.title || "").slice(0, 40).toLowerCase()}_${p.image}`;
+      const key = `${p.source}_${p.id}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+  }
+
+  /**
+   * Data Normalization Guard (Rule 8)
+   * Enforces optional charting and strict typing.
+   */
+  normalize(raw) {
+    if (!raw) return null;
+    return {
+      id: raw?.id || raw?.productId || `gen_${Math.random()}`,
+      title: raw?.title || "Untitled Product",
+      price: Number(raw?.price) || null,
+      image: raw?.image || "/placeholder.png",
+      images: Array.isArray(raw?.images) ? raw.images : [raw?.image].filter(Boolean),
+      source: (raw?.source || 'unknown').toLowerCase(),
+      url: raw?.url || "",
+      rating: raw?.rating || null,
+      reviews: raw?.reviews || null,
+      status: raw?.status || 'PENDING'
+    };
   }
 }
 

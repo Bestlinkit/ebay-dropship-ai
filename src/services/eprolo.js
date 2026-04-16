@@ -1,46 +1,27 @@
 import { SourcingStatus } from '../constants/sourcing';
 
 /**
- * Truth-Based Eprolo Bridge (v4.2)
- * Standardized response schema for deterministic UI interpretation.
- * Authentication logic now fully offloaded to Cloudflare Bridge.
+ * Stable Sourcing Eprolo Bridge (v8.0)
+ * Offloads all authentication and signing to the Node.js backend.
  */
 class EproloService {
     constructor() {
-        const rawProxy = import.meta.env.VITE_PROXY_URL || "";
-        this.proxyUrl = rawProxy.endsWith("/") ? rawProxy.slice(0, -1) : rawProxy;
+        // Backend base URL (Internal Registry)
+        this.apiBase = "http://localhost:3001/api/eprolo";
     }
 
     async searchProducts(query, page = 0) {
         const debugInfo = {
-            endpoint: `${this.proxyUrl}/eprolo-search`,
+            endpoint: `${this.apiBase}/search`,
             timestamp: new Date().toISOString(),
             query,
-            httpStatus: null,
-            rawResponse: null
+            httpStatus: null
         };
-
-        // 🚨 1. AUTH CONFIG VALIDATION (Iron Flow 7.2)
-        const appKey = import.meta.env.VITE_EPROLO_APP_KEY;
-        const secret = import.meta.env.VITE_EPROLO_SECRET;
-
-        if (!appKey || !secret) {
-            return {
-                status: "CONFIG_ERROR",
-                message: "Missing Eprolo API credentials in Environment",
-                data: [],
-                debugInfo
-            };
-        }
 
         try {
             const response = await fetch(debugInfo.endpoint, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "apiKey": String(appKey),
-                    "apiSecret": String(secret)
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     keyword: query, 
                     page_index: page, 
@@ -50,28 +31,35 @@ class EproloService {
 
             debugInfo.httpStatus = response.status;
             const result = await response.json();
-            debugInfo.rawResponse = JSON.stringify(result);
 
-            // 🚨 2. RESPONSE VALIDATION (Auth Failure mapping)
-            if (result.code === "-1" || result.code === -1) {
+            // 1. BACKEND LEVEL ERROR HANDLING
+            if (result.status === "CONFIG_ERROR") {
+                return {
+                    status: "CONFIG_ERROR",
+                    message: "Backend API credentials missing.",
+                    data: [],
+                    debugInfo
+                };
+            }
+
+            if (result.status === "AUTH_ERROR" || result.code === "-1" || result.code === -1) {
                 return {
                     status: "AUTH_ERROR",
-                    message: result.msg || "Eprolo Authentication Failed",
+                    message: result.message || "Eprolo Authentication Failed",
                     data: [],
-                    debugInfo: { ...debugInfo, result }
+                    debugInfo
                 };
             }
 
             if (!response.ok) {
-                const errorText = await response.text();
                 return { 
                     status: SourcingStatus.NETWORK_ERROR, 
                     data: [], 
-                    debugInfo: { ...debugInfo, errorText, statusCode: response.status } 
+                    debugInfo: { ...debugInfo, errorMsg: `HTTP ${response.status}` } 
                 };
             }
 
-            // API ERROR (Non-zero code)
+            // 2. API LEVEL ERROR HANDLING
             if (result.code !== '0' && result.code !== 0) {
                 return { 
                     status: SourcingStatus.API_ERROR, 
@@ -82,34 +70,30 @@ class EproloService {
 
             const rawItems = result.data || result.products || [];
             
-            // EMPTY (200 OK but no items)
             if (rawItems.length === 0) {
                 return { status: SourcingStatus.EMPTY, data: [], debugInfo };
             }
 
-            // SUCCESS
+            // 3. DETERMINISTIC MAPPING
             const mappedData = rawItems.map(item => ({
-                id: item.id || item.product_id,
-                title: item.product_name || item.title || "Unnamed Product",
+                id: item.id || item.product_id || `epr_${Math.random().toString(36).slice(2, 9)}`,
+                title: (item.product_name || item.title || "Unnamed Product")?.trim(),
                 price: parseFloat(item.price || item.min_price || (item.variantlist?.[0]?.cost) || 0),
                 image: item.image_url || item.image || item.imagefirst || (item.imagelist?.[0]?.src) || '',
-                source: 'Eprolo',
+                source: 'EPROLO', // STRICT SOURCE TAGGING
                 shipping: 0, 
                 delivery: item.delivery_time || '8-15 days',
                 shipsFrom: item.ships_from || 'China',
-                rating: 4.8,
                 url: item.product_url || '',
-                variants: (item.variantlist || item.variants || []).map(v => ({
-                    id: v.id,
-                    sku: v.sku,
-                    price: parseFloat(v.cost || v.price),
-                    stock: v.inventory_quantity || v.stock
-                }))
+                // Lightweight search doesn't need full variants/descriptions
+                variants: [],
+                status: 'READY'
             }));
 
             return { status: SourcingStatus.SUCCESS, data: mappedData, debugInfo };
 
         } catch (e) {
+            console.error("Eprolo Backend Call Failed:", e);
             return { 
                 status: SourcingStatus.NETWORK_ERROR, 
                 data: [], 
@@ -119,32 +103,14 @@ class EproloService {
     }
 
     /**
-     * STAGE 2: DETAIL RETRIEVAL (v7.2)
-     * Fetches full metadata for a selected product by ID.
+     * STAGE 2: DETAIL RETRIEVAL (v8.0)
+     * Fetches full metadata for a selected product via backend.
      */
     async getProductDetail(productId) {
-        const debugInfo = {
-            endpoint: `${this.proxyUrl}/eprolo-product-detail`,
-            timestamp: new Date().toISOString(),
-            productId
-        };
-
-        // 🚨 1. AUTH CONFIG VALIDATION (Iron Flow 7.2)
-        const appKey = import.meta.env.VITE_EPROLO_APP_KEY;
-        const secret = import.meta.env.VITE_EPROLO_SECRET;
-
-        if (!appKey || !secret) {
-            throw new Error("CONFIG_ERROR");
-        }
-
         try {
-            const response = await fetch(debugInfo.endpoint, {
+            const response = await fetch(`${this.apiBase}/detail`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "apiKey": String(appKey),
-                    "apiSecret": String(secret)
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ product_id: productId })
             });
 
@@ -155,24 +121,27 @@ class EproloService {
 
             const item = result.data || {};
             
+            // Return full enriched schema
             return {
                 id: item.id || item.product_id,
-                title: item.product_name || item.title,
+                title: (item.product_name || item.title || "Unnamed Product")?.trim(),
                 price: parseFloat(item.price || item.min_price || 0),
                 image: item.image_url || item.image || (item.imagelist?.[0]?.src) || '',
                 images: (item.imagelist || []).map(img => img.src || img),
                 source: 'EPROLO',
-                description: item.description || item.product_desc || "",
+                description: (item.description || item.product_desc || "").trim(),
                 variants: (item.variantlist || []).map(v => ({
                     id: v.id,
                     sku: v.sku,
                     price: parseFloat(v.cost || v.price),
                     stock: v.inventory_quantity || 0,
                     options: v.options || []
-                }))
+                })),
+                shipsFrom: item.ships_from || 'China',
+                delivery: item.delivery_time || '8-15 days'
             };
         } catch (e) {
-            console.error("Eprolo Detail Fetch Failed:", e);
+            console.error("Eprolo Backend Detail Fetch Failed:", e);
             throw e;
         }
     }

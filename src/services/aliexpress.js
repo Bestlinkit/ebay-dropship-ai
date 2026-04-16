@@ -1,394 +1,180 @@
 import { SourcingStatus } from '../constants/sourcing';
 
 /**
- * AliExpress Stability Fix (v1 STABLE)
- * Simple, resilient extraction engine that prioritizes recovery over filtering.
- * Never silently rejects results based on "quality" or "confidence."
+ * Stable AliExpress Sourcing Service (v8.0)
+ * Implements a strict 2-stage flow: Discovery -> Mandatory Enrichment.
+ * Uses Node.js backend proxy to bypass CORS and ensure stability.
  */
 class AliExpressService {
   constructor() {
-    const rawProxy = import.meta.env.VITE_PROXY_URL || "";
-    this.proxyUrl = rawProxy.endsWith("/") ? rawProxy.slice(0, -1) : rawProxy;
+    this.apiBase = "http://localhost:3001/api/aliexpress";
   }
 
-  async fetchWithTimeout(url, options = {}, timeout = 8000) {
-    // 🚨 6. ENVIRONMENT HARDENING (Iron Flow 7.4)
-    let controller = null;
-    try {
-        if (typeof AbortController !== 'undefined') {
-            controller = new AbortController();
-        }
-    } catch (e) {
-        console.warn("AbortController not constructible:", e);
-    }
-
-    const id = setTimeout(() => {
-        if (controller) controller.abort();
-    }, timeout);
-
-    try {
-      const fetchOptions = { ...options };
-      if (controller) fetchOptions.signal = controller.signal;
-      
-      const response = await fetch(url, fetchOptions);
-      clearTimeout(id);
-      return response;
-    } catch (e) {
-      clearTimeout(id);
-      throw e;
-    }
-  }
-
+  /**
+   * STAGE 1: DISCOVERY (Lightweight)
+   * Returns only essential discovery data for the search results grid.
+   */
   async searchProducts(query) {
-    if (!query) return { status: SourcingStatus.EMPTY, data: [], debugInfo: {} };
-
-    const debugInfo = {
-        endpoint: `${this.proxyUrl}/aliexpress-search?q=${encodeURIComponent(query)}`,
-        timestamp: new Date().toISOString(),
-        query,
-        extractionMethodUsed: "STABLE_RECONSTRUCTION",
-        parsedCount: 0,
-        logs: []
-    };
+    if (!query) return { status: SourcingStatus.EMPTY, data: [] };
 
     try {
-        const response = await this.fetchWithTimeout(debugInfo.endpoint);
-        debugInfo.httpStatus = response.status;
-        const html = await response.text();
-        debugInfo.htmlLength = html.length;
+      const response = await fetch(`${this.apiBase}/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const html = await response.text();
+      if (!html || html.length < 1000) return { status: SourcingStatus.BLOCKED, data: [] };
 
-        if (!response.ok) {
-            return { status: SourcingStatus.NETWORK_ERROR, data: [], debugInfo };
-        }
+      const jsonBlocks = this.discoverJSONBlocks(html);
+      let rawItems = [];
 
-        // 1. BLOCK DETECTION (Captcha / Verify)
-        const blockPatterns = ["captcha", "security verification", "robot check", "verify your identity", "onfirmed by our systems"];
-        if (blockPatterns.some(p => html.toLowerCase().includes(p))) {
-            return { 
-                status: SourcingStatus.BLOCKED, 
-                data: [], 
-                debugInfo: { 
-                    ...debugInfo, 
-                    reason: "AliExpress anti-bot triggered",
-                    htmlLength: html.length 
-                } 
-            };
-        }
+      for (const block of jsonBlocks) {
+          const items = this.deepExtractItems(block);
+          if (items.length > 0) rawItems.push(...items);
+      }
 
-        let allExtractedData = [];
+      // If heavy JSON blocks failed, try lightweight scrapers
+      if (rawItems.length < 5) {
+          rawItems.push(...this.mineScripts(html));
+      }
 
-        // --- STEP 1: EXTRACT EVERYTHING ---
-        
-        // A. JSON Discovery
-        const jsonCandidates = this.discoverJSONBlocks(html);
-        if (jsonCandidates.length > 0) {
-            debugInfo.logs.push("JSON_SIGNAL_FOUND");
-            jsonCandidates.forEach(candidate => {
-                const items = this.deepExtractItems(candidate.data);
-                if (items.length > 0) {
-                    allExtractedData = [...allExtractedData, ...items];
-                }
-            });
-        }
+      const mapped = this.parseDiscovery(rawItems);
+      const unique = this.simpleDedupe(mapped);
 
-        // B. Script Mining
-        const scriptItems = this.mineScripts(html);
-        if (scriptItems.length > 0) {
-            allExtractedData = [...allExtractedData, ...scriptItems];
-        }
-
-        // C. DOM Fallback
-        const domItems = this.domExtract(html);
-        if (domItems.length > 0) {
-            allExtractedData = [...allExtractedData, ...domItems];
-        }
-
-        // D. Semantic
-        const semanticItems = this.semanticExtract(html);
-        if (semanticItems.length > 0) {
-            allExtractedData = [...allExtractedData, ...semanticItems];
-        }
-
-        // --- STEP 2: MAP LOOSELY (NO REJECTION) ---
-        const mappedResults = this.stableMap(allExtractedData);
-        
-        // --- STEP 3: DEDUPE & FINALIZE ---
-        const finalResults = this.simpleDedupe(mappedResults);
-        debugInfo.parsedCount = finalResults.length;
-
-        if (finalResults.length > 0) {
-            debugInfo.logs.push(`PRODUCT_MAPPED: ${finalResults.length}`);
-            return { status: SourcingStatus.SUCCESS, data: finalResults, debugInfo };
-        }
-
-        // --- TRUTH ENFORCEMENT ---
-        const keywords = ["price", "sku", "product", "item"];
-        const hasSignals = keywords.some(k => html.toLowerCase().includes(k));
-
-        if (hasSignals) {
-            return { status: SourcingStatus.PARSE_ERROR, data: [], debugInfo };
-        }
-
-        return { status: SourcingStatus.EMPTY, data: [], debugInfo };
+      return {
+          status: unique.length > 0 ? SourcingStatus.SUCCESS : SourcingStatus.EMPTY,
+          data: unique
+      };
 
     } catch (e) {
-        return { 
-            status: SourcingStatus.NETWORK_ERROR, 
-            data: [], 
-            debugInfo: { ...debugInfo, errorStack: e.message } 
-        };
+      console.error("AliExpress Discovery Internal Core Fault:", e);
+      return { status: SourcingStatus.NETORK_ERROR, data: [] };
     }
   }
 
   /**
-   * STAGE 2: DETAIL ENRICHMENT (v7.0)
-   * Fetches full product data from the detail page URL.
+   * STAGE 2: MANDATORY ENRICHMENT
+   * Fetches full product data including gallery, variants, and trust metrics.
    */
-  async getProductDetails(url) {
-    if (!url || url === '#') return { status: 'ERROR', message: 'Invalid URL' };
-
-    const debugInfo = {
-        endpoint: `${this.proxyUrl}/aliexpress-product-details?url=${encodeURIComponent(url)}`,
-        timestamp: new Date().toISOString(),
-        stage: "ENRICHMENT"
-    };
+  async getProductDetails(productUrl) {
+    if (!productUrl || productUrl === '#') return { status: SourcingStatus.API_ERROR, data: null };
 
     try {
-        const response = await this.fetchWithTimeout(debugInfo.endpoint);
-        const html = await response.text();
-        
-        // 🧪 EXTRACTION LOGIC
-        const jsonBlocks = this.discoverJSONBlocks(html);
-        let runParams = null;
-        
-        // Prioritize blocks with SKU/Image data
-        for (const block of jsonBlocks) {
-            if (block.data?.skuModule || block.data?.imageModule) {
-                runParams = block.data;
-                break;
-            }
-        }
+      const response = await fetch(`${this.apiBase}/detail?url=${encodeURIComponent(productUrl)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const html = await response.text();
+      const jsonBlocks = this.discoverJSONBlocks(html);
+      
+      // Look for the product details block (usually the largest one or containing 'productConfig')
+      let detailBlock = jsonBlocks.find(b => b.productConfig || b.item || b.skuModule) || jsonBlocks[0];
+      
+      if (!detailBlock) throw new Error("Could not parse product details");
 
-        // 💰 REFINED PRICE EXTRACTION
-        let price = null;
-        const priceObj = runParams?.skuModule?.skuPrice || runParams?.priceModule?.minAmount;
-        if (priceObj) {
-            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.amount);
-        }
-
-        // 🆔 SKU & VARIANTS (Iron Flow 7.0 - Force Extraction)
-        const skuId = runParams?.skuModule?.skuPriceList?.[0]?.skuId || null;
-        const variants = runParams?.skuModule?.productSKUPropertyList || [];
-        
-        // 🖼️ IMAGE GALLERY
-        const images = runParams?.imageModule?.imagePathList || [];
-
-        // 📝 DESCRIPTION
-        const description = 
-            runParams?.descriptionModule?.description || 
-            html.match(/<div class="detail-desc">([\s\S]*?)<\/div>/)?.[1] || 
-            null;
-
-        return {
-            status: SourcingStatus.SUCCESS,
-            data: {
-                price: price > 0 ? price : null,
-                skuId,
-                variants,
-                images,
-                description,
-                title: runParams?.productModule?.title || null,
-                enriched: true
-            },
-            debugInfo
-        };
+      const enriched = this.mapDetailedProduct(detailBlock, productUrl);
+      
+      return {
+          status: SourcingStatus.SUCCESS,
+          data: enriched
+      };
 
     } catch (e) {
-        console.warn("AliExpress Enrichment Failed:", e.message);
-        return { 
-            status: "PARTIAL_DATA", 
-            message: "Enrichment failed, using search baseline", 
-            fallback: true,
-            debugInfo: { ...debugInfo, error: e.message }
-        };
+      console.error("AliExpress Enrichment Fault:", e);
+      return { status: SourcingStatus.API_ERROR, data: null };
     }
   }
 
   /**
-   * Concurrent Auto-Enrichment (Iron Flow 7.0)
-   * Limits concurrency to avoid anti-bot triggers.
+   * Mappers for Discovery vs Detailed State
    */
-  async enrichWithLimit(items, targetPrice, limit = 2) {
-    if (!items || items.length === 0) return [];
-    
-    // 🔍 Select candidates that actually need hydration
-    const needsEnrichment = p => (!p.price || !p.image) && !p.enriched;
-    const candidates = items.filter(needsEnrichment).slice(0, 5);
-    
-    if (candidates.length === 0) return items;
+  parseDiscovery(rawItems) {
+      return rawItems.map(item => {
+          const title = item.title || item.productTitle || item.subject || "";
+          const price = this.extractDiscoveryPrice(item);
+          const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image || null;
 
-    // Helper for ROI sequencing (Iron Flow 7.3)
-    const calculateInternalROI = (ebayPrice, supplierCost) => {
-        const cost = Number(supplierCost);
-        const target = Number(ebayPrice);
-        if (!cost || cost <= 0 || !target || target <= 0) return null;
-        
-        const expected = Math.round(((target - cost) / cost) * 100);
-        const conservative = Math.round(((target - (cost * 1.2)) / cost) * 100);
-        return { expected, conservative };
-    };
+          if (!title || !image) return null;
 
-    const enrichedItems = [...items];
+          return {
+              id: item.productId || item.product_id || `ali_${Math.random().toString(36).substr(2, 9)}`,
+              title: title.trim(),
+              price: price,
+              image: image,
+              url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#'),
+              source: 'aliexpress', // STRICT LOWERCASE TAGGING
+              status: 'FETCHED' // Needs enrichment
+          };
+      }).filter(p => p && p.title.length > 10);
+  }
 
-    for (let i = 0; i < candidates.length; i += limit) {
-        const chunk = candidates.slice(i, i + limit);
-        const results = await Promise.all(
-            chunk.map(async (item) => {
-                const enrichment = await this.getProductDetails(item.url);
-                if (enrichment.status === SourcingStatus.SUCCESS) {
-                    const price = enrichment.data.price || item.price;
-                    return { 
-                        ...item, 
-                        ...enrichment.data, 
-                        roiRange: calculateInternalROI(targetPrice, price),
-                        enrichmentStatus: "DONE", 
-                        enriched: true,
-                        status: "READY"
-                    };
-                }
-                return { 
-                    ...item, 
-                    roiRange: calculateInternalROI(targetPrice, item.price),
-                    enrichmentStatus: "FAILED", 
-                    status: "READY" 
-                };
-            })
-        );
-        
-        // Update the main array with enriched data
-        results.forEach(res => {
-            const idx = enrichedItems.findIndex(p => p.id === res.id);
-            if (idx !== -1) enrichedItems[idx] = res;
-        });
-    }
+  mapDetailedProduct(data, originUrl) {
+      const item = data.item || data.productConfig || data;
+      const evaluation = data.evaluation || data.feedback || {};
+      
+      // 🚨 CRITICAL RULE: Trust Metrics Extraction
+      const rating = parseFloat(evaluation.starRating || evaluation.avgRating);
+      const reviews = parseInt(evaluation.totalCount || evaluation.feedbackCount);
 
-    return enrichedItems;
+      const variants = this.extractVariants(data);
+      const images = this.extractGallery(data);
+      const price = this.extractDiscoveryPrice(data);
+
+      return {
+          id: item.productId || item.product_id,
+          title: item.title || item.subject,
+          price: price,
+          image: images[0] || null,
+          images: images,
+          source: 'aliexpress',
+          url: originUrl,
+          description: this.extractDescription(data),
+          variants: variants,
+          // Trust Metrics
+          rating: !isNaN(rating) ? rating : null,
+          reviews: !isNaN(reviews) ? reviews : null,
+          sellerRating: data.seller?.storeRating || null,
+          ratingDisplay: !isNaN(rating) ? `${rating} / 5` : "No rating available",
+          status: 'READY'
+      };
   }
 
   /**
-   * Refined Stable Mapping: recovery over perfection.
-   * IRON SHIELD v6.1: Enforces strict blocklist for Ads and Null prices.
+   * Helper Extractors
    */
-  stableMap(items) {
-    if (!Array.isArray(items)) return [];
-    
-    const isBlockedTitle = (title = "") => {
-        const t = (title || "").toLowerCase();
-        return [
-            "why am i seeing this ad",
-            "who is the advertiser",
-            "ad targeting",
-            "sponsored",
-            "suggested for you"
-        ].some(b => t.includes(b));
-    };
-
-    return items.map(item => {
-        const title = item.title?.displayTitle || item.product_title || item.title || item.productTitle || "";
-        
-        // 🗑️ AD BLOCKER (IRON SHIELD)
-        if (isBlockedTitle(title)) return null;
-
-        // If it's already mapped (from semantic/dom), verify it
-        if (item.source === 'AliExpress' && item.title && item.price > 0) return item;
-
-        // 💰 PRICE EXTRACTION (Deterministic Recovery Engine)
-        let price = null;
-        const priceObj = 
-            item.prices?.salePrice || 
-            item.prices?.minPrice || 
-            item.skuModule?.skuPrice || 
-            item.skuModule?.skuActivityAmount ||
-            item.priceModule?.minAmount ||
-            item.prices?.discountedPrice ||
-            item.prices?.originalPrice ||
-            item.skuPrice ||
-            item.price || 
-            item.minPrice;
-        
-        if (typeof priceObj === 'object' && priceObj !== null) {
-            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.salePrice || priceObj.price || priceObj.amount || priceObj.activityAmount || priceObj.discountedPrice);
-        } else {
-            price = parseFloat(priceObj) || parseFloat(item.product_price);
-        }
-
-        // GREEDY FALLBACK: If price is still missing/0, attempt regex recovery from raw item string
-        if (!price || price === 0) {
-            const rawStr = JSON.stringify(item);
-            const priceMatch = rawStr.match(/["'](?:price|amount|value|salePrice|minPrice)["']\s*:\s*(?:["']?(\d+\.\d{1,2})["']?|(\d+))/i);
-            if (priceMatch) price = parseFloat(priceMatch[1] || priceMatch[2]);
-        }
-
-        // 🛑 NULL ENFORCEMENT
-        price = price > 0 ? price : null;
-
-        const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image?.url || item.image || null;
-
-        // 🛡️ SOFT VALIDATION RULE (v7.1)
-        // Only block if it's an Ad OR completely missing both title and image
-        const isCoreDataMissing = !(title && title.length > 5) && !image;
-        if (isCoreDataMissing || isBlockedTitle(title)) return null;
-
-        return {
-            id: item.productId || item.product_id || `ali_${Math.random().toString(36).slice(2, 9)}`,
-            title: title || "AliExpress Listing",
-            price: price, 
-            image: image,
-            rating: parseFloat(item.evaluation?.starRating || item.rating || 4.5),
-            source: 'AliExpress',
-            url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#'),
-            delivery: item.delivery?.displayAmount || "15-25 days",
-            shipsFrom: item.logistics?.shipsFrom || "CN",
-            enrichmentStatus: "PENDING",
-            enriched: false,
-            isValid: !!(title && image),
-            hasPrice: !!price
-        };
-    }).filter(p => p && p.title && p.title.length > 5);
+  extractDiscoveryPrice(item) {
+      const priceObj = item.prices?.salePrice || item.prices?.minPrice || item.priceModule?.minAmount || item.price || item.minPrice;
+      if (typeof priceObj === 'object') return parseFloat(priceObj.value || priceObj.amount || 0);
+      return parseFloat(priceObj) || 0;
   }
 
-  simpleDedupe(products) {
-    const seenIds = new Set();
-    const seenTitles = new Set();
-    const result = [];
-
-    for (const p of products) {
-        const idKey = String(p.id);
-        const titleKey = (p.title || "").toLowerCase().trim();
-
-        if (!seenIds.has(idKey) && !seenTitles.has(titleKey)) {
-            seenIds.add(idKey);
-            seenTitles.add(titleKey);
-            result.push(p);
-        }
-    }
-    return result;
+  extractVariants(data) {
+      const skuModule = data.skuModule || {};
+      const skus = skuModule.skuPriceList || [];
+      return skus.map(s => ({
+          id: s.skuId,
+          sku: s.skuIdStr,
+          price: parseFloat(s.skuVal?.skuActivityAmount?.value || s.skuVal?.skuAmount?.value || 0),
+          stock: s.skuVal?.availQuantity || 0,
+          options: (s.skuPropIds || "").split(',').filter(Boolean)
+      }));
   }
 
-  /**
-   * Discovers all large JSON-like blocks within the HTML,
-   * now supporting window assignments (window.__SSR_DATA__ = {...})
-   */
+  extractGallery(data) {
+      const imageModule = data.imageModule || {};
+      return imageModule.imagePathList || [];
+  }
+
+  extractDescription(data) {
+      // Descriptions are often in a separate module or property
+      return data.descriptionModule?.description || "";
+  }
+
   discoverJSONBlocks(html) {
     const candidates = [];
-    // 🔍 Target script assignments and raw objects
     const regex = /(?:window\.(?:__SSR_DATA__|runParams|initialData)\s*=\s*)?({[\s\S]{500,500000}})/g; 
     let match;
     while ((match = regex.exec(html)) !== null) {
         let potential = match[1];
-        
         try {
-            // Primitive balancing to ensure we catch the right closing brace
             let balance = 0;
             let endIdx = -1;
             for (let i = 0; i < potential.length; i++) {
@@ -399,14 +185,30 @@ class AliExpressService {
                     break;
                 }
             }
-            if (endIdx !== -1) {
-                const cleanJson = potential.substring(0, endIdx);
-                const data = JSON.parse(cleanJson);
-                candidates.push({ data, length: cleanJson.length });
+            if (endIdx > 0) {
+                candidates.push(JSON.parse(potential.substring(0, endIdx)));
             }
-        } catch (e) { continue; }
+        } catch (e) {}
     }
     return candidates;
+  }
+
+  deepExtractItems(data) {
+    const results = [];
+    const findItems = (obj) => {
+        if (!obj) return;
+        if (Array.isArray(obj)) {
+            if (obj.some(o => o && (o.productId || o.product_id))) {
+                results.push(...obj);
+                return;
+            }
+            obj.forEach(findItems);
+        } else if (typeof obj === 'object') {
+            Object.values(obj).forEach(findItems);
+        }
+    };
+    findItems(data);
+    return results;
   }
 
   mineScripts(html) {
@@ -417,7 +219,7 @@ class AliExpressService {
         const clusters = match[1].match(/{[^{}]{10,1000}}/g);
         if (clusters) {
             clusters.forEach(cluster => {
-                if (cluster.includes("price") || cluster.includes("title") || cluster.includes("image")) {
+                if (cluster.includes("price") || cluster.includes("productId")) {
                     try { rawItems.push(JSON.parse(cluster)); } catch (e) {}
                 }
             });
@@ -426,82 +228,13 @@ class AliExpressService {
     return rawItems;
   }
 
-  semanticExtract(html) {
-    const products = [];
-    const priceRegex = /(?:US\s+)?\$\s*(\d+\.\d{2})/g;
-    const imgRegex = /https:\/\/[^"'\s]+\.(?:jpg|png|webp|jpeg)/g;
-    const prices = [...html.matchAll(priceRegex)];
-    const images = [...html.matchAll(imgRegex)];
-
-    prices.forEach(pMatch => {
-        const pIdx = pMatch.index;
-        const nearbyImg = images.find(iMatch => Math.abs(iMatch.index - pIdx) < 800);
-        if (nearbyImg) {
-            const contextText = html.substring(pIdx - 150, pIdx + 150).replace(/<[^>]*>/g, ' ').trim();
-            products.push({
-                title: contextText.split(' ').slice(0, 8).join(' '),
-                price: parseFloat(pMatch[1]),
-                image: nearbyImg[0],
-                source: 'AliExpress'
-            });
-        }
+  simpleDedupe(products) {
+    const seen = new Set();
+    return products.filter(p => {
+        if (!p.id || seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
     });
-    return products;
-  }
-
-  domExtract(html) {
-    // 🚨 6. ENVIRONMENT HARDENING (Iron Flow 7.4)
-    if (typeof DOMParser === 'undefined') {
-        console.error("DOMParser unavailable in current environment");
-        return [];
-    }
-
-    try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        const itemNodes = [...doc.querySelectorAll('[data-item-id], [data-sku-id], div[class*="item"], div[class*="product"]')];
-        return itemNodes.map(el => {
-            const title = el.querySelector('[class*="title"], h3, h1')?.textContent?.trim();
-            const price = el.textContent.match(/\$\s*(\d+\.\d{2})/)?.[1];
-            const image = el.querySelector('img')?.src || el.querySelector('img')?.getAttribute('data-src') || null;
-            
-            if (!title && !price && !image) return null;
-
-            return {
-                id: el.getAttribute('data-item-id') || el.getAttribute('data-sku-id') || Math.random().toString(36).substr(2, 9),
-                title: title || "AliExpress Listing",
-                price: parseFloat(price) || null,
-                image: image,
-                source: 'AliExpress',
-                url: el.querySelector('a')?.href || '#'
-            };
-        }).filter(Boolean);
-    } catch (e) {
-        console.error("DOM Parsing Failed:", e);
-        return [];
-    }
-  }
-
-  deepExtractItems(data) {
-    if (!data) return [];
-    const results = [];
-    const findItems = (obj) => {
-        if (Array.isArray(obj)) {
-            if (obj.some(o => o && (o.productId || o.product_id || o.productTitle || o.title))) {
-                results.push(...obj);
-                return;
-            }
-            for (const item of obj) {
-                findItems(item);
-            }
-        } else if (typeof obj === 'object' && obj !== null) {
-            for (const key in obj) {
-                findItems(obj[key]);
-            }
-        }
-    };
-    findItems(data);
-    return results;
   }
 }
 

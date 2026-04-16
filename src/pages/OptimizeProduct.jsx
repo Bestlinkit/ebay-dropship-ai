@@ -112,7 +112,7 @@ const OptimizeProduct = () => {
                 console.log("[STUDIO HYDRATION] Ingesting Supplier Vector:", ip);
                 
                 // 🧠 AUTO-TAXONOMY: Match primary category based on title
-                const matchedId = matchPrimaryCategory(ip.title);
+                const matchedId = matchPrimaryCategory(ip?.title || "");
                 const matchedCat = PRIMARY_CATEGORIES.find(c => c.id === matchedId);
                 
                 if (matchedCat) {
@@ -121,24 +121,24 @@ const OptimizeProduct = () => {
                 }
 
                 setOriginalProduct({
-                    title: ip.title,
-                    price: ip.pricing.selectedVariantPrice,
-                    images: ip.images,
-                    description: ip.description
+                    title: ip?.title || "Imported Product",
+                    price: ip?.pricing?.selectedVariantPrice || 0,
+                    images: ip?.images || [],
+                    description: ip?.description || ""
                 });
 
                 setRegistry(prev => ({
                     ...prev,
-                    selectedTitle: ip.title,
-                    price: ip.pricing.selectedVariantPrice,
-                    supplierCost: ip.pricing.totalCost,
-                    images: ip.images,
-                    description: ip.description,
-                    optimizedDescription: ip.description,
+                    selectedTitle: ip?.title || "",
+                    price: ip?.pricing?.targetPrice || ip?.pricing?.selectedVariantPrice || 0,
+                    supplierCost: ip?.pricing?.totalCost || 0,
+                    images: ip?.images || [],
+                    description: ip?.description || "",
+                    optimizedDescription: ip?.description || "",
                     category: matchedId || '', 
                 }));
 
-                addSystemLog("Supplier extraction successful.", 'success');
+                addSystemLog("Supplier intelligence ingested.", 'success');
                 setLoading(false);
 
                 // 🔥 AUTO-SWEEP (Step 4): Trigger AI Optimization immediately for new imports
