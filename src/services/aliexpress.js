@@ -50,6 +50,7 @@ class AliExpressService {
       // 1. BLOCKED DETECTION
       const isBlocked = !html || html.length < 2000 || html.includes('captcha') || html.includes('punish') || html.includes('Slide to verify');
       if (isBlocked) {
+          console.warn("[AliExpress] Security Intercept. Server-side scraping suspended.");
           return { status: SourcingStatus.BLOCKED_RESPONSE, data: [], debugInfo: { ...debugInfo, status: 'BLOCKED' } };
       }
 
@@ -273,6 +274,34 @@ class AliExpressService {
         seen.add(p.id);
         return true;
     });
+  }
+  /**
+   * SELF-IMPORT / MANUAL EXTRACTION (v1.0)
+   * Handles raw HTML or JSON snapshots from the user's browser.
+   */
+  parseManualSource(source, url = '#') {
+    if (!source) return { status: SourcingStatus.EMPTY, data: null };
+
+    try {
+        // Try parsing as JSON first
+        let data = null;
+        try {
+            data = JSON.parse(source);
+        } catch (e) {
+            // Fallback to HTML parsing
+            const blocks = this.discoverJSONBlocks(source);
+            data = blocks.find(b => b.productConfig || b.item || b.skuModule) || blocks[0];
+        }
+
+        if (!data) throw new Error("Could not find product data in provided source");
+
+        const enriched = this.mapDetailedProduct(data, url);
+        return { status: SourcingStatus.SUCCESS, data: enriched };
+
+    } catch (e) {
+        console.error("[AliExpress] Manual Import Fault:", e);
+        return { status: SourcingStatus.PARSE_FAILURE, data: null };
+    }
   }
 }
 

@@ -17,9 +17,9 @@ const generateMD5 = (data) => {
 
 // --- EPROLO ENDPOINTS ---
 
-// Startup Integrity Log
-const EPROLO_CONFIG_OK = !!(process.env.EPROLO_APP_KEY && process.env.EPROLO_SECRET);
-console.log(`[Eprolo] Startup Config: ${EPROLO_CONFIG_OK ? "OK ✅" : "MISSING ❌"} (Key exists: ${!!process.env.EPROLO_APP_KEY})`);
+// Startup Integrity Log (v14.0)
+console.log("EPROLO_APP_KEY:", process.env.EPROLO_APP_KEY ? "LOADED ✅" : "MISSING ❌");
+console.log("EPROLO_SECRET:", process.env.EPROLO_SECRET ? "LOADED ✅" : "MISSING ❌");
 
 app.post('/api/eprolo/search', async (req, res) => {
     try {
@@ -28,41 +28,33 @@ app.post('/api/eprolo/search', async (req, res) => {
         const secret = process.env.EPROLO_SECRET;
 
         if (!appKey || !secret) {
-            console.error("[Eprolo] CONFIG_ERROR: Missing keys in .env");
-            return res.status(500).json({ status: "CONFIG_ERROR", message: "Missing API keys" });
+            console.error("[Eprolo] CRITICAL: Missing keys in .env");
+            return res.status(500).json({ status: "CONFIG_ERROR", message: "Eprolo not configured" });
         }
 
         const timestamp = Date.now();
         const bodyContent = { timestamp, keyword, page_index, page_size };
 
-        // 🔍 DOUBLE-TRACE DIAGNOSTIC (Validation, not assumption)
-        const formatA = generateMD5(appKey + timestamp + secret); // Current
-        const formatB = generateMD5(JSON.stringify(bodyContent) + secret); // Proposed
+        // 🔍 DOUBLE-TRACE DIAGNOSTIC
+        const formatA = generateMD5(appKey + timestamp + secret);
+        const formatB = generateMD5(JSON.stringify(bodyContent) + secret);
 
-        console.log(`--- EPROLO DIAGNOSTIC TRACE ---`);
-        console.log(`Target: ${keyword}`);
-        console.log(`Format A (Timestamp-Only): ${formatA}`);
-        console.log(`Format B (Body-Signed): ${formatB}`);
-        console.log(`Payload Stringified: ${JSON.stringify(bodyContent)}`);
-        console.log(`-----------------------------`);
+        // STICK WITH FORMAT A PER CURRENT DOCS, BUT LOG EVERYTHING
+        const payload = { 
+            ...bodyContent, 
+            sign: formatA,
+            apiKey: appKey,     // 🚨 FIXED: Injecting into payload as requested
+            apiSecret: secret  // 🚨 FIXED: Injecting into payload as requested
+        };
 
-        // Stick with Current (Format A) for the request
-        const payload = { ...bodyContent, sign: formatA };
+        console.log("Eprolo Request Payload:", JSON.stringify(payload, null, 2));
 
         const response = await axios.post('https://openapi.eprolo.com/eprolo_product_list.html', payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'apiKey': appKey,
-                'apiSecret': secret
-            },
+            headers: { 'Content-Type': 'application/json' },
             timeout: 10000
         });
 
         console.log(`[Eprolo] Result: Code ${response.data.code}, Items: ${response.data.data?.length || 0}`);
-        if (response.data.code !== 1) {
-            console.log(`[Eprolo] Full Response Error:`, JSON.stringify(response.data));
-        }
-
         res.json(response.data);
     } catch (error) {
         console.error("Eprolo Search Error:", error.message);

@@ -147,6 +147,21 @@ const SupplierSourcing = () => {
         });
     };
 
+    const handleManualImport = async (source) => {
+        setLoading(true);
+        try {
+            const result = aliexpressService.parseManualSource(source);
+            if (result.status === 'SUCCESS' && result.data) {
+                // If successful, push to results directly or navigate
+                handleContinue(result.data);
+            } else {
+                toast.error("Format unrecognized. Make sure you copied the full page content.");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleExpandSearch = () => setShowAliExpansion(true);
 
     const intelMatchTier = pipelineState.successfulTier;
@@ -267,7 +282,7 @@ const SupplierSourcing = () => {
                             <ShieldAlert size={24} />
                         </div>
                         <div className="space-y-1">
-                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Eprolo Configuration Critical</h4>
+                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Eprolo not configured</h4>
                             <p className="text-[10px] font-medium text-red-100 leading-relaxed uppercase leading-tight">
                                 API Credentials (apiKey/secret) were not detected by the backend. Verify .env and restart server.
                             </p>
@@ -281,9 +296,9 @@ const SupplierSourcing = () => {
                             <ShieldAlert size={24} />
                         </div>
                         <div className="space-y-1">
-                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">AliExpress Security Challenge</h4>
+                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">AliExpress blocked request</h4>
                             <p className="text-[10px] font-medium text-amber-100 leading-relaxed uppercase leading-tight">
-                                Automated request was intercepted by anti-bot measures. The system is attempting GAS-Bridge recovery.
+                                Anti-bot challenge detected. Switching to User-Driven Detail Flow.
                             </p>
                         </div>
                     </div>
@@ -494,8 +509,8 @@ const SupplierSourcing = () => {
                                         One or more supplier nodes are reporting a technical configuration or security error. 
                                         <br />
                                         <span className="text-red-600 font-bold uppercase text-xs tracking-widest">
-                                            Fault Type: {pipelineState.sources.eprolo === 'CONFIG_ERROR' ? 'Missing Credentials' : 
-                                                        pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' ? 'IP Blockage (Anti-Bot)' : 'Extraction Failure'}
+                                            Fault Type: {pipelineState.sources.eprolo === 'CONFIG_ERROR' ? 'Eprolo Not Configured' : 
+                                                        pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' ? 'AliExpress Blocked Request' : 'Extraction Failure'}
                                         </span>
                                     </>
                                 ) : (
@@ -507,6 +522,38 @@ const SupplierSourcing = () => {
                                 )}
                             </div>
                         </div>
+
+                        {pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' && (
+                            <div className="max-w-md mx-auto p-8 bg-amber-50 border border-amber-100 rounded-[2.5rem] space-y-6">
+                                <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">AliExpress Discovery Suspended</p>
+                                
+                                <div className="space-y-4">
+                                     <button 
+                                        onClick={() => window.open(sourcingService.getGlobalSearchUrl('aliexpress', searchQuery), '_blank')}
+                                        className="w-full py-5 bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-amber-700 transition-all flex items-center justify-center gap-3"
+                                    >
+                                        <ExternalLink size={16} /> 1. Find Product Manually
+                                    </button>
+                                    
+                                    <div className="pt-4 border-t border-amber-200 space-y-3">
+                                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">2. Sync Snapshot</p>
+                                        <div className="group relative">
+                                            <textarea 
+                                                placeholder="Paste page content or JSON here..."
+                                                className="w-full h-24 bg-white border-2 border-amber-200 rounded-xl p-4 text-[10px] font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 transition-all outline-none"
+                                                onBlur={(e) => {
+                                                    if (e.target.value.trim()) handleManualImport(e.target.value);
+                                                }}
+                                            />
+                                            <div className="absolute top-2 right-2 px-2 py-1 bg-amber-100 text-amber-600 rounded text-[8px] font-black uppercase">Auto-Sync</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-[9px] font-medium text-amber-700 uppercase italic leading-relaxed">
+                                    Anti-bot protection active. Visit AliExpress, copy the product page content (Ctrl+A -> Ctrl+C), and paste it here to extract 100% accurate data.
+                                </p>
+                            </div>
+                        )}
 
                         {/* DIAGNOSTIC HIGHLIGHT FOR NON-DEBUGS */}
                         {!showDebug && (
