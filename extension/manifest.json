@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Drop-AI Data Bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "High-fidelity product extraction for AliExpress and Eprolo.",
   "permissions": [
     "tabs",
@@ -13,9 +13,22 @@
     "*://*.aliexpress.com/*",
     "*://*.eprolo.com/*"
   ],
+  "externally_connectable": {
+    "matches": [
+      "https://ebaydrop.geonoyc.com/*",
+      "https://geonoyc-dropshipping.web.app/*",
+      "https://geonoyc-dropshipping.firebaseapp.com/*",
+      "http://localhost:5173/*"
+    ]
+  },
   "content_scripts": [
     {
-      "matches": ["http://localhost:5173/*"],
+      "matches": [
+        "https://ebaydrop.geonoyc.com/*",
+        "https://geonoyc-dropshipping.web.app/*",
+        "https://geonoyc-dropshipping.firebaseapp.com/*",
+        "http://localhost:5173/*"
+      ],
       "js": ["bridge.js"],
       "run_at": "document_start"
     }

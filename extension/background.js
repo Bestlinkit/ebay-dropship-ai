@@ -22,6 +22,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
+// 🚀 DIRECT EXTERNAL BRIDGE (v19.6)
+// Handles direct communication from Authorized Live Domains
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+    if (request.type === "EXT_PING") {
+        console.log(`[Bridge-BG] Direct External PING from ${sender.url}`);
+        sendResponse({ type: "EXT_PONG", status: "ONLINE" });
+    }
+    return true;
+});
+
 async function handleSearch(request) {
     const { source, query, requestId } = request;
     console.log(`[Bridge-BG] Executing ${source} search: ${query}`);
