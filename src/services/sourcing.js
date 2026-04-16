@@ -137,7 +137,7 @@ class SourcingService {
     if (statuses.includes('SUCCESS')) finalStatus = 'SUCCESS';
     else if (statuses.includes('BLOCKED')) finalStatus = 'BLOCKED';
     else if (statuses.includes('TIMEOUT')) finalStatus = 'TIMEOUT';
-    else if (statuses.every(s => s === 'NO_RESULTS')) finalStatus = 'NO_RESULTS';
+    else if (statuses.every(s => s === 'NO_RESULTS' || s === 'EMPTY')) finalStatus = 'NO_RESULTS';
     else finalStatus = 'ERROR';
 
     const rawProducts = [
