@@ -52,6 +52,7 @@ const SupplierSourcing = () => {
     const [loading, setLoading] = useState(true);
     const [rawResults, setRawResults] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
+    const [manualSnapshot, setManualSnapshot] = useState("");
     const [showAliExpansion, setShowAliExpansion] = useState(false);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 4;
@@ -536,17 +537,28 @@ const SupplierSourcing = () => {
                                         <ExternalLink size={16} /> 1. Find Product Manually
                                     </button>
                                     
-                                    <div className="pt-4 border-t border-amber-200 space-y-3">
-                                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">2. Sync Snapshot</p>
+                                    <div className="pt-4 border-t border-amber-200 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">2. Sync Snapshot</p>
+                                            {manualSnapshot.length > 0 && (
+                                                <button 
+                                                    onClick={() => handleManualImport(manualSnapshot)}
+                                                    className="px-3 py-1 bg-amber-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all flex items-center gap-2"
+                                                >
+                                                    <Zap size={10} /> Capture Intelligence
+                                                </button>
+                                            )}
+                                        </div>
                                         <div className="group relative">
                                             <textarea 
+                                                value={manualSnapshot}
+                                                onChange={(e) => setManualSnapshot(e.target.value)}
                                                 placeholder="Paste page content or JSON here..."
                                                 className="w-full h-24 bg-white border-2 border-amber-200 rounded-xl p-4 text-[10px] font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 transition-all outline-none"
-                                                onBlur={(e) => {
-                                                    if (e.target.value.trim()) handleManualImport(e.target.value);
-                                                }}
                                             />
-                                            <div className="absolute top-2 right-2 px-2 py-1 bg-amber-100 text-amber-600 rounded text-[8px] font-black uppercase">Auto-Sync</div>
+                                            {manualSnapshot.length === 0 && (
+                                                <div className="absolute top-2 right-2 px-2 py-1 bg-amber-100 text-amber-600 rounded text-[8px] font-black uppercase">Paste to Start</div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

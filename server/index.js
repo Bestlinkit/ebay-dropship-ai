@@ -17,18 +17,20 @@ const generateMD5 = (data) => {
 
 // --- EPROLO ENDPOINTS ---
 
-// Startup Integrity Log (v14.0)
-console.log("EPROLO_APP_KEY:", process.env.EPROLO_APP_KEY ? "LOADED ✅" : "MISSING ❌");
-console.log("EPROLO_SECRET:", process.env.EPROLO_SECRET ? "LOADED ✅" : "MISSING ❌");
+// Resilient Config Loading (v15.0)
+const EPROLO_APP_KEY = process.env.EPROLO_APP_KEY || process.env.VITE_EPROLO_API_KEY;
+const EPROLO_SECRET = process.env.EPROLO_SECRET || process.env.VITE_EPROLO_API_SECRET;
+
+// Startup Integrity Log with Masking
+console.log("EPROLO_APP_KEY:", EPROLO_APP_KEY ? `LOADED (****${EPROLO_APP_KEY.slice(-4)}) ✅` : "MISSING ❌");
+console.log("EPROLO_SECRET:", EPROLO_SECRET ? `LOADED (****${EPROLO_SECRET.slice(-4)}) ✅` : "MISSING ❌");
 
 app.post('/api/eprolo/search', async (req, res) => {
     try {
         const { keyword, page_index = 0, page_size = 20 } = req.body;
-        const appKey = process.env.EPROLO_APP_KEY;
-        const secret = process.env.EPROLO_SECRET;
-
-        if (!appKey || !secret) {
-            console.error("[Eprolo] CRITICAL: Missing keys in .env");
+        
+        if (!EPROLO_APP_KEY || !EPROLO_SECRET) {
+            console.error("[Eprolo] CRITICAL: Missing keys in .env (Checked ROOT and SERVER paths)");
             return res.status(500).json({ status: "CONFIG_ERROR", message: "Eprolo not configured" });
         }
 
@@ -36,18 +38,22 @@ app.post('/api/eprolo/search', async (req, res) => {
         const bodyContent = { timestamp, keyword, page_index, page_size };
 
         // 🔍 DOUBLE-TRACE DIAGNOSTIC
-        const formatA = generateMD5(appKey + timestamp + secret);
-        const formatB = generateMD5(JSON.stringify(bodyContent) + secret);
+        const formatA = generateMD5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
+        const formatB = generateMD5(JSON.stringify(bodyContent) + EPROLO_SECRET);
 
-        // STICK WITH FORMAT A PER CURRENT DOCS, BUT LOG EVERYTHING
+        // STICK WITH FORMAT A PER CURRENT DOCS
         const payload = { 
             ...bodyContent, 
             sign: formatA,
-            apiKey: appKey,     // 🚨 FIXED: Injecting into payload as requested
-            apiSecret: secret  // 🚨 FIXED: Injecting into payload as requested
+            apiKey: EPROLO_APP_KEY,
+            apiSecret: EPROLO_SECRET 
         };
 
-        console.log("Eprolo Request Payload:", JSON.stringify(payload, null, 2));
+        console.log("Eprolo Request Payload (Auth Masked):", JSON.stringify({
+            ...payload,
+            apiKey: `****${EPROLO_APP_KEY.slice(-4)}`,
+            apiSecret: `****${EPROLO_SECRET.slice(-4)}`
+        }, null, 2));
 
         const response = await axios.post('https://openapi.eprolo.com/eprolo_product_list.html', payload, {
             headers: { 'Content-Type': 'application/json' },
