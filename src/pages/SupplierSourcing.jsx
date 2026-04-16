@@ -50,13 +50,13 @@ const SupplierSourcing = () => {
     const initialQuery = location.state?.query || ebayProduct?.title || '';
     const targetProduct = ebayProduct;
 
-    const [loading, setLoading] = useState(true);
-    const [rawResults, setRawResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [manualSnapshot, setManualSnapshot] = useState("");
     const [showAliExpansion, setShowAliExpansion] = useState(false);
     const [page, setPage] = useState(1);
-    const PAGE_SIZE = 4;
+    const PAGE_SIZE = 8;
 
     const targetPrice = targetProduct?.price || 0;
 
@@ -82,28 +82,26 @@ const SupplierSourcing = () => {
             // 🚀 STAGE 1: INITIALIZE ITERATIVE CONTEXT
             const context = sourcingService.createContext(query, targetProduct);
             
-            // 🚀 STAGE 2: RUN ITERATIVE PIPELINE (Query Intent Reduction Layer)
+            // 🚀 STAGE 2: RUN DETERMINISTIC PIPELINE (v21.0 Extension-First)
             const result = await sourcingService.runIterativePipeline(
                 context, 
                 (tierQuery) => ({
                     fetchEprolo: () => {
                         setActiveTier(tierQuery);
-                        return eproloService.searchProducts(tierQuery);
+                        return extensionConnector.request('eprolo', tierQuery);
                     },
-                    fetchAliExpress: () => aliexpressService.searchProducts(tierQuery)
+                    fetchAliExpress: () => extensionConnector.request('aliexpress', tierQuery)
                 })
             );
 
             setPipelineState({ status: result.status, sources: result.sources });
-            setRawResults(result.data);
+            setProducts(result.products || []);
             setTelemetry(result.telemetry || { eprolo: null, aliexpress: null });
-            setIsFallback(result.isFallback || result.status === 'BROADER_CATEGORY_REQUIRED');
 
-            if (result.data.length > 0 && result.successfulTier !== query) {
-                toast.success(`Optimized search: "${result.successfulTier}"`, {
-                    description: "High-intent attributes extracted for better catalog matching."
+            if (result.products.length > 0) {
+                toast.success(`Discovered ${result.products.length} products`, {
+                    description: `Extraction successful for: "${result.successfulTier}"`
                 });
-                setSearchQuery(result.successfulTier);
             }
 
         } catch (e) {
@@ -121,9 +119,9 @@ const SupplierSourcing = () => {
     }, [targetProduct?.id]);
 
     const processedResults = useMemo(() => {
-        if (!targetProduct || rawResults.length === 0) return [];
+        if (!targetProduct || products.length === 0) return [];
         
-        return rawResults
+        return products
             .map(raw => {
                 const res = sourcingService.normalize(raw);
                 const relevance = sourcingService.calculateOpportunityScore(res, targetPrice);
@@ -134,7 +132,7 @@ const SupplierSourcing = () => {
                 };
             })
             .sort((a, b) => b.relevance - a.relevance);
-    }, [rawResults, targetProduct, targetPrice]);
+    }, [products, targetProduct, targetPrice]);
 
     const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);
 
@@ -192,7 +190,7 @@ const SupplierSourcing = () => {
             eprolo: {
                 status: pipelineState.sources.eprolo,
                 http: telemetry.eprolo?.httpStatus,
-                itemsFound: rawResults.filter(r => r.source === 'eprolo').length,
+                itemsFound: products.filter(r => r.source === 'eprolo').length,
                 auth: telemetry.eprolo?.status
             },
             aliexpress: {
@@ -240,18 +238,13 @@ const SupplierSourcing = () => {
                     </div>
                 </div>
 
-                {/* --- INTENT TRACE (v11.0) --- */}
-                <div className="p-5 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-3">
+                 <div className="p-5 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-3">
                      <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Calculated Intent Query</h4>
-                        <span className="text-[9px] font-black text-blue-300/50 uppercase italic tracking-tighter">Tier: {activeTier || intelMatchTier ? 'REACHED' : 'EXHAUSTING'}</span>
+                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Active Extraction Query</h4>
                      </div>
                      <div className="flex items-center gap-3">
                         <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs font-black text-white italic">
                             "{searchQuery}"
-                        </div>
-                        <div className="text-[9px] font-black text-blue-400 uppercase tracking-widest">
-                            Reduced from {ebayProduct?.title?.length} to {searchQuery.length} chars
                         </div>
                      </div>
                 </div>
@@ -267,10 +260,10 @@ const SupplierSourcing = () => {
                             )}>{pipelineState.sources.eprolo}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-black tracking-tighter">
-                            <div className="text-slate-500">HTTP STATUS: <span className="text-white ml-1">{telemetry.eprolo?.httpStatus || 'N/A'}</span></div>
-                            <div className="text-slate-500">DATA POINTS: <span className="text-white ml-1">{rawResults.filter(r => r.source === 'eprolo').length}</span></div>
-                            <div className="text-slate-500">MODE: <span className="text-white ml-1">DIRECT_API</span></div>
-                            <div className="text-slate-500">AUTH: <span className={telemetry.eprolo?.status === 'AUTH_ERROR' ? "text-red-500" : "text-emerald-500"}>{telemetry.eprolo?.status === 'AUTH_ERROR' ? "FAILED" : "VERIFIED"}</span></div>
+                            <div className="text-slate-500">PARSER STATE: <span className="text-white ml-1">{pipelineState.sources.eprolo}</span></div>
+                            <div className="text-slate-500">PRODUCTS: <span className="text-white ml-1">{products.filter(r => r.source === 'eprolo').length}</span></div>
+                            <div className="text-slate-500">MODE: <span className="text-white ml-1">SILENT_DOM</span></div>
+                            <div className="text-slate-500">AUTH: <span className="text-emerald-500">SESSION_ACTIVE</span></div>
                         </div>
                     </div>
 
@@ -284,65 +277,13 @@ const SupplierSourcing = () => {
                             )}>{pipelineState.sources.aliexpress}</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-black tracking-tighter">
-                            <div className="text-slate-500">HTTP STATUS: <span className="text-white ml-1">{telemetry.aliexpress?.httpStatus || 'N/A'}</span></div>
-                            <div className="text-slate-500">GATEWAY: <span className="text-white ml-1">{telemetry.aliexpress?.method === 'BRIDGE_GAS' ? 'TRUSTED_GAS' : 'NODE_PROXY'}</span></div>
-                            <div className="text-slate-500">HTML SIZE: <span className="text-white ml-1">{(telemetry.aliexpress?.responseLength / 1024).toFixed(1)}KB</span></div>
-                            <div className="text-slate-500">BLOCKAGE: <span className={pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' ? "text-red-500" : "text-emerald-500"}>{pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' ? "DETECTED" : "NONE"}</span></div>
+                            <div className="text-slate-500">PARSER STATE: <span className="text-white ml-1">{pipelineState.sources.aliexpress}</span></div>
+                            <div className="text-slate-500">PRODUCTS: <span className="text-white ml-1">{products.filter(r => r.source === 'aliexpress').length}</span></div>
+                            <div className="text-slate-500">MODE: <span className="text-white ml-1">SILENT_DOM</span></div>
+                            <div className="text-slate-500">RATING EXTRACTION: <span className="text-emerald-500">ENABLED</span></div>
                         </div>
                     </div>
                 </div>
-
-                {/* --- 🔌 TECHNICAL ALERT BANNERS --- */}
-                {pipelineState.sources.eprolo === 'CONFIG_ERROR' && (
-                    <div className="p-6 bg-red-600 border border-red-500 rounded-3xl flex items-center gap-6 shadow-xl animate-pulse">
-                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0">
-                            <ShieldAlert size={24} />
-                        </div>
-                        <div className="space-y-1">
-                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Eprolo not configured</h4>
-                            <p className="text-[10px] font-medium text-red-100 leading-relaxed uppercase leading-tight">
-                                API Credentials (apiKey/secret) were not detected by the backend. Verify .env and restart server.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' && (
-                    <div className="p-6 bg-amber-600 border border-amber-500 rounded-3xl flex items-center gap-6 shadow-xl">
-                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0">
-                            <ShieldAlert size={24} />
-                        </div>
-                        <div className="space-y-1">
-                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">AliExpress blocked request</h4>
-                            <p className="text-[10px] font-medium text-amber-100 leading-relaxed uppercase leading-tight">
-                                Anti-bot challenge detected. Switching to User-Driven Detail Flow.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {pipelineState.sources.aliexpress === 'WRONG_PAGE_TYPE' && (
-                    <div className="p-6 bg-amber-600 border border-amber-500 rounded-3xl flex items-center gap-6 shadow-xl">
-                        <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0">
-                            <Box size={24} />
-                        </div>
-                        <div className="space-y-1">
-                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Redirect to Single Item Blocked</h4>
-                            <p className="text-[10px] font-medium text-amber-100 leading-relaxed uppercase leading-tight">
-                                High-speed extraction requires the Listing Page. Use more general keywords or the Global Scraper.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {pipelineState.sources.aliexpress === 'PARSER_FAILURE' && (
-                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-4">
-                        <AlertTriangle size={16} className="text-red-500 shrink-0" />
-                        <p className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-relaxed">
-                            Extraction Logic Broken: AliExpress DOM structure has changed. Maintenance Required.
-                        </p>
-                    </div>
-                )}
 
                 <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
                     <p className="text-[9px] font-medium text-slate-500">
@@ -403,7 +344,7 @@ const SupplierSourcing = () => {
             <SourcingStatusHeader 
                 state={loading ? 'searching' : 'results'} 
                 loading={loading} 
-                resultsCount={processedResults.length} 
+                resultsCount={products.length} 
                 isGlobal={false} 
             />
 
@@ -415,7 +356,7 @@ const SupplierSourcing = () => {
                             <div className="flex items-center gap-4">
                                <RefreshCw size={16} className="text-blue-500 animate-spin" />
                                <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
-                                  Analyzing Intent: <span className="italic text-blue-600">"{activeTier}"</span>
+                                  Analyzing Intent: <span className="italic">"{activeTier}"</span>
                                </span>
                             </div>
                             <span className="text-[9px] font-bold text-blue-400 uppercase">Tiered Search Active</span>
@@ -423,7 +364,7 @@ const SupplierSourcing = () => {
                     </motion.div>
                 )}
 
-                {!loading && (pipelineState.sources.aliexpress === 'EXTENSION_NOT_LOADED' || pipelineState.sources.eprolo === 'EXTENSION_NOT_LOADED') ? (
+                {!loading && (pipelineState.sources.aliexpress === 'EXTENSION_NOT_LOADED' || pipelineState.sources.eprolo === 'EXTENSION_NOT_LOADED') && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="bg-slate-100 border border-slate-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
                             <div className="flex items-center gap-5">
@@ -439,7 +380,7 @@ const SupplierSourcing = () => {
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                                 <button 
-                                    onClick={handleRetryConnection}
+                                    onClick={performSourcing}
                                     className="px-6 py-3 bg-white border border-slate-200 text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
                                 >
                                     <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Re-check Connection
@@ -453,34 +394,24 @@ const SupplierSourcing = () => {
                             </div>
                         </div>
                     </motion.div>
-                ) : !loading && !pipelineState.sources.aliexpress?.includes('EXTENSION_NOT_LOADED') && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') ? (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
-                            <div className="flex items-center gap-5">
-                                <div className="w-12 h-12 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
-                                    <ShieldAlert size={26} />
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Security Interruption Detected</h4>
-                                    <p className="text-[10px] font-medium text-amber-700/80 max-w-md">
-                                        AliExpress detection is strictly blocked by anti-bot measures. Switch to Global Scraper for browser-bypass discovery.
-                                    </p>
-                                </div>
+                )}
+
+                {/* --- 🔌 TECHNICAL ALERT BANNERS --- */}
+                {pipelineState.status === 'TECHNICAL_FAILURE' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-8">
+                        <div className="bg-red-600 border border-red-500 rounded-3xl p-6 flex items-center gap-6 shadow-xl animate-pulse">
+                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0">
+                                <AlertTriangle size={24} />
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                                <button 
-                                    onClick={handleRetryConnection}
-                                    className="px-6 py-3 bg-white border border-amber-200 text-amber-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors flex items-center gap-2 shadow-sm"
-                                >
-                                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Re-check Connection
-                                </button>
-                                <button onClick={handleExpandSearch} className="px-6 py-3 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors flex items-center gap-2">
-                                    Solve Blockage
-                                </button>
+                            <div className="space-y-1">
+                                <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Extraction Failure</h4>
+                                <p className="text-[10px] font-medium text-red-100 leading-relaxed uppercase leading-tight">
+                                    The local data parser encountered a structural mismatch. Maintenance required for: {pipelineState.sources.aliexpress === 'SUCCESS' ? 'Eprolo' : 'AliExpress'}.
+                                </p>
                             </div>
                         </div>
                     </motion.div>
-                ) : null}
+                )}
             </AnimatePresence>
 
             {/* Diagnostic Button */}
@@ -619,25 +550,10 @@ const SupplierSourcing = () => {
                         )}
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                            <button onClick={handleRetryConnection} className="w-full sm:w-auto px-12 py-5 bg-white border-2 border-slate-200 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all transform hover:scale-105 italic flex items-center justify-center gap-3 shadow-sm">
-                                <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> Re-check Connection
+                            <button onClick={performSourcing} className="w-full sm:w-auto px-12 py-5 bg-white border-2 border-slate-200 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all transform hover:scale-105 italic flex items-center justify-center gap-3 shadow-sm">
+                                <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Re-initiate Discovery"}
                             </button>
                             <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105 italic">Optimize Strategy</button>
-                            
-                            <div className="flex flex-col gap-3 w-full sm:w-auto">
-                                <button 
-                                    onClick={() => window.open(sourcingService.getGlobalSearchUrl('eprolo', searchQuery), '_blank')} 
-                                    className="w-full bg-emerald-500 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
-                                >
-                                    <Globe size={18} /> Search Eprolo Catalog
-                                </button>
-                                <button 
-                                    onClick={handleExpandSearch} 
-                                    className="w-full bg-slate-950 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl transform hover:scale-105 flex items-center justify-center gap-3"
-                                >
-                                    <Activity size={18} /> Forced Global Search
-                                </button>
-                            </div>
                         </div>
 
                         {/* WORKFLOW EDUCATION */}

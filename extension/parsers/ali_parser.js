@@ -5,39 +5,34 @@
 
 (function extractAliData() {
     try {
-        console.log("[Ali-Parser] v20.0 DOM-First Extraction...");
+        console.log("[Ali-Parser] v21.0 Trace: Extraction Started...");
 
-        // 1. PAGE TYPE GUARD (MANDATORY)
+        // 1. PAGE TYPE GUARD
         if (window.location.href.includes('/item/')) {
             console.warn("[Ali-Parser] Redirected to Item Page. Rejecting.");
-            return { status: "FAILED", error: "WRONG_PAGE_TYPE", source: "aliexpress" };
+            return { status: "FAILED", error: "WRONG_PAGE_TYPE", source: "aliexpress", products: [] };
         }
 
         // 2. DOM-FIRST LISTING EXTRACTION
-        // AliExpress uses different classes for listings. We try common ones.
         const cards = Array.from(document.querySelectorAll('a.search-card-item, div.multi--content--27-mG9D, .list-item, [class*="product-card"]'));
+        console.log(`[Ali-Parser] Found ${cards.length} potential listing cards.`);
         
-        const mapped = cards.map(card => {
+        const products = cards.map(card => {
             try {
-                // Title
                 const titleEl = card.querySelector('h1, h3, div[class*="title"], div.multi--title--17ia79C');
                 const title = titleEl?.innerText?.trim() || card.getAttribute('aria-label');
                 
-                // Price
                 const priceEl = card.querySelector('div[class*="price-current"], div.multi--price-sale--1_vS_91, [class*="price"]');
                 const priceMatch = (priceEl?.innerText || "").match(/[\d.]+/);
                 const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
 
-                // Image
                 const imgEl = card.querySelector('img');
                 const image = imgEl?.src || "";
 
-                // Rating (ALi-specific)
                 const ratingEl = card.querySelector('div[class*="rating"], span[class*="rating"], div.multi--star--2-O1e_J');
                 const ratingMatch = (ratingEl?.innerText || "").match(/[\d.]+/);
                 const rating = ratingMatch ? parseFloat(ratingMatch[0]) : 0;
 
-                // URL
                 const linkEl = card.tagName === 'A' ? card : card.querySelector('a');
                 let url = linkEl?.href || "";
                 if (url && !url.startsWith('http')) url = "https:" + url;
@@ -53,22 +48,22 @@
                     images: [image],
                     source: "aliexpress",
                     url,
-                    rating,
-                    status: "SUCCESS"
+                    rating
                 };
             } catch (e) { return null; }
         }).filter(i => i && i.title.length > 5);
 
-        if (mapped.length > 0) {
-            console.log(`[Ali-Parser] Successfully extracted ${mapped.length} listings.`);
-            return { status: "SUCCESS", source: "aliexpress", data: mapped };
+        if (products.length > 0) {
+            console.log(`[Ali-Parser] Success: Extracted ${products.length} products.`);
+            return { status: "SUCCESS", source: "aliexpress", products };
         }
 
-        // 3. RUNPARAMS FALLBACK (Deterministic Legacy)
+        // 3. RUNPARAMS FALLBACK
         const runParams = window.runParams || {};
-        const items = runParams.items || runParams.data?.items || runParams.mods?.itemList?.content || [];
-        if (items.length > 0) {
-            const legacyMapped = items.map(item => ({
+        const rawItems = runParams.items || runParams.data?.items || runParams.mods?.itemList?.content || [];
+        if (rawItems.length > 0) {
+            console.log("[Ali-Parser] Fallback to runParams detected items.");
+            const fallbackProducts = rawItems.map(item => ({
                 id: item.productId,
                 title: (item.title || item.productTitle || "").trim(),
                 price: parseFloat(item.price?.salePrice || item.prices?.salePrice || 0),
@@ -77,12 +72,14 @@
                 url: item.productDetailUrl || `https://www.aliexpress.com/item/${item.productId}.html`,
                 rating: parseFloat(item.starRating || 0)
             })).filter(i => i.title);
-            if (legacyMapped.length > 0) return { status: "SUCCESS", source: "aliexpress", data: legacyMapped };
+            if (fallbackProducts.length > 0) return { status: "SUCCESS", source: "aliexpress", products: fallbackProducts };
         }
 
-        return { status: "FAILED", error: "NO_LISTINGS_FOUND", source: "aliexpress" };
+        console.warn("[Ali-Parser] Failure: No products found in DOM or state.");
+        return { status: "FAILED", error: "EMPTY_LISTING", source: "aliexpress", products: [] };
 
     } catch (e) {
-        return { status: "FAILED", error: "PARSER_FAILURE", message: e.message, source: "aliexpress" };
+        console.error("[Ali-Parser] Critical Failure:", e.message);
+        return { status: "FAILED", error: "PARSER_FAILURE", message: e.message, source: "aliexpress", products: [] };
     }
 })();

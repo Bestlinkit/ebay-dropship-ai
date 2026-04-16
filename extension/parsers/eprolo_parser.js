@@ -1,30 +1,26 @@
 /**
- * Eprolo Parser (v20.0 - Catalog Specialist)
+ * Eprolo Parser (v21.0 - Schema Hardened)
  */
 
 (function extractEproloData() {
     try {
-        console.log("[Eprolo-Parser] v20.0 Catalog Extraction...");
+        console.log("[Eprolo-Parser] v21.0 Trace: Extraction Started...");
 
-        // Prioritize the new Dashboard/Catalog layout containers
         const containers = Array.from(document.querySelectorAll('.product-item, .product-list-item, div[class*="product-card"], .product-content, .el-card'));
+        console.log(`[Eprolo-Parser] Found ${containers.length} containers.`);
         
-        const items = containers.map(el => {
+        const products = containers.map(el => {
             try {
-                // Title Extraction
                 const titleEl = el.querySelector('h3, .title, a[class*="title"], div.product-name, div[class*="name"]');
                 const title = titleEl?.innerText?.trim();
                 
-                // Price Extraction (Looking for sell-price or numeric spans)
                 const priceEl = el.querySelector('.sell-price, .price, .wholesale-price, span[class*="price"], div[class*="price"]');
                 const priceMatch = (priceEl?.innerText || "").match(/[\d.]+/);
                 const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
 
-                // Image Extraction
                 const imgEl = el.querySelector('img');
                 const image = imgEl?.src || "";
 
-                // Link Extraction
                 const linkEl = el.querySelector('a');
                 const url = linkEl?.href || window.location.href;
 
@@ -44,14 +40,16 @@
             } catch (e) { return null; }
         }).filter(i => i !== null);
 
-        if (items.length > 0) {
-            console.log(`[Eprolo-Parser] Successfully extracted ${items.length} items.`);
-            return { status: "SUCCESS", source: "eprolo", data: items };
+        if (products.length > 0) {
+            console.log(`[Eprolo-Parser] Success: Extracted ${products.length} products.`);
+            return { status: "SUCCESS", source: "eprolo", products };
         }
 
-        return { status: "FAILED", error: "NO_LISTINGS_FOUND", source: "eprolo" };
+        console.warn("[Eprolo-Parser] Failure: No products found.");
+        return { status: "FAILED", error: "NO_PRODUCTS_FOUND", source: "eprolo", products: [] };
 
     } catch (e) {
-        return { status: "FAILED", error: "PARSER_FAILURE", message: e.message, source: "eprolo" };
+        console.error("[Eprolo-Parser] Critical Failure:", e.message);
+        return { status: "FAILED", error: "PARSER_FAILURE", message: e.message, source: "eprolo", products: [] };
     }
 })();

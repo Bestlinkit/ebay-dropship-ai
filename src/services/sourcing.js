@@ -240,42 +240,40 @@ class SourcingService {
    * Runs through search tiers until inventory is discovered.
    */
   async runIterativePipeline(context, fetchers) {
-    const { query, tiers } = context;
-    const searchSequence = tiers.length > 0 ? tiers : [query];
+    const { query, originalQuery } = context;
+    
+    // v21.0: If extension is active, we bypass tiers and use the full original title
+    // This prevents the "soap" override bug.
+    const searchSequence = originalQuery ? [originalQuery] : [query];
     
     let finalResult = {
         status: 'EMPTY',
         sources: { eprolo: 'PENDING', aliexpress: 'PENDING' },
         telemetry: { eprolo: null, aliexpress: null },
-        data: [],
+        products: [],
         successfulTier: null
     };
 
-    console.log(`[Iterative Search] Starting tiers:`, searchSequence);
+    console.log(`[Iterative Search] v21.0 Mode: Using Full Query -> "${searchSequence[0]}"`);
 
     for (const tierQuery of searchSequence) {
-        console.log(`[Iterative Search] Attempting Tier: "${tierQuery}"`);
-        
         const result = await this.runUnifiedPipeline({ query: tierQuery, targetPrice: context.targetPrice }, fetchers(tierQuery));
         
-        // Merge telemetry
         finalResult.telemetry = { ...finalResult.telemetry, ...result.telemetry };
         finalResult.sources = { ...finalResult.sources, ...result.sources };
 
-        if (result.data.length > 0) {
+        if (result.products.length > 0) {
             finalResult = {
                 ...finalResult,
                 status: result.status,
-                data: result.data,
-                successfulTier: tierQuery,
-                isFallback: tierQuery === tiers[tiers.length - 1] && tiers.length > 1
+                products: result.products,
+                successfulTier: tierQuery
             };
             break; 
         }
 
-        // If even the last tier fails, check if we had any technical failures
         if (tierQuery === searchSequence[searchSequence.length - 1]) {
-            const hasTechFailure = Object.values(result.sources).some(s => ['PARSE_FAILURE', 'BLOCKED_RESPONSE', 'API_ERROR'].includes(s));
+            const hasTechFailure = Object.values(result.sources).some(s => ['PARSE_FAILURE', 'PARSER_FAILURE', 'EMPTY_LISTING', 'WRONG_PAGE_TYPE'].includes(s));
             finalResult.status = hasTechFailure ? 'TECHNICAL_FAILURE' : 'BROADER_CATEGORY_REQUIRED';
         }
     }
@@ -305,19 +303,18 @@ class SourcingService {
     };
 
     let status = this.Status.COMPLETE;
-    if (Object.values(sources).some(s => s === 'FAILED' || s === 'BLOCKED' || s === 'BLOCKED_RESPONSE' || s === 'PARSE_FAILURE')) status = this.Status.PARTIAL;
-    if (Object.values(sources).every(s => s === 'FAILED' || s === 'BLOCKED' || s === 'BLOCKED_RESPONSE' || s === 'PARSE_FAILURE')) status = 'SYSTEM_DOWN';
+    if (Object.values(sources).some(s => s !== 'SUCCESS' && s !== 'OK')) status = this.Status.PARTIAL;
 
-    const rawData = [
-      ...(eproloRes.status === 'fulfilled' ? (eproloRes.value.data || []) : []),
-      ...(aliRes.status === 'fulfilled' ? (aliRes.value.data || []) : [])
+    const rawProducts = [
+      ...(eproloRes.status === 'fulfilled' ? (eproloRes.value.products || []) : []),
+      ...(aliRes.status === 'fulfilled' ? (aliRes.value.products || []) : [])
     ];
 
     return {
       status,
       sources,
       telemetry,
-      data: this.dedupe(rawData)
+      products: this.dedupe(rawProducts)
     };
   }
 
