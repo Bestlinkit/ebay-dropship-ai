@@ -1,27 +1,37 @@
 /**
- * Drop-AI App Bridge (v19.0)
- * Injected into http://localhost:5173 (React App)
+ * Drop-AI Project-to-Extension Bridge (v19.4)
+ * Listens for window messages from the React app and relays to the background script.
  */
 
-console.log("[Bridge] Initialized on App Domain.");
+console.log("[DropAI-Bridge] Unified Bridge v19.4 Active");
 
+// 1. Listen for project-side requests
 window.addEventListener("message", (event) => {
-    // Only accept messages from the same window
+    // SECURITY: Only accept messages from our own window
     if (event.source !== window) return;
 
-    if (event.data.type === "EXT_SEARCH_REQUEST") {
-        const { source, query, requestId } = event.data;
-        
-        console.log(`[Bridge] Relaying ${source} search to Background...`);
+    // A. HEARTBEAT (PING)
+    if (event.data.type === "EXT_PING") {
+        console.log("[DropAI-Bridge] Heartbeat PING received.");
+        window.postMessage({ type: "EXT_PONG" }, "*");
+        return;
+    }
 
-        chrome.runtime.sendMessage({ type: "SUPPLIER_SEARCH", source, query, requestId }, (response) => {
-            console.log(`[Bridge] Received response from Extension Core:`, response);
+    // B. SEARCH REQUEST
+    if (event.data.type === "EXT_SEARCH_REQUEST") {
+        console.log("[DropAI-Bridge] Relay SEARCH:", event.data.query);
+        
+        // Relay to background.js
+        chrome.runtime.sendMessage(event.data, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error("[DropAI-Bridge] Messaging Error:", chrome.runtime.lastError.message);
+                return;
+            }
             
-            // Send back to the React app
+            // Send response back to project
             window.postMessage({
-                type: "SUPPLIER_DATA_RESPONSE",
-                payload: response,
-                requestId: requestId
+                type: "EXT_SEARCH_RESPONSE",
+                ...response
             }, "*");
         });
     }

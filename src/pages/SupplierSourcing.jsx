@@ -394,7 +394,26 @@ const SupplierSourcing = () => {
                     </motion.div>
                 )}
 
-                {!loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') && (
+                {!loading && (pipelineState.sources.aliexpress === 'EXTENSION_NOT_LOADED' || pipelineState.sources.eprolo === 'EXTENSION_NOT_LOADED') ? (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="bg-slate-100 border border-slate-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
+                            <div className="flex items-center gap-5">
+                                <div className="w-12 h-12 bg-slate-900/5 text-slate-900 rounded-xl flex items-center justify-center shrink-0">
+                                    <Globe size={26} className="text-slate-400" />
+                                </div>
+                                <div className="space-y-1">
+                                    <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">Drop-AI Extension Disconnected</h4>
+                                    <p className="text-[10px] font-medium text-slate-600 max-w-md italic">
+                                        The browser data bridge is not active. Please ensure the extension is loaded in Chrome Developer Mode and refresh the page.
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => window.open('https://github.com/Bestlinkit/ebay-dropship-ai/tree/main/extension#setup', '_blank')} className="px-6 py-3 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors shrink-0 flex items-center gap-2">
+                                <Info size={12} /> View Setup Guide
+                            </button>
+                        </div>
+                    </motion.div>
+                ) : !loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') ? (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
                             <div className="flex items-center gap-5">
@@ -404,9 +423,7 @@ const SupplierSourcing = () => {
                                 <div className="space-y-1">
                                     <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Security Interruption Detected</h4>
                                     <p className="text-[10px] font-medium text-amber-700/80 max-w-md">
-                                        {pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE'
-                                            ? "AliExpress detection is strictly blocked by anti-bot measures. Switch to Global Scraper for browser-bypass discovery." 
-                                            : "One or more supplier nodes are offline (API Error). Displaying available catalog matches."}
+                                        AliExpress detection is strictly blocked by anti-bot measures. Switch to Global Scraper for browser-bypass discovery.
                                     </p>
                                 </div>
                             </div>
@@ -415,7 +432,7 @@ const SupplierSourcing = () => {
                             </button>
                         </div>
                     </motion.div>
-                )}
+                ) : null}
             </AnimatePresence>
 
             {/* Diagnostic Button */}
@@ -508,11 +525,11 @@ const SupplierSourcing = () => {
                             <div className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
                                 {pipelineState.status === 'TECHNICAL_FAILURE' ? (
                                     <>
-                                        One or more supplier nodes are reporting a technical configuration or security error. 
+                                        One or more supplier nodes are reporting a technical connectivity fault. 
                                         <br />
-                                        <span className="text-red-600 font-bold uppercase text-xs tracking-widest">
-                                            Fault Type: {pipelineState.sources.eprolo === 'CONFIG_ERROR' ? 'Eprolo Not Configured' : 
-                                                        pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' ? 'AliExpress Blocked Request' : 'Extraction Failure'}
+                                        <span className="text-slate-900 font-bold uppercase text-xs tracking-widest">
+                                            {pipelineState.sources.aliexpress === 'EXTENSION_NOT_LOADED' || pipelineState.sources.eprolo === 'EXTENSION_NOT_LOADED'
+                                                ? 'Local Extension Connection Failed' : 'Security Access Token Expired'}
                                         </span>
                                     </>
                                 ) : (

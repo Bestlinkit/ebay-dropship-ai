@@ -33,7 +33,11 @@ class AliExpressService {
             };
         }
 
-        // 🚨 FAILURE HANDLING (v19.0 Rules)
+        // 🚨 FAILURE HANDLING (v19.4 Rules)
+        if (result.status === "EXTENSION_NOT_LOADED") {
+            return { status: SourcingStatus.EXTENSION_NOT_LOADED, data: [], debugInfo: result };
+        }
+
         return {
             status: result.status === "TIMEOUT" ? SourcingStatus.NETWORK_ERROR : SourcingStatus.API_ERROR,
             data: [],

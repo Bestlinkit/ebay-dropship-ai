@@ -1,11 +1,10 @@
 /**
- * Drop-AI Background Orchestration Engine (v19.2)
- * GUARANTEED DETERMINISTIC LIFECYCLE
+ * Drop-AI Background Orchestration Engine (v19.4)
+ * FAST-PATH DETERMINISTIC LIFECYCLE
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "SUPPLIER_SEARCH") {
-        // [v19.2] GUARANTEED RESPONSE PATH
         (async () => {
             try {
                 const result = await handleSearch(request);
@@ -19,7 +18,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 });
             }
         })();
-        return true; // Keep channel open
+        return true;
     }
 });
 
@@ -39,49 +38,32 @@ async function handleSearch(request) {
     let tabId = null;
 
     try {
-        // 1. OPEN TAB
+        // 1. OPEN TAB (Faster create & active)
         const tab = await chrome.tabs.create({ url: targetUrl, active: true });
         tabId = tab.id;
 
-        // 2. WAIT FOR COMPLETION (EVENT-BASED)
-        await waitForTabComplete(tabId);
+        // 2. LOOSER WAIT (Wait 1.5s max vs 10s 'complete')
+        // [v19.4] Most pages are interactive enough after 1.5-2.5s to extract runParams.
+        await new Promise(r => setTimeout(r, 2000));
 
-        // 3. INJECT & EXTRACT (ATOMIC)
+        // 3. ATOMIC INJECTION
         const parserFile = source === "aliexpress" ? "parsers/ali_parser.js" : "parsers/eprolo_parser.js";
-        const [{ result }] = await chrome.scripting.executeScript({
+        const results = await chrome.scripting.executeScript({
             target: { tabId },
             files: [parserFile]
         });
 
+        const extractionResult = results?.[0]?.result;
+
         // 4. CLEANUP (ALWAYS)
         if (tabId) await chrome.tabs.remove(tabId);
 
-        return { ...result, requestId };
+        if (!extractionResult) throw new Error("EXTRACTION_NULL");
+        
+        return { ...extractionResult, requestId };
 
     } catch (e) {
-        if (tabId) chrome.tabs.remove(tabId);
+        if (tabId) chrome.tabs.remove(tabId).catch(() => {});
         return { status: "FAILED", error: e.message, requestId };
     }
-}
-
-/**
- * Deterministic Tab Load Wait
- */
-function waitForTabComplete(tabId) {
-    return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            chrome.tabs.onUpdated.removeListener(listener);
-            reject(new Error("Tab load timed out (10s)"));
-        }, 10000);
-
-        const listener = (tid, changeInfo) => {
-            if (tid === tabId && changeInfo.status === 'complete') {
-                chrome.tabs.onUpdated.removeListener(listener);
-                clearTimeout(timeout);
-                resolve();
-            }
-        };
-
-        chrome.tabs.onUpdated.addListener(listener);
-    });
 }

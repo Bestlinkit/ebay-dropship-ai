@@ -1,28 +1,56 @@
 /**
- * Drop-AI Extension Connector Service (v19.0)
+ * Drop-AI Extension Connector Service (v19.4)
  * Singleton to manage the window.postMessage bridge with the Chrome Extension.
+ * FEATURES: Instant Heartbeat Detection & Standardized Relays.
  */
 
 class ExtensionConnector {
     constructor() {
         this.pendingRequests = new Map();
+        this.pongResolvers = [];
         this.isInitialized = false;
 
-        // BIND LISTENER
         if (typeof window !== "undefined") {
             window.addEventListener("message", this.handleMessage.bind(this));
             this.isInitialized = true;
-            console.log("[Ext-Connector] Listening for Bridge Responses...");
+            console.log("[Ext-Connector] Unified Connector v19.4 Ready");
         }
     }
 
     /**
-     * REQUEST DATA FROM EXTENSION (v19.2 - Deterministic with React Retries)
-     * @param {string} source - 'aliexpress' | 'eprolo'
-     * @param {string} query - The search keyword
+     * Heartbeat Check (v19.4)
+     * Verifies if bridge.js is active within 200ms.
+     */
+    async isExtensionActive() {
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => {
+                // Remove this specific resolver if it's still there
+                this.pongResolvers = this.pongResolvers.filter(r => r !== resolver);
+                resolve(false);
+            }, 200);
+
+            const resolver = () => {
+                clearTimeout(timer);
+                resolve(true);
+            };
+
+            this.pongResolvers.push(resolver);
+            window.postMessage({ type: "EXT_PING" }, "*");
+        });
+    }
+
+    /**
+     * REQUEST DATA FROM EXTENSION
      */
     async request(source, query) {
         if (!this.isInitialized) return { status: "INIT_ERROR", error: "Not in browser context" };
+
+        // 1. INSTANT HEARTBEAT CHECK
+        const isActive = await this.isExtensionActive();
+        if (!isActive) {
+            console.error("[Ext-Connector] Extension NOT DETECTED.");
+            return { status: "EXTENSION_NOT_LOADED", error: "Extension not detected" };
+        }
 
         const maxAttempts = 2;
 
@@ -30,19 +58,14 @@ class ExtensionConnector {
             console.log(`[Ext-Connector] Starting Attempt ${attempt}/${maxAttempts} for ${source}: ${query}`);
             
             try {
-                const response = await this.singleRequest(source, query, 12000); // 12s stop
+                const response = await this.singleRequest(source, query, 8000); // 8s stop per attempt
 
-                // SUCCESS: Return immediately
-                if (response.status === "SUCCESS") {
-                    return response;
-                }
+                if (response.status === "SUCCESS") return response;
 
-                // FAILURE: LOG and RETRY if possible
                 console.warn(`[Ext-Connector] Attempt ${attempt} FAILED:`, response.error || response.status);
                 
                 if (attempt < maxAttempts) {
-                    console.log(`[Ext-Connector] Retrying in 1.5s...`);
-                    await new Promise(r => setTimeout(r, 1500));
+                    await new Promise(r => setTimeout(r, 1000));
                 }
 
             } catch (e) {
@@ -83,18 +106,26 @@ class ExtensionConnector {
      * HANDLE RESPONSES FROM BRIDGE
      */
     handleMessage(event) {
-        if (event.source !== window || event.data.type !== "SUPPLIER_DATA_RESPONSE") return;
+        if (event.source !== window) return;
 
-        const { payload, requestId } = event.data;
-        
-        if (this.pendingRequests.has(requestId)) {
-            const { resolve, timer } = this.pendingRequests.get(requestId);
-            clearTimeout(timer);
+        // A. Handle Heartbeat PONG
+        if (event.data.type === "EXT_PONG") {
+            const resolvers = [...this.pongResolvers];
+            this.pongResolvers = [];
+            resolvers.forEach(r => r());
+            return;
+        }
+
+        // B. Handle Search Response
+        if (event.data.type === "EXT_SEARCH_RESPONSE") {
+            const { requestId, status, data, error } = event.data;
             
-            console.log(`[Ext-Connector] Received SUCCESS for ${requestId}. Result count: ${payload.data?.length || 0}`);
-            
-            this.pendingRequests.delete(requestId);
-            resolve(payload);
+            if (this.pendingRequests.has(requestId)) {
+                const { resolve, timer } = this.pendingRequests.get(requestId);
+                clearTimeout(timer);
+                this.pendingRequests.delete(requestId);
+                resolve({ status, data, error });
+            }
         }
     }
 }
