@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Drop-AI Data Bridge",
+  "version": "1.0.0",
+  "description": "High-fidelity product extraction for AliExpress and Eprolo.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.aliexpress.com/*",
+    "*://*.eprolo.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:5173/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Drop-AI Bridge Status"
+  }
+}

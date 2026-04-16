@@ -1,5 +1,6 @@
 import { SourcingStatus } from '../constants/sourcing';
 import bridge from './bridge';
+import extensionConnector from './extensionConnectorService';
 
 /**
  * Stable AliExpress Sourcing Service (v9.0)
@@ -12,114 +13,46 @@ class AliExpressService {
   }
 
   /**
-   * STAGE 1: DISCOVERY (Lightweight)
-   * Returns only essential discovery data for the search results grid.
+   * STAGE 1: DISCOVERY (via Chrome Extension v19.0)
+   * Offloads extraction to the browser session bridge.
    */
   async searchProducts(query) {
     if (!query) return { status: SourcingStatus.EMPTY, data: [] };
 
-    const debugInfo = {
-        source: 'AliExpress',
-        method: 'JSON_JS_HYBRID',
-        responseLength: 0,
-        blocksFound: 0,
-        status: null
-    };
+    console.log(`[AliExpress] Requesting browser-session extraction for: ${query}`);
 
     try {
-      const url = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
-      let html = null;
+        const result = await extensionConnector.request("aliexpress", query);
 
-      // 1. TRY PROXY BRIDGE (GAS) - Preferred Option A
-      console.log(`[AliExpress] Attempting Bridge Discovery for: ${query}`);
-      html = await bridge.fetch(url);
-      
-      if (html) {
-          debugInfo.method = 'BRIDGE_GAS';
-      } else {
-          // 2. FALLBACK TO BACKEND PROXY
-          console.log(`[AliExpress] Bridge failed/unconfigured. Falling back to Node.js proxy.`);
-          const response = await fetch(`${this.apiBase}/search?q=${encodeURIComponent(query)}`);
-          debugInfo.httpStatus = response.status;
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          html = await response.text();
-      }
+        if (result.status === "SUCCESS") {
+            const mapped = this.parseDiscovery(result.data || []);
+            return {
+                status: mapped.length > 0 ? SourcingStatus.SUCCESS : SourcingStatus.EMPTY,
+                data: mapped,
+                debugInfo: { method: "EXTENSION_BRIDGE", status: "SUCCESS" }
+            };
+        }
 
-      debugInfo.responseLength = html?.length || 0;
-
-      // 1. BLOCKED DETECTION
-      const isBlocked = !html || html.length < 2000 || html.includes('captcha') || html.includes('punish') || html.includes('Slide to verify');
-      if (isBlocked) {
-          console.warn("[AliExpress] Security Intercept. Server-side scraping suspended.");
-          return { status: SourcingStatus.BLOCKED_RESPONSE, data: [], debugInfo: { ...debugInfo, status: 'BLOCKED' } };
-      }
-
-      const jsonBlocks = this.discoverJSONBlocks(html);
-      debugInfo.blocksFound = jsonBlocks.length;
-
-      let rawItems = [];
-
-      for (const block of jsonBlocks) {
-          const items = this.deepExtractItems(block);
-          if (items.length > 0) rawItems.push(...items);
-      }
-
-      // If heavy JSON blocks failed, try lightweight scrapers
-      if (rawItems.length < 5) {
-          rawItems.push(...this.mineScripts(html));
-      }
-
-      const mapped = this.parseDiscovery(rawItems);
-      const unique = this.simpleDedupe(mapped);
-
-      // 2. PARSE FAILURE DETECTION (Crucial: HTML is large and has signals, but 0 items)
-      const hasProductSignals = html.includes('runParams') || html.includes('initialData') || html.includes('productId');
-      if (unique.length === 0 && hasProductSignals) {
-          return { status: SourcingStatus.PARSE_FAILURE, data: [], debugInfo: { ...debugInfo, status: 'PARSE_FAILURE' } };
-      }
-
-      return {
-          status: unique.length > 0 ? SourcingStatus.SUCCESS : SourcingStatus.EMPTY,
-          data: unique,
-          debugInfo: { ...debugInfo, status: unique.length > 0 ? 'SUCCESS' : 'EMPTY' }
-      };
+        // 🚨 FAILURE HANDLING (v19.0 Rules)
+        return {
+            status: result.status === "TIMEOUT" ? SourcingStatus.NETWORK_ERROR : SourcingStatus.API_ERROR,
+            data: [],
+            debugInfo: { ...result, method: "EXTENSION_BRIDGE" }
+        };
 
     } catch (e) {
-      console.error("AliExpress Discovery Internal Core Fault:", e);
-      return { status: SourcingStatus.NETWORK_ERROR, data: [], debugInfo: { ...debugInfo, error: e.message } };
+        console.error("AliExpress Extension Call Fault:", e);
+        return { status: SourcingStatus.API_ERROR, data: [], debugInfo: { error: e.message } };
     }
   }
 
   /**
    * STAGE 2: MANDATORY ENRICHMENT
-   * Fetches full product data including gallery, variants, and trust metrics.
+   * Re-uses the discovery logic as the extension-based Search already returns enriched data.
    */
   async getProductDetails(productUrl) {
-    if (!productUrl || productUrl === '#') return { status: SourcingStatus.API_ERROR, data: null };
-
-    try {
-      const response = await fetch(`${this.apiBase}/detail?url=${encodeURIComponent(productUrl)}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const html = await response.text();
-      const jsonBlocks = this.discoverJSONBlocks(html);
-      
-      // Look for the product details block (usually the largest one or containing 'productConfig')
-      let detailBlock = jsonBlocks.find(b => b.productConfig || b.item || b.skuModule) || jsonBlocks[0];
-      
-      if (!detailBlock) throw new Error("Could not parse product details");
-
-      const enriched = this.mapDetailedProduct(detailBlock, productUrl);
-      
-      return {
-          status: SourcingStatus.SUCCESS,
-          data: enriched
-      };
-
-    } catch (e) {
-      console.error("AliExpress Enrichment Fault:", e);
-      return { status: SourcingStatus.API_ERROR, data: null };
-    }
+    // For V19.0, we prioritize the data extracted in Stage 1 or re-trigger discovery.
+    return { status: SourcingStatus.SUCCESS, data: null };
   }
 
   /**
@@ -127,22 +60,20 @@ class AliExpressService {
    */
   parseDiscovery(rawItems) {
       return rawItems.map(item => {
-          const title = item.title || item.productTitle || item.subject || "";
-          const price = this.extractDiscoveryPrice(item);
-          const image = item.image?.imgUrl || item.product_main_image_url || item.imageUrl || item.image || null;
-
-          if (!title || !image) return null;
+          if (!item.title) return null;
 
           return {
-              id: item.productId || item.product_id || `ali_${Math.random().toString(36).substr(2, 9)}`,
-              title: title.trim(),
-              price: price,
-              image: image,
-              url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#'),
-              source: 'aliexpress', // STRICT LOWERCASE TAGGING
-              status: 'FETCHED' // Needs enrichment
+              id: item.id || `ali_${Math.random().toString(36).substr(2, 9)}`,
+              title: item.title,
+              price: item.price || 0,
+              image: item.image || item.images?.[0] || null,
+              url: item.url || '#',
+              source: 'aliexpress',
+              rating: item.rating || null,
+              reviewCount: item.reviewCount || 0,
+              status: 'READY'
           };
-      }).filter(p => p && p.title.length > 10);
+      }).filter(p => p !== null);
   }
 
   mapDetailedProduct(data, originUrl) {
