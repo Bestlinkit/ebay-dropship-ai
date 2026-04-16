@@ -17,35 +17,59 @@ class ExtensionConnector {
     }
 
     /**
-     * REQUEST DATA FROM EXTENSION
+     * REQUEST DATA FROM EXTENSION (v19.2 - Deterministic with React Retries)
      * @param {string} source - 'aliexpress' | 'eprolo'
      * @param {string} query - The search keyword
-     * @param {number} timeout - Fail limit (ms)
      */
-    async request(source, query, timeout = 20000) {
+    async request(source, query) {
         if (!this.isInitialized) return { status: "INIT_ERROR", error: "Not in browser context" };
 
+        const maxAttempts = 2;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            console.log(`[Ext-Connector] Starting Attempt ${attempt}/${maxAttempts} for ${source}: ${query}`);
+            
+            try {
+                const response = await this.singleRequest(source, query, 12000); // 12s stop
+
+                // SUCCESS: Return immediately
+                if (response.status === "SUCCESS") {
+                    return response;
+                }
+
+                // FAILURE: LOG and RETRY if possible
+                console.warn(`[Ext-Connector] Attempt ${attempt} FAILED:`, response.error || response.status);
+                
+                if (attempt < maxAttempts) {
+                    console.log(`[Ext-Connector] Retrying in 1.5s...`);
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+
+            } catch (e) {
+                console.error(`[Ext-Connector] Attempt ${attempt} CRASHED:`, e);
+                if (attempt === maxAttempts) throw e;
+            }
+        }
+
+        return { status: "FAILED", error: `Failed after ${maxAttempts} attempts.` };
+    }
+
+    /**
+     * Single Attempt Logic
+     */
+    async singleRequest(source, query, timeout) {
         const requestId = `${source}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         
         return new Promise((resolve) => {
-            // 1. SETUP TIMEOUT
             const timer = setTimeout(() => {
                 if (this.pendingRequests.has(requestId)) {
-                    console.error(`[Ext-Connector] Request ${requestId} TIMEOUT.`);
                     this.pendingRequests.delete(requestId);
-                    resolve({ 
-                        status: "TIMEOUT", 
-                        error: "Extension did not respond in time.",
-                        source 
-                    });
+                    resolve({ status: "TIMEOUT", error: "EXTENSION_HANG", source });
                 }
             }, timeout);
 
-            // 2. REGISTER PENDING REQUEST
             this.pendingRequests.set(requestId, { resolve, timer });
 
-            // 3. SEND TO BRIDGE
-            console.log(`[Ext-Connector] Sending REQUEST ${requestId} for ${query}...`);
             window.postMessage({
                 type: "EXT_SEARCH_REQUEST",
                 source,

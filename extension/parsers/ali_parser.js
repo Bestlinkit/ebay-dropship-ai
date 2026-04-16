@@ -1,11 +1,11 @@
 /**
- * AliExpress Parser (v19.0)
- * Executed in the context of the AliExpress Search/Product page.
+ * AliExpress Parser (v19.2)
+ * DETERMINISTIC EXTRACTION (No sleeps)
  */
 
 (function extractAliData() {
     try {
-        console.log("[Ali-Parser] Extraction Initiated...");
+        console.log("[Ali-Parser] Deterministic Extraction Initiated...");
 
         // Layer 1: SEARCH RESULTS (wholesale pages)
         const runParams = window.runParams || {};
@@ -15,7 +15,6 @@
                       [];
 
         if (items.length > 0) {
-            console.log(`[Ali-Parser] Found ${items.length} results in runParams.`);
             const mapped = items.map(item => ({
                 id: item.productId || item.product_id,
                 title: (item.title || item.productTitle || item.subject || "").trim(),
@@ -28,13 +27,13 @@
                 rating: parseFloat(item.starRating || item.avgRating || item.evaluation?.starRating || 0),
                 reviewCount: parseInt(item.tradeCount || item.feedbackCount || item.evaluation?.totalCount || 0),
                 shipping: item.logistics?.shippingFee === 0 ? "Free Shipping" : (item.logistics?.amount || ""),
-                variants: [], // Summary doesn't need full variants
+                variants: [],
             })).filter(i => i.title);
 
-            return { status: "SUCCESS", source: "aliexpress", data: mapped };
+            if (mapped.length > 0) return { status: "SUCCESS", source: "aliexpress", data: mapped };
         }
 
-        // Layer 2: PRODUCT DETAIL PAGE (If user clicked a specific link)
+        // Layer 2: PRODUCT DETAIL PAGE
         const detailParams = window._initial_data_ || window.runParams || {};
         if (detailParams.productConfig || detailParams.item) {
             const item = detailParams.item || detailParams.productConfig;
@@ -56,7 +55,7 @@
             };
         }
 
-        // Layer 3: DOM FALLBACK (If script tags are obfuscated)
+        // Layer 3: DOM FALLBACK
         const domItems = Array.from(document.querySelectorAll('.list-item, [class*="product-card"]')).map(el => {
             return {
                 title: el.querySelector('h1, a[class*="title"]')?.innerText?.trim(),
@@ -71,11 +70,10 @@
             return { status: "SUCCESS", source: "aliexpress", data: domItems };
         }
 
-        // PENDING STATE
-        return { status: "PENDING", source: "aliexpress" };
+        // NO DATA FOUND (Deterministic Failure)
+        return { status: "FAILED", error: "DATA_NOT_RENDERED", source: "aliexpress" };
 
     } catch (e) {
-        console.error("[Ali-Parser] Crash:", e);
-        return { status: "EXTRACTION_FAILED", error: e.message, source: "aliexpress" };
+        return { status: "FAILED", error: e.message, source: "aliexpress" };
     }
 })();

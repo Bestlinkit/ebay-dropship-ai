@@ -1,18 +1,31 @@
 /**
- * Drop-AI Background Orchestration Engine (v19.0)
- * Manages the lifecycle of supplier search sessions.
+ * Drop-AI Background Orchestration Engine (v19.2)
+ * GUARANTEED DETERMINISTIC LIFECYCLE
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "SUPPLIER_SEARCH") {
-        handleSearch(request).then(sendResponse);
-        return true; // Keep message channel open for async response
+        // [v19.2] GUARANTEED RESPONSE PATH
+        (async () => {
+            try {
+                const result = await handleSearch(request);
+                sendResponse(result);
+            } catch (err) {
+                console.error("[Bridge-BG] Critical Error:", err);
+                sendResponse({ 
+                    status: "FAILED", 
+                    error: err.message, 
+                    requestId: request.requestId 
+                });
+            }
+        })();
+        return true; // Keep channel open
     }
 });
 
 async function handleSearch(request) {
     const { source, query, requestId } = request;
-    console.log(`[Bridge-BG] Initiating ${source} search for: ${query}`);
+    console.log(`[Bridge-BG] Executing ${source} search: ${query}`);
 
     let targetUrl = "";
     if (source === "aliexpress") {
@@ -21,56 +34,54 @@ async function handleSearch(request) {
         targetUrl = `https://eprolo.com/app/newProductsCatalog.html?keyword=${encodeURIComponent(query)}&type=us`;
     }
 
-    if (!targetUrl) return { error: "INVALID_SOURCE", requestId };
+    if (!targetUrl) return { status: "FAILED", error: "INVALID_SOURCE", requestId };
+
+    let tabId = null;
 
     try {
-        // 1. CREATE VISIBLE TAB (Required for Ali automation-bypass)
+        // 1. OPEN TAB
         const tab = await chrome.tabs.create({ url: targetUrl, active: true });
-        
-        // 2. WAIT FOR COMPLETION (Polling or Message)
-        const result = await waitForExtraction(tab.id, source);
-        
-        // 3. CLEANUP
-        if (tab.id) chrome.tabs.remove(tab.id);
+        tabId = tab.id;
+
+        // 2. WAIT FOR COMPLETION (EVENT-BASED)
+        await waitForTabComplete(tabId);
+
+        // 3. INJECT & EXTRACT (ATOMIC)
+        const parserFile = source === "aliexpress" ? "parsers/ali_parser.js" : "parsers/eprolo_parser.js";
+        const [{ result }] = await chrome.scripting.executeScript({
+            target: { tabId },
+            files: [parserFile]
+        });
+
+        // 4. CLEANUP (ALWAYS)
+        if (tabId) await chrome.tabs.remove(tabId);
 
         return { ...result, requestId };
 
     } catch (e) {
-        console.error(`[Bridge-BG] Extraction Crash:`, e);
-        return { status: "EXTRACTION_FAILED", error: e.message, requestId };
+        if (tabId) chrome.tabs.remove(tabId);
+        return { status: "FAILED", error: e.message, requestId };
     }
 }
 
-async function waitForExtraction(tabId, source) {
-    return new Promise((resolve) => {
-        let attempts = 0;
-        const maxAttempts = 30; // 15 seconds (500ms intervals)
+/**
+ * Deterministic Tab Load Wait
+ */
+function waitForTabComplete(tabId) {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            reject(new Error("Tab load timed out (10s)"));
+        }, 10000);
 
-        const checkInterval = setInterval(async () => {
-            attempts++;
-            
-            try {
-                // INJECT PARSER ON DEMAND
-                const parserFile = source === "aliexpress" ? "parsers/ali_parser.js" : "parsers/eprolo_parser.js";
-                
-                const [{ result }] = await chrome.scripting.executeScript({
-                    target: { tabId },
-                    files: [parserFile]
-                });
-
-                if (result && result.status !== "PENDING") {
-                    clearInterval(checkInterval);
-                    resolve(result);
-                }
-            } catch (e) {
-                // Tab might still be loading or cross-origin
-                console.warn("[Bridge-BG] Script injection pending...");
+        const listener = (tid, changeInfo) => {
+            if (tid === tabId && changeInfo.status === 'complete') {
+                chrome.tabs.onUpdated.removeListener(listener);
+                clearTimeout(timeout);
+                resolve();
             }
+        };
 
-            if (attempts >= maxAttempts) {
-                clearInterval(checkInterval);
-                resolve({ status: "TIMEOUT", error: "Extraction took too long (15s limit)" });
-            }
-        }, 500);
+        chrome.tabs.onUpdated.addListener(listener);
     });
 }
