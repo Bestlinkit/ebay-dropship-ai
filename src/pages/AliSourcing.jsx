@@ -120,13 +120,13 @@ const AliSourcing = () => {
 
         try {
             // STAGE 2: ENRICHMENT (Only if not already enriched by search pipeline)
-            let enrichment = { status: SourcingStatus.SUCCESS, data: supplierProduct };
+            let enrichment = { status: 'SUCCESS', data: supplierProduct };
             
             if (!supplierProduct.enriched) {
                 enrichment = await aliexpressService.getProductDetails(supplierProduct.url);
             }
             
-            // SAFE MERGE LOGIC (v7.0)
+            // SAFE MERGE LOGIC (v7.2)
             const data = enrichment.data || {};
             const finalProduct = {
                 ...supplierProduct,
@@ -141,6 +141,10 @@ const AliSourcing = () => {
                 sourceType: 'manual_aliexpress'
             };
 
+            // 🚨 6. ARRAY SAFETY GUARDS
+            const firstImage = finalProduct?.images?.[0] || finalProduct?.image || "";
+            const firstVariant = finalProduct?.variants?.[0] || null;
+
             if (enrichment.status === 'PARTIAL_DATA') {
                 toast.warning("Limited data available. Some fields may be missing.", { id: toastId });
             } else {
@@ -149,7 +153,15 @@ const AliSourcing = () => {
 
             // Wait a beat for the user to breathe
             setTimeout(() => {
-                navigate('/product-import-preview', { state: { product: finalProduct } });
+                navigate('/product-import-preview', { 
+                    state: { 
+                        product: {
+                            ...finalProduct,
+                            image: firstImage,
+                            variants: finalProduct.variants || []
+                        }
+                    } 
+                });
             }, 600);
 
         } catch (err) {

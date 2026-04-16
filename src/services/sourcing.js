@@ -43,8 +43,11 @@ class SourcingService {
    * Deterministic Data Normalization (ProductSchema Enforcement)
    * Ensures every product node entering the UI is valid and typed.
    */
-  normalize(raw, source = 'aliexpress') {
+  normalize(raw, sourceInput = 'ALIEXPRESS') {
     if (!raw) return null;
+    
+    // 🚨 2. HARD SOURCE TAGGING (Iron Flow 7.2)
+    const source = (sourceInput || '').toUpperCase();
     
     return {
       id: raw.id || raw.itemId || `node_${Math.random().toString(36).slice(2, 9)}`,
@@ -59,7 +62,9 @@ class SourcingService {
       reviews: Number(raw.reviews ?? 0),
       shipsFrom: raw.shipsFrom || 'CN',
       source: source,
-      url: raw.url || raw.itemWebUrl || ""
+      url: raw.url || raw.itemWebUrl || "",
+      // STATUS MACHINE (v7.2)
+      status: source === 'EPROLO' ? 'READY' : (raw.enriched ? 'READY' : 'FETCHED')
     };
   }
 
@@ -213,7 +218,11 @@ class SourcingService {
     const totalCost = Number(supplierCost) + Number(shipping);
     const targetPrice = Number(ebayPrice);
 
-    if (!totalCost || totalCost <= 0 || !targetPrice) return null;
+    // 🚨 4. ROI ENGINE GUARD (Iron Flow 7.2)
+    // ROI only after price exists
+    if (!totalCost || totalCost <= 0 || !targetPrice || targetPrice <= 0) {
+      return null; // NOT "0%" or "---"
+    }
 
     // ROI = (Target - Cost) / Cost
     const expected = Math.round(((targetPrice - totalCost) / totalCost) * 100);
@@ -360,8 +369,8 @@ class SourcingService {
     // 4. Deduplication & Finalization
     const finalData = this.dedupe(rawData);
 
-    // 🕵️ PIPELINE DEBUG LOG (Iron Flow 7.1)
-    console.log("PIPELINE DEBUG", {
+    // 🚨 5. SOURCE DEBUG (v7.2)
+    console.log("SOURCE DEBUG", {
       eproloCount: (eproloRes.status === 'fulfilled' ? eproloRes.value.data.length : 0),
       aliCount: (aliRes.status === 'fulfilled' ? aliRes.value.data.length : 0),
       finalCount: finalData.length,

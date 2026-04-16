@@ -130,7 +130,7 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                                 (product.roiRange && product.roiRange.expected !== undefined && product.roiRange.expected !== null) ? (
                                     `${product.roiRange.conservative}% – ${product.roiRange.expected}%`
                                 ) : (
-                                    '--- %'
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Awaiting pricing data</span>
                                 )
                             )}
                         </span>

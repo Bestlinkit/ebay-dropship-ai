@@ -220,9 +220,15 @@ class AliExpressService {
             chunk.map(async (item) => {
                 const enrichment = await this.getProductDetails(item.url);
                 if (enrichment.status === SourcingStatus.SUCCESS) {
-                    return { ...item, ...enrichment.data, enrichmentStatus: "DONE" };
+                    return { 
+                        ...item, 
+                        ...enrichment.data, 
+                        enrichmentStatus: "DONE", 
+                        enriched: true,
+                        status: "READY" // 🚀 Iron Flow 7.2: Promotion to READY
+                    };
                 }
-                return { ...item, enrichmentStatus: "FAILED" };
+                return { ...item, enrichmentStatus: "FAILED", status: "READY" }; // Ready even if failed, to allow manual review
             })
         );
         

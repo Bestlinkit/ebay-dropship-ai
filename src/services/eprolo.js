@@ -20,6 +20,19 @@ class EproloService {
             rawResponse: null
         };
 
+        // 🚨 1. AUTH CONFIG VALIDATION (Iron Flow 7.2)
+        const appKey = import.meta.env.VITE_EPROLO_APP_KEY;
+        const secret = import.meta.env.VITE_EPROLO_SECRET;
+
+        if (!appKey || !secret) {
+            return {
+                status: "CONFIG_ERROR",
+                message: "Missing Eprolo API credentials in Environment",
+                data: [],
+                debugInfo
+            };
+        }
+
         try {
             const response = await fetch(debugInfo.endpoint, {
                 method: "POST",
@@ -34,6 +47,16 @@ class EproloService {
             debugInfo.httpStatus = response.status;
             const result = await response.json();
             debugInfo.rawResponse = JSON.stringify(result);
+
+            // 🚨 2. RESPONSE VALIDATION (Auth Failure mapping)
+            if (result.code === "-1" || result.code === -1) {
+                return {
+                    status: "AUTH_ERROR",
+                    message: result.msg || "Eprolo Authentication Failed",
+                    data: [],
+                    debugInfo: { ...debugInfo, result }
+                };
+            }
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -88,6 +111,53 @@ class EproloService {
                 data: [], 
                 debugInfo: { ...debugInfo, errorStack: e.message } 
             };
+        }
+    }
+
+    /**
+     * STAGE 2: DETAIL RETRIEVAL (v7.2)
+     * Fetches full metadata for a selected product by ID.
+     */
+    async getProductDetail(productId) {
+        const debugInfo = {
+            endpoint: `${this.proxyUrl}/eprolo-product-detail`,
+            timestamp: new Date().toISOString(),
+            productId
+        };
+
+        try {
+            const response = await fetch(debugInfo.endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ product_id: productId })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const result = await response.json();
+            if (result.code !== "0" && result.code !== 0) throw new Error(result.msg || "API Error");
+
+            const item = result.data || {};
+            
+            return {
+                id: item.id || item.product_id,
+                title: item.product_name || item.title,
+                price: parseFloat(item.price || item.min_price || 0),
+                image: item.image_url || item.image || (item.imagelist?.[0]?.src) || '',
+                images: (item.imagelist || []).map(img => img.src || img),
+                source: 'EPROLO',
+                description: item.description || item.product_desc || "",
+                variants: (item.variantlist || []).map(v => ({
+                    id: v.id,
+                    sku: v.sku,
+                    price: parseFloat(v.cost || v.price),
+                    stock: v.inventory_quantity || 0,
+                    options: v.options || []
+                }))
+            };
+        } catch (e) {
+            console.error("Eprolo Detail Fetch Failed:", e);
+            throw e;
         }
     }
 

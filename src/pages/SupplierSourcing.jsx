@@ -65,11 +65,13 @@ const SupplierSourcing = () => {
     });
 
     const performSourcing = useCallback(async (query = searchQuery) => {
-        if (!targetProduct || !query?.trim()) return;
+        if (!targetProduct?.id || !query?.trim()) return;
         
         setLoading(true);
+        // 🚨 7. SEARCH RESET (Iron Flow 7.2)
+        setRawResults([]);
         setFullInquiryResult(null);
-        setPipelineState({ status: sourcingService.Status.LOADING, sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
+        setPipelineState({ status: 'LOADING', sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
 
         const context = sourcingService.createContext(query, targetProduct);
         
@@ -137,7 +139,8 @@ const SupplierSourcing = () => {
                     enrichmentStatus: raw.enrichmentStatus || (raw.enriched ? "DONE" : "PENDING")
                 };
             })
-            .filter(res => res.title && res.image) // MINIMUM DISPLAY RULE (v7.1)
+            // 🚨 3. STATUS GATE (Iron Flow 7.2): Only show READY product
+            .filter(res => res.status === 'READY')
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
 
@@ -151,18 +154,37 @@ const SupplierSourcing = () => {
         setExtracting(true);
         const loadingId = toast.loading("Syncing with supplier...");
         try {
-            const fullProduct = await eproloService.getProductDetail(supplierProduct.id);
+            // 🚨 6. SOURCE-AWARE EXTRACTION (Iron Flow 7.2)
+            let fullProduct = null;
+            if (supplierProduct.source === 'EPROLO') {
+                fullProduct = await eproloService.getProductDetail(supplierProduct.id);
+            } else {
+                // For AliExpress, we already have many details, but let's ensure it's READY
+                const res = await aliexpressService.getProductDetails(supplierProduct.url);
+                if (res.status !== 'SUCCESS') throw new Error("AliExpress extraction failed");
+                fullProduct = {
+                    ...supplierProduct,
+                    ...res.data
+                };
+            }
+
+            // 🚨 6. ARRAY SAFETY GUARDS
+            const firstImage = fullProduct?.images?.[0] || fullProduct?.image || "";
+            const firstVariant = fullProduct?.variants?.[0] || null;
+
             navigate('/product-import-preview', { 
                 state: { 
                     product: {
                         ...fullProduct,
+                        image: firstImage,
                         pricing: { ...fullProduct.pricing, basePrice: targetPrice }
                     } 
                 } 
             });
             toast.success("Intelligence extraction complete.");
         } catch (error) {
-            toast.error("Unable to retrieve details.");
+            console.error("Import Crash Logic:", error);
+            toast.error(`Import failed: ${error.message}`);
         } finally {
             toast.dismiss(loadingId);
             setExtracting(false);
@@ -220,15 +242,17 @@ const SupplierSourcing = () => {
 
             <div className="space-y-8">
                 {/* ⚠️ SYSTEM STATUS BANNERS */}
-                {!loading && pipelineState.sources.eprolo === 'FAILED' && pipelineState.sources.aliexpress === 'OK' && (
+                {!loading && (pipelineState.sources.eprolo === 'FAILED' || pipelineState.sources.eprolo === 'CONFIG_ERROR' || pipelineState.sources.eprolo === 'AUTH_ERROR') && pipelineState.sources.aliexpress === 'OK' && (
                     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="p-6 bg-amber-50 border border-amber-200 rounded-[2rem] flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
                                 <AlertTriangle size={24} />
                             </div>
                             <div>
-                                <h4 className="text-sm font-black text-slate-950 uppercase tracking-widest">Eprolo unavailable</h4>
-                                <p className="text-xs text-slate-500 font-medium tracking-tight">Eprolo API connection timed out. Showing fallback AliExpress results.</p>
+                                <h4 className="text-sm font-black text-slate-950 uppercase tracking-widest">Eprolo Bridge Issue</h4>
+                                <p className="text-xs text-slate-500 font-medium tracking-tight">
+                                    {pipelineState.sources.eprolo === 'CONFIG_ERROR' ? "API Keys missing in environment." : "Authentication failed or server offline."}
+                                </p>
                             </div>
                         </div>
                         <button onClick={() => performSourcing()} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[8px] font-black uppercase tracking-widest hover:border-slate-400 transition-all">Retry Eprolo</button>
