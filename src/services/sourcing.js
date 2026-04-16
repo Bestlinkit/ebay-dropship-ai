@@ -140,23 +140,29 @@ class SourcingService {
   }
 
   /**
-   * Utilities & Intent Extraction (v10.0)
+   * Utilities & Intent Extraction (v11.0)
    */
   detectCategory(title) {
     if (!title) return null;
     const t = title.toLowerCase();
     
-    // Categorization Map (Priority Ordered)
+    // 🧬 2026 Trend-Aware Categorization Map (Priority Ordered)
     const categories = [
-        { id: 'soap', keywords: ['soap', 'cleanser', 'bar', 'wash'] },
-        { id: 'jeans', keywords: ['jeans', 'denim', 'pants', 'trousers'] },
+        // High Signal / Tech First
+        { id: 'electronics', keywords: ['phone', 'tablet', 'laptop', 'charger', 'cable', 'magnetic', 'wireless', 'earbuds', 'headphone'] },
+        // Beauty & Wellness
+        { id: 'soap', keywords: ['soap', 'cleanser', 'bar', 'wash', 'turmeric', 'kojic'] },
+        { id: 'wellness', keywords: ['therapy', 'massager', 'skincare', 'facial', 'red light'] },
+        // Fashion
+        { id: 'jeans', keywords: ['jeans', 'denim', 'pants', 'trousers', 'slim fit'] },
         { id: 'shoes', keywords: ['shoes', 'sneakers', 'boots', 'sandals', 'footwear'] },
-        { id: 'shirt', keywords: ['shirt', 't-shirt', 'tee', 'top', 'blouse'] },
-        { id: 'watch', keywords: ['watch', 'smartwatch', 'chronograph'] },
-        { id: 'glasses', keywords: ['glasses', 'sunglasses', 'eyewear'] },
-        { id: 'bag', keywords: ['bag', 'backpack', 'handbag', 'purse', 'tote'] },
-        { id: 'jewelry', keywords: ['ring', 'necklace', 'bracelet', 'earrings'] },
-        { id: 'electronics', keywords: ['phone', 'tablet', 'laptop', 'charger', 'cable'] }
+        { id: 'shirt', keywords: ['shirt', 't-shirt', 'tee', 'top', 'blouse', 'hoodie'] },
+        // Home & Auto
+        { id: 'home', keywords: ['organizer', 'blender', 'kitchen', 'home', 'storage', 'lamp'] },
+        { id: 'auto', keywords: ['car', 'dash cam', 'vacuum', 'safety', 'in-car'] },
+        // Pets & Fitness
+        { id: 'pets', keywords: ['dog', 'cat', 'pet', 'grooming', 'interactive', 'leash'] },
+        { id: 'fitness', keywords: ['yoga', 'jump rope', 'resistance', 'gym', 'workout'] }
     ];
 
     for (const cat of categories) {
@@ -167,31 +173,52 @@ class SourcingService {
 
   extractSearchTiers(title) {
     if (!title) return [];
-    const category = this.detectCategory(title);
-    const clean = title.replace(/[^\w\s]/gi, ' ').toLowerCase();
-    const words = clean.split(/\s+/).filter(w => w.length > 3 && !['with', 'from', 'best', 'sale', 'free', 'shipping'].includes(w));
+    
+    // 1. CLEANING & NOISE REMOVAL
+    const t = title.toLowerCase();
+    const stopwords = [
+        'with', 'from', 'best', 'sale', 'free', 'shipping', '2026', 'new', 'hot', 'top', 
+        'rated', 'high', 'quality', 'vibrant', 'limited', 'stock', 'original', 'official',
+        'vitamin', 'citrus', 'premium', 'ultra', 'professional', 'heavy', 'duty'
+    ];
+    
+    // Remove punctuation and stopwords
+    const clean = t.replace(/[^\w\s]/gi, ' ');
+    let words = clean.split(/\s+/).filter(w => w.length > 3 && !stopwords.includes(w));
 
+    const category = this.detectCategory(title);
     const tiers = [];
     
     if (category) {
-        // Tier 1: Category + Top 1 Attribute
-        const attr1 = words.find(w => w !== category);
-        if (attr1) tiers.push(`${attr1} ${category}`);
+        // Core Strategy: [Key Attribute] + [Category Object]
+        // Filter out the category name itself from the attributes
+        const attributes = words.filter(w => !category.includes(w) && !w.includes(category));
+        
+        // Tier 1: Primary Attribute + Category
+        if (attributes.length > 0) {
+            tiers.push(`${attributes[0]} ${category}`);
+        }
 
-        // Tier 2: Category + Top 2 Attribute
-        const attr2 = words.find(w => w !== category && w !== attr1);
-        if (attr2) tiers.push(`${attr2} ${category}`);
+        // Tier 2: Secondary Attributes + Category
+        if (attributes.length > 1) {
+            tiers.push(`${attributes[0]} ${attributes[1]} ${category}`);
+        }
 
-        // Tier 3: Category Only
+        // Tier 3: Category Only (Broadest)
         tiers.push(category);
     } else {
-        // Fallback for unknown categories: Slice strategy
-        tiers.push(words.slice(0, 2).join(' '));
-        tiers.push(words.slice(0, 3).join(' '));
+        // Fallback: Signal-based slicing
+        // Group by 2 and 3 high-length words
+        if (words.length >= 2) tiers.push(words.slice(0, 2).join(' '));
+        if (words.length >= 3) tiers.push(words.slice(0, 3).join(' '));
+        if (words.length > 0) tiers.push(words[0]);
     }
 
-    // Dedupe and limit
-    return [...new Set(tiers)].filter(Boolean).slice(0, 3);
+    // Dedupe and ensure lowercase
+    const finalTiers = [...new Set(tiers.map(s => s.trim().toLowerCase()))].filter(Boolean);
+    
+    console.log(`[Intent Reduction] Tiers Generated:`, finalTiers);
+    return finalTiers.slice(0, 3);
   }
 
   /**

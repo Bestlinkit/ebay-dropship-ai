@@ -1,9 +1,10 @@
 import { SourcingStatus } from '../constants/sourcing';
+import bridge from './bridge';
 
 /**
- * Stable AliExpress Sourcing Service (v8.0)
+ * Stable AliExpress Sourcing Service (v9.0)
  * Implements a strict 2-stage flow: Discovery -> Mandatory Enrichment.
- * Uses Node.js backend proxy to bypass CORS and ensure stability.
+ * Uses Node.js backend proxy AND ProxyBridge (GAS) to ensure stability.
  */
 class AliExpressService {
   constructor() {
@@ -26,12 +27,24 @@ class AliExpressService {
     };
 
     try {
-      const response = await fetch(`${this.apiBase}/search?q=${encodeURIComponent(query)}`);
-      debugInfo.httpStatus = response.status;
+      const url = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
+      let html = null;
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      // 1. TRY PROXY BRIDGE (GAS) - Preferred Option A
+      console.log(`[AliExpress] Attempting Bridge Discovery for: ${query}`);
+      html = await bridge.fetch(url);
       
-      const html = await response.text();
+      if (html) {
+          debugInfo.method = 'BRIDGE_GAS';
+      } else {
+          // 2. FALLBACK TO BACKEND PROXY
+          console.log(`[AliExpress] Bridge failed/unconfigured. Falling back to Node.js proxy.`);
+          const response = await fetch(`${this.apiBase}/search?q=${encodeURIComponent(query)}`);
+          debugInfo.httpStatus = response.status;
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          html = await response.text();
+      }
+
       debugInfo.responseLength = html?.length || 0;
 
       // 1. BLOCKED DETECTION
