@@ -22,7 +22,8 @@ import {
   AlertCircle,
   Globe,
   Clock,
-  Lock
+  Lock,
+  Box
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -62,46 +63,43 @@ const SupplierSourcing = () => {
         sources: { eprolo: 'PENDING', aliexpress: 'PENDING' }
     });
 
+    const [activeTier, setActiveTier] = useState(null);
+    const [isFallback, setIsFallback] = useState(false);
+
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
         
         setLoading(true);
         setRawResults([]);
         setPipelineState({ status: 'LOADING', sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
+        setIsFallback(false);
 
         try {
-            // 🚀 STAGE 1: FIRST PASS (Original or Context Query)
-            let result = await sourcingService.runUnifiedPipeline(
-                { query, targetPrice }, 
-                {
-                    fetchEprolo: () => eproloService.searchProducts(query),
-                    fetchAliExpress: () => aliexpressService.searchProducts(query)
-                }
+            // 🚀 STAGE 1: INITIALIZE ITERATIVE CONTEXT
+            const context = sourcingService.createContext(query, targetProduct);
+            
+            // 🚀 STAGE 2: RUN ITERATIVE PIPELINE (Query Intent Reduction Layer)
+            const result = await sourcingService.runIterativePipeline(
+                context, 
+                (tierQuery) => ({
+                    fetchEprolo: () => {
+                        setActiveTier(tierQuery);
+                        return eproloService.searchProducts(tierQuery);
+                    },
+                    fetchAliExpress: () => aliexpressService.searchProducts(tierQuery)
+                })
             );
-
-            // 🔄 AUTO-RETRY LOGIC: If no results, try a "Best-Chance" simplified query
-            if (result.data.length === 0 && query.length > 30) {
-                const simplified = sourcingService.generateSuggestedKeywords(query);
-                console.log(`[Sourcing] No results for "${query}". Retrying with simplified: "${simplified}"`);
-                
-                setPipelineState({ status: 'LOADING', sources: { eprolo: 'RETRYING', aliexpress: 'RETRYING' } });
-                
-                result = await sourcingService.runUnifiedPipeline(
-                    { query: simplified, targetPrice },
-                    {
-                        fetchEprolo: () => eproloService.searchProducts(simplified),
-                        fetchAliExpress: () => aliexpressService.searchProducts(simplified)
-                    }
-                );
-                
-                if (result.data.length > 0) {
-                    toast.success("Broadened search to find better matches.");
-                    setSearchQuery(simplified);
-                }
-            }
 
             setPipelineState({ status: result.status, sources: result.sources });
             setRawResults(result.data);
+            setIsFallback(result.isFallback || result.status === 'BROADER_CATEGORY_REQUIRED');
+
+            if (result.data.length > 0 && result.successfulTier !== query) {
+                toast.success(`Optimized search: "${result.successfulTier}"`, {
+                    description: "High-intent attributes extracted for better catalog matching."
+                });
+                setSearchQuery(result.successfulTier);
+            }
 
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
@@ -109,8 +107,9 @@ const SupplierSourcing = () => {
             toast.error(`Discovery failed. Check backend status.`);
         } finally {
             setLoading(false);
+            setActiveTier(null);
         }
-    }, [targetProduct?.id, searchQuery, targetPrice]);
+    }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
 
     useEffect(() => { 
         if (searchQuery?.trim()) performSourcing(); 
@@ -188,10 +187,29 @@ const SupplierSourcing = () => {
                 </div>
             </div>
 
-            <SourcingStatusHeader state={loading ? 'searching' : 'results'} loading={loading} resultsCount={processedResults.length} isGlobal={false} />
+            <SourcingStatusHeader 
+                state={loading ? 'searching' : 'results'} 
+                loading={loading} 
+                resultsCount={processedResults.length} 
+                isGlobal={false} 
+            />
 
             {/* 🛡️ PIPELINE STATUS ALERTS */}
             <AnimatePresence>
+                {loading && activeTier && (
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mb-6">
+                         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                            <div className="flex items-center gap-4">
+                               <RefreshCw size={16} className="text-blue-500 animate-spin" />
+                               <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
+                                  Analyzing Intent: <span className="italic text-blue-600">"{activeTier}"</span>
+                               </span>
+                            </div>
+                            <span className="text-[9px] font-bold text-blue-400 uppercase">Tiered Search Active</span>
+                         </div>
+                    </motion.div>
+                )}
+
                 {!loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.eprolo === 'FAILED') && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                         <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
@@ -229,6 +247,19 @@ const SupplierSourcing = () => {
                 {/* 2. DISCOVERY RESULTS */}
                 {!loading && processedResults.length > 0 && (
                     <div className="grid grid-cols-1 gap-6">
+                        {isFallback && (
+                            <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-4">
+                                   <div className="w-10 h-10 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center border border-emerald-500/20">
+                                      <Zap size={18} />
+                                   </div>
+                                   <div>
+                                      <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none">Iterative Fallback Active</p>
+                                      <p className="text-[9px] font-medium text-slate-500 mt-1">Showing broader category results since exact matches were unavailable.</p>
+                                   </div>
+                                </div>
+                            </div>
+                        )}
                         {paginatedResults.map(res => (
                             <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} onContinue={handleContinue} />
                         ))}
@@ -246,20 +277,24 @@ const SupplierSourcing = () => {
                     </div>
                 )}
 
-                {/* 3. EMPTY STATE */}
+                {/* 3. FALLBACK / EMPTY STATE */}
                 {!loading && processedResults.length === 0 && (
-                    <div className="bg-slate-50 border border-slate-200 p-16 rounded-[4rem] text-center space-y-10">
-                        <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><ShieldAlert size={40} /></div>
+                    <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
+                        <div className="w-24 h-24 bg-slate-50 border border-slate-100 text-slate-300 rounded-[3rem] flex items-center justify-center mx-auto shadow-inner"><Box size={48} /></div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">Market Blindspot</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
-                                Both automated pipelines failed to find direct matches for "{searchQuery}". 
-                                {pipelineState.sources.aliexpress === 'BLOCKED' && " AliExpress is currently blocking automated discovery."}
+                            <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">BROADER CATEGORY SEARCH ONLY</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
+                                We've analyzed the query intent and determined that exact matches are currently unavailable across our supply chain. 
+                                <br />
+                                <span className="text-slate-950 font-bold">Try searching for the basic category (soap, watch, etc) instead.</span>
                             </p>
                         </div>
-                        <button onClick={handleExpandSearch} className="bg-slate-950 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl mx-auto flex items-center gap-3">
-                           <Globe size={14} /> Launch Global Scraper
-                        </button>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                            <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105">Change Discovery Query</button>
+                            <button onClick={handleExpandSearch} className="w-full sm:w-auto bg-emerald-500 text-white px-12 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20 transform hover:scale-105 flex items-center justify-center gap-3">
+                               <Globe size={18} /> Forced Global Search
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

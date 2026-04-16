@@ -129,38 +129,112 @@ class SourcingService {
   }
 
   /**
-   * Utilities
+   * Utilities & Intent Extraction (v10.0)
    */
-  generateSuggestedKeywords(title) {
-    if (!title) return "";
+  detectCategory(title) {
+    if (!title) return null;
+    const t = title.toLowerCase();
     
-    // 1. Remove special characters and noise
-    let clean = title.replace(/[^\w\s]/gi, ' ');
+    // Categorization Map (Priority Ordered)
+    const categories = [
+        { id: 'soap', keywords: ['soap', 'cleanser', 'bar', 'wash'] },
+        { id: 'jeans', keywords: ['jeans', 'denim', 'pants', 'trousers'] },
+        { id: 'shoes', keywords: ['shoes', 'sneakers', 'boots', 'sandals', 'footwear'] },
+        { id: 'shirt', keywords: ['shirt', 't-shirt', 'tee', 'top', 'blouse'] },
+        { id: 'watch', keywords: ['watch', 'smartwatch', 'chronograph'] },
+        { id: 'glasses', keywords: ['glasses', 'sunglasses', 'eyewear'] },
+        { id: 'bag', keywords: ['bag', 'backpack', 'handbag', 'purse', 'tote'] },
+        { id: 'jewelry', keywords: ['ring', 'necklace', 'bracelet', 'earrings'] },
+        { id: 'electronics', keywords: ['phone', 'tablet', 'laptop', 'charger', 'cable'] }
+    ];
+
+    for (const cat of categories) {
+        if (cat.keywords.some(kw => t.includes(kw))) return cat.id;
+    }
+    return null;
+  }
+
+  extractSearchTiers(title) {
+    if (!title) return [];
+    const category = this.detectCategory(title);
+    const clean = title.replace(/[^\w\s]/gi, ' ').toLowerCase();
+    const words = clean.split(/\s+/).filter(w => w.length > 3 && !['with', 'from', 'best', 'sale', 'free', 'shipping'].includes(w));
+
+    const tiers = [];
     
-    // 2. Filter out short words and common stop words
-    const stopWords = ['with', 'for', 'from', 'and', 'the', 'new', 'top', 'best', 'pro', 'hot', 'sale', 'free', 'shipping', '2024', '2025', 'ebay', 'newest'];
-    const words = clean.split(/\s+/)
-      .filter(w => w.length > 3)
-      .filter(w => !stopWords.includes(w.toLowerCase()));
-    
-    // 3. Return a more "generic" but descriptive slice (first 4-6 strong words)
-    // This is optimized for Eprolo/AliExpress catalog matching
-    return words.slice(0, 5).join(' ');
+    if (category) {
+        // Tier 1: Category + Top 1 Attribute
+        const attr1 = words.find(w => w !== category);
+        if (attr1) tiers.push(`${attr1} ${category}`);
+
+        // Tier 2: Category + Top 2 Attribute
+        const attr2 = words.find(w => w !== category && w !== attr1);
+        if (attr2) tiers.push(`${attr2} ${category}`);
+
+        // Tier 3: Category Only
+        tiers.push(category);
+    } else {
+        // Fallback for unknown categories: Slice strategy
+        tiers.push(words.slice(0, 2).join(' '));
+        tiers.push(words.slice(0, 3).join(' '));
+    }
+
+    // Dedupe and limit
+    return [...new Set(tiers)].filter(Boolean).slice(0, 3);
   }
 
   /**
-   * Pipeline Orchestration Logic
+   * Pipeline Orchestration Logic (Iterative Search)
    */
   createContext(query, targetProduct) {
-    // Stage 1: Auto-simplify keyword if it looks like a full eBay title
-    const optimizedQuery = query.length > 40 ? this.generateSuggestedKeywords(query) : query;
-
+    const tiers = this.extractSearchTiers(query);
     return {
-      query: optimizedQuery,
+      query: tiers[0] || query,
       originalQuery: query,
+      tiers: tiers,
       targetPrice: Number(targetProduct?.price) || 0,
       ebayId: targetProduct?.id
     };
+  }
+
+  /**
+   * Iterative Pipeline Orchestrator
+   * Runs through search tiers until inventory is discovered.
+   */
+  async runIterativePipeline(context, fetchers) {
+    const { query, tiers } = context;
+    const searchSequence = tiers.length > 0 ? tiers : [query];
+    
+    let finalResult = {
+        status: 'EMPTY',
+        sources: { eprolo: 'PENDING', aliexpress: 'PENDING' },
+        data: [],
+        successfulTier: null
+    };
+
+    console.log(`[Iterative Search] Starting tiers:`, searchSequence);
+
+    for (const tierQuery of searchSequence) {
+        console.log(`[Iterative Search] Attempting Tier: "${tierQuery}"`);
+        
+        const result = await this.runUnifiedPipeline({ query: tierQuery, targetPrice: context.targetPrice }, fetchers(tierQuery));
+        
+        if (result.data.length > 0) {
+            finalResult = {
+                ...result,
+                successfulTier: tierQuery,
+                isFallback: tierQuery === tiers[tiers.length - 1] && tiers.length > 1
+            };
+            break; 
+        }
+
+        // If even the last tier fails, mark as FULL_FALLBACK
+        if (tierQuery === searchSequence[searchSequence.length - 1]) {
+            finalResult.status = 'BROADER_CATEGORY_REQUIRED';
+        }
+    }
+
+    return finalResult;
   }
 
   async runUnifiedPipeline(context, fetchers) {
