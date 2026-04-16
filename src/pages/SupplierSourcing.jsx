@@ -82,26 +82,26 @@ const SupplierSourcing = () => {
             // 🚀 STAGE 1: INITIALIZE ITERATIVE CONTEXT
             const context = sourcingService.createContext(query, targetProduct);
             
-            // 🚀 STAGE 2: RUN DETERMINISTIC PIPELINE (v21.0 Extension-First)
+            // 🚀 STAGE 2: RUN DETERMINISTIC PIPELINE (v21.2 Stabilization)
             const result = await sourcingService.runIterativePipeline(
                 context, 
                 (tierQuery) => ({
-                    fetchEprolo: () => {
-                        setActiveTier(tierQuery);
-                        return extensionConnector.request('eprolo', tierQuery);
-                    },
+                    fetchEprolo: () => extensionConnector.request('eprolo', tierQuery),
                     fetchAliExpress: () => extensionConnector.request('aliexpress', tierQuery)
                 })
             );
 
+            // result.status will now be SUCCESS | NO_RESULTS | ERROR | BLOCKED | TIMEOUT
             setPipelineState({ status: result.status, sources: result.sources });
             setProducts(result.products || []);
             setTelemetry(result.telemetry || { eprolo: null, aliexpress: null });
 
-            if (result.products.length > 0) {
-                toast.success(`Discovered ${result.products.length} products`, {
-                    description: `Extraction successful for: "${result.successfulTier}"`
-                });
+            if (result.status === "SUCCESS") {
+                toast.success(`Discovered ${result.products.length} products`);
+            } else if (result.status === "BLOCKED") {
+                toast.error("Access blocked by supplier security");
+            } else if (result.status === "ERROR") {
+                toast.error("Extraction logic encountered an error");
             }
 
         } catch (e) {
@@ -488,37 +488,33 @@ const SupplierSourcing = () => {
                     </div>
                 )}
 
-                {/* 3. FALLBACK / EMPTY STATE */}
-                {!loading && processedResults.length === 0 && (
+                {/* 3. DETERMINISTIC FAILURE STATES (v21.2) */}
+                {!loading && products.length === 0 && (
                     <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
                         <div className={cn(
                             "w-24 h-24 border rounded-[3rem] flex items-center justify-center mx-auto shadow-inner",
-                            pipelineState.status === 'TECHNICAL_FAILURE' ? "bg-red-50 border-red-100 text-red-300" : "bg-slate-50 border-slate-100 text-slate-300"
+                            pipelineState.status === 'ERROR' ? "bg-red-50 text-red-300" : 
+                            pipelineState.status === 'BLOCKED' ? "bg-amber-50 text-amber-300" :
+                            "bg-slate-50 text-slate-300"
                         )}>
-                            {pipelineState.status === 'TECHNICAL_FAILURE' ? <AlertTriangle size={48} /> : <Box size={48} />}
+                            {pipelineState.status === 'ERROR' ? <AlertTriangle size={48} /> : 
+                             pipelineState.status === 'BLOCKED' ? <Lock size={48} /> : 
+                             <Box size={48} />}
                         </div>
+                        
                         <div className="space-y-4">
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
-                                {pipelineState.status === 'TECHNICAL_FAILURE' ? "SOURCE CONNECTION FAULT" : "BROADER CATEGORY SEARCH ONLY"}
+                                {pipelineState.status === 'NO_RESULTS' ? "0 Results" : 
+                                 pipelineState.status === 'BLOCKED' ? "Access Blocked" : 
+                                 pipelineState.status === 'TIMEOUT' ? "Try Again" :
+                                 "System Error"}
                             </h3>
-                            <div className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'TECHNICAL_FAILURE' ? (
-                                    <>
-                                        One or more supplier nodes are reporting a technical connectivity fault. 
-                                        <br />
-                                        <span className="text-slate-900 font-bold uppercase text-xs tracking-widest">
-                                            {pipelineState.sources.aliexpress === 'EXTENSION_NOT_LOADED' || pipelineState.sources.eprolo === 'EXTENSION_NOT_LOADED'
-                                                ? 'Local Extension Connection Failed' : 'Security Access Token Expired'}
-                                        </span>
-                                    </>
-                                ) : (
-                                    <>
-                                        We've analyzed the query intent and determined that exact matches are currently unavailable across our supply chain. 
-                                        <br />
-                                        <span className="text-slate-950 font-bold">Try searching for the basic category (soap, watch, etc) instead.</span>
-                                    </>
-                                )}
-                            </div>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
+                                {pipelineState.status === 'NO_RESULTS' ? "The supplier catalog has no matches for this specific query." : 
+                                 pipelineState.status === 'BLOCKED' ? "Your current IP or fingerprint is restricted. Use the Global Scraper." : 
+                                 pipelineState.status === 'TIMEOUT' ? "The request to the supplier took too long. Please attempt a re-initiation." :
+                                 "The extraction logic encountered a structural mismatch with the supplier's web page."}
+                            </p>
                         </div>
 
                         {pipelineState.sources.aliexpress === 'WRONG_PAGE_TYPE' && (

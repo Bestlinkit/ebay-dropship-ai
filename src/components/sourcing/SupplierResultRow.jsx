@@ -78,9 +78,17 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                     {product.source === 'aliexpress' && (
                         <div className="flex flex-col">
                             <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Trust Metrics</span>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                                <Info size={10} /> View in Details
-                            </span>
+                            <div className="flex items-center gap-4">
+                                <span className="text-xl font-black text-slate-950 italic tracking-tighter flex items-center gap-1.5">
+                                    <Star size={16} className="fill-orange-400 text-orange-400" />
+                                    {product.rating ? product.rating.toFixed(1) : "N/A"}
+                                </span>
+                                {product.variants?.length > 0 && (
+                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded-md text-[7px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-1">
+                                        <Zap size={8} className="fill-indigo-500" /> {product.variants.length} Variants
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

@@ -1,55 +1,59 @@
 /**
- * Eprolo Parser (v21.0 - Schema Hardened)
+ * Eprolo Parser (v21.2 - Final Stabilization)
  */
 
 (function extractEproloData() {
     try {
-        console.log("[Eprolo-Parser] v21.0 Trace: Extraction Started...");
+        console.log("[Eprolo-Parser] v21.2 Extraction Started...");
 
-        const containers = Array.from(document.querySelectorAll('.product-item, .product-list-item, div[class*="product-card"], .product-content, .el-card'));
-        console.log(`[Eprolo-Parser] Found ${containers.length} containers.`);
-        
-        const products = containers.map(el => {
+        // Eprolo US-Catalog listing selectors
+        const items = Array.from(document.querySelectorAll('.product-item, .product-card, .el-card, [class*="product-list-item"]'));
+        console.log(`[Eprolo-Parser] Found ${items.length} items`);
+
+        const products = items.map(el => {
             try {
-                const titleEl = el.querySelector('h3, .title, a[class*="title"], div.product-name, div[class*="name"]');
+                // Title extraction
+                const titleEl = el.querySelector('h3, h6, .product-title, .title, a[class*="name"]');
                 const title = titleEl?.innerText?.trim();
-                
-                const priceEl = el.querySelector('.sell-price, .price, .wholesale-price, span[class*="price"], div[class*="price"]');
+
+                // Price extraction (looking for USD spans)
+                const priceEl = Array.from(el.querySelectorAll('span, div, p')).find(s => s.innerText?.includes('$') || s.innerText?.includes('USD'));
                 const priceMatch = (priceEl?.innerText || "").match(/[\d.]+/);
                 const price = priceMatch ? parseFloat(priceMatch[0]) : 0;
 
+                // Image extraction
                 const imgEl = el.querySelector('img');
                 const image = imgEl?.src || "";
 
-                const linkEl = el.querySelector('a');
+                // URL extraction
+                const linkEl = el.querySelector('a[href*="/product/"]') || el.querySelector('a');
                 const url = linkEl?.href || window.location.href;
 
-                if (!title || title.length < 3 || !price) return null;
+                if (!title || !image) return null;
 
                 return {
-                    id: el.getAttribute('data-id') || el.getAttribute('product-id') || url.match(/id=(\d+)/)?.[1] || Math.random().toString(36).substr(2, 9),
+                    id: url.match(/id=(\d+)/)?.[1] || Math.random().toString(36).substr(2, 9),
                     title,
                     price,
                     currency: "USD",
                     image,
                     images: [image],
                     source: "eprolo",
-                    url,
-                    stock: "In Stock"
+                    url
                 };
             } catch (e) { return null; }
         }).filter(i => i !== null);
 
         if (products.length > 0) {
-            console.log(`[Eprolo-Parser] Success: Extracted ${products.length} products.`);
+            console.log(`[Eprolo-Parser] Successfully extracted ${products.length} products`);
             return { status: "SUCCESS", source: "eprolo", products };
         }
 
-        console.warn("[Eprolo-Parser] Failure: No products found.");
-        return { status: "FAILED", error: "NO_PRODUCTS_FOUND", source: "eprolo", products: [] };
+        console.warn("[Eprolo-Parser] No results found on page.");
+        return { status: "NO_RESULTS", source: "eprolo", products: [] };
 
     } catch (e) {
         console.error("[Eprolo-Parser] Critical Failure:", e.message);
-        return { status: "FAILED", error: "PARSER_FAILURE", message: e.message, source: "eprolo", products: [] };
+        return { status: "ERROR", error: "PARSER_FAILURE", message: e.message, source: "eprolo", products: [] };
     }
 })();

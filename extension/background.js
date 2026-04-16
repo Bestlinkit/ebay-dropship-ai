@@ -1,81 +1,64 @@
 /**
- * Drop-AI Background Engine (v21.0 - Trace Hardened)
+ * Drop-AI Background Engine (v21.2 - Final Stabilization)
+ * Rules: strictly active:false, strict status mapping.
  */
 
-console.log("[Drop-AI Worker] v21.0 Trace Engine Active");
+console.log("[Drop-AI Worker] v21.2 - Reset Directive Active");
 
-// 1. UNIFIED MESSAGE ROUTER (v21.0)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "PING" || request.type === "EXT_PING") {
-        sendResponse({ status: "PONG", active: true });
+        sendResponse({ status: "SUCCESS", pong: true });
         return true;
     }
 
     if (request.type === "SUPPLIER_SEARCH" || request.type === "EXT_SEARCH_REQUEST") {
-        console.log(`[Drop-AI Worker] Trace (1/4): Received Search -> ${request.query} (${request.source})`);
+        console.log(`[Drop-AI Worker] Handling search: ${request.query} (${request.source})`);
         
         handleSearch(request)
-            .then(result => {
-                const count = result.products?.length || 0;
-                console.log(`[Drop-AI Worker] Trace (4/4): Response Ready -> ${result.status} | Products: ${count}`);
-                sendResponse(result);
-            })
+            .then(sendResponse)
             .catch(err => {
-                console.error("[Drop-AI Worker] Pipeline Crash:", err.message);
+                console.error("[Drop-AI Worker] Fatal Error:", err.message);
                 sendResponse({
-                    status: "FAILED",
-                    error: "PIPELINE_ERROR",
-                    message: err.message,
-                    requestId: request.requestId,
+                    status: "ERROR",
+                    error: "SYSTEM_ERROR",
                     source: request.source,
                     products: []
                 });
             });
-        return true; // Keep channel open for async
-    }
-
-    sendResponse({ status: "FAILED", error: "UNKNOWN_MESSAGE_TYPE" });
-    return true;
-});
-
-// 2. EXTERNAL ROUTER (v21.0)
-chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
-    if (request.type === "PING") {
-        sendResponse({ status: "PONG", active: true });
-        return true;
-    }
-    if (request.type === "SUPPLIER_SEARCH") {
-        handleSearch(request).then(sendResponse).catch(err => sendResponse({ status: "FAILED", error: err.message }));
-        return true;
+        return true; 
     }
 });
 
-/**
- * DETERMINISTIC SEARCH EXECUTION
- */
 async function handleSearch(request) {
-    const { source, query, requestId } = request;
+    const { source, query } = request;
     let tabId = null;
 
     try {
-        let url = source === 'aliexpress' 
+        const url = source === 'aliexpress' 
             ? `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`
             : `https://eprolo.com/app/newProductsCatalog.html?type=us`;
 
-        console.log(`[Drop-AI Worker] Trace (2/4): Creating Silent Tab -> ${source}`);
-        const tab = await chrome.tabs.create({ url, active: false });
+        // HIGH-FIDELITY SILENT TAB (v21.2)
+        const tab = await chrome.tabs.create({ 
+            url, 
+            active: false, // MANDATORY: Background mode
+            pinned: false
+        });
         tabId = tab.id;
 
-        // Optimized Wait Sequence
-        await new Promise(r => setTimeout(r, 4000));
+        // Trace (not focus-stealing)
+        console.log(`[Drop-AI Worker] Silent tab ${tabId} created for ${source}`);
 
-        // Eprolo DOM Search Injection
+        // Wait strategy (standardized)
+        await new Promise(r => setTimeout(r, 6000));
+
+        // Inject Search for Eprolo (since it's a single catalog page)
         if (source === 'eprolo') {
             await chrome.scripting.executeScript({
                 target: { tabId },
                 func: (q) => {
-                    const input = document.querySelector('input.el-input__inner[placeholder*="Search"]');
-                    const btn = Array.from(document.querySelectorAll('div, span, button')).find(el => el.innerText?.trim() === "Search");
+                    const input = document.querySelector('input[placeholder*="Search"]');
+                    const btn = Array.from(document.querySelectorAll('button, div, span')).find(el => el.innerText?.trim() === "Search");
                     if (input && btn) {
                         input.value = q;
                         input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -87,26 +70,29 @@ async function handleSearch(request) {
             await new Promise(r => setTimeout(r, 3000));
         }
 
-        console.log(`[Drop-AI Worker] Trace (3/4): Injecting ${source} Parser`);
+        // Run standardized parser
         const file = source === 'aliexpress' ? 'parsers/ali_parser.js' : 'parsers/eprolo_parser.js';
         const rawResults = await chrome.scripting.executeScript({
             target: { tabId },
             files: [file]
         });
 
-        const extractionResult = rawResults?.[0]?.result ?? {
-            status: "FAILED",
-            error: "NO_PARSER_RESULT",
-            source,
-            products: []
-        };
+        const result = rawResults?.[0]?.result;
+        if (!result) return { status: "ERROR", source, products: [] };
 
+        // Ensure status mapping is strict (v21.2 Directive)
+        if (result.status === "FAILED") result.status = "ERROR";
+        if (result.error === "BLOCKED_DOM") result.status = "BLOCKED";
+        
         return {
-            ...extractionResult,
-            requestId,
-            source
+            status: result.status || "SUCCESS",
+            source,
+            products: result.products || []
         };
 
+    } catch (e) {
+        console.error(`[Drop-AI Worker] Exception in ${source}:`, e.message);
+        return { status: "ERROR", source, products: [] };
     } finally {
         if (tabId) {
             chrome.tabs.remove(tabId).catch(() => {});
