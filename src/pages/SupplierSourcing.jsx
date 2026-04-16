@@ -31,6 +31,7 @@ import eproloService from '../services/eprolo';
 import aliexpressService from '../services/aliexpress';
 import sourcingService from '../services/sourcing';
 import { SourcingStatus } from '../constants/sourcing';
+import extensionConnector from '../services/extensionConnectorService';
 import { toast } from 'sonner';
 
 // 🏗️ MODULAR COMPONENTS
@@ -165,6 +166,20 @@ const SupplierSourcing = () => {
     };
 
     const handleExpandSearch = () => setShowAliExpansion(true);
+
+    const handleRetryConnection = async () => {
+        const isActive = await extensionConnector.testConnection();
+        if (isActive) {
+            toast.success("Extension Bridge Connected", {
+                description: "Heartbeat detected. Re-initiating search..."
+            });
+            performSourcing();
+        } else {
+            toast.error("Extension Still Disconnected", {
+                description: "Make sure 'Drop-AI Data Bridge' is enabled in chrome://extensions"
+            });
+        }
+    };
 
     const intelMatchTier = pipelineState.successfulTier;
     const isWaterfall = pipelineState.isFallback;
@@ -408,9 +423,20 @@ const SupplierSourcing = () => {
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => window.open('https://github.com/Bestlinkit/ebay-dropship-ai/tree/main/extension#setup', '_blank')} className="px-6 py-3 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors shrink-0 flex items-center gap-2">
-                                <Info size={12} /> View Setup Guide
-                            </button>
+                            <div className="flex items-center gap-3 shrink-0">
+                                <button 
+                                    onClick={handleRetryConnection}
+                                    className="px-6 py-3 bg-white border border-slate-200 text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+                                >
+                                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Re-check Connection
+                                </button>
+                                <button 
+                                    onClick={() => window.open('https://github.com/Bestlinkit/ebay-dropship-ai/tree/main/extension#setup', '_blank')} 
+                                    className="px-6 py-3 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors flex items-center gap-2"
+                                >
+                                    <Info size={12} /> View Setup Guide
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 ) : !loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.aliexpress === 'BLOCKED_RESPONSE' || pipelineState.sources.eprolo === 'FAILED') ? (

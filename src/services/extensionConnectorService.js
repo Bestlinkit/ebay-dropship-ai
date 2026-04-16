@@ -1,7 +1,7 @@
 /**
- * Drop-AI Extension Connector Service (v19.4)
+ * Drop-AI Extension Connector Service (v19.5)
  * Singleton to manage the window.postMessage bridge with the Chrome Extension.
- * FEATURES: Instant Heartbeat Detection & Standardized Relays.
+ * FEATURES: Dual-Layer Heartbeat (Static + Message), Connection Recovery.
  */
 
 class ExtensionConnector {
@@ -13,21 +13,26 @@ class ExtensionConnector {
         if (typeof window !== "undefined") {
             window.addEventListener("message", this.handleMessage.bind(this));
             this.isInitialized = true;
-            console.log("[Ext-Connector] Unified Connector v19.4 Ready");
+            console.log("[Ext-Connector] Resilient Connector v19.5 Ready");
         }
     }
 
     /**
-     * Heartbeat Check (v19.4)
-     * Verifies if bridge.js is active within 200ms.
+     * DUAL-LAYER DETECTION (v19.5)
      */
     async isExtensionActive() {
+        // 1. Level 1: Static Check (Zero Latency)
+        if (typeof window !== "undefined" && window.__DROP_AI_BRIDGE_ACTIVE__) {
+            console.log("[Ext-Connector] Extension detected via Static Flag.");
+            return true;
+        }
+
+        // 2. Level 2: Message-based Heartbeat (1s Tolerance)
         return new Promise((resolve) => {
             const timer = setTimeout(() => {
-                // Remove this specific resolver if it's still there
                 this.pongResolvers = this.pongResolvers.filter(r => r !== resolver);
                 resolve(false);
-            }, 200);
+            }, 1000); // Increased from 200ms to 1000ms
 
             const resolver = () => {
                 clearTimeout(timer);
@@ -40,15 +45,28 @@ class ExtensionConnector {
     }
 
     /**
+     * Public Connection Test (For UI Retry)
+     */
+    async testConnection() {
+        return await this.isExtensionActive();
+    }
+
+    /**
      * REQUEST DATA FROM EXTENSION
      */
     async request(source, query) {
         if (!this.isInitialized) return { status: "INIT_ERROR", error: "Not in browser context" };
 
-        // 1. INSTANT HEARTBEAT CHECK
-        const isActive = await this.isExtensionActive();
+        // 1. RESILIENT HEARTBEAT CHECK (v19.5 - with Retry)
+        let isActive = false;
+        for (let h = 0; h < 3; h++) {
+            isActive = await this.isExtensionActive();
+            if (isActive) break;
+            if (h < 2) await new Promise(r => setTimeout(r, 500));
+        }
+
         if (!isActive) {
-            console.error("[Ext-Connector] Extension NOT DETECTED.");
+            console.error("[Ext-Connector] Extension NOT DETECTED after 3 checks.");
             return { status: "EXTENSION_NOT_LOADED", error: "Extension not detected" };
         }
 
@@ -58,7 +76,7 @@ class ExtensionConnector {
             console.log(`[Ext-Connector] Starting Attempt ${attempt}/${maxAttempts} for ${source}: ${query}`);
             
             try {
-                const response = await this.singleRequest(source, query, 8000); // 8s stop per attempt
+                const response = await this.singleRequest(source, query, 8000);
 
                 if (response.status === "SUCCESS") return response;
 
@@ -106,7 +124,7 @@ class ExtensionConnector {
      * HANDLE RESPONSES FROM BRIDGE
      */
     handleMessage(event) {
-        if (event.source !== window) return;
+        if (event.source !== window || !event.data) return;
 
         // A. Handle Heartbeat PONG
         if (event.data.type === "EXT_PONG") {

@@ -1,14 +1,18 @@
 /**
- * Drop-AI Project-to-Extension Bridge (v19.4)
+ * Drop-AI Project-to-Extension Bridge (v19.5)
  * Listens for window messages from the React app and relays to the background script.
+ * UPDATED: Added Static Availability Flag for Zero-Latency Detection.
  */
 
-console.log("[DropAI-Bridge] Unified Bridge v19.4 Active");
+console.log("[DropAI-Bridge] Unified Bridge v19.5 Active");
 
-// 1. Listen for project-side requests
+// 1. SET STATIC FLAG FOR INSTANT RECOGNITION
+window.__DROP_AI_BRIDGE_ACTIVE__ = true;
+
+// 2. Listen for project-side requests
 window.addEventListener("message", (event) => {
     // SECURITY: Only accept messages from our own window
-    if (event.source !== window) return;
+    if (event.source !== window || !event.data) return;
 
     // A. HEARTBEAT (PING)
     if (event.data.type === "EXT_PING") {
