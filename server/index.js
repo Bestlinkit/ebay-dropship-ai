@@ -34,33 +34,34 @@ app.post('/api/eprolo/search', async (req, res) => {
             return res.status(500).json({ status: "CONFIG_ERROR", message: "Eprolo not configured" });
         }
 
-        const timestamp = Date.now();
-        const bodyContent = { timestamp, keyword, page_index, page_size };
+        // 🚀 V18.0 PROTOCOL: Dual-Auth Split Transmission (Verified via verify_eprolo.js)
+        const timestamp = Date.now(); // Milliseconds as per legacy check
+        const sign = generateMD5(`${EPROLO_APP_KEY}${timestamp}${EPROLO_SECRET}`);
+        
+        let baseUrl = 'https://openapi.eprolo.com/eprolo_product_list.html';
+        const queryParams = `?apiKey=${EPROLO_APP_KEY}&sign=${sign}&timestamp=${timestamp}`;
+        let finalUrl = `${baseUrl}${queryParams}`;
 
-        // 🔍 DOUBLE-TRACE DIAGNOSTIC
-        const formatA = generateMD5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
-        const formatB = generateMD5(JSON.stringify(bodyContent) + EPROLO_SECRET);
+        const proxyUrl = process.env.VITE_PROXY_URL;
+        if (proxyUrl) {
+            console.log(`[Eprolo] Routing via Bridge: ${proxyUrl}`);
+            finalUrl = `${proxyUrl}?url=${encodeURIComponent(finalUrl)}`;
+        }
 
-        // STICK WITH FORMAT A PER CURRENT DOCS
-        const payload = { 
-            ...bodyContent, 
-            sign: formatA,
-            apiKey: EPROLO_APP_KEY,
-            apiSecret: EPROLO_SECRET 
+        const body = { 
+            keyword, 
+            page_index, 
+            page_size 
         };
 
-        console.log("Eprolo Request Payload (Auth Masked):", JSON.stringify({
-            ...payload,
-            apiKey: `****${EPROLO_APP_KEY.slice(-4)}`,
-            apiSecret: `****${EPROLO_SECRET.slice(-4)}`
-        }, null, 2));
+        console.log(`[Eprolo] v18 Auth Transmitted via URL Query String.`);
 
-        const response = await axios.post('https://openapi.eprolo.com/eprolo_product_list.html', payload, {
+        const response = await axios.post(finalUrl, body, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 10000
+            timeout: 15000
         });
 
-        console.log(`[Eprolo] Result: Code ${response.data.code}, Items: ${response.data.data?.length || 0}`);
+        console.log(`[Eprolo] v18 Result: Code ${response.data.code}, Items: ${response.data.data?.length || 0}`);
         res.json(response.data);
     } catch (error) {
         console.error("Eprolo Search Error:", error.message);
@@ -71,27 +72,32 @@ app.post('/api/eprolo/search', async (req, res) => {
 app.post('/api/eprolo/detail', async (req, res) => {
     try {
         const { product_id } = req.body;
-        const appKey = process.env.EPROLO_APP_KEY;
-        const secret = process.env.EPROLO_SECRET;
-
-        if (!appKey || !secret) {
-            return res.status(500).json({ status: "CONFIG_ERROR", message: "Missing API keys" });
+        
+        if (!EPROLO_APP_KEY || !EPROLO_SECRET) {
+            return res.status(500).json({ status: "CONFIG_ERROR", message: "Eprolo not configured" });
         }
 
+        // 🚀 V18.0 PROTOCOL: Dual-Auth Split Transmission
         const timestamp = Date.now();
-        const bodyContent = { timestamp, product_id };
-        const sign = generateMD5(JSON.stringify(bodyContent) + secret);
+        const sign = generateMD5(`${EPROLO_APP_KEY}${timestamp}${EPROLO_SECRET}`);
+        
+        let baseUrl = 'https://openapi.eprolo.com/eprolo_product_detail.html';
+        const queryParams = `?apiKey=${EPROLO_APP_KEY}&sign=${sign}&timestamp=${timestamp}`;
+        let finalUrl = `${baseUrl}${queryParams}`;
 
-        const payload = { ...bodyContent, sign };
+        const proxyUrl = process.env.VITE_PROXY_URL;
+        if (proxyUrl) {
+            console.log(`[Eprolo-Detail] Routing via Bridge: ${proxyUrl}`);
+            finalUrl = `${proxyUrl}?url=${encodeURIComponent(finalUrl)}`;
+        }
 
-        const response = await axios.post('https://openapi.eprolo.com/eprolo_product_detail.html', payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'apiKey': appKey,
-                'apiSecret': secret,
-                'md5sign': sign
-            },
-            timeout: 10000
+        const body = { product_id };
+
+        console.log(`[Eprolo-Detail] Fetching metadata for ID: ${product_id}`);
+
+        const response = await axios.post(finalUrl, body, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 15000
         });
 
         res.json(response.data);

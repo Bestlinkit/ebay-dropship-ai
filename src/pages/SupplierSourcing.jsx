@@ -563,7 +563,7 @@ const SupplierSourcing = () => {
                                     </div>
                                 </div>
                                 <p className="text-[9px] font-medium text-amber-700 uppercase italic leading-relaxed">
-                                    Anti-bot protection active. Visit AliExpress, copy the product page content (Ctrl+A -> Ctrl+C), and paste it here to extract 100% accurate data.
+                                    Anti-bot protection active. Visit AliExpress, copy the product page content (Ctrl+A &rarr; Ctrl+C), and paste it here to extract 100% accurate data.
                                 </p>
                             </div>
                         )}
