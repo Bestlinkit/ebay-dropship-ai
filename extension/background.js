@@ -6,6 +6,12 @@
 console.log("[Drop-AI Worker] v21.2 - Reset Directive Active");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    try {
+        console.log("[Drop-AI DEBUG] MESSAGE RECEIVED", request);
+    } catch (e) {
+        console.error("[Drop-AI CRASH]", e);
+    }
+
     if (request.type === "PING" || request.type === "EXT_PING") {
         console.log("[Drop-AI Worker] PING received. Sending PONG.");
         sendResponse({ status: "SUCCESS", pong: true, version: "v21.3" });
@@ -31,6 +37,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function handleSearch(request) {
+    console.log("[Drop-AI DEBUG] handleSearch ENTERED", request);
     const { source, query } = request;
     let tabId = null;
 
@@ -39,6 +46,8 @@ async function handleSearch(request) {
             ? `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`
             : `https://eprolo.com/app/newProductsCatalog.html?type=us`;
 
+        console.log("[Drop-AI DEBUG] ABOUT TO OPEN TAB", source, query);
+        
         // HIGH-FIDELITY SILENT TAB (v21.2)
         const tab = await chrome.tabs.create({ 
             url, 
