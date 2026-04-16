@@ -5,36 +5,33 @@
 
 console.log("[Drop-AI Worker] v21.5 - Inline Scripting Active");
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    try {
-        console.log("[Drop-AI DEBUG] MESSAGE RECEIVED", request);
-    } catch (e) {
-        console.error("[Drop-AI CRASH]", e);
-    }
+chrome.runtime.onMessage.addListener(handleRuntimeMessage);
 
-    if (request.type === "PING" || request.type === "EXT_PING") {
-        console.log("[Drop-AI Worker] PING received. Sending PONG.");
-        sendResponse({ status: "SUCCESS", pong: true, version: "v21.5" });
-        return true;
-    }
-
-    if (request.type === "SUPPLIER_SEARCH" || request.type === "EXT_SEARCH_REQUEST") {
-        console.log(`[Drop-AI Worker] Handling search: ${request.query} (${request.source})`);
-        
-        handleSearch(request)
-            .then(sendResponse)
-            .catch(err => {
-                console.error("[Drop-AI Worker] Fatal Error:", err.message);
-                sendResponse({
-                    status: "ERROR",
-                    error: "SYSTEM_ERROR",
-                    source: request.source,
-                    products: []
-                });
-            });
-        return true; 
-    }
+// 🌐 EXTERNAL MESSAGE HANDLER (v22.0 Direct Bridge)
+chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+    console.log("[Drop-AI DEBUG] EXTERNAL MESSAGE RECEIVED", request, "from", sender.url);
+    handleRuntimeMessage(request, sender, sendResponse);
+    return true; // Keep channel open
 });
+
+async function handleRuntimeMessage(request, sender, sendResponse) {
+    try {
+        if (request.type === "PING" || request.type === "EXT_PING") {
+            console.log("[Drop-AI Worker] PING received. Sending PONG.");
+            sendResponse({ status: "SUCCESS", pong: true, version: "v22.0" });
+            return;
+        }
+
+        if (request.type === "SUPPLIER_SEARCH" || request.type === "EXT_SEARCH_REQUEST") {
+            console.log(`[Drop-AI Worker] Handling search: ${request.query} (${request.source})`);
+            const result = await handleSearch(request);
+            sendResponse(result);
+        }
+    } catch (e) {
+        console.error("[Drop-AI Worker] Error in HandleRuntimeMessage:", e.message);
+        sendResponse({ status: "ERROR", error: "MESSAGE_EXECUTION_FAILED", source: request.source });
+    }
+}
 
 async function handleSearch(request) {
     console.log("[Drop-AI DEBUG] handleSearch ENTERED", request);
