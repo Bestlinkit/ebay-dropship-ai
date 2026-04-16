@@ -137,17 +137,35 @@ const ProductImportPreview = () => {
                 </div>
             </div>
 
+
+            {/* ⚠️ PARTIAL DATA WARNING (v6.5) */}
+            {product.isPartial && (
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 bg-amber-50 border border-amber-200 rounded-[2rem] flex items-center gap-6"
+                >
+                    <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest">Limited Enrichment Available</h4>
+                        <p className="text-xs text-amber-700 font-medium">Stage 2 extraction was interrupted. Description or full gallery may be incomplete. You can still import and manually edit.</p>
+                    </div>
+                </motion.div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 
                 {/* 🖼️ VISUAL CORE (40%) */}
                 <div className="lg:col-span-5 space-y-6">
-                    <div className="aspect-square bg-slate-900/50 border border-slate-800 rounded-[3rem] overflow-hidden group relative">
+                    <div className="aspect-square bg-slate-50 border border-slate-200 rounded-[3rem] overflow-hidden group relative shadow-lg">
                         <img 
                             src={product.images && product.images[activeImageIndex]} 
                             className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
                             alt="" 
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/20 to-transparent" />
                         
                         {/* Navigation Arrows */}
                         {product.images?.length > 1 && (
@@ -175,7 +193,7 @@ const ProductImportPreview = () => {
                                 onClick={() => setActiveImageIndex(i)}
                                 className={cn(
                                     "w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition-all",
-                                    activeImageIndex === i ? "border-emerald-500 scale-105" : "border-slate-800 opacity-50 hover:opacity-100"
+                                    activeImageIndex === i ? "border-emerald-600 scale-105" : "border-slate-100 opacity-60 hover:opacity-100"
                                 )}
                             >
                                 <img src={img} className="w-full h-full object-cover" alt="" />
@@ -194,58 +212,58 @@ const ProductImportPreview = () => {
                         </h2>
                         <div className="flex items-center gap-6">
                             <div className="flex flex-col">
-                                <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.3em]">Market Target</span>
+                                <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.3em]">Market Target</span>
                                 <span className="text-3xl font-black text-slate-950 italic tracking-tighter">
                                     {(product.pricing?.basePrice || 0) ? `$${(product.pricing?.basePrice || 0).toFixed(2)}` : '$0.00'}
                                 </span>
                             </div>
-                            <div className="h-10 w-px bg-slate-800" />
+                            <div className="h-10 w-px bg-slate-200" />
                             <div className="flex flex-col">
                                 <span className="text-[7px] font-black text-emerald-600 uppercase tracking-[0.3em]">Estimated Profit</span>
-                                <span className="text-3xl font-black text-emerald-500 italic tracking-tighter">${roiMetrics.profit}</span>
+                                <span className="text-3xl font-black text-emerald-600 italic tracking-tighter">${roiMetrics.profit}</span>
                             </div>
-                            <div className="px-4 py-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                                <span className="text-xs font-black text-emerald-500 italic">{roiMetrics.margin}% ROI</span>
+                            <div className="px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <span className="text-xs font-black text-emerald-600 italic">{roiMetrics.margin}% ROI</span>
                             </div>
                         </div>
                     </div>
 
                     {/* DATA CARDS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-[#111C33] border border-[#2A3A55] p-6 rounded-[2.5rem] space-y-4">
-                            <div className="flex items-center gap-3 text-blue-400">
+                        <div className="bg-white border border-slate-200 p-6 rounded-[2.5rem] space-y-4 shadow-sm">
+                            <div className="flex items-center gap-3 text-blue-600">
                                 <Package size={18} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Pricing Matrix</span>
                             </div>
                             <div className="space-y-2">
                                 <div className="flex justify-between text-[11px]">
                                     <span className="text-slate-500">Selected Variant Cost</span>
-                                    <span className="text-white font-black">
+                                    <span className="text-slate-950 font-black">
                                         {selectedVariant.price ? `$${selectedVariant.price.toFixed(2)}` : 'N/A'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
                                     <span className="text-slate-500">Shipping Mode Cost</span>
-                                    <span className="text-white font-black">
+                                    <span className="text-slate-950 font-black">
                                         {product.shipping?.cost ? `$${product.shipping.cost.toFixed(2)}` : 'FREE'}
                                     </span>
                                 </div>
-                                <div className="h-px bg-slate-800 my-2" />
+                                <div className="h-px bg-slate-100 my-2" />
                                 <div className="flex justify-between text-[11px]">
-                                    <span className="text-slate-400 font-bold">Total Acquisition Cost</span>
-                                    <span className="text-white font-black">${roiMetrics.cost}</span>
+                                    <span className="text-slate-500 font-bold">Total Acquisition Cost</span>
+                                    <span className="text-slate-950 font-black">${roiMetrics.cost}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-[#111C33] border border-[#2A3A55] p-6 rounded-[2.5rem] space-y-4">
-                            <div className="flex items-center gap-3 text-orange-400">
+                        <div className="bg-white border border-slate-200 p-6 rounded-[2.5rem] space-y-4 shadow-sm">
+                            <div className="flex items-center gap-3 text-amber-600">
                                 <Truck size={18} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Logistics Chain</span>
                             </div>
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
                                         <Activity size={20} />
                                     </div>
                                     <div>
@@ -253,8 +271,8 @@ const ProductImportPreview = () => {
                                         <p className="text-[8px] text-slate-500 font-black uppercase">{product.shipping?.method}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-800">
-                                    <Info size={12} className="text-slate-500" />
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                                    <Info size={12} className="text-slate-400" />
                                     <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Global Fulfillment Optimized</span>
                                 </div>
                             </div>
@@ -276,8 +294,8 @@ const ProductImportPreview = () => {
                                         className={cn(
                                             "p-4 rounded-2xl border transition-all text-left space-y-1 relative group overflow-hidden",
                                             selectedVariant.id === variant.id 
-                                                ? "bg-white border-white text-slate-950 shadow-2xl shadow-emerald-500/20" 
-                                                : "bg-slate-900/40 backdrop-blur-md border-slate-800 text-white hover:border-slate-600"
+                                                ? "bg-slate-950 border-slate-950 text-white shadow-2xl" 
+                                                : "bg-white border-slate-200 text-slate-950 hover:border-slate-400"
                                         )}
                                     >
                                         {/* Pulse Effect for selected variant */}

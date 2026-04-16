@@ -36,6 +36,7 @@ const AliSourcing = () => {
     const initialQuery = location.state?.query || targetProduct?.title || '';
 
     const [loading, setLoading] = useState(false);
+    const [isHydrating, setIsHydrating] = useState(false);
     const [matches, setMatches] = useState([]);
     const [uiState, setUiState] = useState(SourcingUIState.IDLE);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -114,18 +115,57 @@ const AliSourcing = () => {
             return;
         }
 
-        navigate('/product-import-preview', { 
-            state: { 
-                product: {
-                    ...supplierProduct,
-                    pricing: { 
-                        basePrice: Number(targetProduct.price) || 0,
-                        profitMargin: 30 // Default starting margin
-                    },
-                    sourceType: 'manual_aliexpress'
-                } 
-            } 
-        });
+        setIsHydrating(true);
+        const toastId = toast.loading("Hydrating full product details...");
+
+        try {
+            // STAGE 2: ENRICHMENT
+            const enrichment = await aliexpressService.getProductDetails(supplierProduct.url);
+            
+            // SAFE MERGE LOGIC (v6.5)
+            const enrichedData = enrichment.data || {};
+            const finalProduct = {
+                ...supplierProduct,
+                // Only overwrite if we have better data
+                title: enrichedData.title || supplierProduct.title,
+                price: enrichedData.price ?? supplierProduct.price,
+                images: enrichedData.images?.length ? enrichedData.images : supplierProduct.images,
+                description: enrichedData.description || supplierProduct.description,
+                skus: enrichedData.skus || [],
+                isPartial: enrichment.status === 'PARTIAL_DATA',
+                pricing: { 
+                    basePrice: Number(targetProduct.price) || 0,
+                    profitMargin: 30 
+                },
+                sourceType: 'manual_aliexpress'
+            };
+
+            if (enrichment.status === 'PARTIAL_DATA') {
+                toast.warning("Limited data available. Some fields may be missing.", { id: toastId });
+            } else {
+                toast.success("Product data fully hydrated", { id: toastId });
+            }
+
+            // Wait a beat for the user to breathe
+            setTimeout(() => {
+                navigate('/product-import-preview', { state: { product: finalProduct } });
+            }, 600);
+
+        } catch (err) {
+            toast.error("Enrichment failed. Continuing with basic data.", { id: toastId });
+            navigate('/product-import-preview', { 
+                state: { 
+                    product: {
+                        ...supplierProduct,
+                        isPartial: true,
+                        pricing: { basePrice: Number(targetProduct.price) || 0, profitMargin: 30 },
+                        sourceType: 'manual_aliexpress'
+                    }
+                }
+            });
+        } finally {
+            setIsHydrating(false);
+        }
     };
 
     if (!targetProduct) return <div className="p-20 text-center text-slate-500 font-bold uppercase tracking-widest">Target Selection Required</div>;
@@ -134,32 +174,32 @@ const AliSourcing = () => {
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
             
             {/* 🧭 NAVIGATION */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-[#0B1220] border border-[#2A3A55] rounded-[3rem] shadow-2xl">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-white border border-slate-200 rounded-[3rem] shadow-sm">
                 <div className="flex items-center gap-6">
-                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
+                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50">
                         <ArrowLeft size={24} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">AliExpress Discovery</h1>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">AliExpress Discovery</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
                              Manual Discovery Mode
                         </p>
                     </div>
                 </div>
 
-                <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl flex items-center gap-4 bg-slate-900/50 border border-slate-800 p-2 rounded-2xl shadow-2xl">
-                    <div className="pl-4 text-slate-500"><SearchIcon size={18} /></div>
+                <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl flex items-center gap-4 bg-slate-50 border border-slate-200 p-2 rounded-2xl">
+                    <div className="pl-4 text-slate-400"><SearchIcon size={18} /></div>
                     <input 
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Customize search query..."
-                        className="flex-1 bg-transparent border-none outline-none text-sm text-white py-2"
+                        className="flex-1 bg-transparent border-none outline-none text-sm text-slate-900 py-2"
                     />
                     <button 
                         type="submit"
                         disabled={loading}
-                        className="bg-white text-slate-950 px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-50"
+                        className="bg-slate-950 text-white px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50"
                     >
                         {loading ? 'Searching...' : 'Search Now'}
                     </button>
@@ -167,12 +207,12 @@ const AliSourcing = () => {
             </div>
 
             {/* 🔍 STATUS BAR */}
-            <div className="bg-slate-950 border border-slate-900 p-8 rounded-[2rem] flex items-center justify-between">
+            <div className="bg-white border border-slate-200 p-8 rounded-[2rem] flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-6">
                     <div className={cn("w-3 h-3 rounded-full", loading ? "bg-amber-500 animate-pulse" : "bg-emerald-500")} />
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{loading ? "Active Search Pipeline" : "Reports"}</p>
-                        <h3 className="text-white font-bold text-sm">
+                        <h3 className="text-slate-950 font-bold text-sm">
                             {uiState === SourcingUIState.ALIEXPRESS_SEARCHING && "Connecting to AliExpress..."}
                             {uiState === SourcingUIState.ALIEXPRESS_SUCCESS && `${processedResults.length} Matches identified`}
                             {uiState === SourcingUIState.ALIEXPRESS_EMPTY && "Zero matches found for this query"}
@@ -283,25 +323,41 @@ const AliSourcing = () => {
             {/* CONFIRMATION MODAL */}
             <AnimatePresence>
                 {confirmModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-black/80">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md bg-white/40">
                         <motion.div 
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-slate-950 border border-slate-800 p-12 rounded-[3.5rem] max-w-xl w-full shadow-3xl text-center space-y-10"
+                            className="bg-white border border-slate-200 p-12 rounded-[3.5rem] max-w-xl w-full shadow-2xl text-center space-y-10"
                         >
-                            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto shadow-2xl">
-                                <Globe size={32} />
+                            <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center text-white mx-auto shadow-xl">
+                                <Globe size={32} className={cn(isHydrating && "animate-spin")} />
                             </div>
                             <div className="space-y-4">
-                                <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Import Selected Product?</h3>
-                                <p className="text-slate-400 text-sm leading-relaxed">
-                                    Proceeding with manual import. Baselines will be established upon confirmation.
+                                <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">
+                                    {isHydrating ? "Hydrating Data..." : "Import Selected Product?"}
+                                </h3>
+                                <p className="text-slate-500 text-sm leading-relaxed">
+                                    {isHydrating 
+                                        ? "Extracting real-time pricing, descriptions, and full gallery from AliExpress..." 
+                                        : "Proceeding with manual import. Baselines will be established upon confirmation."}
                                 </p>
                             </div>
                             <div className="flex gap-4">
-                                <button onClick={() => setConfirmModal(null)} className="flex-1 py-5 border border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-white transition-all">Abort</button>
-                                <button onClick={() => finalizeImport(confirmModal)} className="flex-1 py-5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:bg-blue-500 transition-all shadow-xl">Confirm & Import</button>
+                                <button 
+                                    disabled={isHydrating}
+                                    onClick={() => setConfirmModal(null)} 
+                                    className="flex-1 py-5 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all disabled:opacity-30"
+                                >
+                                    Abort
+                                </button>
+                                <button 
+                                    disabled={isHydrating}
+                                    onClick={() => finalizeImport(confirmModal)} 
+                                    className="flex-1 py-5 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:bg-emerald-600 transition-all shadow-xl disabled:opacity-50"
+                                >
+                                    {isHydrating ? "Processing..." : "Confirm & Import"}
+                                </button>
                             </div>
                         </motion.div>
                     </div>

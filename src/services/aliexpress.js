@@ -11,6 +11,19 @@ class AliExpressService {
     this.proxyUrl = rawProxy.endsWith("/") ? rawProxy.slice(0, -1) : rawProxy;
   }
 
+  async fetchWithTimeout(url, options = {}, timeout = 8000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (e) {
+      clearTimeout(id);
+      throw e;
+    }
+  }
+
   async searchProducts(query) {
     if (!query) return { status: SourcingStatus.EMPTY, data: [], debugInfo: {} };
 
@@ -24,7 +37,7 @@ class AliExpressService {
     };
 
     try {
-        const response = await fetch(debugInfo.endpoint);
+        const response = await this.fetchWithTimeout(debugInfo.endpoint);
         debugInfo.httpStatus = response.status;
         const html = await response.text();
         debugInfo.htmlLength = html.length;
@@ -108,6 +121,77 @@ class AliExpressService {
             status: SourcingStatus.NETWORK_ERROR, 
             data: [], 
             debugInfo: { ...debugInfo, errorStack: e.message } 
+        };
+    }
+  }
+
+  /**
+   * STAGE 2: DETAIL ENRICHMENT (v6.5)
+   * Fetches full product data from the detail page URL.
+   */
+  async getProductDetails(url) {
+    if (!url || url === '#') return { status: 'ERROR', message: 'Invalid URL' };
+
+    const debugInfo = {
+        endpoint: `${this.proxyUrl}/aliexpress-product-details?url=${encodeURIComponent(url)}`,
+        timestamp: new Date().toISOString(),
+        stage: "ENRICHMENT"
+    };
+
+    try {
+        const response = await this.fetchWithTimeout(debugInfo.endpoint);
+        const html = await response.text();
+        
+        // 🧪 EXTRACTION LOGIC
+        const jsonBlocks = this.discoverJSONBlocks(html);
+        let runParams = null;
+        
+        // Prioritize blocks with SKU/Image data
+        for (const block of jsonBlocks) {
+            if (block.data?.skuModule || block.data?.imageModule) {
+                runParams = block.data;
+                break;
+            }
+        }
+
+        // 💰 REFINED PRICE EXTRACTION
+        let price = null;
+        const priceObj = runParams?.skuModule?.skuPrice || runParams?.priceModule?.minAmount;
+        if (priceObj) {
+            price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.amount);
+        }
+
+        // 🆔 SKU & VARIANTS
+        const skus = runParams?.skuModule?.productSKUPropertyList || [];
+        
+        // 🖼️ IMAGE GALLERY
+        const images = runParams?.imageModule?.imagePathList || [];
+
+        // 📝 DESCRIPTION
+        const description = 
+            runParams?.descriptionModule?.description || 
+            html.match(/<div class="detail-desc">([\s\S]*?)<\/div>/)?.[1] || 
+            null;
+
+        return {
+            status: SourcingStatus.SUCCESS,
+            data: {
+                price: price > 0 ? price : null,
+                skus,
+                images,
+                description,
+                title: runParams?.productModule?.title || null
+            },
+            debugInfo
+        };
+
+    } catch (e) {
+        console.warn("AliExpress Enrichment Failed:", e.message);
+        return { 
+            status: "PARTIAL_DATA", 
+            message: "Enrichment failed, using search baseline", 
+            fallback: true,
+            debugInfo: { ...debugInfo, error: e.message }
         };
     }
   }

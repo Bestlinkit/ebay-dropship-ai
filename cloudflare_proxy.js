@@ -79,6 +79,18 @@ const sha256 = async (string) => {
     return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, "0")).join("");
 };
 
+// 3. PERSISTENT AUTH CACHE (Isolate-Level)
+let workingAuthMode = null;
+
+// 4. TIMEOUT WRAPPER (8s Hard Limit)
+const fetchWithTimeout = (url, options, timeout = 8000) =>
+    Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("GATEWAY_TIMEOUT")), timeout)
+        )
+    ]);
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -96,7 +108,7 @@ export default {
 
         // 0. ROUTE: /health
         if (pathname === "/health") {
-            return new Response(JSON.stringify({ status: "online", version: "6.3-SHIELD" }), {
+            return new Response(JSON.stringify({ status: "online", version: "6.5-STABLE" }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" }
             });
         }
@@ -114,27 +126,35 @@ export default {
                     throw new Error("EPROLO_APP_KEY or EPROLO_SECRET missing in Worker environment.");
                 }
 
-                // 🛡️ HIGH-FIDELITY AUTH (v6.3): Switching to Milliseconds as per test scripts
                 const timestamp = Date.now();
                 const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
                 
-                // 🛡️ DUAL-PRESENCE AUTH (Strict Correction v6.3)
-                // Sending in headers AND body to eliminate "apiKey cannot be null" gateway drops
-                const headers = { 
-                    "Content-Type": "application/json",
-                    "apiKey": EPROLO_APP_KEY,
-                    "apiSecret": EPROLO_SECRET
-                };
+                // 🛡️ BRUTE-FORCE AUTH DISCOVERY (v6.5)
+                const attempts = [
+                    {
+                        name: "HEADER_LOWERCASE",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "apiKey": EPROLO_APP_KEY,
+                            "apiSecret": EPROLO_SECRET
+                        }
+                    },
+                    {
+                        name: "HEADER_UPPERCASE",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "API-KEY": EPROLO_APP_KEY,
+                            "API-SECRET": EPROLO_SECRET
+                        }
+                    },
+                    {
+                        name: "BODY_AUTH",
+                        headers: { "Content-Type": "application/json" },
+                        bodyAuth: true
+                    }
+                ];
 
-                // 🔥 MANDATORY DEBUG LOG
-                console.log("EPROLO_AUTH_TRACE", { 
-                    keyLength: EPROLO_APP_KEY?.length, 
-                    tsType: typeof timestamp,
-                    tsValue: timestamp 
-                });
-
-                const eproloPayload = {
-                    apiKey: EPROLO_APP_KEY, // 👈 KEY ADDED TO BODY
+                const payload = {
                     timestamp: timestamp,
                     sign: signMD5,
                     keyword: keyword || "",
@@ -142,42 +162,54 @@ export default {
                     page_size: page_size || 20
                 };
 
-                const response = await fetch("https://openapi.eprolo.com/eprolo_product_list.html", {
-                    method: "POST",
-                    headers: headers,
-                    body: JSON.stringify(eproloPayload)
-                });
+                // Execute Discovery or Cached Mode
+                for (const attempt of attempts) {
+                    // Skip if we already have a working mode and it's not this one
+                    if (workingAuthMode && attempt.name !== workingAuthMode) continue;
 
-                const result = await response.json();
-                
-                // 🛑 STRUCTURED HARD FAIL (IRON SHIELD v6.1 / v6.3)
-                if (
-                    result?.msg?.toLowerCase().includes("apikey") || 
-                    result?.code === "-1" || 
-                    result?.code === -1
-                ) {
-                    return new Response(JSON.stringify({
-                        status: "AUTH_FAILURE",
-                        source: "EPROLO",
-                        message: result.msg || "Eprolo Authentication Rejected",
-                        protocol: "v6.3-TriplePoint",
-                        raw: result
-                    }), { 
-                        status: 401, 
-                        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-                    });
+                    const finalHeaders = attempt.headers;
+                    const finalBody = attempt.bodyAuth 
+                        ? { ...payload, apiKey: EPROLO_APP_KEY } 
+                        : payload;
+
+                    console.log(`EPROLO_ATTEPMT: ${attempt.name}`);
+
+                    try {
+                        const response = await fetchWithTimeout("https://openapi.eprolo.com/eprolo_product_list.html", {
+                            method: "POST",
+                            headers: finalHeaders,
+                            body: JSON.stringify(finalBody)
+                        });
+
+                        const result = await response.json();
+                        
+                        if (result?.code === "0" || result?.code === 0) {
+                            workingAuthMode = attempt.name; // CACHE SUCCESS
+                            return new Response(JSON.stringify(result), { 
+                                headers: { ...corsHeaders, "Content-Type": "application/json", "X-Auth-Mode": workingAuthMode } 
+                            });
+                        }
+
+                        // If it fails with "apiKey cannot be null" and we are NOT in discovery, reset cache
+                        if (workingAuthMode && (result?.msg?.includes("apiKey") || result?.code === "-1")) {
+                            workingAuthMode = null;
+                        }
+                    } catch (e) {
+                        if (workingAuthMode) workingAuthMode = null; // Reset on timeout/error
+                        console.error(`Attempt ${attempt.name} failed:`, e.message);
+                    }
                 }
 
-                return new Response(JSON.stringify(result), { 
-                    headers: { ...corsHeaders, "Content-Type": "application/json" } 
-                });
+                return new Response(JSON.stringify({
+                    status: "AUTH_FAILURE",
+                    message: "All Eprolo Authentications failed. Review keys in Dashboard.",
+                    debug: { workingAuthMode }
+                }), { status: 401, headers: corsHeaders });
+
             } catch (err) { 
-                console.error("Eprolo Bridge Critical Failure:", err.message);
-                return new Response(JSON.stringify({ 
-                    error: err.message, 
-                    code: 'WORKER_ERROR',
-                    msg: "Eprolo Bridge Failure"
-                }), { status: 500, headers: corsHeaders }); 
+                return new Response(JSON.stringify({ error: err.message, code: 'WORKER_ERROR' }), { 
+                    status: 500, headers: corsHeaders 
+                }); 
             }
         }
 
@@ -187,93 +219,65 @@ export default {
                 const query = url.searchParams.get("q");
                 if (!query) throw new Error("Missing query");
 
-                console.log("SOURCE: ALIEXPRESS MANUAL");
-                const target = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
-                const response = await fetch(target, {
+                const response = await fetchWithTimeout(`https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`, {
                     headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                        "Accept-Language": "en-US,en;q=0.9",
-                        "Referer": "https://www.aliexpress.com/",
-                        "Origin": "https://www.aliexpress.com"
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
                     }
                 });
 
                 const html = await response.text();
-                
-                // 🛑 BLOCKING DETECTION (v6.3)
-                if (!html || html.length < 1000) {
-                    return new Response(JSON.stringify({
-                        status: "BLOCKED",
-                        source: "ALIEXPRESS",
-                        message: "AliExpress anti-bot triggered (HTML length check failure)",
-                        length: html?.length || 0
-                    }), { 
-                        status: 403, 
-                        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-                    });
-                }
+                if (!html || html.length < 1000) throw new Error("BLOCKED");
 
-                return new Response(html, {
-                    headers: { ...corsHeaders, "Content-Type": "text/html" }
-                });
+                return new Response(html, { headers: { ...corsHeaders, "Content-Type": "text/html" } });
             } catch (err) { 
-                return new Response(JSON.stringify({ 
-                    status: "BRIDGE_ERROR",
-                    error: err.message, 
-                    msg: err.message 
-                }), { status: 500, headers: corsHeaders }); 
+                return new Response(JSON.stringify({ status: "BRIDGE_ERROR", error: err.message }), { status: 500, headers: corsHeaders }); 
             }
         }
 
-        // 3. FALLBACK: Generic Proxy (eBay / Identity / AI)
-        const targetUrl = url.searchParams.get("url");
-        if (targetUrl) {
+        // 3. ROUTE: /aliexpress-product-details (NEW v6.5)
+        if (pathname === "/aliexpress-product-details") {
             try {
-                // Use a fresh Headers object based on the incoming request
-                const headers = new Headers(request.headers);
-                
-                // Allow Override via Query Params (Useful for debugging/specific cases)
-                const authOverride = url.searchParams.get("auth");
-                const marketplaceOverride = url.searchParams.get("marketplaceid");
-                
-                if (authOverride) headers.set("Authorization", authOverride);
-                if (marketplaceOverride) headers.set("X-EBAY-C-MARKETPLACE-ID", marketplaceOverride);
+                const targetUrl = url.searchParams.get("url");
+                if (!targetUrl) throw new Error("Missing product URL");
 
-                // Scrub headers for proxy safety
-                headers.delete("Host");
-                headers.delete("CF-Connecting-IP");
-                headers.delete("Forwarded");
-                headers.delete("X-Forwarded-For");
-
-                const proxyResponse = await fetch(targetUrl, {
-                    method: request.method,
-                    headers: headers,
-                    body: (request.method !== "GET" && request.method !== "HEAD") ? await request.arrayBuffer() : undefined,
-                    redirect: "follow"
-                });
-
-                // Return with CORS and all upstream headers
-                const responseHeaders = new Headers(corsHeaders);
-                proxyResponse.headers.forEach((v, k) => {
-                    // Avoid overriding critical CORS headers
-                    if (!k.toLowerCase().startsWith("access-control-")) {
-                        responseHeaders.set(k, v);
+                const response = await fetchWithTimeout(targetUrl, {
+                    headers: {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
                     }
                 });
 
-                return new Response(proxyResponse.body, { 
-                    status: proxyResponse.status, 
-                    headers: responseHeaders 
-                });
-            } catch (err) { 
-                return new Response(JSON.stringify({ error: err.message, msg: "Bridge Fallback Error" }), { 
-                    status: 500, 
-                    headers: corsHeaders 
-                }); 
+                const html = await response.text();
+                return new Response(html, { headers: { ...corsHeaders, "Content-Type": "text/html" } });
+            } catch (err) {
+                return new Response(JSON.stringify({ status: "ENRICHMENT_ERROR", error: err.message }), { status: 500, headers: corsHeaders });
             }
         }
 
-        return new Response("Crystal Bridge: Active and Secure", { status: 200 });
+        // 4. FALLBACK Proxy
+        const targetUrl = url.searchParams.get("url");
+        if (targetUrl) {
+            try {
+                const headers = new Headers(request.headers);
+                headers.delete("Host");
+
+                const proxyResponse = await fetchWithTimeout(targetUrl, {
+                    method: request.method,
+                    headers: headers,
+                    body: (request.method !== "GET" && request.method !== "HEAD") ? await request.arrayBuffer() : undefined,
+                });
+
+                const responseHeaders = new Headers(corsHeaders);
+                proxyResponse.headers.forEach((v, k) => {
+                    if (!k.toLowerCase().startsWith("access-control-")) responseHeaders.set(k, v);
+                });
+
+                return new Response(proxyResponse.body, { status: proxyResponse.status, headers: responseHeaders });
+            } catch (err) { 
+                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders }); 
+            }
+        }
+
+        return new Response("Crystal Bridge: v6.5 Active", { status: 200 });
     }
 };

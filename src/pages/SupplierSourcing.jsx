@@ -143,15 +143,15 @@ const SupplierSourcing = () => {
 
     if (!targetProduct) {
         return (
-            <div className="h-[60vh] flex flex-col items-center justify-center gap-8 bg-[#0B1220] text-center p-10">
-                <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-[2rem] flex items-center justify-center text-slate-700">
+            <div className="h-[60vh] flex flex-col items-center justify-center gap-8 bg-white text-center p-10">
+                <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[2rem] flex items-center justify-center text-slate-300">
                     <AlertCircle size={40} />
                 </div>
                 <div className="space-y-4">
-                    <h3 className="text-xl font-black text-white italic tracking-tighter uppercase">Missing Product Context</h3>
+                    <h3 className="text-xl font-black text-slate-950 italic tracking-tighter uppercase">Missing Product Context</h3>
                     <p className="text-slate-500 text-sm max-w-sm mx-auto">Inquiry source not detected.</p>
                 </div>
-                <button onClick={() => navigate('/discovery')} className="px-10 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 hover:text-white transition-all shadow-3xl">
+                <button onClick={() => navigate('/discovery')} className="px-10 py-5 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-xl">
                     Return to Discovery <ArrowRight size={14} />
                 </button>
             </div>
@@ -160,19 +160,19 @@ const SupplierSourcing = () => {
 
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-white border border-slate-200 rounded-[3rem] shadow-xl">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-white border border-slate-200 rounded-[3rem] shadow-sm">
                 <div className="flex items-center gap-6">
-                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900/50">
+                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50">
                         <ArrowLeft size={24} />
                     </button>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-4 mb-2">
-                            <div className="w-12 h-12 bg-white/10 rounded-xl overflow-hidden border border-white/10">
+                            <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
                                 <img src={targetProduct?.image} className="w-full h-full object-cover" alt="Focus" />
                             </div>
                             <div>
                                 <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Eprolo Discovery</h1>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
                                     <ShieldCheck size={12} className="text-emerald-500" /> Secure API Bridge
                                 </p>
                             </div>
@@ -207,13 +207,13 @@ const SupplierSourcing = () => {
                             <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} isBest={bestOption?.id === res.id} onContinue={handleContinue} />
                         ))}
                         {processedResults.length > paginatedResults.length && (
-                             <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-[#111C33] border border-[#2A3A55] text-white rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-500 transition-all shadow-xl">
+                             <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm">
                                  Show next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} opportunities
                              </button>
                         )}
-                        <div className="mt-10 p-10 bg-slate-950 border border-slate-800 rounded-[3rem] text-center space-y-4 shadow-3xl">
+                        <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Need more variety or lower pricing?</p>
-                             <button onClick={handleExpandSearch} className="text-[11px] font-black text-white px-8 py-4 bg-slate-900 hover:bg-[#0B1220] rounded-xl transition-all uppercase tracking-widest border border-white/5">
+                             <button onClick={handleExpandSearch} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
                                  Search AliExpress Manually
                              </button>
                         </div>
@@ -272,16 +272,16 @@ const SupplierSourcing = () => {
 
             <AnimatePresence>
                 {showAliExpansion && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-black/80">
-                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-950 border border-slate-800 p-12 rounded-[4rem] max-w-lg w-full text-center space-y-8 shadow-3xl">
-                            <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-3xl flex items-center justify-center mx-auto border border-blue-500/20"><Globe size={32} /></div>
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-white/40">
+                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white border border-slate-200 p-12 rounded-[4rem] max-w-lg w-full text-center space-y-8 shadow-2xl">
+                            <div className="w-16 h-16 bg-slate-950 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl"><Globe size={32} /></div>
                             <div className="space-y-4">
-                                <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">Global Scraper</h3>
+                                <h3 className="text-3xl font-black text-slate-950 italic uppercase tracking-tighter">Global Scraper</h3>
                                 <p className="text-slate-500 text-sm leading-relaxed">Initiating manual AliExpress scraping flow.</p>
                             </div>
                             <div className="space-y-4">
-                                <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="w-full py-6 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-500 hover:text-white transition-all shadow-2xl">Proceed</button>
-                                <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-700 uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
+                                <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="w-full py-6 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">Proceed</button>
+                                <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-950 transition-colors">Cancel</button>
                             </div>
                          </motion.div>
                     </div>
@@ -290,16 +290,22 @@ const SupplierSourcing = () => {
 
             <AnimatePresence>
                 {confirmModal && (
-                    <div className="fixed inset-0 z-[101] flex items-center justify-center p-6 backdrop-blur-md bg-black/60">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-slate-950 border border-slate-800 p-12 rounded-[3.5rem] max-w-xl w-full shadow-3xl text-center space-y-10">
-                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-950 mx-auto shadow-2xl"><CheckCircle2 size={32} /></div>
+                    <div className="fixed inset-0 z-[101] flex items-center justify-center p-6 backdrop-blur-md bg-white/40">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white border border-slate-200 p-12 rounded-[3.5rem] max-w-xl w-full shadow-2xl text-center space-y-10">
+                            <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center text-white mx-auto shadow-xl"><CheckCircle2 size={32} /></div>
                             <div className="space-y-4">
-                                <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">Commit Choice?</h3>
-                                <p className="text-slate-400 text-sm leading-relaxed">Estimated profit: <span className="text-emerald-500 font-bold">{confirmModal.roiRange?.expected}% ROI</span>.</p>
+                                <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase">Commit Choice?</h3>
+                                <p className="text-slate-500 text-sm leading-relaxed">
+                                    {confirmModal.roiRange?.expected !== null ? (
+                                        <>Estimated profit: <span className="text-emerald-600 font-bold">{confirmModal.roiRange.expected}% ROI</span>.</>
+                                    ) : (
+                                        "Calculating final margins..."
+                                    )}
+                                </p>
                             </div>
                             <div className="flex gap-4">
-                                <button onClick={() => setConfirmModal(null)} className="flex-1 py-5 border border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all">Back</button>
-                                <button onClick={() => finalizeImport(confirmModal)} className="flex-1 py-5 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:bg-emerald-500 hover:text-white transition-all shadow-xl">Confirm Import</button>
+                                <button onClick={() => setConfirmModal(null)} className="flex-1 py-5 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all">Back</button>
+                                <button onClick={() => finalizeImport(confirmModal)} className="flex-1 py-5 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.15em] hover:bg-emerald-600 transition-all shadow-xl">Confirm Import</button>
                             </div>
                         </motion.div>
                     </div>

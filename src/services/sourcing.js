@@ -155,20 +155,35 @@ class SourcingService {
     const price = Number(product.price ?? 0);
     const targetPrice = Number(basePrice ?? 0);
 
-    if (!price || !targetPrice) return 0;
+    let score = 0;
 
     // 1. ROI Contribution (Normalized to 100)
-    const roi = ((targetPrice - price) / price) * 100;
-    const roiScore = Math.min(Math.max(roi, 0), 100);
+    if (price > 0 && targetPrice > 0) {
+        const roi = ((targetPrice - price) / price) * 100;
+        const roiScore = Math.min(Math.max(roi, 0), 100);
+        score += (roiScore * 0.5);
+    } else {
+        score -= 25; // 🛑 HEAVY PENALTY FOR MISSING PRICE
+    }
 
     // 2. Data Completeness (Fixed 50pt scale)
-    const completeness = 
-      (product.title && product.title !== 'AliExpress Listing' ? 20 : 0) + 
-      (product.price > 0 ? 20 : 0) + 
-      (product.image ? 10 : 0);
+    const hasTitle = product.title && product.title !== 'AliExpress Listing' && product.title.length > 10;
+    const hasImage = !!product.image && !product.image.includes('placeholder');
+    const hasDescription = !!product.description && product.description.length > 50;
+    const hasGallery = Array.isArray(product.images) && product.images.length > 1;
 
-    // 3. Normalized output (0-100)
-    return Math.round((roiScore * 0.5) + (completeness));
+    score += (hasTitle ? 20 : 0);
+    score += (price > 0 ? 15 : 0);
+    score += (hasImage ? 10 : 0);
+    score += (hasDescription ? 10 : 0);
+    score += (hasGallery ? 5 : 0);
+
+    // 3. FINAL ADJUSTMENTS
+    if (!hasImage) score -= 15;
+    if (!hasTitle) score -= 10;
+
+    // 4. Normalized output (0-100+)
+    return Math.max(0, Math.round(score));
   }
 
   calculateMatchRelevance(target, supplier) {
@@ -184,7 +199,7 @@ class SourcingService {
     const totalCost = Number(supplierCost) + Number(shipping);
     const targetPrice = Number(ebayPrice);
 
-    if (!totalCost || totalCost <= 0 || !targetPrice) return 0;
+    if (!totalCost || totalCost <= 0 || !targetPrice) return null;
 
     const profit = targetPrice - totalCost;
     return Math.round((profit / totalCost) * 100);
@@ -192,7 +207,7 @@ class SourcingService {
 
   calculateSupplierROIRange(ebayPrice, supplierCost) {
     const totalCost = Number(supplierCost);
-    if (!totalCost || totalCost <= 0) return { conservative: 0, expected: 0 };
+    if (!totalCost || totalCost <= 0) return { conservative: null, expected: null };
 
     const expected = this.calculateROI(ebayPrice, supplierCost);
     const conservative = this.calculateROI(ebayPrice * 0.90, supplierCost);
