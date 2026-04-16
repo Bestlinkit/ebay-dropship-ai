@@ -453,8 +453,6 @@ const SupplierSourcing = () => {
                                     </p>
                                 </div>
                             </div>
-                                </div>
-                            </div>
                             <div className="flex items-center gap-3 shrink-0">
                                 <button 
                                     onClick={handleRetryConnection}
