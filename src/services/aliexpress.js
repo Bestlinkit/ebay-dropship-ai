@@ -126,7 +126,7 @@ class AliExpressService {
   }
 
   /**
-   * STAGE 2: DETAIL ENRICHMENT (v6.5)
+   * STAGE 2: DETAIL ENRICHMENT (v7.0)
    * Fetches full product data from the detail page URL.
    */
   async getProductDetails(url) {
@@ -161,8 +161,9 @@ class AliExpressService {
             price = parseFloat(priceObj.value || priceObj.minPrice || priceObj.amount);
         }
 
-        // 🆔 SKU & VARIANTS
-        const skus = runParams?.skuModule?.productSKUPropertyList || [];
+        // 🆔 SKU & VARIANTS (Iron Flow 7.0 - Force Extraction)
+        const skuId = runParams?.skuModule?.skuPriceList?.[0]?.skuId || null;
+        const variants = runParams?.skuModule?.productSKUPropertyList || [];
         
         // 🖼️ IMAGE GALLERY
         const images = runParams?.imageModule?.imagePathList || [];
@@ -177,10 +178,12 @@ class AliExpressService {
             status: SourcingStatus.SUCCESS,
             data: {
                 price: price > 0 ? price : null,
-                skus,
+                skuId,
+                variants,
                 images,
                 description,
-                title: runParams?.productModule?.title || null
+                title: runParams?.productModule?.title || null,
+                enriched: true
             },
             debugInfo
         };
@@ -194,6 +197,43 @@ class AliExpressService {
             debugInfo: { ...debugInfo, error: e.message }
         };
     }
+  }
+
+  /**
+   * Concurrent Auto-Enrichment (Iron Flow 7.0)
+   * Limits concurrency to avoid anti-bot triggers.
+   */
+  async enrichWithLimit(items, limit = 2) {
+    if (!items || items.length === 0) return [];
+    
+    // 🔍 Select candidates that actually need hydration
+    const needsEnrichment = p => (!p.price || !p.image) && !p.enriched;
+    const candidates = items.filter(needsEnrichment).slice(0, 5);
+    
+    if (candidates.length === 0) return items;
+
+    const enrichedItems = [...items];
+
+    for (let i = 0; i < candidates.length; i += limit) {
+        const chunk = candidates.slice(i, i + limit);
+        const results = await Promise.all(
+            chunk.map(async (item) => {
+                const enrichment = await this.getProductDetails(item.url);
+                if (enrichment.status === SourcingStatus.SUCCESS) {
+                    return { ...item, ...enrichment.data, enrichmentStatus: "DONE" };
+                }
+                return { ...item, enrichmentStatus: "FAILED" };
+            })
+        );
+        
+        // Update the main array with enriched data
+        results.forEach(res => {
+            const idx = enrichedItems.findIndex(p => p.id === res.id);
+            if (idx !== -1) enrichedItems[idx] = res;
+        });
+    }
+
+    return enrichedItems;
   }
 
   /**
@@ -268,7 +308,9 @@ class AliExpressService {
             source: 'AliExpress',
             url: item.productDetailUrl || (item.productId ? `https://www.aliexpress.com/item/${item.productId}.html` : '#'),
             delivery: item.delivery?.displayAmount || "15-25 days",
-            shipsFrom: item.logistics?.shipsFrom || "CN"
+            shipsFrom: item.logistics?.shipsFrom || "CN",
+            enrichmentStatus: "PENDING",
+            enriched: false
         };
     }).filter(p => p && p.title && p.title.length > 5);
   }

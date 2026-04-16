@@ -5,7 +5,8 @@ import {
   ShieldCheck, 
   ChevronRight, 
   Clock, 
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
@@ -32,6 +33,10 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
 
     const priceIntel = getPriceLabel(product.roiRange?.expected || 0);
     const shipIntel = getShippingLabel(product.delivery);
+
+    // 🕒 IRON FLOW 7.0: STATUS LABELS
+    const isEnriching = product.enrichmentStatus === "PENDING";
+    const isFailed = product.enrichmentStatus === "FAILED";
 
     return (
         <motion.div 
@@ -78,13 +83,23 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                         )}
                     </div>
                     <h3 className="text-[13px] font-black text-slate-950 uppercase tracking-tight line-clamp-1">{product.title}</h3>
+                    
+                    {isEnriching && (
+                        <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 animate-pulse">
+                            <RefreshCw size={8} className="animate-spin" /> Deep Hydration in progress...
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-8 md:gap-12">
                     <div className="flex flex-col">
                         <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Base Cost</span>
                         <span className="text-xl font-black text-slate-950 italic tracking-tighter">
-                            {product.price ? `$${product.price.toFixed(2)}` : 'Wait...'}
+                            {isEnriching ? (
+                                <span className="text-blue-500">Fetching...</span>
+                            ) : (
+                                product.price ? `$${product.price.toFixed(2)}` : <span className="text-rose-500">N/A</span>
+                            )}
                         </span>
                     </div>
                     <div className="flex flex-col">
@@ -105,8 +120,19 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                 <div className="flex flex-col items-center gap-1.5 text-center">
                     <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">ROI Estimate</span>
                     <div>
-                        <span className="text-2xl font-black text-emerald-600 italic tracking-tighter leading-none">
-                            {product.roiRange?.expected !== null ? `${product.roiRange.conservative}% – ${product.roiRange.expected}%` : 'Pending...'}
+                        <span className={cn(
+                            "text-xl font-black italic tracking-tighter leading-none whitespace-nowrap",
+                            isEnriching ? "text-slate-300" : "text-emerald-600"
+                        )}>
+                            {isEnriching ? (
+                                'Calculating...'
+                            ) : (
+                                product.roiRange?.expected !== null ? (
+                                    `${product.roiRange.conservative}% – ${product.roiRange.expected}%`
+                                ) : (
+                                    '--- %'
+                                )
+                            )}
                         </span>
                     </div>
                 </div>

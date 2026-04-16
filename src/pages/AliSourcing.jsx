@@ -85,9 +85,9 @@ const AliSourcing = () => {
                 // FORCE NORMALIZATION
                 const res = sourcingService.normalize(raw, 'aliexpress');
                 
-                const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
-                // PER-ITEM ROI CALCULATION (Deterministic)
-                const roiRange = sourcingService.calculateSupplierROIRange(targetProduct.price, res.price + (res.shipping || 0));
+                const relevance = sourcingService.calculateScore(res, Number(targetProduct.price) || 0);
+                // PER-ITEM ROI CALCULATION (Deterministic Range)
+                const roiRange = sourcingService.calculateROI(targetProduct.price, res.price + (res.shipping || 0));
                 const trust = sourcingService.evaluateSupplierTrust(res);
                 return { ...res, relevance, roiRange, trust };
             })
@@ -119,19 +119,20 @@ const AliSourcing = () => {
         const toastId = toast.loading("Hydrating full product details...");
 
         try {
-            // STAGE 2: ENRICHMENT
-            const enrichment = await aliexpressService.getProductDetails(supplierProduct.url);
+            // STAGE 2: ENRICHMENT (Only if not already enriched by search pipeline)
+            let enrichment = { status: SourcingStatus.SUCCESS, data: supplierProduct };
             
-            // SAFE MERGE LOGIC (v6.5)
-            const enrichedData = enrichment.data || {};
+            if (!supplierProduct.enriched) {
+                enrichment = await aliexpressService.getProductDetails(supplierProduct.url);
+            }
+            
+            // SAFE MERGE LOGIC (v7.0)
+            const data = enrichment.data || {};
             const finalProduct = {
                 ...supplierProduct,
-                // Only overwrite if we have better data
-                title: enrichedData.title || supplierProduct.title,
-                price: enrichedData.price ?? supplierProduct.price,
-                images: enrichedData.images?.length ? enrichedData.images : supplierProduct.images,
-                description: enrichedData.description || supplierProduct.description,
-                skus: enrichedData.skus || [],
+                ...data,
+                // Ensure critical prices and flags are locked
+                price: data.price ?? supplierProduct.price,
                 isPartial: enrichment.status === 'PARTIAL_DATA',
                 pricing: { 
                     basePrice: Number(targetProduct.price) || 0,

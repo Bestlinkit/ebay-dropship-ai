@@ -14,11 +14,29 @@ class SourcingService {
     };
     
     // STRICT SCHEMA REGISTRY
-    this.ProductSource = {
-      EBAY: 'ebay',
-      EPROLO: 'eprolo',
-      ALIEXPRESS: 'aliexpress'
+    // 🏛️ PIPELINE STATUS REGISTRY
+    this.Status = {
+      LOADING: 'LOADING',
+      PARTIAL: 'PARTIAL',
+      COMPLETE: 'COMPLETE'
     };
+
+    this.SourceStatus = {
+      OK: 'OK',
+      FAILED: 'FAILED',
+      PENDING: 'PENDING'
+    };
+  }
+
+  /**
+   * Frozen Context Factory (Iron Flow 7.0)
+   * Prevents mutation bugs across async stages.
+   */
+  createContext(query, ebayProduct) {
+    return Object.freeze({
+      query,
+      targetPrice: Number(ebayProduct?.price || 0)
+    });
   }
 
   /**
@@ -186,9 +204,22 @@ class SourcingService {
     return Math.max(0, Math.round(score));
   }
 
-  calculateMatchRelevance(target, supplier) {
-    // Redirect to the new normalized scoring engine
-    return this.calculateScore(supplier, target.price);
+  /**
+   * Calculates deterministic ROI range for a single product comparison.
+   * Formula (Expected): ROI = ((ebayPrice - totalSupplierCost) / totalSupplierCost) * 100
+   * Formula (Conservative): Logic includes a 20% cost buffer for fees/fluctuations.
+   */
+  calculateROI(ebayPrice, supplierCost, shipping = 0) {
+    const totalCost = Number(supplierCost) + Number(shipping);
+    const targetPrice = Number(ebayPrice);
+
+    if (!totalCost || totalCost <= 0 || !targetPrice) return null;
+
+    // ROI = (Target - Cost) / Cost
+    const expected = Math.round(((targetPrice - totalCost) / totalCost) * 100);
+    const conservative = Math.round(((targetPrice - (totalCost * 1.2)) / totalCost) * 100);
+
+    return { expected, conservative };
   }
 
   /**
@@ -304,6 +335,90 @@ class SourcingService {
     }
 
     return `${text} ${verdict}`;
+  }
+
+  /**
+   * Unified Pipeline Orchestrator (v7.0)
+   * Parallelizes Eprolo and AliExpress searches with absolute independence.
+   */
+  async runUnifiedPipeline(context, fetchers) {
+    const { fetchEprolo, fetchAliExpress } = fetchers;
+    
+    // 1. Parallel Launch with Safe Wrappers
+    const results = await Promise.allSettled([
+      this.safeFetch(() => this.fetchWithRetry(fetchEprolo), "EPROLO"),
+      this.safeFetch(fetchAliExpress, "ALIEXPRESS")
+    ]);
+
+    const eproloRes = results[0];
+    const aliRes = results[1];
+
+    // 2. State & Source Status Mapping
+    const sources = {
+      eprolo: eproloRes.status === 'fulfilled' ? 'OK' : 'FAILED',
+      aliexpress: aliRes.status === 'fulfilled' ? 'OK' : 'FAILED'
+    };
+
+    // 3. Pipeline Overall Status
+    let status = this.Status.COMPLETE;
+    if (sources.eprolo === 'FAILED' || sources.aliexpress === 'FAILED') {
+        status = this.Status.PARTIAL;
+    }
+    if (sources.eprolo === 'FAILED' && sources.aliexpress === 'FAILED') {
+        status = 'SYSTEM_DOWN'; // Dual failure exception
+    }
+
+    const rawData = [
+      ...(eproloRes.status === 'fulfilled' ? eproloRes.value.data : []),
+      ...(aliRes.status === 'fulfilled' ? aliRes.value.data : [])
+    ];
+
+    // 4. Deduplication & Finalization
+    const finalData = this.dedupe(rawData);
+
+    return {
+      status,
+      sources,
+      data: finalData
+    };
+  }
+
+  /**
+   * Safe Fetch with Timeout Protection
+   */
+  async safeFetch(fn, label) {
+    return Promise.race([
+      fn(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), 8000)
+      )
+    ]);
+  }
+
+  /**
+   * Single Retry logic for brittle API endpoints.
+   */
+  async fetchWithRetry(fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      console.warn("Retrying Eprolo extraction...");
+      return await fn();
+    }
+  }
+
+  /**
+   * Content-Aware Deduplication
+   * Keys off title fragments and image URLs to eliminate redundant listings.
+   */
+  dedupe(products) {
+    const seen = new Set();
+    return products.filter(p => {
+      const key = `${(p.title || "").slice(0, 40).toLowerCase()}_${p.image}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 }
 

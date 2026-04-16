@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import eproloService from '../services/eprolo';
+import aliexpressService from '../services/aliexpress';
 import sourcingService from '../services/sourcing';
 import { SourcingStatus } from '../constants/sourcing';
 import { toast } from 'sonner';
@@ -58,22 +59,51 @@ const SupplierSourcing = () => {
 
     const targetPrice = targetProduct?.price || 0;
 
+    const [pipelineState, setPipelineState] = useState({
+        status: sourcingService.Status.LOADING,
+        sources: { eprolo: 'PENDING', aliexpress: 'PENDING' }
+    });
+
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct || !query?.trim()) return;
         
         setLoading(true);
         setFullInquiryResult(null);
+        setPipelineState({ status: sourcingService.Status.LOADING, sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
+
+        const context = sourcingService.createContext(query, targetProduct);
         
         try {
-            const result = await eproloService.searchProducts(query);
-            setFullInquiryResult(result);
-            setRawResults(result.data || []);
+            // 🚀 UNIFIED PIPELINE LAUNCH
+            const result = await sourcingService.runUnifiedPipeline(context, {
+                fetchEprolo: () => eproloService.searchProducts(context.query),
+                fetchAliExpress: () => aliexpressService.searchProducts(context.query)
+            });
+
+            setPipelineState({ status: result.status, sources: result.sources });
             
-            if (result.status === 'AUTH_FAILURE' || result.status === 'ERROR') {
-                toast.error(`Eprolo Fault: ${result.message || 'Auth Failed'}`);
+            // 💰 PARALLEL AUTO-ENRICHMENT (Limited Concurrency)
+            let finalItems = result.data;
+            if (result.sources.aliexpress === 'OK') {
+                const aliItems = result.data.filter(p => p.source === 'AliExpress');
+                if (aliItems.length > 0) {
+                    finalItems = await aliexpressService.enrichWithLimit(result.data, 2);
+                }
             }
+
+            setRawResults(finalItems);
+            
+            if (result.status === 'SYSTEM_DOWN') {
+                toast.error("System Failure: Unable to reach any supplier networks.");
+            } else if (result.status === sourcingService.Status.PARTIAL) {
+                const failed = Object.entries(result.sources).filter(([_, s]) => s === 'FAILED').map(([n]) => n);
+                toast.warning(`Partial Discovery: ${failed.join(', ')} connection offline.`);
+            }
+
         } catch (e) {
-            toast.error(`Eprolo API connection failed.`);
+            console.error("Pipeline Crash:", e);
+            setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
+            toast.error(`Sourcing pipeline critically failed.`);
         } finally {
             setLoading(false);
         }
@@ -88,28 +118,25 @@ const SupplierSourcing = () => {
         
         return rawResults
             .map(raw => {
-                const res = sourcingService.normalize(raw, 'eprolo');
-                const relevance = sourcingService.calculateMatchRelevance(targetProduct, res);
+                // RE-SCORE BASED ON HYDRATED DATA
+                const res = sourcingService.normalize(raw, raw.source === 'Eprolo' ? 'eprolo' : 'aliexpress');
+                const relevance = sourcingService.calculateScore(res, targetPrice);
                 const cost = res.price;
-                const sellingPrice = targetProduct.price || targetPrice;
+                const sellingPrice = targetPrice;
                 
-                let roiValue = null;
-                let expectedProfit = null;
-
+                let roiRange = null;
                 if (cost && cost > 0 && sellingPrice && sellingPrice > 0) {
-                    expectedProfit = sellingPrice - cost - (sellingPrice * 0.12) - 0.30;
-                    roiValue = Math.round((expectedProfit / cost) * 100);
+                    roiRange = sourcingService.calculateROI(sellingPrice, cost);
                 }
 
                 return { 
                     ...res, 
                     relevance, 
-                    roi: roiValue,
-                    profit: expectedProfit,
-                    roiRange: { expected: roiValue }
+                    roiRange,
+                    enrichmentStatus: raw.enrichmentStatus || (raw.enriched ? "DONE" : "PENDING")
                 };
             })
-            .filter(res => res.relevance >= 35)
+            .filter(res => res.relevance >= 20) // Lower floor for unified visibility
             .sort((a, b) => b.relevance - a.relevance);
     }, [rawResults, targetProduct, targetPrice]);
 
@@ -191,11 +218,34 @@ const SupplierSourcing = () => {
             <SourcingStatusHeader state={loading ? 'searching' : 'results'} loading={loading} resultsCount={processedResults.length} isGlobal={false} />
 
             <div className="space-y-8">
+                {/* ⚠️ SYSTEM STATUS BANNERS */}
+                {!loading && pipelineState.sources.eprolo === 'FAILED' && pipelineState.sources.aliexpress === 'OK' && (
+                    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="p-6 bg-amber-50 border border-amber-200 rounded-[2rem] flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+                                <AlertTriangle size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-black text-slate-950 uppercase tracking-widest">Eprolo unavailable</h4>
+                                <p className="text-xs text-slate-500 font-medium tracking-tight">Eprolo API connection timed out. Showing fallback AliExpress results.</p>
+                            </div>
+                        </div>
+                        <button onClick={() => performSourcing()} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[8px] font-black uppercase tracking-widest hover:border-slate-400 transition-all">Retry Eprolo</button>
+                    </motion.div>
+                )}
+
                 {/* 1. LOADING */}
                 {loading && (
                     <div className="space-y-6">
-                        {Array(3).fill(0).map((_, i) => (
-                           <div key={i} className="h-40 bg-slate-900/50 rounded-[2.5rem] animate-pulse border border-slate-800/30" />
+                        <div className="p-8 bg-white border border-slate-200 rounded-[2.5rem] flex items-center gap-6 animate-pulse">
+                             <div className="w-12 h-12 bg-slate-100 rounded-xl" />
+                             <div className="space-y-2 flex-1">
+                                <div className="h-4 w-1/3 bg-slate-100 rounded" />
+                                <div className="h-3 w-1/2 bg-slate-50 rounded" />
+                             </div>
+                        </div>
+                        {Array(2).fill(0).map((_, i) => (
+                           <div key={i} className="h-40 bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />
                         ))}
                     </div>
                 )}
@@ -234,38 +284,33 @@ const SupplierSourcing = () => {
                     </div>
                 )}
 
-                {/* 4. ERROR/AUTH */}
-                {!loading && processedResults.length === 0 && (fullInquiryResult?.status === SourcingStatus.API_ERROR || fullInquiryResult?.status === SourcingStatus.NETWORK_ERROR || fullInquiryResult?.status === 'AUTH_FAILURE') && (
+                {/* 4. SYSTEM DOWN (DUAL FAILURE) */}
+                {!loading && pipelineState.status === 'SYSTEM_DOWN' && (
                     <div className="bg-rose-50 border border-rose-200 p-16 rounded-[4rem] text-center space-y-10">
                         <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 text-rose-600 rounded-[2.5rem] flex items-center justify-center mx-auto"><AlertTriangle size={40} /></div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">Bridge Integrity Fault</h3>
-                            <div className="text-left space-y-2">
-                                <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest px-4">Diagnostic Context:</p>
-                                <pre className="text-slate-600 max-w-xl mx-auto text-[10px] font-mono bg-white border border-rose-100 p-6 rounded-3xl overflow-auto max-h-40 scrollbar-hide">
-                                    {JSON.stringify(fullInquiryResult.debugInfo, null, 2)}
-                                </pre>
-                            </div>
+                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">Supplier Network Offline</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
+                                Unable to establish a stable bridge to Eprolo or AliExpress. This may be due to regional blocks or API downtime.
+                            </p>
                         </div>
                         <div className="flex flex-col items-center gap-6">
-                             <div className="flex flex-wrap justify-center gap-4">
-                                <button onClick={() => performSourcing()} className="bg-slate-950 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">Re-sync Discovery Pipe</button>
-                                <button onClick={handleExpandSearch} className="bg-white border border-slate-200 text-slate-950 px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all shadow-xl">Search AliExpress Manually</button>
-                             </div>
-                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Protocol Alpha v6.3 Active</p>
+                                <button onClick={() => performSourcing()} className="bg-slate-950 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl flex items-center gap-3">
+                                    <RefreshCw size={16} /> Re-Sync Discovery Pipe
+                                </button>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Protocol Alpha v7.0 Active</p>
                         </div>
                     </div>
                 )}
 
-                {/* 5. EMPTY MATCHES */}
-                {!loading && processedResults.length === 0 && fullInquiryResult?.status === 'EMPTY' && (
-                    <div className="bg-slate-900/50 border border-slate-800 p-16 rounded-[4rem] text-center space-y-10">
+                {!loading && processedResults.length === 0 && pipelineState.status === sourcingService.Status.COMPLETE && (
+                    <div className="bg-slate-50 border border-slate-200 p-16 rounded-[4rem] text-center space-y-10">
                         <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><ShieldAlert size={40} /></div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">No matching results on Eprolo</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">No direct match in the Eprolo catalog. Try a manual search below.</p>
+                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">Zero Matches Found</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">Both supplier networks returned no valid results for this query. Try a more generic title.</p>
                         </div>
-                        <button onClick={handleExpandSearch} className="bg-slate-950 text-white px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">🚀 Search AliExpress Manually</button>
+                        <button onClick={() => navigate('/discovery')} className="bg-slate-950 text-white px-12 py-6 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">Back to Discovery</button>
                     </div>
                 )}
             </div>
