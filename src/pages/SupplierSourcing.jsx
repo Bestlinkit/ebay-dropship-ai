@@ -70,8 +70,8 @@ const SupplierSourcing = () => {
         setPipelineState({ status: 'LOADING', sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
 
         try {
-            // 🚀 STAGE 1: LIGHTWEIGHT DISCOVERY PIPELINE
-            const result = await sourcingService.runUnifiedPipeline(
+            // 🚀 STAGE 1: FIRST PASS (Original or Context Query)
+            let result = await sourcingService.runUnifiedPipeline(
                 { query, targetPrice }, 
                 {
                     fetchEprolo: () => eproloService.searchProducts(query),
@@ -79,12 +79,29 @@ const SupplierSourcing = () => {
                 }
             );
 
+            // 🔄 AUTO-RETRY LOGIC: If no results, try a "Best-Chance" simplified query
+            if (result.data.length === 0 && query.length > 30) {
+                const simplified = sourcingService.generateSuggestedKeywords(query);
+                console.log(`[Sourcing] No results for "${query}". Retrying with simplified: "${simplified}"`);
+                
+                setPipelineState({ status: 'LOADING', sources: { eprolo: 'RETRYING', aliexpress: 'RETRYING' } });
+                
+                result = await sourcingService.runUnifiedPipeline(
+                    { query: simplified, targetPrice },
+                    {
+                        fetchEprolo: () => eproloService.searchProducts(simplified),
+                        fetchAliExpress: () => aliexpressService.searchProducts(simplified)
+                    }
+                );
+                
+                if (result.data.length > 0) {
+                    toast.success("Broadened search to find better matches.");
+                    setSearchQuery(simplified);
+                }
+            }
+
             setPipelineState({ status: result.status, sources: result.sources });
             setRawResults(result.data);
-
-            if (result.status === 'SYSTEM_DOWN') {
-                toast.error("Bridge Error: Unable to reach supplier networks.");
-            }
 
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
@@ -93,7 +110,7 @@ const SupplierSourcing = () => {
         } finally {
             setLoading(false);
         }
-    }, [targetProduct?.id, searchQuery]);
+    }, [targetProduct?.id, searchQuery, targetPrice]);
 
     useEffect(() => { 
         if (searchQuery?.trim()) performSourcing(); 
@@ -173,6 +190,32 @@ const SupplierSourcing = () => {
 
             <SourcingStatusHeader state={loading ? 'searching' : 'results'} loading={loading} resultsCount={processedResults.length} isGlobal={false} />
 
+            {/* 🛡️ PIPELINE STATUS ALERTS */}
+            <AnimatePresence>
+                {!loading && (pipelineState.sources.aliexpress === 'BLOCKED' || pipelineState.sources.eprolo === 'FAILED') && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <div className="bg-amber-50 border border-amber-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
+                            <div className="flex items-center gap-5">
+                                <div className="w-12 h-12 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+                                    <ShieldAlert size={26} />
+                                </div>
+                                <div className="space-y-1">
+                                    <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Partial Match Integrity</h4>
+                                    <p className="text-[10px] font-medium text-amber-700/80 max-w-md">
+                                        {pipelineState.sources.aliexpress === 'BLOCKED' 
+                                            ? "AliExpress detection is currently intercepted. Switch to Global Scraper for browser-bypass discovery." 
+                                            : "One or more supplier nodes are offline. Displaying available catalog matches."}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={handleExpandSearch} className="px-6 py-3 bg-white border border-amber-200 text-amber-700 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors shrink-0">
+                                Solve Blockage
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <div className="space-y-8">
                 {/* 1. LOADING */}
                 {loading && (
@@ -195,7 +238,7 @@ const SupplierSourcing = () => {
                              </button>
                         )}
                         <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
-                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Manual Search Required?</p>
+                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Need more options?</p>
                              <button onClick={handleExpandSearch} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
                                  Open Global Scraper
                              </button>
@@ -208,10 +251,15 @@ const SupplierSourcing = () => {
                     <div className="bg-slate-50 border border-slate-200 p-16 rounded-[4rem] text-center space-y-10">
                         <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto"><ShieldAlert size={40} /></div>
                         <div className="space-y-4">
-                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">No Direct Matches</h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">Discovery could not find high-relevance matches. Initiate manual expansion below.</p>
+                            <h3 className="text-2xl font-black text-slate-950 italic tracking-tighter uppercase">Market Blindspot</h3>
+                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed">
+                                Both automated pipelines failed to find direct matches for "{searchQuery}". 
+                                {pipelineState.sources.aliexpress === 'BLOCKED' && " AliExpress is currently blocking automated discovery."}
+                            </p>
                         </div>
-                        <button onClick={handleExpandSearch} className="bg-slate-950 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl mx-auto">Initiate Global Scraper</button>
+                        <button onClick={handleExpandSearch} className="bg-slate-950 text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xl mx-auto flex items-center gap-3">
+                           <Globe size={14} /> Launch Global Scraper
+                        </button>
                     </div>
                 )}
             </div>

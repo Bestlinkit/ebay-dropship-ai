@@ -129,11 +129,35 @@ class SourcingService {
   }
 
   /**
+   * Utilities
+   */
+  generateSuggestedKeywords(title) {
+    if (!title) return "";
+    
+    // 1. Remove special characters and noise
+    let clean = title.replace(/[^\w\s]/gi, ' ');
+    
+    // 2. Filter out short words and common stop words
+    const stopWords = ['with', 'for', 'from', 'and', 'the', 'new', 'top', 'best', 'pro', 'hot', 'sale', 'free', 'shipping', '2024', '2025', 'ebay', 'newest'];
+    const words = clean.split(/\s+/)
+      .filter(w => w.length > 3)
+      .filter(w => !stopWords.includes(w.toLowerCase()));
+    
+    // 3. Return a more "generic" but descriptive slice (first 4-6 strong words)
+    // This is optimized for Eprolo/AliExpress catalog matching
+    return words.slice(0, 5).join(' ');
+  }
+
+  /**
    * Pipeline Orchestration Logic
    */
   createContext(query, targetProduct) {
+    // Stage 1: Auto-simplify keyword if it looks like a full eBay title
+    const optimizedQuery = query.length > 40 ? this.generateSuggestedKeywords(query) : query;
+
     return {
-      query,
+      query: optimizedQuery,
+      originalQuery: query,
       targetPrice: Number(targetProduct?.price) || 0,
       ebayId: targetProduct?.id
     };
@@ -151,17 +175,17 @@ class SourcingService {
     const aliRes = results[1];
 
     const sources = {
-      eprolo: eproloRes.status === 'fulfilled' ? 'OK' : 'FAILED',
-      aliexpress: aliRes.status === 'fulfilled' ? 'OK' : 'FAILED'
+      eprolo: eproloRes.status === 'fulfilled' ? (eproloRes.value.status || 'OK') : 'FAILED',
+      aliexpress: aliRes.status === 'fulfilled' ? (aliRes.value.status || 'OK') : 'FAILED'
     };
 
     let status = this.Status.COMPLETE;
-    if (sources.eprolo === 'FAILED' || sources.aliexpress === 'FAILED') status = this.Status.PARTIAL;
-    if (sources.eprolo === 'FAILED' && sources.aliexpress === 'FAILED') status = 'SYSTEM_DOWN';
+    if (Object.values(sources).some(s => s === 'FAILED' || s === 'BLOCKED')) status = this.Status.PARTIAL;
+    if (Object.values(sources).every(s => s === 'FAILED' || s === 'BLOCKED')) status = 'SYSTEM_DOWN';
 
     const rawData = [
-      ...(eproloRes.status === 'fulfilled' ? eproloRes.value.data : []),
-      ...(aliRes.status === 'fulfilled' ? aliRes.value.data : [])
+      ...(eproloRes.status === 'fulfilled' ? (eproloRes.value.data || []) : []),
+      ...(aliRes.status === 'fulfilled' ? (aliRes.value.data || []) : [])
     ];
 
     return {
