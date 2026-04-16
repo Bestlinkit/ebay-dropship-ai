@@ -3,15 +3,23 @@ import {
   RefreshCw, 
   Package, 
   Globe,
-  ShieldCheck
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 /**
- * Sourcing Status Header (v3.0)
- * Truth-based status bar for Eprolo and AliExpress flows.
+ * Sourcing Status Header (v22.0 - Quick Response)
+ * Truth-based status bar with manual AliExpress bypass.
  */
-const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false }) => {
+const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false, query = "" }) => {
+    
+    const handleAliJump = () => {
+        if (!query) return;
+        const url = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
+        window.open(url, '_blank');
+    };
+
     return (
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-slate-200 pb-8">
             <div className="flex items-center gap-4">
@@ -27,9 +35,9 @@ const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false }
                     <h2 className="text-xl font-black text-slate-950 italic tracking-tighter uppercase">
                         {isGlobal ? 'AliExpress Search' : 'Eprolo Discovery'}
                     </h2>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 text-left">
                         Status: <span className={cn(loading ? "text-emerald-500" : "text-slate-400")}>
-                            {loading ? 'Probing Suppliers...' : 'Active and Secure'}
+                            {loading ? 'SEARCHING...' : 'DISCOVERY COMPLETE'}
                         </span>
                     </p>
                 </div>
@@ -37,15 +45,25 @@ const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false }
 
             <div className="flex flex-wrap items-center gap-6">
                 {/* 📊 RESULT COUNTER */}
-                <div className="px-5 py-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3">
+                <div className="px-5 py-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3 shadow-lg">
                     <Package size={14} className="text-slate-500" />
                     <span className="text-[10px] font-black text-white uppercase tracking-widest">
-                        {resultsCount} Results Found
+                        {resultsCount} Products Located
                     </span>
                 </div>
 
-                {/* 🔌 CONNECTION TYPE */}
-                <div className="flex items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+                {/* ⚡ QUICK JUMP (Manual Bypass) */}
+                {loading && (
+                    <button 
+                        onClick={handleAliJump}
+                        className="px-5 py-3 bg-orange-500 text-white rounded-2xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 animate-bounce-subtle"
+                    >
+                        <ExternalLink size={14} /> Open AliExpress Now
+                    </button>
+                )}
+
+                {/* 🔌 CONNECTION */}
+                <div className="hidden sm:flex items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
                     {isGlobal ? <Globe size={12} className="text-amber-500" /> : <ShieldCheck size={12} className="text-blue-500" />}
                     {isGlobal ? 'Global Scraper' : 'Direct API Bridge'}
                 </div>

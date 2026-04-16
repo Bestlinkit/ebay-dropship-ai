@@ -74,7 +74,6 @@ const SupplierSourcing = () => {
         if (!targetProduct?.id || !query?.trim()) return;
         
         setLoading(true);
-        setRawResults([]);
         setPipelineState({ status: 'LOADING', sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
         setIsFallback(false);
 
@@ -346,6 +345,7 @@ const SupplierSourcing = () => {
                 loading={loading} 
                 resultsCount={products.length} 
                 isGlobal={false} 
+                query={searchQuery}
             />
 
             {/* 🛡️ PIPELINE STATUS ALERTS */}
