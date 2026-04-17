@@ -11,7 +11,10 @@ class SourcingService {
     // API CONFIGURATION (Universal Deployment Vector)
     this.CONFIG = {
       BACKEND_BASE: import.meta.env.VITE_BACKEND_URL || '',
-      GATEWAY: '/api/ali-ds-proxy',
+      GATEWAY: import.meta.env.PROD 
+        ? (import.meta.env.VITE_PROXY_URL || '/api/ali-ds-proxy') 
+        : '/api/ali-ds-proxy',
+      ALI_APP_KEY: import.meta.env.VITE_ALI_APP_KEY,
     };
 
     this.sessionLogs = [];
