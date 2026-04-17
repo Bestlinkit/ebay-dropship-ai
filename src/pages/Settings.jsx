@@ -49,7 +49,7 @@ const Settings = () => {
     ebayCertId: "PRD-2309-...",
     ebayRuName: import.meta.env.VITE_EBAY_RUNAME || "Geonoyc_App_Auth",
     geminiKey: "AI_823-...",
-    eporloKey: "EPR-923-..."
+    aliKey: "ALI-923-..."
   });
 
   const [smtpConfig, setSmtpConfig] = useState({
@@ -234,7 +234,7 @@ const Settings = () => {
                             { key: 'ebayCertId', label: 'eBay Production Cert ID' },
                             { key: 'ebayRuName', label: 'eBay Redirect URI (RuName)' },
                             { key: 'geminiKey', label: 'Gemini 1.5 Pro Key' },
-                            { key: 'eporloKey', label: 'Eprolo Merchant Secret' },
+                            { key: 'aliKey', label: 'AliExpress DS Secret' },
                         ].map(input => (
                             <div key={input.key} className="space-y-4">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{input.label}</label>

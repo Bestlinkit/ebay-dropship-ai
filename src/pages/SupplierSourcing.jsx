@@ -50,8 +50,6 @@ const SupplierSourcing = () => {
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
-    const [manualSnapshot, setManualSnapshot] = useState("");
-    const [showAliExpansion, setShowAliExpansion] = useState(false);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 8;
 
@@ -61,7 +59,6 @@ const SupplierSourcing = () => {
     });
 
     const [telemetry, setTelemetry] = useState({ aliexpress: null });
-    const [showDebug, setShowDebug] = useState(false);
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
@@ -70,10 +67,7 @@ const SupplierSourcing = () => {
         setPipelineState({ status: 'LOADING', sources: { aliexpress: 'PENDING' } });
 
         try {
-            // 🚀 STAGE 1: INITIALIZE ITERATIVE CONTEXT
             const context = sourcingService.createContext(query, targetProduct);
-            
-            // 🚀 STAGE 2: RUN DETERMINISTIC PIPELINE (v1.2.5 ALIEXPRESS ONLY)
             const result = await sourcingService.runIterativePipeline(context);
 
             setPipelineState({ status: result.status, sources: result.sources });
@@ -85,25 +79,18 @@ const SupplierSourcing = () => {
             } else if (result.status === "ERROR") {
                 toast.error(result.message || "AliExpress API Connection Failed");
             }
-
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
             setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
-            toast.error(`AliExpress API Connection Failed. Check network configuration.`);
+            toast.error(`AliExpress API Connection Failed.`);
         } finally {
             setLoading(false);
         }
     }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
 
-    const checkInitialHealth = useCallback(async () => {
-        const health = await extensionConnector.testConnection();
-        setConnectionHealth(health);
-    }, []);
-
     useEffect(() => { 
-        checkInitialHealth();
         if (searchQuery?.trim()) performSourcing(); 
-    }, [targetProduct?.id, checkInitialHealth]);
+    }, [targetProduct?.id]);
 
     const processedResults = useMemo(() => {
         if (!targetProduct || products.length === 0) return [];
@@ -112,8 +99,6 @@ const SupplierSourcing = () => {
             .map(raw => {
                 const res = sourcingService.normalize(raw);
                 const relevance = sourcingService.calculateOpportunityScore(res, targetPrice);
-                
-                // Calculate Intelligence Signal (Market Analysis)
                 const sellData = sourcingService.calculateSellScore(res, batchContext || { avgPrice: targetPrice });
 
                 return { 
@@ -128,60 +113,16 @@ const SupplierSourcing = () => {
     const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);
 
     const handleContinue = (product) => {
-        // Navigate to mandatory Detail Page with Intelligence Payload
         navigate(`/supplier-detail/${product.source}/${product.id}`, { 
             state: { 
                 targetProduct: ebayProduct, 
                 targetPrice,
                 productUrl: product.url,
                 preFetchedProduct: product,
-                sellData: product.sellData // Pass the analytical engine results
+                sellData: product.sellData 
             } 
         });
     };
-
-    const handleManualImport = async (source) => {
-        setLoading(true);
-        try {
-            const result = aliexpressService.parseManualSource(source);
-            if (result.status === 'SUCCESS' && result.data) {
-                // If successful, push to results directly or navigate
-                handleContinue(result.data);
-            } else {
-                toast.error("Format unrecognized. Make sure you copied the full page content.");
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleExpandSearch = () => setShowAliExpansion(true);
-
-    const handleRetryConnection = async () => {
-        setLoading(true);
-        const health = await extensionConnector.testConnection();
-        setConnectionHealth(health);
-        setLoading(false);
-
-        if (health === "CONNECTED") {
-            toast.success("Extension Bridge Connected", {
-                description: "Heartbeat detected. Re-initiating search..."
-            });
-            performSourcing();
-        } else {
-            const msg = health === "NOT_INSTALLED" ? "Extension not detected in browser" :
-                        health === "TIMEOUT" ? "Handshake timeout. Try reloading the extension." :
-                        "Service worker is unreachable.";
-            toast.error("Connection Failed", { description: msg });
-        }
-    };
-
-    const intelMatchTier = pipelineState.successfulTier;
-    const isWaterfall = pipelineState.isFallback;
-
-
-
-
 
     if (!targetProduct) {
         return (
@@ -234,26 +175,6 @@ const SupplierSourcing = () => {
                 onRetry={() => performSourcing()}
             />
 
-            {/* 🛡️ PIPELINE STATUS ALERTS */}
-            <AnimatePresence>
-                {loading && activeTier && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mb-6">
-                         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                            <div className="flex items-center gap-4">
-                               <RefreshCw size={16} className="text-blue-500 animate-spin" />
-                               <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest">
-                                  Analyzing Intent: <span className="italic">"{activeTier}"</span>
-                               </span>
-                            </div>
-                            <span className="text-[9px] font-bold text-blue-400 uppercase">Tiered Search Active</span>
-                         </div>
-                    </motion.div>
-                )}
-
-            </AnimatePresence>
-
-
-
             <div className="space-y-8">
                 {/* 1. LOADING */}
                 {loading && (
@@ -267,26 +188,6 @@ const SupplierSourcing = () => {
                 {/* 2. DISCOVERY RESULTS */}
                 {!loading && processedResults.length > 0 && (
                     <div className="grid grid-cols-1 gap-6">
-                        {intelMatchTier && (
-                            <div className="bg-emerald-950/20 border border-emerald-500/20 p-6 rounded-[2rem] flex items-center justify-between mb-4 shadow-sm">
-                                <div className="flex items-center gap-4">
-                                   <div className="w-10 h-10 bg-emerald-500 text-slate-950 rounded-xl flex items-center justify-center shadow-lg">
-                                      <Zap size={18} />
-                                   </div>
-                                   <div>
-                                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none">
-                                         Intel Match: <span className="italic">"{intelMatchTier}"</span>
-                                      </p>
-                                      <p className="text-[9px] font-medium text-emerald-600/60 mt-1">
-                                         {isWaterfall ? "Waterfall Recovery successful. Optimized for category depth." : "High-signal exact match found in Tier 1."}
-                                      </p>
-                                   </div>
-                                </div>
-                                <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[8px] font-black text-emerald-500 uppercase tracking-widest">
-                                   Status: {isWaterfall ? 'FALLBACK' : 'PRIMARY'}
-                                </div>
-                            </div>
-                        )}
                         {paginatedResults.map(res => (
                             <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} onContinue={handleContinue} />
                         ))}
@@ -296,52 +197,38 @@ const SupplierSourcing = () => {
                              </button>
                         )}
                         <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
-                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Need more options?</p>
-                             <button onClick={handleExpandSearch} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
-                                 Open Global Scraper
+                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Targeted Discovery Engine</p>
+                             <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
+                                 Perform Manual Keyword Search
                              </button>
                         </div>
                     </div>
                 )}
 
-                {/* 3. DETERMINISTIC FAILURE STATES (v21.2) */}
+                {/* 3. DETERMINISTIC FAILURE STATES */}
                 {!loading && products.length === 0 && (
                     <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
                         <div className={cn(
                             "w-24 h-24 border rounded-[3rem] flex items-center justify-center mx-auto shadow-inner",
                             pipelineState.status === 'ERROR' ? "bg-red-50 text-red-300" : 
-                            pipelineState.status === 'BLOCKED' ? "bg-amber-50 text-amber-300" :
                             "bg-slate-50 text-slate-300"
                         )}>
                             {pipelineState.status === 'ERROR' ? <AlertTriangle size={48} /> : 
-                             pipelineState.status === 'BLOCKED' ? <Lock size={48} /> : 
                              <Box size={48} />}
                         </div>
                         
                         <div className="space-y-4">
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
                                 {pipelineState.status === 'NO_RESULTS' ? "0 Results" : 
-                                 pipelineState.status === 'BLOCKED' ? "Access Blocked" : 
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
                                  "System Error"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'NO_RESULTS' ? "The supplier catalog has no matches for this specific query." : 
-                                 pipelineState.status === 'BLOCKED' ? "Your current IP or fingerprint is restricted. Use the Global Scraper." : 
-                                 pipelineState.status === 'TIMEOUT' ? "The request to the supplier took too long. Please attempt a re-initiation." :
-                                 "The extraction logic encountered a structural mismatch with the supplier's web page."}
+                                {pipelineState.status === 'NO_RESULTS' ? "The AliExpress catalog has no matches for this specific query." : 
+                                 pipelineState.status === 'TIMEOUT' ? "The request to AliExpress took too long." :
+                                 "The extraction logic encountered a structural mismatch."}
                             </p>
                         </div>
-
-                        {pipelineState.sources.aliexpress === 'WRONG_PAGE_TYPE' && (
-                            <div className="max-w-md mx-auto p-8 bg-amber-50 border border-amber-100 rounded-[2.5rem] space-y-6">
-                                <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest leading-none">Listing Mode Active</p>
-                                <p className="text-[9px] font-medium text-amber-700 uppercase italic leading-relaxed">
-                                    The sourcing engine was redirected to a single item page. For best results, AliExpress must be searched as a listing directory. 
-                                    Try a broader keyword or use the Manual Capture below.
-                                </p>
-                            </div>
-                        )}
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                             <button onClick={performSourcing} className="w-full sm:w-auto px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all transform hover:scale-105 italic flex items-center justify-center gap-4 shadow-2xl">
@@ -351,24 +238,6 @@ const SupplierSourcing = () => {
                     </div>
                 )}
             </div>
-
-            <AnimatePresence>
-                {showAliExpansion && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-white/40">
-                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white border border-slate-200 p-12 rounded-[4rem] max-w-lg w-full text-center space-y-8 shadow-2xl">
-                            <div className="w-16 h-16 bg-slate-950 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl"><Globe size={32} /></div>
-                            <div className="space-y-4">
-                                <h3 className="text-3xl font-black text-slate-950 italic uppercase tracking-tighter">Global Scraper</h3>
-                                <p className="text-slate-500 text-sm leading-relaxed">Initiating manual AliExpress discovery vector.</p>
-                            </div>
-                            <div className="space-y-4">
-                                <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="w-full py-6 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl">Launch Vector</button>
-                                <button onClick={() => setShowAliExpansion(false)} className="w-full py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-950 transition-colors">Cancel</button>
-                            </div>
-                         </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

@@ -52,11 +52,18 @@ const SupplierProductDetail = () => {
 
             setLoading(true);
             try {
-                // FORCE ERROR: Legacy scrapers disabled by System Override
-                throw new Error("Legacy Enrichment Disabled: Hard-Locked to API v1.2.5");
+                const result = await sourcingService.getProductDetails(id);
+                if (result.status === 'SUCCESS') {
+                    setProduct(result.data);
+                    if (result.data.variants && result.data.variants.length > 0) {
+                        setSelectedVariant(result.data.variants[0]);
+                    }
+                } else {
+                    toast.error(`API Fetch Failure: ${result.message}`);
+                }
             } catch (error) {
-                console.error("Deep Enrichment Crash:", error);
-                toast.error(`AliExpress API Connection Failed: ${error.message}`);
+                console.error("Deep Enrichment Fault:", error);
+                toast.error(`AliExpress API Connection Lost`);
             } finally {
                 setLoading(false);
             }

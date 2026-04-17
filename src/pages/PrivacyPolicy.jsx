@@ -25,7 +25,7 @@ const PrivacyPolicy = () => {
                     Data Collection
                 </h2>
                 <p>
-                    We collect only the necessary marketplace data required to facilitate your dropshipping operations. This includes your eBay credentials, Eprolo API keys, and marketplace preference data.
+                    We collect only the necessary marketplace data required to facilitate your dropshipping operations. This includes your eBay credentials and marketplace preference data.
                 </p>
             </div>
 

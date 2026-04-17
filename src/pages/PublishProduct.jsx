@@ -108,8 +108,8 @@ const PublishProduct = () => {
                        <p className="text-2xl font-black text-slate-900">${product.price}</p>
                     </div>
                     <div>
-                       <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 block">Eprolo Source</label>
-                       <p className="text-emerald-600 font-bold">Verified In-Stock</p>
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 block">Supplier Authority</label>
+                        <p className="text-emerald-600 font-bold">Verified In-Stock</p>
                     </div>
                  </div>
               </div>
