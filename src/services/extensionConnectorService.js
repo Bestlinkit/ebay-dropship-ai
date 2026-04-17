@@ -4,7 +4,7 @@
  */
 
 // 🚨 ACTUAL ID: Linked to your specific installation
-const EXTENSION_ID = "dbboapfmlgjakkmedihbokcgaogcihcd"; 
+const EXTENSION_ID = "palelpaffmclefdpcalpjpcioilldcmg"; 
 
 class ExtensionConnector {
     constructor() {
