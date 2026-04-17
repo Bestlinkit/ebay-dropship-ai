@@ -71,7 +71,7 @@ class SourcingService {
       grade: resellScore >= 80 ? 'A' : (resellScore >= 60 ? 'B' : (resellScore >= 40 ? 'C' : 'D')),
       interpretation: {
         classification: resellScore >= 75 ? "HIGH-VELOCITY OPPORTUNITY" : (resellScore >= 50 ? "BREAD & BUTTER PRODUCT" : "HIGH-RISK SEGMENT"),
-        action: resellScore >= 75 ? "SCALE" : (resellScore >= 50 ? "OBSERVE" : "AVOID"),
+        action: resellScore >= 75 ? "SALABLE" : (resellScore >= 50 ? "OBSERVE" : "AVOID"),
         basis: [
           `Velocity Index: ${velocity.toFixed(0)}%`,
           `Market Trend: ${growthVector}`,

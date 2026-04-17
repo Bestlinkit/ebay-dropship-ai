@@ -13,14 +13,18 @@ import { cn } from '../lib/utils';
 import sourcingService from '../services/sourcing';
 
 /**
- * Deterministic Sparkline (v1.0)
+ * Deterministic Sparkline (v1.1)
+ * sentiment-aware trend visualization.
  */
-const MomentumGraph = ({ data }) => {
+const MomentumGraph = ({ data, vector }) => {
     if (!data || data.length < 2) return <span className="text-[8px] text-slate-600 uppercase">No trend data available</span>;
     
     const width = 100;
     const height = 24;
     const padding = 2;
+    
+    // Sentinel Stroke Logic: Green (Stable/Increasing), Red (Declining/Low)
+    const strokeColor = vector === "DECLINING" ? "#EF4444" : "#10B981";
     
     const points = data.map((p, i) => {
         const x = (i / (data.length - 1)) * (width - padding * 2) + padding;
@@ -32,7 +36,7 @@ const MomentumGraph = ({ data }) => {
         <svg width={width} height={height} className="overflow-visible">
             <polyline 
                 fill="none" 
-                stroke="#10B981" 
+                stroke={strokeColor} 
                 strokeWidth="1.5" 
                 strokeLinecap="round" 
                 strokeLinejoin="round" 
@@ -43,7 +47,7 @@ const MomentumGraph = ({ data }) => {
 };
 
 /**
- * Deterministic Product Card (v16.0 - UI Recovery Phase)
+ * Deterministic Product Card (v17.0 - Intelligence Hardening)
  * PIXEL-PERFECT MATCH OF SUPPLIER DISCOVERY TEMPLATE.
  */
 const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
@@ -54,6 +58,11 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
     const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
     const { metrics, interpretation } = sellData;
     const labels = interpretation?.labels || {};
+
+    // Contextual Category Extraction (Leaf node)
+    const categoryLabel = product.categoryPath?.split(' > ').pop() || 
+                          interpretation.classification.split(' ')[0] || 
+                          "ECONOMY";
 
     const getScoreColor = (score) => {
         if (score >= 70) return "text-emerald-500";
@@ -89,7 +98,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                         MOMENTUM: {labels.growthVector}
                     </div>
                     <div className="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-widest rounded border border-emerald-500/10">
-                        ECONOMY
+                        {categoryLabel}
                     </div>
                 </div>
 
@@ -108,7 +117,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                     <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">DEMAND</span>
                         <span className="text-[12px] font-bold text-white uppercase tracking-tight">
-                            {labels.confidence} CONFIDENCE
+                            {labels.confidence}
                         </span>
                     </div>
 
@@ -122,7 +131,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                     <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">MOMENTUM</span>
                         <div className="h-6 flex items-center">
-                            <MomentumGraph data={sellData.momentum} />
+                            <MomentumGraph data={sellData.momentum} vector={labels.growthVector} />
                         </div>
                     </div>
                 </div>
@@ -137,7 +146,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                     </span>
                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded border border-white/10 mt-1">
                         <ShieldCheck size={10} className="text-slate-500" />
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">RELIABILITY: HIGH</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest underline decoration-emerald-500/30">RELIABILITY: HIGH</span>
                     </div>
                 </div>
 

@@ -79,8 +79,8 @@ const sha256 = async (string) => {
     return [...new Uint8Array(hashBuffer)].map(b => b.toString(16).padStart(2, "0")).join("");
 };
 
-// 3. PERSISTENT AUTH CACHE (Isolate-Level)
-let workingAuthMode = null;
+// 3. PERSISTENT CACHE
+// [DEPRECATED] workingAuthMode removed (AliExpress only architecture)
 
 // 4. TIMEOUT WRAPPER (8s Hard Limit)
 const fetchWithTimeout = (url, options, timeout = 8000) =>
@@ -92,6 +92,16 @@ const fetchWithTimeout = (url, options, timeout = 8000) =>
     ]);
 
 export default {
+    /**
+     * CRYSTAL BRIDGE v7.0
+     * MANIFEST:
+     * - AliExpress DS API Integration (Official)
+     * - HTML Fallback Scraping
+     * - Health Monitoring
+     * 
+     * NOTE: Ensure ALI_APP_KEY and ALI_APP_SECRET are set in the Cloudflare
+     * Worker settings (Environment Variables) for production security.
+     */
     async fetch(request, env) {
         const url = new URL(request.url);
         const corsHeaders = {
@@ -108,112 +118,12 @@ export default {
 
         // 0. ROUTE: /health
         if (pathname === "/health") {
-            return new Response(JSON.stringify({ status: "online", version: "6.5-STABLE" }), {
+            return new Response(JSON.stringify({ status: "online", version: "7.0-ALPHA" }), {
                 headers: { ...corsHeaders, "Content-Type": "application/json" }
             });
         }
 
-        // 1. ROUTE: /eprolo-search
-        if (pathname === "/eprolo-search") {
-            try {
-                const body = await request.json();
-                const { keyword, page_index, page_size } = body;
-                
-                const EPROLO_APP_KEY = env.EPROLO_APP_KEY;
-                const EPROLO_SECRET = env.EPROLO_SECRET;
-                
-                if (!EPROLO_APP_KEY || !EPROLO_SECRET) {
-                    throw new Error("EPROLO_APP_KEY or EPROLO_SECRET missing in Worker environment.");
-                }
-
-                const timestamp = Date.now();
-                const signMD5 = md5(EPROLO_APP_KEY + timestamp + EPROLO_SECRET);
-                
-                // 🛡️ BRUTE-FORCE AUTH DISCOVERY (v6.5)
-                const attempts = [
-                    {
-                        name: "HEADER_LOWERCASE",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "apiKey": EPROLO_APP_KEY,
-                            "apiSecret": EPROLO_SECRET
-                        }
-                    },
-                    {
-                        name: "HEADER_UPPERCASE",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "API-KEY": EPROLO_APP_KEY,
-                            "API-SECRET": EPROLO_SECRET
-                        }
-                    },
-                    {
-                        name: "BODY_AUTH",
-                        headers: { "Content-Type": "application/json" },
-                        bodyAuth: true
-                    }
-                ];
-
-                const payload = {
-                    timestamp: timestamp,
-                    sign: signMD5,
-                    keyword: keyword || "",
-                    page_index: page_index || 0,
-                    page_size: page_size || 20
-                };
-
-                // Execute Discovery or Cached Mode
-                for (const attempt of attempts) {
-                    // Skip if we already have a working mode and it's not this one
-                    if (workingAuthMode && attempt.name !== workingAuthMode) continue;
-
-                    const finalHeaders = attempt.headers;
-                    const finalBody = attempt.bodyAuth 
-                        ? { ...payload, apiKey: EPROLO_APP_KEY } 
-                        : payload;
-
-                    console.log(`EPROLO_ATTEPMT: ${attempt.name}`);
-
-                    try {
-                        const response = await fetchWithTimeout("https://openapi.eprolo.com/eprolo_product_list.html", {
-                            method: "POST",
-                            headers: finalHeaders,
-                            body: JSON.stringify(finalBody)
-                        });
-
-                        const result = await response.json();
-                        
-                        if (result?.code === "0" || result?.code === 0) {
-                            workingAuthMode = attempt.name; // CACHE SUCCESS
-                            return new Response(JSON.stringify(result), { 
-                                headers: { ...corsHeaders, "Content-Type": "application/json", "X-Auth-Mode": workingAuthMode } 
-                            });
-                        }
-
-                        // If it fails with "apiKey cannot be null" and we are NOT in discovery, reset cache
-                        if (workingAuthMode && (result?.msg?.includes("apiKey") || result?.code === "-1")) {
-                            workingAuthMode = null;
-                        }
-                    } catch (e) {
-                        if (workingAuthMode) workingAuthMode = null; // Reset on timeout/error
-                        console.error(`Attempt ${attempt.name} failed:`, e.message);
-                    }
-                }
-
-                return new Response(JSON.stringify({
-                    status: "AUTH_FAILURE",
-                    message: "All Eprolo Authentications failed. Review keys in Dashboard.",
-                    debug: { workingAuthMode }
-                }), { status: 401, headers: corsHeaders });
-
-            } catch (err) { 
-                return new Response(JSON.stringify({ error: err.message, code: 'WORKER_ERROR' }), { 
-                    status: 500, headers: corsHeaders 
-                }); 
-            }
-        }
-
-        // 2. ROUTE: /aliexpress-search
+        // 1. ROUTE: /aliexpress-search (LEGACY SCRAPE)
         if (pathname === "/aliexpress-search") {
             try {
                 const query = url.searchParams.get("q");
@@ -234,7 +144,7 @@ export default {
             }
         }
 
-        // 3. ROUTE: /aliexpress-product-details (NEW v6.5)
+        // 3. ROUTE: /aliexpress-product-details (LEGACY SCRAPE - Maintain for fallback)
         if (pathname === "/aliexpress-product-details") {
             try {
                 const targetUrl = url.searchParams.get("url");
@@ -254,7 +164,57 @@ export default {
             }
         }
 
-        // 4. FALLBACK Proxy
+        // 4. ROUTE: /api/ali-ds-proxy (OFFICIAL DS API v2.0)
+        if (pathname === "/api/ali-ds-proxy" || pathname === "/ali-ds-proxy") {
+            try {
+                const body = await request.json();
+                const params = { ...body };
+                
+                const ALI_APP_KEY = env.ALI_APP_KEY || '532310';
+                const ALI_APP_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+
+                // SIGNING PROTOCOL (v2.0 MD5)
+                const sortedKeys = Object.keys(params).sort();
+                let signStr = ALI_APP_SECRET;
+                for (const key of sortedKeys) {
+                    signStr += key + params[key];
+                }
+                signStr += ALI_APP_SECRET;
+
+                const sign = md5(signStr).toUpperCase();
+                
+                const gateway = 'https://eco.taobao.com/router/rest';
+                const searchParams = new URLSearchParams({ ...params, sign });
+
+                const response = await fetchWithTimeout(gateway, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: searchParams.toString()
+                });
+
+                const data = await response.json();
+
+                // Validation: Check for HTML leakage (Shadow-routing errors)
+                if (typeof data === 'string' && data.trim().startsWith('<!doctype')) {
+                    return new Response(JSON.stringify({
+                        status: "INVALID_API_ROUTE",
+                        message: "HTML returned instead of JSON"
+                    }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+                }
+
+                return new Response(JSON.stringify(data), {
+                    headers: { ...corsHeaders, "Content-Type": "application/json" }
+                });
+
+            } catch (err) {
+                return new Response(JSON.stringify({ status: "API_GATEWAY_ERROR", error: err.message }), { 
+                    status: 500, 
+                    headers: { ...corsHeaders, "Content-Type": "application/json" } 
+                });
+            }
+        }
+
+        // 5. FALLBACK Proxy
         const targetUrl = url.searchParams.get("url");
         if (targetUrl) {
             try {
