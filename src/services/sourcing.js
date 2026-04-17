@@ -144,10 +144,9 @@ class SourcingService {
     const riskLevel = score >= 85 ? "Low Risk" : (score >= 60 ? "Medium Risk" : "High Risk");
     const compPressure = saturation.density > 600 ? "High Competition" : (saturation.density < 150 ? "Low Competition" : "Balanced Competition");
 
-    // 🏆 EXECUTIVE VERDICT (Deterministic Format)
+    // 🏆 STRATEGIC VERDICT (Deterministic Format)
     let grade = "B";
-    let action = "MONITOR";
-    // 🧠 DYNAMIC REASONING ENGINE (v1.2.3)
+    // 🧠 DYNAMIC REASONING ENGINE (v1.2.4)
     let remark = "MARKET STABILIZING"; 
     let action = "MONITOR";
     let reason = "";
