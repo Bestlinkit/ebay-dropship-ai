@@ -140,85 +140,63 @@ class SourcingService {
     };
   }
 
-  async runIterativePipeline(context) {
-    const { query } = context;
-    this.log({ type: 'PIPELINE_START', query });
+  _sanitizeQuery(query) {
+    if (!query) return "";
+    const stopWords = ['and', 'with', 'for', 'the', 'in', 'on', 'at', 'by', 'from', '&', 'plus', 'containing'];
+    return query
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '') // Keep alphanumeric, spaces, and hyphens
+      .split(/\s+/)
+      .filter(word => !stopWords.includes(word) && word.length > 2)
+      .join(' ')
+      .trim();
+  }
 
-    // 🏗️ ITERATIVE SEARCH STRATEGY (v7.9-ITERATIVE)
-    // 1. Full Title Search
-    // 2. Broad Keyword Search (First 5 words)
-    // 3. Core Archetype Search (First 3 words)
+  async runIterativePipeline(context) {
+    const rawQuery = context.query;
+    this.log({ type: 'PIPELINE_START', rawQuery });
+
+    const cleanQuery = this._sanitizeQuery(rawQuery);
+    
+    // 🏗️ DUAL-VECTOR ITERATIVE STRATEGY (v31.0-SCRAPE)
+    // We prioritize the Scraper Vector (/aliexpress-search) for keyword discovery
     const variations = [
-      query,
-      query.split(/\s+/).slice(0, 5).join(' '),
-      query.split(/\s+/).slice(0, 3).join(' ')
+      cleanQuery,
+      cleanQuery.split(/\s+/).slice(0, 3).join(' ')
     ].filter(v => v.trim().length > 0);
 
     let lastResult = { status: "ERROR", message: "No search iterations executed." };
 
     for (let i = 0; i < variations.length; i++) {
         const currentQuery = variations[i];
-        this.log({ type: 'ITERATION_PROBE', attempt: i + 1, query: currentQuery });
+        this.log({ type: 'ITERATION_PROBE', vector: 'SCRAPER', attempt: i + 1, query: currentQuery });
 
         try {
-            const payload = {
-                method: 'aliexpress.ds.recommend.feed.get',
-                app_key: this.CONFIG.ALI_APP_KEY || '532310', // Explicit fallback
-                timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
-                format: 'json',
-                v: '2.0',
-                sign_method: 'md5',
-                page_size: '20',
-                page_no: '1',
-                sort: 'sale_price_asc',
-                feed_id: '1',
-                target_currency: 'USD',
-                keywords: currentQuery // Pass query as keywords (if supported) or parameter
-            };
+            // Pivot to Scraper Vector
+            const searchUrl = this.CONFIG.GATEWAY.replace(/\/api\/ali-ds-proxy|\/ali-ds-proxy/, '') + `/aliexpress-search?q=${encodeURIComponent(currentQuery)}`;
+            
+            const { data: html } = await axios.get(searchUrl, { timeout: 10000 });
 
-            const result = await this.runAliExpressOfficial(payload);
-
-            if (result.status === "ERROR") {
-                lastResult = result;
-                continue;
+            if (typeof html !== 'string' || html.length < 5000) {
+                throw new Error("SCRAPER_BLOCKED: HTML payload too small or invalid.");
             }
 
-            // 🛡️ FUZZY MAPPING (v7.8-FUZZY)
-            const findProducts = (obj) => {
-                if (!obj || typeof obj !== 'object') return null;
-                if (Array.isArray(obj)) return obj;
-                const keys = ['promotion_product', 'products', 'list', 'product_list', 'promotion_products', 'item'];
-                for (const key of keys) {
-                    if (obj[key]) return Array.isArray(obj[key]) ? obj[key] : (obj[key].promotion_product || null);
-                }
-                for (const key in obj) {
-                    const found = findProducts(obj[key]);
-                    if (found) return found;
-                }
-                return null;
-            };
-
-            const rawProducts = findProducts(result.data) || [];
+            const rawProducts = this._parseAliExpressHTML(html);
 
             if (rawProducts.length > 0) {
                 return {
                     status: "SUCCESS",
-                    sources: { aliexpress: 'COMPLETED' },
+                    sources: { aliexpress: 'COMPLETED_SCRAPE' },
                     products: rawProducts,
-                    telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length, iterations: i + 1 } }
+                    telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length, vector: 'SCRAPER' } }
                 };
             }
 
-            // If we got 0, we continue to the next iteration
-            lastResult = {
-                status: "SUCCESS",
-                products: [],
-                debug: { message: `Iteration ${i+1} returned 0 results.`, query: currentQuery }
-            };
+            lastResult = { status: "SUCCESS", products: [], debug: { message: `Scraper iteration ${i+1} returned 0 results.`, query: currentQuery } };
 
         } catch (err) {
             this.log({ type: 'ITERATION_FAULT', error: err.message });
-            lastResult = { status: "ERROR", message: err.message, debug: err.debug || err };
+            lastResult = { status: "ERROR", message: err.message, debug: err };
         }
     }
 
@@ -228,6 +206,30 @@ class SourcingService {
         message: "AliExpress Search exhausted all iterations with 0 matches.",
         sources: { aliexpress: 'FAILED' }
     };
+  }
+
+  _parseAliExpressHTML(html) {
+    // Forensic Regex to find product list in AliExpress window.runParams or __INITIAL_DATA__
+    try {
+        const regex = /window\.runParams\s*=\s*({.+?});/s;
+        const match = html.match(regex);
+        if (!match) return [];
+
+        const data = JSON.parse(match[1]);
+        const list = data?.mods?.itemList?.content || [];
+        
+        return list.map(item => ({
+            product_id: item.productId,
+            product_title: item.title?.displayTitle || item.title,
+            target_sale_price: item.price?.salePrice?.value || item.price?.value,
+            product_main_image_url: item.image?.imgUrl || `https:${item.image?.src}`,
+            product_detail_url: `https://www.aliexpress.com/item/${item.productId}.html`,
+            logistics_info: { shipping_fee: 0, delivery_time: "12-15 Days" }
+        }));
+    } catch (e) {
+        console.error("HTML_PARSING_FAULT:", e);
+        return [];
+    }
   }
 
   normalize(raw) {
