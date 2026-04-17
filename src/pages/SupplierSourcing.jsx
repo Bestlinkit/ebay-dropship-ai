@@ -144,7 +144,7 @@ const SupplierSourcing = () => {
                     sellData
                 };
             })
-            .sort((a, b) => b.relevance - a.relevance);
+            .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
     }, [products, targetProduct, targetPrice, batchContext]);
 
     const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);

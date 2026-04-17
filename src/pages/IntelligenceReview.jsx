@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Info,
   Activity,
-  Wand2 as Sparkles
+  Wand2 as Sparkles,
+  Layers
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -133,18 +134,73 @@ const IntelligenceReview = () => {
          <div className="lg:col-span-7 space-y-12">
             
             {/* 🧠 STRATEGIC RECOMMENDATION (ACTIONABLE) */}
-            <div className="bg-[#EAF0FF] text-slate-950 p-12 rounded-[3.5rem] relative overflow-hidden transition-all group shadow-3xl">
-               <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform">
-                  <Sparkles size={160} />
-               </div>
-               <div className="relative z-10 space-y-6">
-                  <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0B1220] rounded-2xl text-white text-[10px] font-black uppercase tracking-widest">
-                     <Zap size={18} className="text-emerald-500 fill-emerald-500" /> Business Recommendation
-                  </div>
-                  <p className="text-2xl md:text-3xl font-black leading-tight max-w-xl italic tracking-tighter whitespace-pre-line">
-                    "{sellData.summary}"
-                  </p>
-               </div>
+            <div className="p-8 md:p-12 bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-[3.5rem] space-y-10 relative overflow-hidden group shadow-3xl">
+                <div className="absolute top-0 right-0 p-12 opacity-10 group-hover:scale-110 transition-transform">
+                    <Sparkles size={160} className="text-emerald-500" />
+                </div>
+                
+                <div className="relative z-10 flex flex-col gap-8">
+                    <div className="flex items-center justify-between">
+                        <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0B1220] rounded-2xl text-white text-[10px] font-black uppercase tracking-widest border border-white/5">
+                            <Zap size={18} className="text-emerald-500 fill-emerald-500" /> Intelligence Interpretation
+                        </div>
+                        <div className="hidden sm:block px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black italic text-slate-400">
+                            ID Pulse: {product.id}
+                        </div>
+                    </div>
+
+                    {/* Structured Insight Hub */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {(product.sellData?.interpretation?.insights || []).map((insight) => {
+                            const IconMap = { Layers, Target, Zap };
+                            const Icon = IconMap[insight.icon] || Info;
+                            
+                            return (
+                                <div key={insight.id} className="p-6 bg-white/5 border border-white/5 rounded-3xl flex flex-col gap-4 transition-all hover:bg-white/[0.08] hover:border-white/10 group/item">
+                                    <div className={cn(
+                                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                                        insight.type === 'positive' ? "bg-emerald-500/10 text-emerald-500 group-hover/item:bg-emerald-500 group-hover/item:text-white" :
+                                        insight.type === 'negative' ? "bg-rose-500/10 text-rose-500 group-hover/item:bg-rose-500 group-hover/item:text-white" :
+                                        "bg-white/5 text-slate-400 group-hover/item:bg-white group-hover/item:text-slate-950"
+                                    )}>
+                                        <Icon size={24} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{insight.label}</span>
+                                            <span className={cn(
+                                                "text-[8px] font-black uppercase tracking-tighter",
+                                                insight.type === 'positive' ? "text-emerald-400" :
+                                                insight.type === 'negative' ? "text-rose-400" :
+                                                "text-slate-400"
+                                            )}>
+                                                {insight.value}
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] font-medium text-slate-300 leading-relaxed italic opacity-80">
+                                            "{insight.description}"
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="p-8 bg-emerald-500/5 border border-emerald-500/20 rounded-3xl relative overflow-hidden group/verdict">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/verdict:opacity-20 transition-opacity">
+                            <Sparkles size={40} className="text-emerald-500" />
+                        </div>
+                        <div className="relative z-10 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Activity size={12} className="text-emerald-500 animate-pulse" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">Strategic Executive Verdict</span>
+                            </div>
+                            <p className="text-xl md:text-2xl font-black text-white italic leading-snug tracking-tighter">
+                                "{product.sellData?.interpretation?.verdict || product.sellData?.summary}"
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* 📊 CORE ANALYTICS ARCHITECTURE */}

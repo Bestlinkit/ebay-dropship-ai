@@ -14,7 +14,9 @@ import {
   CheckCircle2,
   Info,
   Loader2,
-  Lock
+  Lock,
+  Layers,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -242,19 +244,63 @@ const SupplierProductDetail = () => {
                         </div>
                     </div>
 
-                    {/* 🧠 MARKET INTELLIGENCE ENGINE REPORT (v25.1 Relocation) */}
+                    {/* 🧠 MARKET INTELLIGENCE ENGINE REPORT (v25.0 Structured) */}
                     {location.state?.sellData && (
-                        <div className="p-8 bg-emerald-50 border border-emerald-100 rounded-[2.5rem] space-y-6 shadow-sm">
+                        <div className="p-8 bg-slate-50 border border-slate-200 rounded-[2.5rem] space-y-8 shadow-sm">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-[11px] font-black uppercase tracking-widest text-emerald-900 flex items-center gap-2">
-                                    <Zap size={16} className="text-emerald-600 fill-emerald-600" /> Market Intelligence Report
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                    <Zap size={16} className="text-emerald-500 fill-emerald-500" /> Market Intelligence Report
                                 </h4>
-                                <div className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black italic shadow-lg">
-                                    Score: {location.state.sellData.resellScore}
+                                <div className="px-3 py-1 bg-slate-950 text-white rounded-lg text-[10px] font-black italic shadow-lg">
+                                    Resell Score: {location.state.sellData.resellScore}
                                 </div>
                             </div>
-                            <div className="text-[11px] font-medium text-emerald-900 leading-relaxed whitespace-pre-line bg-white/50 p-6 rounded-2xl border border-emerald-200/50 italic">
-                                "{location.state.sellData.summary}"
+
+                            {/* Interpretation Hub */}
+                            <div className="grid grid-cols-1 gap-4">
+                                {(location.state.sellData.interpretation?.insights || []).map((insight) => {
+                                    const IconMap = { Layers, Target, Zap };
+                                    const Icon = IconMap[insight.icon] || Info;
+                                    
+                                    return (
+                                        <div key={insight.id} className="p-5 bg-white border border-slate-100 rounded-2xl flex items-start gap-4 hover:border-slate-300 transition-colors group">
+                                            <div className={cn(
+                                                "p-3 rounded-xl shrink-0 transition-colors",
+                                                insight.type === 'positive' ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white" :
+                                                insight.type === 'negative' ? "bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white" :
+                                                "bg-slate-50 text-slate-500 group-hover:bg-slate-950 group-hover:text-white"
+                                            )}>
+                                                <Icon size={20} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{insight.label}</span>
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded text-[8px] font-black uppercase",
+                                                        insight.type === 'positive' ? "bg-emerald-100 text-emerald-700" :
+                                                        insight.type === 'negative' ? "bg-rose-100 text-rose-700" :
+                                                        "bg-slate-100 text-slate-600"
+                                                    )}>
+                                                        {insight.value}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed italic">
+                                                    "{insight.description}"
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="p-6 bg-emerald-50/50 border border-emerald-100/50 rounded-2xl">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Star size={14} className="text-emerald-500 fill-emerald-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900">Strategic Verdict</span>
+                                </div>
+                                <p className="text-[12px] font-black text-emerald-950 italic leading-snug">
+                                    {location.state.sellData.interpretation?.verdict}
+                                </p>
                             </div>
                         </div>
                     )}

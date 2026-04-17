@@ -67,11 +67,9 @@ const ConfidenceBadge = ({ level }) => {
 /**
  * SVG-Based Mini Momentum Line (Real-Data Adaptive Visual)
  */
-const MiniMomentumLine = ({ data, color = "#22C55E" }) => {
+const MiniMomentumLine = ({ data, color = "#22C55E", width = 80, height = 24 }) => {
   if (!data || data.length < 2) return null;
   
-  const width = 80;
-  const height = 24;
   const padding = 2;
   
   const points = data.map((p, i) => {
@@ -215,57 +213,71 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
                     <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.velocity.score}</span>
                  </div>
               </div>
-              <div className="ml-auto hidden xl:block">
-                 <MiniMomentumLine data={sellData.momentum} color={sellData.color} />
-              </div>
-           </div>
-        </div>
-
-        {/* RIGHT: PERFORMANCE & CALLS-TO-ACTION */}
-        <div className="flex items-center gap-8 md:gap-12 shrink-0 w-full md:w-auto justify-between md:justify-end border-t border-slate-800/50 md:border-0 pt-6 md:pt-0">
-           
-           {/* PERFORMANCE SCORE */}
-           <div className="flex flex-col items-center gap-1.5 order-1 md:order-1">
-              <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Resell Score</span>
-              <div className={cn(
-                "w-12 h-12 md:w-16 md:h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl md:text-2xl italic border shadow-2xl relative",
-                isTopPick ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-slate-900/50 border-white/5 text-white"
-              )}>
-                 {sellData.resellScore}
-                 <div className="absolute -bottom-2 px-2 py-0.5 bg-slate-950 border border-slate-800 rounded-md text-[6px] font-black uppercase tracking-widest whitespace-nowrap">
-                    {sellData.resellScore >= 80 ? "Strong" : (sellData.resellScore >= 60 ? "Decent" : "Weak")}
+              <div className="ml-auto flex flex-col items-end gap-1.5 order-1 md:order-1">
+                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest leading-none">Resell Score</span>
+                 <div className={cn(
+                   "w-12 h-12 md:w-16 md:h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl md:text-2xl italic border shadow-2xl relative",
+                   isTopPick ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-slate-900/50 border-white/5 text-white"
+                 )}>
+                    {sellData.resellScore}
+                    <div className="absolute -bottom-2 px-2 py-0.5 bg-slate-950 border border-slate-800 rounded-md text-[6px] font-black uppercase tracking-widest whitespace-nowrap">
+                       {sellData.resellScore >= 80 ? "Strong" : (sellData.resellScore >= 60 ? "Decent" : "Weak")}
+                    </div>
                  </div>
               </div>
-           </div>
 
-           {/* ACTION STACK */}
-           <div className="flex flex-col gap-2.5 order-2 md:order-2">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAdd({
-                    ...product,
-                    id: product.id,
-                    title: product.title,
-                    price: Number(product.price) || 0,
-                    image: product.image || product.thumbnail || product.image_url || null
-                  })
-                }}
-                className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
-              >
-                Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
-              </button>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAdd(product);
-                }}
-                className="px-8 md:px-12 py-3 md:py-4 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center"
-              >
-                View Details
-              </button>
+              {/* ACTION STACK */}
+              <div className="flex flex-col gap-2.5 order-2 md:order-2">
+                 <button 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     onAdd({
+                       ...product,
+                       id: product.id,
+                       title: product.title,
+                       price: Number(product.price) || 0,
+                       image: product.image || product.thumbnail || product.image_url || null
+                     })
+                   }}
+                   className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
+                 >
+                   Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
+                 </button>
+                 <button 
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     onAdd(product);
+                   }}
+                   className="px-8 md:px-12 py-3 md:py-4 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center"
+                 >
+                   View Details
+                 </button>
+              </div>
            </div>
         </div>
+      </div>
+
+      {/* 📊 3. EXPANDED TREND ANALYTICS (FILLS MARKED AREA) */}
+      <div className="mt-4 pt-6 border-t border-white/5 flex flex-col md:flex-row items-end justify-between gap-6">
+          <div className="flex-1 w-full bg-slate-950/30 rounded-2xl p-4 border border-white/5 relative overflow-hidden group/trend">
+              <div className="absolute top-4 left-4 flex items-center gap-2">
+                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Market Velocity Trend (30D)</span>
+              </div>
+              <div className="h-16 w-full flex items-end">
+                <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={600} height={60} />
+              </div>
+          </div>
+          
+          {sellData.isHandpicked && (
+            <div className="shrink-0 px-6 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3 animate-in zoom-in-95 duration-500 shadow-lg shadow-emerald-500/5">
+               <Sparkles className="text-emerald-500" size={18} />
+               <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-none">Handpicked For You</span>
+                  <span className="text-[7px] font-bold text-emerald-600/60 uppercase mt-1">High-Signal Opportunity</span>
+               </div>
+            </div>
+          )}
       </div>
     </motion.div>
   );

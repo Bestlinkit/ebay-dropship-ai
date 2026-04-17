@@ -39,97 +39,83 @@ class SourcingService {
       resellScore,
       confidence: resellScore >= 80 ? 'High' : (resellScore < 40 ? 'Low' : 'Medium'),
       summary: this._getHumanizedMarketSummary(resellScore, product, batchContext, metrics),
+      interpretation: this._getInterpretationReport(resellScore, product, batchContext, metrics), // New structured data
       momentum: Array.from({ length: 14 }, (_, i) => ({ x: i, y: Math.floor(resellScore * (0.8 + Math.random() * 0.4)) })),
       status: resellScore >= 80 ? 'TOP PICK' : (resellScore >= 60 ? 'TRENDING' : 'CONSIDERING'),
       profitLevel: resellScore >= 70 ? 'High' : (resellScore >= 40 ? 'Medium' : 'Low'),
       color: resellScore >= 70 ? "#10b981" : "#f59e0b",
       isWinner: resellScore >= 85,
+      isHandpicked: resellScore >= 90, // AI Handpicked Flag
       metrics // Pass metrics for UI justification
     };
   }
 
-  _analyzeMarketSignals(product, context) {
-    const { avgPrice = 50, stdDev = 15 } = context;
-    const price = Number(product.price) || 0;
-    const soldCount = Number(product.soldCount || 0);
-    const totalFound = Number(product.totalFound || 0);
-    const category = this.detectCategory(product.title);
+  /**
+   * Generates a structured analysis for high-fidelity UI rendering (v25.0)
+   */
+  _getInterpretationReport(score, product, context, metrics) {
+    const { positioning, saturation, velocity, category } = metrics;
+    
+    const insights = [];
 
-    // 📊 1. POSITIONING ANALYSIS
-    const zScore = stdDev > 0 ? (price - avgPrice) / stdDev : 0;
-    let positioningScore = 50;
-    if (zScore < -0.5) positioningScore = 90; // Significantly underpriced
-    else if (zScore < 0) positioningScore = 75; // Competitive
-    else if (zScore < 1) positioningScore = 40; // Overpriced
-    else positioningScore = 15; // Extreme friction
+    // 🔴 SATURATION ANALYSIS
+    insights.push({
+      id: 'saturation',
+      icon: 'Layers',
+      label: 'Market Density',
+      value: saturation.density > 800 ? 'Critical Saturation' : (saturation.density < 200 ? 'Blue Ocean' : 'Balanced Node'),
+      description: saturation.density > 800 
+        ? `High keyword density (${saturation.density} listings) creates extreme visibility friction.` 
+        : (saturation.density < 200 ? `Sparse competition detected. Significant vacancy for rank capture.` : `Stable listing volume. Standard differentiation required.`),
+      type: saturation.density > 800 ? 'negative' : (saturation.density < 200 ? 'positive' : 'neutral')
+    });
 
-    // 📊 2. SATURATION ANALYSIS
-    let saturationScore = 50;
-    if (totalFound < 100) saturationScore = 95; // Rare/Niche
-    else if (totalFound < 300) saturationScore = 75; // Balanced
-    else if (totalFound > 1000) saturationScore = 20; // Hyper-saturated
+    // 🟡 POSITIONING ANALYSIS
+    insights.push({
+      id: 'positioning',
+      icon: 'Target',
+      label: 'Price Health',
+      value: positioning.zScore < -0.3 ? 'Aggressive Edge' : (positioning.zScore > 0.5 ? 'Pricing Friction' : 'Market Standard'),
+      description: positioning.zScore < -0.3 
+        ? `Entry price is ${Math.abs(positioning.zScore).toFixed(1)}σ below median. High capture potential.`
+        : (positioning.zScore > 0.5 ? `Priced too high above market median. Margin at risk.` : `Price aligns with category standards. Margin depends on shipping.`),
+      type: positioning.zScore < -0.3 ? 'positive' : (positioning.zScore > 0.5 ? 'negative' : 'neutral')
+    });
 
-    // 📊 3. VELOCITY ANALYSIS
-    // Demand Strength inferred from movement vs density ratio
-    const velocityRatio = totalFound > 0 ? (soldCount / totalFound) * 100 : 0;
-    let velocityScore = 50;
-    if (velocityRatio > 15) velocityScore = 95; 
-    else if (velocityRatio > 5) velocityScore = 70;
-    else if (soldCount === 0) velocityScore = 10;
+    // 🔵 VELOCITY ANALYSIS
+    insights.push({
+      id: 'velocity',
+      icon: 'Zap',
+      label: 'Demand Strength',
+      value: velocity.ratio > 10 ? 'High Velocity' : (velocity.ratio < 2 ? 'Stagnant' : 'Moderate Flow'),
+      description: velocity.ratio > 10 
+        ? `Exceptional movement detected (${velocity.ratio.toFixed(1)}% conversion ratio).`
+        : (velocity.ratio < 2 ? `Low sales velocity in past 30 days. High storage/inventory risk.` : `Consistent demand floor. Reliable category performer.`),
+      type: velocity.ratio > 10 ? 'positive' : (velocity.ratio < 2 ? 'negative' : 'neutral')
+    });
+
+    // 🏆 FINAL VERDICT
+    let verdict = "";
+    if (score >= 90) verdict = "PRIME OPPORTUNITY: High-liquidity node with exceptional rank potential. Immediate action advised.";
+    else if (score >= 80) verdict = "STRATEGIC MATCH: Elite positioning and healthy demand signals indicate strong ROI potential.";
+    else if (score >= 60) verdict = "VALIDATED FIT: Moderate volume expected with precise keyword optimization.";
+    else {
+      const reason = saturation.density > 800 ? "extreme competitor density" : 
+                    (positioning.zScore > 0.5 ? "uncompetitive price positioning" : "stagnant demand signals");
+      verdict = `AVOIDANCE ADVISED: Market node currently restricted by ${reason}. High CAC risk.`;
+    }
 
     return {
-      positioning: { score: positioningScore, signal: zScore < 0 ? "Underpriced" : "Premium", zScore },
-      saturation: { score: saturationScore, density: totalFound },
-      velocity: { score: velocityScore, ratio: velocityRatio, totalSold: soldCount },
-      category
+      insights,
+      verdict,
+      scoreLabel: score >= 80 ? 'Strong' : (score >= 60 ? 'Decent' : 'Weak')
     };
   }
 
   _getHumanizedMarketSummary(score, product, context, metrics) {
-    const { positioning, saturation, velocity, category } = metrics;
-    
-    const parts = [];
-
-    // [SATURATION]
-    const satText = saturation.density > 800 
-      ? `[Saturation: Critical] High keyword density (${saturation.density} listings) creates extreme visibility friction.` 
-      : (saturation.density < 200 ? `[Saturation: Sparse] Low competitive density detected. Significant vacancy in keyword node.` : `[Saturation: Moderate] Balanced listing volume. Strategy requires specific differentiators.`);
-    parts.push(satText);
-
-    // [POSITIONING]
-    const posText = positioning.zScore < -0.3 
-      ? `[Positioning: Aggressive] Entry price is ${Math.abs(positioning.zScore).toFixed(1)}σ below median. High capture potential.`
-      : `[Positioning: Neutral] Price aligns with category standard. Margin depends on shipping optimization.`;
-    parts.push(posText);
-
-    // [PRESSURE & CATEGORY]
-    let pressureText = "";
-    if (category?.id === 'beauty' || category?.id === 'skincare') {
-      pressureText = "[Pressure: Category Focus] Beauty niche detected. High recurring demand signals offset saturation risk.";
-    } else if (category?.id === 'fashion') {
-      pressureText = "[Pressure: Trend-Driven] Visual momentum is high. Volatility risk remains medium.";
-    } else if (category?.id === 'home' || category?.id === 'kitchen') {
-      pressureText = "[Pressure: Utility-Reliant] Stable demand floor. Resale potential linked to durability signals.";
-    } else {
-      pressureText = "[Pressure: General] Standard competitive model. Evidence-based capture strategy advised.";
-    }
-    parts.push(pressureText);
-
-    // [VERDICT]
-    let verdict = "";
-    if (score >= 80) {
-      verdict = `[Verdict] Elite liquidity detected. High probability of search-rank dominance via pricing edge.`;
-    } else if (score >= 60) {
-      verdict = `[Verdict] Validated fit. Moderate volume expected with keyword optimization.`;
-    } else {
-      // Humanized Avoidance Insight
-      const reason = saturation.density > 800 ? "overwhelmed by extreme competitor density" : 
-                    (positioning.zScore > 0.5 ? "priced too high above the market median" : "showing stagnant demand signals");
-      
-      verdict = `[Verdict] Avoid for now. This item is currently ${reason}, which means your effort would likely result in high advertising costs for minimal return. Better opportunities exist in lower-density price windows.`;
-    }
-    parts.push(verdict);
-
+    const report = this._getInterpretationReport(score, product, context, metrics);
+    const parts = report.insights.map(i => `[${i.label}: ${i.value}] ${i.description}`);
+    parts.push(`[Verdict] ${report.verdict}`);
     return parts.join("\n\n");
   }
 

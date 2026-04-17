@@ -43,6 +43,12 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                 </div>
             )}
 
+            {product.sellData?.resellScore >= 90 && (
+                <div className="absolute -top-4 left-40 px-4 py-1.5 bg-indigo-600 rounded-full flex items-center gap-2 text-[8px] font-black text-white uppercase tracking-widest shadow-lg">
+                    <Zap size={10} className="fill-white text-yellow-400" /> AI Choice
+                </div>
+            )}
+
             {/* PRODUCT VISUAL */}
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-[2rem] overflow-hidden border border-slate-100 shrink-0 shadow-lg relative">
                 <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
