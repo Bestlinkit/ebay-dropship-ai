@@ -144,73 +144,90 @@ class SourcingService {
     const { query } = context;
     this.log({ type: 'PIPELINE_START', query });
 
-    try {
-        // 1. Initial Discovery (AliExpress DS API Protocol 1.0)
-        const payload = {
-            method: 'aliexpress.ds.recommend.feed.get',
-            app_key: this.CONFIG.ALI_APP_KEY,
-            timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
-            format: 'json',
-            v: '2.0',
-            sign_method: 'md5',
-            page_size: '20',
-            page_no: '1',
-            sort: 'sale_price_asc',
-            feed_id: '1', // Default trending/recommendations
-            target_currency: 'USD'
-        };
+    // 🏗️ ITERATIVE SEARCH STRATEGY (v7.9-ITERATIVE)
+    // 1. Full Title Search
+    // 2. Broad Keyword Search (First 5 words)
+    // 3. Core Archetype Search (First 3 words)
+    const variations = [
+      query,
+      query.split(/\s+/).slice(0, 5).join(' '),
+      query.split(/\s+/).slice(0, 3).join(' ')
+    ].filter(v => v.trim().length > 0);
 
-        const result = await this.runAliExpressOfficial(payload);
+    let lastResult = { status: "ERROR", message: "No search iterations executed." };
 
-        if (result.status === "ERROR") throw new Error(result.message);
+    for (let i = 0; i < variations.length; i++) {
+        const currentQuery = variations[i];
+        this.log({ type: 'ITERATION_PROBE', attempt: i + 1, query: currentQuery });
 
-        // 🛡️ FUZZY MAPPING (v7.8-FUZZY)
-        // AliExpress API responses can be deeply nested and key names vary.
-        const findProducts = (obj) => {
-            if (!obj || typeof obj !== 'object') return null;
-            if (Array.isArray(obj)) return obj;
-            
-            const keys = ['promotion_product', 'products', 'list', 'product_list', 'promotion_products'];
-            for (const key of keys) {
-                if (obj[key]) return Array.isArray(obj[key]) ? obj[key] : (obj[key].promotion_product || null);
-            }
-            
-            for (const key in obj) {
-                const found = findProducts(obj[key]);
-                if (found) return found;
-            }
-            return null;
-        };
-
-        const rawProducts = findProducts(result.data) || [];
-        
-        const successPayload = {
-            status: "SUCCESS",
-            sources: { aliexpress: 'COMPLETED' },
-            products: rawProducts,
-            telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length } }
-        };
-
-        // If results are 0, attach debug info to allow forensic audit
-        if (rawProducts.length === 0) {
-            successPayload.debug = {
-                message: "AliExpress API returned empty set or unrecognized structure.",
-                requestUrl: context.requestUrl,
-                responseData: result.data
+        try {
+            const payload = {
+                method: 'aliexpress.ds.recommend.feed.get',
+                app_key: this.CONFIG.ALI_APP_KEY || '532310', // Explicit fallback
+                timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+                format: 'json',
+                v: '2.0',
+                sign_method: 'md5',
+                page_size: '20',
+                page_no: '1',
+                sort: 'sale_price_asc',
+                feed_id: '1',
+                target_currency: 'USD',
+                keywords: currentQuery // Pass query as keywords (if supported) or parameter
             };
+
+            const result = await this.runAliExpressOfficial(payload);
+
+            if (result.status === "ERROR") {
+                lastResult = result;
+                continue;
+            }
+
+            // 🛡️ FUZZY MAPPING (v7.8-FUZZY)
+            const findProducts = (obj) => {
+                if (!obj || typeof obj !== 'object') return null;
+                if (Array.isArray(obj)) return obj;
+                const keys = ['promotion_product', 'products', 'list', 'product_list', 'promotion_products', 'item'];
+                for (const key of keys) {
+                    if (obj[key]) return Array.isArray(obj[key]) ? obj[key] : (obj[key].promotion_product || null);
+                }
+                for (const key in obj) {
+                    const found = findProducts(obj[key]);
+                    if (found) return found;
+                }
+                return null;
+            };
+
+            const rawProducts = findProducts(result.data) || [];
+
+            if (rawProducts.length > 0) {
+                return {
+                    status: "SUCCESS",
+                    sources: { aliexpress: 'COMPLETED' },
+                    products: rawProducts,
+                    telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length, iterations: i + 1 } }
+                };
+            }
+
+            // If we got 0, we continue to the next iteration
+            lastResult = {
+                status: "SUCCESS",
+                products: [],
+                debug: { message: `Iteration ${i+1} returned 0 results.`, query: currentQuery }
+            };
+
+        } catch (err) {
+            this.log({ type: 'ITERATION_FAULT', error: err.message });
+            lastResult = { status: "ERROR", message: err.message, debug: err.debug || err };
         }
-
-        return successPayload;
-
-    } catch (err) {
-        this.log({ type: 'PIPELINE_CRASH', error: err.message });
-        return { 
-            status: "ERROR", 
-            message: err.message, 
-            sources: { aliexpress: 'FAILED' },
-            debug: err.debug || { message: err.message, stack: err.stack }
-        };
     }
+
+    return {
+        ...lastResult,
+        status: "ERROR",
+        message: "AliExpress Search exhausted all iterations with 0 matches.",
+        sources: { aliexpress: 'FAILED' }
+    };
   }
 
   normalize(raw) {
