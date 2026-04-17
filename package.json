@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run check-bundle",
+    "check-bundle": "grep -q \"createContext\" dist/assets/*.js || (echo '❌ ERROR: React Context missing from bundle' && exit 1)",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -20,9 +21,9 @@
     "firebase": "^12.12.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",
-    "react": "^19.2.4",
+    "react": "19.2.4",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.2.4",
+    "react-dom": "19.2.4",
     "react-quill": "^2.0.0",
     "react-router-dom": "^7.14.0",
     "sonner": "^2.0.7",
