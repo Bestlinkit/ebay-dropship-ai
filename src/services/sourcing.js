@@ -198,6 +198,9 @@ class SourcingService {
       originalQuery: query,
       targetPrice: Number(targetProduct?.price) || 0,
       ebayId: targetProduct?.id
+    };
+  }
+
   // 🚀 OFFICIAL ALIEXPRESS ENGINE CONFIG (v27.0)
   CONFIG = {
     APP_KEY: '532310',
