@@ -141,7 +141,7 @@ const IntelligenceReview = () => {
                   <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0B1220] rounded-2xl text-white text-[10px] font-black uppercase tracking-widest">
                      <Zap size={18} className="text-emerald-500 fill-emerald-500" /> Business Recommendation
                   </div>
-                  <p className="text-2xl md:text-3xl font-black leading-tight max-w-xl italic tracking-tighter">
+                  <p className="text-2xl md:text-3xl font-black leading-tight max-w-xl italic tracking-tighter whitespace-pre-line">
                     "{sellData.summary}"
                   </p>
                </div>

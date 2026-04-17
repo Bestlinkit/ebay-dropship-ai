@@ -135,24 +135,29 @@ const SupplierSourcing = () => {
                 const res = sourcingService.normalize(raw);
                 const relevance = sourcingService.calculateOpportunityScore(res, targetPrice);
                 
+                // Calculate Intelligence Signal (Market Analysis)
+                const sellData = sourcingService.calculateSellScore(res, batchContext || { avgPrice: targetPrice });
+
                 return { 
                     ...res, 
-                    relevance
+                    relevance,
+                    sellData
                 };
             })
             .sort((a, b) => b.relevance - a.relevance);
-    }, [products, targetProduct, targetPrice]);
+    }, [products, targetProduct, targetPrice, batchContext]);
 
     const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);
 
     const handleContinue = (product) => {
-        // Navigate to mandatory Detail Page
+        // Navigate to mandatory Detail Page with Intelligence Payload
         navigate(`/supplier-detail/${product.source}/${product.id}`, { 
             state: { 
-                targetProduct, 
+                targetProduct: ebayProduct, 
                 targetPrice,
                 productUrl: product.url,
-                preFetchedProduct: product // 🚀 Pass full object to bypass blocked API calls
+                preFetchedProduct: product,
+                sellData: product.sellData // Pass the analytical engine results
             } 
         });
     };

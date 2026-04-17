@@ -191,10 +191,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
               <ConfidenceBadge level={sellData.confidence} />
            </div>
 
-           {/* INSIGHT TEXT (ANALYTICAL REPORT) */}
-           <div className="text-[10px] md:text-[11px] font-medium text-slate-400 border-l border-slate-700/50 pl-4 py-2 space-y-4 whitespace-pre-line leading-relaxed">
-              {sellData.summary}
-           </div>
+           {/* INSIGHT TEXT (RELOCATED TO DETAIL VIEW) */}
 
            <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div className="flex flex-col gap-0.5">

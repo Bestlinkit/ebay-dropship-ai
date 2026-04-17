@@ -242,6 +242,23 @@ const SupplierProductDetail = () => {
                         </div>
                     </div>
 
+                    {/* 🧠 MARKET INTELLIGENCE ENGINE REPORT (v25.1 Relocation) */}
+                    {location.state?.sellData && (
+                        <div className="p-8 bg-emerald-50 border border-emerald-100 rounded-[2.5rem] space-y-6 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-emerald-900 flex items-center gap-2">
+                                    <Zap size={16} className="text-emerald-600 fill-emerald-600" /> Market Intelligence Report
+                                </h4>
+                                <div className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black italic shadow-lg">
+                                    Score: {location.state.sellData.resellScore}
+                                </div>
+                            </div>
+                            <div className="text-[11px] font-medium text-emerald-900 leading-relaxed whitespace-pre-line bg-white/50 p-6 rounded-2xl border border-emerald-200/50 italic">
+                                "{location.state.sellData.summary}"
+                            </div>
+                        </div>
+                    )}
+
                     {/* Trust & Ratings (AliExpress Only) */}
                     {source.toLowerCase() === 'aliexpress' && (
                         <div className="p-8 bg-slate-950 rounded-[2.5rem] text-white space-y-6 shadow-xl">
