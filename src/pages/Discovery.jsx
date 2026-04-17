@@ -75,7 +75,10 @@ const Discovery = () => {
 
   // 3. ADAPTIVE FILTERING & RANKING (Post-Processing)
    const processedProducts = useMemo(() => {
-    return rawProducts
+    // Phase 1 & 8: Validation & Duplicate Filtering
+    const validated = sourcingService.validateAndFilter(rawProducts);
+
+    return validated
       .map(p => ({ 
         ...p, 
         sellData: sourcingService.calculateSellScore(p, batchIntelligence) 
@@ -86,7 +89,7 @@ const Discovery = () => {
         const selectedMin = Number(minScore || 0);
 
         if (selectedMin > 0 && score < selectedMin) return false;
-        if (profitLevel && p.sellData?.profitLevel !== profitLevel) return false;
+        // profitLevel check can be handled by the new score breakdown if needed
         return true;
       })
       .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));

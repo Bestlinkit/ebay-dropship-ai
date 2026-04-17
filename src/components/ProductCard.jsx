@@ -13,6 +13,36 @@ import { cn } from '../lib/utils';
 import sourcingService from '../services/sourcing';
 
 /**
+ * Deterministic Sparkline (v1.0)
+ */
+const MomentumGraph = ({ data }) => {
+    if (!data || data.length < 2) return <span className="text-[8px] text-slate-600 uppercase">No trend data available</span>;
+    
+    const width = 100;
+    const height = 24;
+    const padding = 2;
+    
+    const points = data.map((p, i) => {
+        const x = (i / (data.length - 1)) * (width - padding * 2) + padding;
+        const y = height - (p.y / 100) * (height - padding * 2) - padding;
+        return `${x},${y}`;
+    }).join(' ');
+
+    return (
+        <svg width={width} height={height} className="overflow-visible">
+            <polyline 
+                fill="none" 
+                stroke="#10B981" 
+                strokeWidth="1.5" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                points={points} 
+            />
+        </svg>
+    );
+};
+
+/**
  * Deterministic Product Card (v16.0 - UI Recovery Phase)
  * PIXEL-PERFECT MATCH OF SUPPLIER DISCOVERY TEMPLATE.
  */
@@ -80,6 +110,13 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                         <span className="text-[12px] font-bold text-white uppercase tracking-tight">
                             {labels.competition}
                         </span>
+                    </div>
+
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">MOMENTUM</span>
+                        <div className="h-6 flex items-center">
+                            <MomentumGraph data={sellData.momentum} />
+                        </div>
                     </div>
                 </div>
             </div>

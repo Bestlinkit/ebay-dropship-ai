@@ -107,6 +107,62 @@ app.post('/api/eprolo/detail', async (req, res) => {
     }
 });
 
+// --- ALIEXPRESS DS API PROXY (v2.0 SIGNING) ---
+
+const ALI_APP_KEY = '532310';
+const ALI_APP_SECRET = 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+
+app.post('/api/ali-ds-proxy', async (req, res) => {
+    try {
+        const params = req.body;
+        
+        // 1. SIGNING PROTOCOL (v2.0 MD5)
+        const sortedKeys = Object.keys(params).sort();
+        let signStr = ALI_APP_SECRET;
+        for (const key of sortedKeys) {
+            signStr += key + params[key];
+        }
+        signStr += ALI_APP_SECRET;
+        
+        const sign = crypto.createHash('md5').update(signStr, 'utf8').digest('hex').toUpperCase();
+        
+        // 2. REQUEST EXECUTION
+        const gateway = 'https://eco.taobao.com/router/rest';
+        console.log(`[AliExpress Proxy] Request URL: ${gateway}`);
+        
+        const response = await axios.post(gateway, new URLSearchParams({
+            ...params,
+            sign
+        }), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            timeout: 10000
+        });
+
+        const contentType = response.headers['content-type'];
+        const first100 = typeof response.data === 'string' 
+            ? response.data.substring(0, 100) 
+            : JSON.stringify(response.data).substring(0, 100);
+
+        console.log(`[AliExpress Proxy] Response Type: ${contentType}`);
+        console.log(`[AliExpress Proxy] Sample: ${first100}`);
+
+        // 3. HTML FALLBACK DETECTION
+        if (typeof response.data === 'string' && response.data.trim().startsWith('<!doctype')) {
+            console.error("[AliExpress Proxy] CRITICAL: HTML returned instead of JSON.");
+            return res.status(500).json({ 
+                status: "INVALID_API_ROUTE", 
+                message: "HTML returned instead of JSON",
+                preview: first100
+            });
+        }
+
+        res.json(response.data);
+    } catch (error) {
+        console.error("AliExpress Proxy Error:", error.message);
+        res.status(500).json({ status: "API_ERROR", message: error.message });
+    }
+});
+
 // --- ALIEXPRESS ENDPOINTS ---
 
 app.get('/api/aliexpress/search', async (req, res) => {

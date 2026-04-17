@@ -21,9 +21,8 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/ws\/ebay/, ''),
       },
       '/api/ali-ds-proxy': {
-        target: 'https://eco.taobao.com/router/rest',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/ali-ds-proxy/, ''),
       }
     }
   },
