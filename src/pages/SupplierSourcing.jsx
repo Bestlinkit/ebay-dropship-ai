@@ -77,8 +77,14 @@ const SupplierSourcing = () => {
             setTelemetry(result.telemetry || { aliexpress: null });
 
             if (result.status === "SUCCESS") {
-                toast.success(`Discovered ${result.products.length} products`);
-                setLastError(null);
+                if ((result.products || []).length > 0) {
+                    toast.success(`Discovered ${result.products.length} products`);
+                    setLastError(null);
+                } else {
+                    // Force diagnostic availability for 0 matches
+                    setLastError(result.debug || { message: "QUERY_EMPTY: No direct matches found." });
+                    toast.error("No matches found in AliExpress catalog.");
+                }
             } else if (result.status === "ERROR") {
                 setLastError(result.debug || result.rawError || result.message);
                 toast.error(result.message || "AliExpress API Connection Failed");

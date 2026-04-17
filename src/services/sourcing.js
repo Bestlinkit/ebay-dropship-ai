@@ -164,15 +164,43 @@ class SourcingService {
 
         if (result.status === "ERROR") throw new Error(result.message);
 
-        // 2. Intelligence Mapping
-        const rawProducts = result.data?.aliexpress_ds_recommend_feed_get_response?.result?.products?.promotion_product || [];
+        // 🛡️ FUZZY MAPPING (v7.8-FUZZY)
+        // AliExpress API responses can be deeply nested and key names vary.
+        const findProducts = (obj) => {
+            if (!obj || typeof obj !== 'object') return null;
+            if (Array.isArray(obj)) return obj;
+            
+            const keys = ['promotion_product', 'products', 'list', 'product_list', 'promotion_products'];
+            for (const key of keys) {
+                if (obj[key]) return Array.isArray(obj[key]) ? obj[key] : (obj[key].promotion_product || null);
+            }
+            
+            for (const key in obj) {
+                const found = findProducts(obj[key]);
+                if (found) return found;
+            }
+            return null;
+        };
+
+        const rawProducts = findProducts(result.data) || [];
         
-        return {
+        const successPayload = {
             status: "SUCCESS",
             sources: { aliexpress: 'COMPLETED' },
             products: rawProducts,
             telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length } }
         };
+
+        // If results are 0, attach debug info to allow forensic audit
+        if (rawProducts.length === 0) {
+            successPayload.debug = {
+                message: "AliExpress API returned empty set or unrecognized structure.",
+                requestUrl: context.requestUrl,
+                responseData: result.data
+            };
+        }
+
+        return successPayload;
 
     } catch (err) {
         this.log({ type: 'PIPELINE_CRASH', error: err.message });
@@ -180,7 +208,7 @@ class SourcingService {
             status: "ERROR", 
             message: err.message, 
             sources: { aliexpress: 'FAILED' },
-            rawError: err
+            debug: err.debug || { message: err.message, stack: err.stack }
         };
     }
   }
