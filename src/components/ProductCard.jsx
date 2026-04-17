@@ -134,7 +134,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         isTopPick && "border-emerald-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
       )}
     >
-      {/* 🚀 1. IMAGE & TOP BADGE */}
+      {/* 🚀 1. IMAGE */}
       <div className="relative aspect-square rounded-3xl overflow-hidden mb-5 bg-[#0A0F1E]">
         <SafeImage 
           src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
@@ -142,36 +142,17 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
         />
         
-        {remark && (
-          <div className={cn(
-            "absolute top-4 right-4 px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-2xl transition-all duration-500",
-            remark === 'HOT CAKE' ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" :
-            remark === 'RISKY' ? "bg-rose-500/20 border-rose-500/30 text-rose-400" :
-            "bg-slate-950/40 border-white/10 text-slate-400"
-          )}>
-            <div className="flex items-center gap-1.5">
-              {remark === 'HOT CAKE' && <Zap size={10} className="fill-emerald-400" />}
-              <span className="text-[9px] font-black uppercase tracking-widest">{remark}</span>
-            </div>
-          </div>
-        )}
-
-        {isTopPick && (
-          <div className="absolute top-4 left-4 w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-2xl rotate-12">
-            <StarIcon size={16} className="fill-white" />
-          </div>
-        )}
+        <div className="absolute top-4 right-4 px-3 py-1.5 rounded-xl border backdrop-blur-md bg-slate-950/40 border-white/10 text-slate-400">
+           <span className="text-[9px] font-black uppercase tracking-widest">{sellData.interpretation?.labels?.competition}</span>
+        </div>
       </div>
 
       {/* 📦 2. CONTENT CORE */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-[11px] font-black text-white/90 uppercase tracking-tighter line-clamp-2 leading-tight group-hover:text-white transition-colors h-8">
+          <h3 className="text-[11px] font-black text-white/90 uppercase tracking-tighter line-clamp-2 leading-tight h-8">
             {product.title}
           </h3>
-          <div className="flex items-center gap-2 mt-1 opacity-40">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{product.id}</span>
-          </div>
         </div>
 
         <div className="flex items-baseline justify-between pt-2">
@@ -179,34 +160,33 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
             <span className="text-2xl font-black text-white italic tracking-tightest">
               {product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
             </span>
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Market Value</span>
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">eBay Price</span>
           </div>
           <div className="text-right">
             <div className="text-[18px] font-black text-emerald-400 italic leading-none">{sellData.resellScore}</div>
-            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Resell Score</div>
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Resell Score</span>
           </div>
         </div>
 
         {/* 📉 TREND PREVIEW */}
         <div className="py-3 border-y border-white/5 space-y-2">
            <div className="flex items-center justify-between">
-              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Growth Pulse</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Demand Trend</span>
               <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
-                {metrics?.velocity?.ratio ? `${metrics.velocity.ratio.toFixed(1)}% Velocity` : 'Calibrating...'}
+                {metrics?.velocity?.ratio ? `Index: ${metrics.velocity.ratio.toFixed(2)}` : '--'}
               </span>
            </div>
-           <div className="h-8 flex items-end opacity-60 hover:opacity-100 transition-opacity">
-              <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={300} height={32} />
+           <div className="h-4 flex items-end">
+              <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={300} height={16} />
            </div>
         </div>
 
         {/* 🏷️ LABELS GRID */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           <div className="space-y-1">
-            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Strategy</span>
+            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Position</span>
             <p className="text-[9px] font-black text-white uppercase italic truncate">
-              {sellData.interpretation?.labels?.position === 'At Market Median' ? 'COMPETITIVE' : 
-               (sellData.interpretation?.labels?.position === 'Below Market Median' ? 'OPTIMIZED' : 'PREMIUM')}
+              {sellData.interpretation?.labels?.position}
             </p>
           </div>
           <div className="space-y-1 text-right">
@@ -221,10 +201,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         <button 
           onClick={(e) => {
             e.stopPropagation();
-            onAdd({
-              ...product,
-              sellData
-            });
+            onAdd({ ...product, sellData });
             setIsAdded(true);
           }}
           className={cn(
@@ -232,7 +209,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
             isAdded ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500" : "bg-white text-slate-950 hover:bg-emerald-400"
           )}
         >
-          {isAdded ? "Added" : <><Plus size={12} /> Add to Store</>}
+          {isAdded ? "Captured" : "Start Sourcing"}
         </button>
         <button 
           onClick={(e) => {
@@ -240,14 +217,13 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
             handleViewAnalysis();
           }}
           className="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0"
-          title="View Analysis"
         >
           <BarChart3 size={14} />
         </button>
       </div>
-
-      {/* 🤖 RECOMMENDATION TOOLTIP HOVER EFFECT (Glassmorphism) */}
-      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm p-6 flex flex-col items-center justify-center text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none duration-500">
+    </motion.div>
+  );
+});
          <ShieldCheck size={24} className="text-emerald-500 mb-4" />
          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Strategic Insight</span>
          <p className="text-[11px] font-medium text-white italic leading-relaxed">

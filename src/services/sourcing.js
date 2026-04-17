@@ -37,16 +37,12 @@ class SourcingService {
 
     return {
       resellScore,
-      confidence: resellScore >= 80 ? 'High' : (resellScore < 40 ? 'Low' : 'Medium'),
-      summary: this._getHumanizedMarketSummary(resellScore, product, batchContext, metrics),
-      interpretation: this._getInterpretationReport(resellScore, product, batchContext, metrics), // New structured data
+      confidenceRate: resellScore / 100,
+      interpretation: this._getInterpretationReport(resellScore, product, batchContext, metrics),
       momentum: Array.from({ length: 14 }, (_, i) => ({ x: i, y: Math.floor(resellScore * (0.8 + Math.random() * 0.4)) })),
-      status: resellScore >= 80 ? 'TOP PICK' : (resellScore >= 60 ? 'TRENDING' : 'CONSIDERING'),
-      profitLevel: resellScore >= 70 ? 'High' : (resellScore >= 40 ? 'Medium' : 'Low'),
+      grade: resellScore >= 80 ? 'A' : (resellScore >= 60 ? 'B' : (resellScore >= 40 ? 'C' : 'D')),
       color: resellScore >= 70 ? "#10b981" : "#f59e0b",
-      isWinner: resellScore >= 85,
-      isHandpicked: resellScore >= 90, // AI Handpicked Flag
-      metrics // Pass metrics for UI justification
+      metrics 
     };
   }
 
@@ -102,110 +98,108 @@ class SourcingService {
 
     const satLabel = saturation.density > 600 ? "High Saturation" : (saturation.density < 200 ? "Low Saturation" : "Moderate Saturation");
     const priceLabel = positioning.zScore < -0.4 ? "Below Market Median" : (positioning.zScore > 0.4 ? "Above Market Median" : "At Market Median");
-    const demandLabel = velocity.ratio > 8 ? "Strong Demand" : (velocity.ratio < 3 ? "Weak Demand" : "Stable Demand");
+    const demandLabel = velocity.ratio > 8 ? "Active Demand" : (velocity.ratio < 3 ? "Minor Demand" : "Median Demand");
 
-    // 1. MARKET SATURATION
+    // 1. MARKET SATURATION [STRICT CLASSIFICATION]
     insights.push({
       id: 'saturation',
       icon: 'Layers',
       label: 'Market Saturation',
       value: satLabel,
-      description: saturation.density > 600 
-        ? `Elevated listing density indicates a competitive and mature category node.`
-        : (saturation.density < 200 ? `Fragmented listing density suggests early-stage opportunity for visibility capture.` : `Standard listing density consistent with category-wide equilibrium benchmarks.`),
+      description: `(Listing Density: ${saturation.density})`,
       type: saturation.density > 600 ? 'negative' : (saturation.density < 200 ? 'positive' : 'neutral')
     });
 
-    // 2. PRICE POSITION
+    // 2. PRICE POSITION [STRICT CLASSIFICATION]
     insights.push({
       id: 'positioning',
       icon: 'Target',
       label: 'Price Position',
       value: priceLabel,
-      description: positioning.zScore < -0.4 
-        ? `Pricing is optimized below category average, favoring conversion velocity.`
-        : (positioning.zScore > 0.4 ? `Premium pricing relative to category standard, requiring differentiated offer value.` : `Price point aligns with current competitive median for this specific category index.`),
+      description: `(Z-score: ${positioning.zScore.toFixed(2)})`,
       type: positioning.zScore < -0.4 ? 'positive' : (positioning.zScore > 0.4 ? 'negative' : 'neutral')
     });
 
-    // 3. DEMAND SIGNAL
+    // 3. DEMAND SIGNAL [STRICT CLASSIFICATION]
     insights.push({
       id: 'velocity',
       icon: 'Zap',
       label: 'Demand Signal',
       value: demandLabel,
-      description: velocity.ratio > 8 
-        ? `Sales-to-listing ratio indicates high inventory turnover and consistent buyer engagement.`
-        : (velocity.ratio < 3 ? `Low sales velocity indicates slow inventory turnover for this specific product profile.` : `Standard sales momentum detected, consistent with historical category performance data.`),
+      description: `(Sales Velocity Index: ${velocity.ratio.toFixed(2)})`,
       type: velocity.ratio > 8 ? 'positive' : (velocity.ratio < 3 ? 'negative' : 'neutral')
     });
 
-    // 4. COMPETITION PRESSURE & RISK (Calculated from cross-signals)-signals)
-    const riskLevel = score >= 85 ? "Low Risk" : (score >= 60 ? "Medium Risk" : "High Risk");
-    const compPressure = saturation.density > 600 ? "High Competition" : (saturation.density < 150 ? "Low Competition" : "Balanced Competition");
-
-    // 🏆 STRATEGIC VERDICT (Deterministic Format)
-    let grade = "B";
-    // 🧠 DYNAMIC REASONING ENGINE (v1.2.4)
-    let remark = "MARKET STABILIZING"; 
+    // 🏆 STRATEGIC CLASSIFICATION ENGINE (v1.2.5 [NON-NARRATIVE])
+    let grade = "C";
     let action = "MONITOR";
-    let reason = "";
+    let basis = [];
 
-    // 1. Calculate Core Remarks
-    if (score >= 90) { 
-        remark = "HOT CAKE"; 
-        action = "ACTIVE"; 
-        reason = velocity.ratio > 10 ? "Explosive sales velocity detected. This is a high-turnover opportunity." : "Exceptional market fit with minimal price resistance.";
-    } else if (score >= 75) { 
-        remark = "CONSIDERABLE OFFER"; 
-        action = "TEST"; 
-        reason = positioning.zScore < -1.0 ? "Heavy price advantage. Ideal for aggressive market entry." : "Strong demand signal with sustainable profit margins.";
-    } else if (score >= 55) { 
-        remark = "MONITOR RESEARCH"; 
-        action = "RESEARCH"; 
-        reason = saturation.density > 600 ? "Highly competitive niche. Requires premium branding to stand out." : "Steady demand plateau. Good for supplemental inventory.";
-    } else {
-        remark = "MARKET STABILIZING";
-        action = "WATCH";
-        reason = velocity.ratio < 2 ? "Low transaction volume detected. Verify trend longevity before listing." : "Market saturation suggests high customer acquisition costs.";
-    }
+    if (score >= 90) { grade = "A"; action = "SCALABLE"; }
+    else if (score >= 75) { grade = "B"; action = "TEST"; }
+    else if (score >= 55) { grade = "C"; action = "RESEARCH"; }
+    else if (score >= 35) { grade = "D"; action = "WATCH"; }
+    else { grade = "F"; action = "IGNORE"; }
+
+    // Basis Logic (Purely Factual)
+    if (saturation.density > 600) basis.push("High Saturation");
+    else if (saturation.density < 200) basis.push("Low Saturation");
     
-    // 2. Tactical Overrides (Specific Data Triggers)
-    if (saturation.density > 1000) {
-        remark = "RISKY";
-        reason = "Critically high saturation. High risk of price wars and margin erosion.";
-    } else if (velocity.ratio > 15 && positioning.zScore < -0.5) {
-        remark = "HOT CAKE";
-        reason = "Unserved demand peak combined with competitive pricing. Prime for immediate listing.";
-    } else if (positioning.zScore > 1.2) {
-        remark = "PREMIUM POSITION";
-        reason = "Product is positioned in the luxury/premium segment. Focus on design-conscious buyers.";
-    }
+    if (velocity.ratio > 8) basis.push("Active Demand");
+    else if (velocity.ratio < 3) basis.push("Minor Demand");
 
-    // 🕵️ Dynamic Summary Generation
-    const summary = `[${remark}] ${reason}`;
+    if (positioning.zScore < -0.4) basis.push("Below Median Price");
+    else if (positioning.zScore > 0.4) basis.push("Above Median Price");
 
     return {
       insights,
-      verdict: `Strategic Action: ${action}`,
-      summary,
-      scoreLabel: riskLevel,
-      remark,
-      sellerCount: Math.max(1, Math.floor(saturation.density / 225) + 3),
+      grade,
+      action,
+      basis,
+      verdict: `Action: ${action}`,
+      summary: `Basis: ${basis.join(", ")}`,
+      scoreLabel: grade,
+      remark: action,
       labels: {
         saturation: satLabel,
         position: priceLabel,
         demand: demandLabel,
-        competition: compPressure,
-        risk: riskLevel,
-        remark
+        competition: saturation.density > 600 ? "High Competition" : "Standard Competition",
+        risk: score >= 60 ? "Standard Risk" : "High Risk",
+        remark: action
       }
     };
   }
 
-  _getHumanizedMarketSummary(score, product, context, metrics) {
-    const report = this._getInterpretationReport(score, product, context, metrics);
-    return report.summary;
+  evaluateSupplierTrust(product) {
+    const rating = Number(product?.rating || 0);
+    const hasVariants = (product?.variants?.length || 0) > 0;
+    
+    let score = rating * 20; // 0-100 base
+    if (hasVariants) score += 10;
+    
+    return {
+      trustScore: Math.min(100, score),
+      label: rating >= 4.5 ? "High Trust" : (rating >= 4 ? "Standard Trust" : "Review Required"),
+      justification: `(API Rating: ${rating}/5.0)`
+    };
+  }
+
+  calculateROI(ebayPrice, supplierPrice, shipping = 0) {
+    const totalCost = Number(supplierPrice || 0) + Number(shipping || 0);
+    const ebay = Number(ebayPrice || 0);
+    
+    const profit = ebay - totalCost;
+    const margin = ebay > 0 ? (profit / ebay) * 100 : 0;
+    const roi = totalCost > 0 ? (profit / totalCost) * 100 : 0;
+
+    return {
+      profit: profit.toFixed(2),
+      margin: margin.toFixed(1),
+      roi: roi.toFixed(1),
+      label: roi > 50 ? "High Yield" : (roi > 20 ? "Standard Yield" : "Low Yield"),
+      justification: `(Margin: ${margin.toFixed(1)}%)`
+    };
   }
 
   detectCategory(title) {
@@ -284,40 +278,19 @@ class SourcingService {
     return str;
   }
 
-  async runIterativePipeline(context, requesters) {
+  async runIterativePipeline(context) {
     try {
-        // 🚀 STAGE 1: TRY DIRECT API BRIDGE (v27.5)
+        // 🔒 HARD-LOCKED: ALIEXPRESS DS API ONLY (v1.2.5)
         const result = await this.runAliExpressOfficial(context.query);
         
-        if (result.status === 'SUCCESS' && result.products.length > 0) {
-            return {
-                status: 'SUCCESS',
-                sources: { aliexpress: 'SUCCESS', eprolo: 'DISABLED' },
-                telemetry: { aliexpress: result, eprolo: null },
-                products: result.products
-            };
-        }
-
-        // 🚀 STAGE 2: FALLBACK TO EXTENSION BRIDGE (If API empty or failed)
-        if (requesters?.fetchAliExpress) {
-            console.warn("Direct API returned no results. Falling back to Extension Bridge...");
-            const extResult = await requesters.fetchAliExpress();
-            return {
-                status: extResult.status || 'SUCCESS',
-                sources: { aliexpress: 'EXTENSION', eprolo: 'DISABLED' },
-                telemetry: { aliexpress: extResult, eprolo: null },
-                products: extResult.products || []
-            };
-        }
-
         return {
             status: result.status,
-            sources: { aliexpress: result.status, eprolo: 'DISABLED' },
-            telemetry: { aliexpress: result, eprolo: null },
+            sources: { aliexpress: result.status },
+            telemetry: { aliexpress: result },
             products: result.products
         };
     } catch (e) {
-        console.error("Pipeline Execution Critical Failure:", e);
+        console.error("Pipeline Execution Failure:", e);
         return { status: 'ERROR', products: [] };
     }
   }
@@ -345,15 +318,13 @@ class SourcingService {
       
       params.sign = this._generateSignature(params);
 
-      // 🌐 REAL API FETCH (Direct Bridge)
-      // Note: This may fail due to CORS in browser; Extension will handle the fallback
+      // 🌐 DIRECT API ACCESS ONLY (v1.2.5)
       const url = new URL(this.CONFIG.GATEWAY);
       Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
       
       const response = await fetch(url.toString(), { 
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      }).catch(() => null); // Silent catch to allow fallback logic
+        method: 'GET'
+      });
 
       if (response && response.ok) {
         const data = await response.json();
@@ -361,11 +332,11 @@ class SourcingService {
         return { status: 'SUCCESS', products: rawProducts };
       }
 
-      // If fetch fails or returns error, return empty to trigger extension fallback
-      return { status: 'ERROR', products: [] }; 
+      // NO FALLBACK ALLOWED
+      return { status: 'ERROR', message: "AliExpress API unavailable", products: [] }; 
     } catch (e) {
-      console.error("AliExpress Direct Bridge Fault:", e);
-      return { status: 'ERROR', products: [] };
+      console.error("AliExpress API Fault:", e);
+      return { status: 'ERROR', message: "AliExpress API Connection Failed", products: [] };
     }
   }
 

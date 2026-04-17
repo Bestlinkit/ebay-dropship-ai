@@ -37,7 +37,7 @@ const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false, 
                 </div>
                 <div>
                     <h2 className="text-xl font-black text-slate-950 italic tracking-tighter uppercase">
-                        {isGlobal ? 'AliExpress Search' : 'Eprolo Discovery'}
+                        {isGlobal ? 'AliExpress Bridge' : 'DS API Analysis'}
                     </h2>
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 text-left">
                         Status: <span className={cn(loading ? "text-emerald-500" : "text-slate-400")}>
@@ -79,8 +79,8 @@ const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false, 
 
                 {/* 🔌 CONNECTION */}
                 <div className="hidden sm:flex items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
-                    {isGlobal ? <Globe size={12} className="text-amber-500" /> : <ShieldCheck size={12} className="text-blue-500" />}
-                    {isGlobal ? 'Global Scraper' : 'Direct API Bridge'}
+                    <ShieldCheck size={12} className="text-emerald-500" />
+                    AliExpress DS Connection
                 </div>
             </div>
         </div>

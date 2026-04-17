@@ -1,46 +1,21 @@
-import { SourcingStatus, SourcingUIState } from '../constants/sourcing';
-
 /**
- * Truth-Based Sourcing Interpreter (v4.0)
- * The sole authority for mapping supplier responses to UI states.
- * 
- * CORE RULE: NEVER guess failure reason; only map explicit statuses.
+ * AliExpress DS API Case Interpreter (v1.2.5)
  */
-export const interpretSupplierResponse = (result, platform) => {
+export const interpretSupplierResponse = (result) => {
   const { status } = result;
 
-  if (platform === 'eprolo') {
-    switch (status) {
-      case SourcingStatus.SUCCESS:
-        return SourcingUIState.EPROLO_SUCCESS;
-      case SourcingStatus.EMPTY:
-        return SourcingUIState.EPROLO_EMPTY;
-      case SourcingStatus.API_ERROR:
-      case SourcingStatus.NETWORK_ERROR:
-      case SourcingStatus.PARSE_ERROR:
-        return SourcingUIState.EPROLO_ERROR;
-      default:
-        return SourcingUIState.EPROLO_ERROR;
-    }
+  switch (status) {
+    case 'SUCCESS':
+      return 'ALIEXPRESS_SUCCESS';
+    case 'EMPTY':
+      return 'ALIEXPRESS_EMPTY';
+    case 'BLOCKED':
+      return 'ALIEXPRESS_BLOCKED';
+    case 'API_ERROR':
+    case 'NETWORK_ERROR':
+    case 'ERROR':
+      return 'ALIEXPRESS_ERROR';
+    default:
+      return 'ALIEXPRESS_ERROR';
   }
-
-  if (platform === 'aliexpress') {
-    switch (status) {
-      case SourcingStatus.SUCCESS:
-        return SourcingUIState.ALIEXPRESS_SUCCESS;
-      case SourcingStatus.EMPTY:
-        return SourcingUIState.ALIEXPRESS_EMPTY;
-      case SourcingStatus.BLOCKED:
-        return SourcingUIState.ALIEXPRESS_BLOCKED;
-      case SourcingStatus.PARSE_ERROR:
-        return SourcingUIState.ALIEXPRESS_ERROR; // Maps to "AliExpress Parser Outdated" or similar
-      case SourcingStatus.API_ERROR:
-      case SourcingStatus.NETWORK_ERROR:
-        return SourcingUIState.ALIEXPRESS_ERROR;
-      default:
-        return SourcingUIState.ALIEXPRESS_ERROR;
-    }
-  }
-
-  return SourcingUIState.IDLE;
 };

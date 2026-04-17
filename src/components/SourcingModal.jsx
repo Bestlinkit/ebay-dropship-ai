@@ -15,7 +15,7 @@ import {
   Terminal,
   ShieldCheck
 } from 'lucide-react';
-import eproloService from '../services/eprolo';
+import sourcingService from '../services/sourcing';
 import { interpretSupplierResponse } from '../utils/sourcingInterpreter';
 import { SourcingUIState } from '../constants/sourcing';
 import { cn } from '../lib/utils';
@@ -42,21 +42,20 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
   const performSourcing = async () => {
     setLoading(true);
     setMatches([]);
-    setUiState(SourcingUIState.EPROLO_SEARCHING);
-    setDebugInfo(null);
+    setUiState('ALIEXPRESS_SEARCHING');
     
     try {
-      const result = await eproloService.findMatches(ebayProduct);
-      const nextState = interpretSupplierResponse(result, 'eprolo');
+      const result = await sourcingService.runIterativePipeline({ query: ebayProduct.title, targetProduct: ebayProduct });
+      const nextState = interpretSupplierResponse(result);
       
-      setDebugInfo(result.debugInfo);
+      setDebugInfo(result.telemetry?.aliexpress);
       setUiState(nextState);
       
-      if (nextState === SourcingUIState.EPROLO_SUCCESS) {
-        setMatches(result.data);
+      if (nextState === 'ALIEXPRESS_SUCCESS') {
+        setMatches(result.products);
       }
     } catch (e) {
-      setUiState(SourcingUIState.EPROLO_ERROR);
+      setUiState('ALIEXPRESS_ERROR');
       setDebugInfo({ error: e.message, timestamp: new Date().toISOString() });
     } finally {
       setLoading(false);
@@ -83,7 +82,7 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                    <div className="bg-slate-900 text-white p-2 rounded-lg">
                       <PackageCheck size={18} />
                    </div>
-                   <h2 className="text-xl font-bold text-slate-900 italic tracking-tight">Eprolo Discovery</h2>
+                    <h2 className="text-xl font-bold text-slate-900 italic tracking-tight">AliExpress DS Link</h2>
                 </div>
                 <p className="text-xs text-slate-400 font-medium line-clamp-1 max-w-md">
                     Target: <span className="text-slate-900">{ebayProduct.title}</span>
@@ -99,22 +98,22 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-10 bg-slate-50/30 custom-scrollbar">
-          {uiState === SourcingUIState.EPROLO_SEARCHING ? (
+          {uiState === 'ALIEXPRESS_SEARCHING' ? (
             <div className="flex flex-col items-center justify-center py-40 gap-4">
               <Loader2 className="animate-spin text-slate-900" size={40} />
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">
-                Inquiring Eprolo API...
+                Inquiring AliExpress DS API...
               </p>
             </div>
-          ) : uiState === SourcingUIState.EPROLO_EMPTY ? (
+          ) : uiState === 'ALIEXPRESS_EMPTY' ? (
             <div className="text-center py-32 space-y-10">
               <div className="w-20 h-20 bg-white border border-slate-100 rounded-[2.5rem] flex items-center justify-center mx-auto text-slate-200 shadow-sm">
                  <Search size={40} />
               </div>
               <div className="space-y-3">
-                 <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter">No results found on Eprolo</h3>
+                 <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter">No results on DS API</h3>
                  <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
-                   Eprolo catalog contains no direct match.
+                   AliExpress search depth exceeded with zero signal matches.
                  </p>
               </div>
               <button 
@@ -124,15 +123,15 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                 🚀 Search AliExpress Manually
               </button>
             </div>
-          ) : uiState === SourcingUIState.EPROLO_ERROR ? (
+          ) : uiState === 'ALIEXPRESS_ERROR' ? (
             <div className="text-center py-32 space-y-10">
               <div className="w-20 h-20 bg-red-50 border border-red-100 rounded-[2.5rem] flex items-center justify-center mx-auto text-red-500 shadow-sm">
                  <AlertCircle size={40} />
               </div>
               <div className="space-y-3">
-                 <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter text-red-600">Eprolo API Error</h3>
+                 <h3 className="text-2xl font-black text-slate-900 italic uppercase tracking-tighter text-red-600">API Connection Failed</h3>
                  <p className="text-sm text-slate-400 font-medium max-w-sm mx-auto leading-relaxed">
-                   Technical connection failure. Check credentials or endpoint status.
+                   AliExpress connection context lost. Check API health.
                  </p>
               </div>
               <div className="flex flex-col items-center gap-4">
@@ -140,25 +139,14 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                   onClick={performSourcing}
                   className="px-10 py-5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-slate-800 transition-all shadow-xl"
                 >
-                  Retry Inquiry
-                </button>
-                <button 
-                   onClick={handleManualAliSearch}
-                   className="text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-500 transition-colors"
-                >
-                  Search AliExpress Instead
+                  Retry API Bridge
                 </button>
               </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {matches.map((match, i) => {
-                const calculatedProfit = (ebayProduct.price || 0) - (match.price || 0) - ((ebayProduct.price || 0) * 0.12) - 0.30;
-                const calculatedMargin = ebayProduct.price > 0 ? (calculatedProfit / ebayProduct.price) * 100 : 0;
-                const profitCalc = {
-                    profit: calculatedProfit.toFixed(2),
-                    margin: calculatedMargin.toFixed(0)
-                };
+               {matches.map((match, i) => {
+                 const roiData = sourcingService.calculateROI(ebayProduct.price, match.price);
 
                 return (
                   <div key={match.id || i} className="bg-white rounded-3xl p-6 border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all group flex flex-col">
@@ -171,11 +159,11 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                       </div>
                       <div className="space-y-2 flex-1">
                         <div className="flex justify-between items-start">
-                           <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", calculatedMargin > 30 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500")}>
-                               {profitCalc.margin}% ROI Potential
+                           <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600")}>
+                               {roiData.margin}% Margin Index
                            </span>
                         </div>
-                        <h4 className="font-bold text-sm text-slate-900 line-clamp-2 leading-tight">
+                       <h4 className="font-bold text-sm text-slate-900 line-clamp-2 leading-tight">
                            {match.title}
                         </h4>
                       </div>
@@ -189,8 +177,8 @@ const SourcingModal = ({ ebayProduct, isOpen, onClose, onMatchSelect }) => {
                          </span>
                       </div>
                       <div className="flex flex-col items-end">
-                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Est. Profits</span>
-                         <span className="text-lg font-bold text-emerald-600">${profitCalc.profit}</span>
+                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Est. Delta</span>
+                         <span className="text-lg font-bold text-emerald-600">${roiData.profit}</span>
                       </div>
                     </div>
 

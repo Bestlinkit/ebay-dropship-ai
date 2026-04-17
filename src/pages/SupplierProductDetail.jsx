@@ -20,8 +20,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import eproloService from '../services/eprolo';
-import aliexpressService from '../services/aliexpress';
 import sourcingService from '../services/sourcing';
 import { cn } from '../lib/utils';
 
@@ -41,7 +39,7 @@ const SupplierProductDetail = () => {
 
     useEffect(() => {
         const fetchDeepDetails = async () => {
-            // 🚀 Bypassing API if snapshot was manually imported or pre-fetched
+            // 🚀 Bypassing legacy API - Unified Sourcing Payload Detection
             if (location.state?.preFetchedProduct) {
                 const data = location.state.preFetchedProduct;
                 setProduct(data);
@@ -54,25 +52,11 @@ const SupplierProductDetail = () => {
 
             setLoading(true);
             try {
-                let data = null;
-                if (source.toLowerCase() === 'eprolo') {
-                    data = await eproloService.getProductDetail(id);
-                } else if (source.toLowerCase() === 'aliexpress') {
-                    const url = location.state?.productUrl || `https://www.aliexpress.com/item/${id}.html`;
-                    const res = await aliexpressService.getProductDetails(url);
-                    if (res.status !== 'SUCCESS') throw new Error("Enrichment failed");
-                    data = res.data;
-                }
-
-                if (!data) throw new Error("Product data not found");
-                
-                setProduct(data);
-                if (data.variants && data.variants.length > 0) {
-                    setSelectedVariant(data.variants[0]);
-                }
+                // FORCE ERROR: Legacy scrapers disabled by System Override
+                throw new Error("Legacy Enrichment Disabled: Hard-Locked to API v1.2.5");
             } catch (error) {
                 console.error("Deep Enrichment Crash:", error);
-                toast.error(`Detail retrieval failed: ${error.message}`);
+                toast.error(`AliExpress API Connection Failed: ${error.message}`);
             } finally {
                 setLoading(false);
             }
@@ -119,8 +103,8 @@ const SupplierProductDetail = () => {
                     </div>
                 </div>
                 <div className="text-center space-y-2">
-                    <h3 className="text-lg font-black uppercase tracking-widest text-slate-950 italic">Analyzing Supplier DNA</h3>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Enriching product metadata & trust metrics...</p>
+                    <h3 className="text-lg font-black uppercase tracking-widest text-slate-950 italic">Compiling Metadata</h3>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Processing Data Classifications...</p>
                 </div>
             </div>
         );
@@ -134,11 +118,11 @@ const SupplierProductDetail = () => {
             {/* 1. Header Navigation */}
             <div className="flex items-center justify-between mb-12">
                 <button onClick={() => navigate(-1)} className="flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl hover:border-slate-400 transition-all text-[11px] font-black uppercase tracking-widest shadow-sm">
-                    <ArrowLeft size={16} /> Back to Sourcing
+                    <ArrowLeft size={16} /> Return to Inventory
                 </button>
                 <div className="flex items-center gap-4">
                     <div className="px-6 py-3 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl">
-                        <ShieldCheck size={14} className="text-emerald-400" /> Secure Sourcing Node
+                        <Lock size={14} className="text-emerald-400" /> Sourcing Terminal: Locked
                     </div>
                 </div>
             </div>
@@ -153,11 +137,8 @@ const SupplierProductDetail = () => {
                             className="w-full aspect-square object-contain p-10 bg-white"
                         />
                         <div className="absolute bottom-10 left-10 flex items-center gap-2">
-                            <span className={cn(
-                                "px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl",
-                                source.toLowerCase() === 'eprolo' ? "bg-indigo-600" : "bg-orange-600"
-                            )}>
-                                {source} Source
+                            <span className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl bg-orange-600">
+                                AliExpress Protocol 1.2.5
                             </span>
                         </div>
                     </div>

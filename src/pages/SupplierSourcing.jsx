@@ -26,14 +26,9 @@ import {
   Box
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '../lib/utils';
-import eproloService from '../services/eprolo';
-import aliexpressService from '../services/aliexpress';
 import sourcingService from '../services/sourcing';
-import { SourcingStatus } from '../constants/sourcing';
-import extensionConnector from '../services/extensionConnectorService';
 import { toast } from 'sonner';
-
+import { cn } from '../lib/utils';
 // 🏗️ MODULAR COMPONENTS
 import SourcingStatusHeader from '../components/sourcing/SourcingStatusHeader';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
@@ -62,58 +57,41 @@ const SupplierSourcing = () => {
 
     const [pipelineState, setPipelineState] = useState({
         status: sourcingService.Status.LOADING,
-        sources: { eprolo: 'PENDING', aliexpress: 'PENDING' }
+        sources: { aliexpress: 'PENDING' }
     });
 
-    const [activeTier, setActiveTier] = useState(null);
-    const [isFallback, setIsFallback] = useState(false);
-    const [telemetry, setTelemetry] = useState({ eprolo: null, aliexpress: null });
+    const [telemetry, setTelemetry] = useState({ aliexpress: null });
     const [showDebug, setShowDebug] = useState(false);
-    const [connectionHealth, setConnectionHealth] = useState("NOT_INSTALLED");
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
         
         setLoading(true);
-        setPipelineState({ status: 'LOADING', sources: { eprolo: 'PENDING', aliexpress: 'PENDING' } });
-        setIsFallback(false);
+        setPipelineState({ status: 'LOADING', sources: { aliexpress: 'PENDING' } });
 
         try {
             // 🚀 STAGE 1: INITIALIZE ITERATIVE CONTEXT
             const context = sourcingService.createContext(query, targetProduct);
             
-            // 🚀 STAGE 2: RUN DETERMINISTIC PIPELINE (v21.2 Stabilization)
-            const result = await sourcingService.runIterativePipeline(
-                context, 
-                (tierQuery) => ({
-                    fetchEprolo: () => extensionConnector.request('eprolo', tierQuery),
-                    fetchAliExpress: () => extensionConnector.request('aliexpress', tierQuery)
-                })
-            );
+            // 🚀 STAGE 2: RUN DETERMINISTIC PIPELINE (v1.2.5 ALIEXPRESS ONLY)
+            const result = await sourcingService.runIterativePipeline(context);
 
-            // result.status will now be SUCCESS | NO_RESULTS | ERROR | BLOCKED | TIMEOUT
             setPipelineState({ status: result.status, sources: result.sources });
             setProducts(result.products || []);
-            setTelemetry(result.telemetry || { eprolo: null, aliexpress: null });
+            setTelemetry(result.telemetry || { aliexpress: null });
 
             if (result.status === "SUCCESS") {
                 toast.success(`Discovered ${result.products.length} products`);
-            } else if (result.status === "BLOCKED") {
-                toast.error("Access blocked by supplier security");
             } else if (result.status === "ERROR") {
-                toast.error("Extraction logic encountered an error");
+                toast.error(result.message || "AliExpress API Connection Failed");
             }
 
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
             setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
-            toast.error(`Discovery failed. Check backend status.`);
+            toast.error(`AliExpress API Connection Failed. Check network configuration.`);
         } finally {
             setLoading(false);
-            setActiveTier(null);
-            // Re-sync health after search
-            const health = await extensionConnector.testConnection();
-            setConnectionHealth(health);
         }
     }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
 
@@ -231,9 +209,9 @@ const SupplierSourcing = () => {
                         <ArrowLeft size={24} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Discovery Pipeline</h1>
+                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">AliExpress Intelligence Bridge</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-emerald-500" /> Secure Intelligence Bridge v2.0
+                             <Lock size={12} className="text-emerald-500" /> Secure DS API Bridge v1.2.5
                         </p>
                     </div>
                 </div>

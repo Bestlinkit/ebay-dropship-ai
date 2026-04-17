@@ -19,15 +19,7 @@ import { motion } from 'framer-motion';
  */
 const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
     
-    // 💡 SOURCE INTELLIGENCE MAPPING
-    const getSourceLabel = (src) => {
-        const s = (src || "").toLowerCase();
-        if (s === 'eprolo') return { name: "Eprolo API", color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20" };
-        if (s === 'aliexpress') return { name: "AliExpress", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" };
-        return { name: "Unknown", color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/20" };
-    };
-
-    const sourceIntel = getSourceLabel(product.source);
+    const sourceIntel = { name: "AliExpress DS", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" };
 
     return (
         <motion.div 
@@ -66,8 +58,8 @@ const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
                         </span>
                         
                         {product.price && targetPrice > 0 && (
-                            <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[7px] font-black uppercase tracking-widest border border-emerald-100">
-                                <TrendingUp size={8} /> Competitive Pricing
+                            <div className="px-2 py-0.5 bg-slate-50 text-slate-500 rounded-md text-[7px] font-black uppercase tracking-widest border border-slate-100 italic">
+                                Price Node: {product.price < targetPrice ? 'Below Target' : 'Above Target'}
                             </div>
                         )}
                     </div>

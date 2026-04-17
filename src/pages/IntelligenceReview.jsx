@@ -176,7 +176,7 @@ const IntelligenceReview = () => {
                                             {insight.value}
                                         </span>
                                     </div>
-                                    <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic border-l-2 border-white/5 pl-3 mt-2">
+                                    <p className="text-[11px] font-black text-white/40 leading-relaxed uppercase tracking-widest border-l-2 border-white/5 pl-3 mt-2">
                                         {insight.description}
                                     </p>
                                 </div>
@@ -184,42 +184,36 @@ const IntelligenceReview = () => {
                         })}
                     </div>
 
-                    {/* Strategic Intelligence Overhaul */}
+                    {/* Strategic Intelligence [STRICT OVERRIDE] */}
                     <div className="p-10 bg-[#0A0F1E] border border-white/5 rounded-[3rem] relative overflow-hidden group shadow-3xl">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32" />
-                        
-                        <div className="relative z-10 flex flex-col gap-6">
+                        <div className="relative z-10 flex flex-col gap-8">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                                <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
                                     <Target size={20} />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Strategic Recommendation</span>
-                                {sellData.interpretation?.remark && (
-                                    <span className={cn(
-                                        "ml-auto px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse",
-                                        sellData.interpretation.remark === 'HOT CAKE' ? "bg-emerald-500 text-white" :
-                                        sellData.interpretation.remark === 'RISKY' ? "bg-rose-500 text-white" :
-                                        "bg-white/10 text-white"
-                                    )}>
-                                        {sellData.interpretation.remark}
-                                    </span>
-                                )}
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Market Classification</span>
+                                <span className="ml-auto px-4 py-1.5 rounded-full bg-slate-900 border border-white/10 text-[10px] font-black text-white uppercase tracking-widest">
+                                    Grade: {sellData.interpretation?.grade}
+                                </span>
                             </div>
                             
-                            <h2 className="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tightest italic">
-                                "{sellData.interpretation?.summary?.split(']').pop()?.trim()}"
-                            </h2>
-                            
-                            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-white/5">
-                                <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10 flex items-center gap-2">
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Strategic Action</span>
-                                    <span className="text-[12px] font-black text-emerald-400 uppercase">
-                                        {sellData.interpretation?.verdict?.match(/Action: (\w+)/)?.[1] || 'MONITOR'}
-                                    </span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                <div className="space-y-4">
+                                   <div className="flex flex-col">
+                                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Target Action</span>
+                                      <span className="text-4xl font-black text-emerald-400 uppercase italic tracking-tighter">{sellData.interpretation?.action}</span>
+                                   </div>
                                 </div>
-                                <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10 flex items-center gap-2">
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Market Health</span>
-                                    <span className="text-[12px] font-black text-white">{sellData.resellScore}% Stability</span>
+                                
+                                <div className="space-y-4">
+                                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Classification Basis</span>
+                                   <div className="flex flex-wrap gap-2">
+                                       {(sellData.interpretation?.basis || []).map((item, idx) => (
+                                           <div key={idx} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black text-white uppercase tracking-tight">
+                                               {item}
+                                           </div>
+                                       ))}
+                                   </div>
                                 </div>
                             </div>
                         </div>
@@ -229,25 +223,25 @@ const IntelligenceReview = () => {
 
             {/* 📊 CORE ANALYTICS ARCHITECTURE */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
-               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl relative overflow-hidden">
+               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
                   <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Resell Score</p>
                   <div className="flex flex-wrap items-center gap-6">
                      <span className="text-6xl font-black text-white italic tracking-tighter leading-none">{sellData.resellScore}</span>
-                     <span className={cn("text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border leading-none", sellData.resellScore >= 80 ? "text-green-500 border-green-500/20 bg-green-500/5 shadow-[0_0_15px_rgba(34,197,94,0.1)]" : "text-yellow-400 border-yellow-500/20 bg-yellow-500/5")}>
-                        {sellData.resellScore >= 80 ? "Strong" : (sellData.resellScore >= 60 ? "Decent" : "Weak")}
+                     <span className="text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border border-white/10 text-slate-400">
+                        {sellData.interpretation?.grade} CLASSIFICATION
                      </span>
                   </div>
                </div>
 
-               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl relative overflow-hidden">
-                  <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Market Fit</p>
+               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
+                  <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Market Index</p>
                   <div className="flex items-center gap-6">
-                     <Activity className={sellData.resellScore >= 60 ? "text-emerald-400" : "text-slate-600"} size={40} />
+                     <Activity className="text-slate-500" size={40} />
                      <div className="flex flex-col">
                         <span className="text-xl font-black italic tracking-tighter text-white uppercase leading-none">
-                           {sellData.status}
+                           {sellData.interpretation?.action}
                         </span>
-                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2 px-1">Based on Live Market Velocity</span>
+                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2 px-1">Calculated Signal Strength</span>
                      </div>
                   </div>
                </div>
@@ -261,7 +255,7 @@ const IntelligenceReview = () => {
                      <p className="text-[9px] font-medium text-slate-600 italic">Based on current market listings and pricing behavior.</p>
                   </div>
                   <div className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[8px] font-black text-slate-700 uppercase tracking-widest">
-                     Live Confidence Stream
+                     Market Signal Archive
                   </div>
                </div>
                
