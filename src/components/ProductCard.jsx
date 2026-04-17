@@ -111,16 +111,11 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
   const [isAdded, setIsAdded] = useState(false);
   const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
   
-  // Defensive check for malformed data
-  if (!sellData || !sellData.metrics) {
-    return (
-      <div className="p-5 bg-slate-900 border border-white/5 rounded-[2.5rem] opacity-50 flex items-center justify-center h-40">
-        <span className="text-[10px] font-black text-slate-500 uppercase">Analysis Pending...</span>
-      </div>
-    );
-  }
+  const handleViewAnalysis = () => {
+    navigate(`/intelligence-review/${product.id}`, { state: { product } });
+  };
 
-  const { metrics } = sellData;
+  const { metrics, interpretation } = sellData;
   const isTopPick = sellData.status === 'TOP PICK';
   const remark = sellData.remark || "Analyzing Category...";
 
@@ -143,7 +138,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         />
         
         <div className="absolute top-4 right-4 px-3 py-1.5 rounded-xl border backdrop-blur-md bg-slate-950/40 border-white/10 text-slate-400">
-           <span className="text-[9px] font-black uppercase tracking-widest">{sellData.interpretation?.labels?.competition}</span>
+           <span className="text-[9px] font-black uppercase tracking-widest">{interpretation?.labels?.competition}</span>
         </div>
       </div>
 
@@ -186,13 +181,24 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
           <div className="space-y-1">
             <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Position</span>
             <p className="text-[9px] font-black text-white uppercase italic truncate">
-              {sellData.interpretation?.labels?.position}
+              {interpretation?.labels?.position}
             </p>
           </div>
           <div className="space-y-1 text-right">
             <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Saturation</span>
-            <p className="text-[9px] font-black text-white uppercase italic truncate">{sellData.interpretation?.labels?.saturation}</p>
+            <p className="text-[9px] font-black text-white uppercase italic truncate">{interpretation?.labels?.saturation}</p>
           </div>
+        </div>
+
+        {/* 🧠 STRATEGIC INSIGHT (Non-Narrative Market Signal) */}
+        <div className="pt-4 mt-2 border-t border-white/5 bg-slate-950/20 p-3 rounded-2xl">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck size={12} className="text-emerald-500" />
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Strategic Insight</span>
+          </div>
+          <p className="text-[10px] font-medium text-emerald-400/90 italic leading-tight">
+            "{interpretation?.summary}"
+          </p>
         </div>
       </div>
 
@@ -220,15 +226,6 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         >
           <BarChart3 size={14} />
         </button>
-      </div>
-    </motion.div>
-  );
-});
-         <ShieldCheck size={24} className="text-emerald-500 mb-4" />
-         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Strategic Insight</span>
-         <p className="text-[11px] font-medium text-white italic leading-relaxed">
-            "{sellData.summary?.split(']').pop()?.trim()}"
-         </p>
       </div>
     </motion.div>
   );
