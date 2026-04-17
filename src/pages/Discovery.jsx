@@ -167,7 +167,7 @@ const Discovery = () => {
               </div>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+           <div className="flex flex-col gap-4">
               {topPicks.map(p => (
                 <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} isCompact={true} />
               ))}
@@ -305,10 +305,10 @@ const Discovery = () => {
             </div>
          </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 pt-4">
+         <div className="flex flex-col gap-4 pt-4">
             {loading ? (
               Array(8).fill(0).map((_, i) => (
-                <div key={i} className="h-36 bg-slate-900/50 rounded-[3rem] animate-pulse border border-slate-800/30" />
+                <div key={i} className="h-32 bg-slate-900/50 rounded-2xl animate-pulse border border-slate-800/30" />
               ))
             ) : processedProducts.length > 0 ? (
               shuffleResults(processedProducts).map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)

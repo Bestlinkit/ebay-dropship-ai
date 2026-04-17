@@ -2,12 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { 
   ShieldCheck, 
   ChevronRight, 
-  BarChart3, 
-  Plus,
-  ShoppingCart,
-  TrendingUp,
+  Zap,
+  Package,
   Activity,
-  Package
+  ArrowUpRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -15,65 +13,8 @@ import { cn } from '../lib/utils';
 import sourcingService from '../services/sourcing';
 
 /**
- * Deterministic Momentum Gauge (v1.0)
- */
-const ScoreGauge = ({ score }) => {
-    const size = 64;
-    const strokeWidth = 6;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (score / 100) * circumference;
-
-    return (
-        <div className="relative flex items-center justify-center">
-            <svg width={size} height={size} className="transform -rotate-90">
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke="rgba(255,255,255,0.05)"
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                />
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke="#10B981"
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    strokeLinecap="round"
-                    fill="none"
-                    className="transition-all duration-1000"
-                />
-            </svg>
-            <span className="absolute text-sm font-black text-white italic">{score}</span>
-        </div>
-    );
-};
-
-const MomentumGraph = ({ data, color = "#10B981" }) => {
-    if (!data || data.length < 2) return null;
-    const width = 120;
-    const height = 30;
-    const padding = 2;
-    const points = data.map((p, i) => {
-        const x = (i / (data.length - 1)) * (width - padding * 2) + padding;
-        const y = height - (p.y / 100) * (height - padding * 2) - padding;
-        return `${x},${y}`;
-    }).join(' ');
-
-    return (
-        <svg width={width} height={height} className="overflow-visible">
-            <polyline fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={points} />
-        </svg>
-    );
-};
-
-/**
- * Product Card (v15.0 - System Override Lock)
- * STRICT 4-ZONE HORIZONTAL ROW LAYOUT.
+ * Deterministic Product Card (v16.0 - UI Recovery Phase)
+ * PIXEL-PERFECT MATCH OF SUPPLIER DISCOVERY TEMPLATE.
  */
 const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
     const navigate = useNavigate();
@@ -89,97 +30,96 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
     };
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="group relative bg-slate-950 border border-white/5 p-8 rounded-[3.5rem] flex flex-col xl:flex-row items-center gap-12 transition-all hover:border-emerald-500/20 shadow-2xl mb-6"
-        >
-            {/* 1. LEFT - IMAGE ZONE (Rounded Square) */}
-            <div className="w-40 h-40 rounded-[2.5rem] overflow-hidden border-2 border-white/5 bg-slate-900 shrink-0 relative shadow-2xl">
+        <div className="group relative bg-[#0B1121] border border-white/5 p-6 rounded-[2.5rem] flex items-center gap-8 transition-colors hover:bg-[#0E1629]">
+            
+            {/* 1. LEFT - IMAGE (Rounded with Padding) */}
+            <div className="w-40 h-40 bg-white rounded-3xl p-4 shrink-0 overflow-hidden relative shadow-inner">
                 <img 
                     src={product?.images?.[0] || product?.image || "/placeholder-product.png"} 
                     alt={product.title} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" 
                 />
             </div>
 
-            {/* 2. CENTER - DATA STACK ZONE */}
-            <div className="flex-1 min-w-0 space-y-4">
-                <h3 className="text-lg font-black text-white uppercase tracking-tighter line-clamp-1 h-6">
-                    {product.title}
-                </h3>
-                
-                <div className="flex items-center gap-4">
-                    <span className="text-3xl font-black text-white italic tracking-tightest">
-                        {product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
-                    </span>
-                    <div className="px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <ShieldCheck size={12} /> [{labels.confidence} CONFIDENCE]
+            {/* 2. CENTER - DATA STACK (High Density) */}
+            <div className="flex-1 min-w-0 space-y-5">
+                {/* Internal Tags */}
+                <div className="flex items-center gap-3">
+                    <div className="px-2 py-0.5 bg-orange-500/20 text-orange-500 text-[8px] font-black uppercase tracking-widest rounded border border-orange-500/10">
+                        SOURCE: EBAY MARKET
+                    </div>
+                    <div className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase tracking-widest rounded border border-indigo-500/10">
+                        MOMENTUM: {labels.growthVector}
+                    </div>
+                    <div className="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-widest rounded border border-emerald-500/10">
+                        ECONOMY
                     </div>
                 </div>
 
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-tight italic">
-                    "Baseline market performance. Recommend observation."
-                </p>
+                <h3 className="text-xl font-bold text-white tracking-tight line-clamp-1">
+                    {product.title}
+                </h3>
 
-                {/* 3. BOTTOM ROW - MARKET SIGNALS */}
-                <div className="flex flex-wrap items-center gap-12 pt-6 border-t border-white/5">
+                <div className="flex items-center gap-10">
                     <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">Competition</span>
-                        <span className="text-[10px] font-black text-white uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-md border border-white/5">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">LIST PRICE</span>
+                        <span className="text-2xl font-bold text-white tracking-tight">
+                            {product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
+                        </span>
+                    </div>
+
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">DEMAND</span>
+                        <span className="text-[12px] font-bold text-white uppercase tracking-tight">
+                            {labels.confidence} CONFIDENCE
+                        </span>
+                    </div>
+
+                    <div className="flex flex-col">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">COMPETITION</span>
+                        <span className="text-[12px] font-bold text-white uppercase tracking-tight">
                             {labels.competition}
                         </span>
-                    </div>
-
-                    <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">Growth Vector</span>
-                        <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            labels.growthVector === 'ACCELERATING' ? "text-emerald-400" : 
-                            labels.growthVector === 'DECLINING' ? "text-rose-500" : "text-amber-400"
-                        )}>
-                            {labels.growthVector}
-                        </span>
-                    </div>
-
-                    <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest mb-1">Market Momentum</span>
-                        <MomentumGraph data={sellData.momentum} />
                     </div>
                 </div>
             </div>
 
-            {/* 4. RIGHT - KPI & ACTION ZONE */}
-            <div className="flex items-center gap-12 shrink-0 border-t xl:border-t-0 xl:border-l border-white/5 pt-10 xl:pt-0 xl:pl-12 w-full xl:w-auto justify-between xl:justify-end">
-                <div className="flex flex-col items-center gap-2">
-                    <ScoreGauge score={sellData.resellScore} />
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Resell Score</span>
+            {/* 3. RIGHT - KPI & ACTIONS */}
+            <div className="flex items-center gap-12 shrink-0">
+                <div className="flex flex-col items-end gap-1 px-8 border-l border-white/5">
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">RESELL SCORE</span>
+                    <span className="text-4xl font-bold text-emerald-500 tracking-tighter">
+                        {sellData.resellScore}%
+                    </span>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded border border-white/10 mt-1">
+                        <ShieldCheck size={10} className="text-slate-500" />
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">RELIABILITY: HIGH</span>
+                    </div>
                 </div>
 
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                     <button 
                         onClick={() => {
                             onAdd({ ...product, sellData });
                             setIsAdded(true);
                         }}
                         className={cn(
-                            "px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2",
-                            isAdded ? "bg-emerald-500/10 text-emerald-500" : "bg-white text-slate-950 hover:bg-emerald-400"
+                            "w-48 py-4 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between shadow-xl",
+                            isAdded ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-white text-slate-950 hover:bg-slate-100"
                         )}
                     >
-                        {isAdded ? "Selected" : "Add to Store"}
-                        {!isAdded && <Plus size={14} />}
+                        {isAdded ? "CAPTURED" : "CONTINUE"}
+                        <ChevronRight size={14} />
                     </button>
                     <button 
                         onClick={handleViewDetails}
-                        className="px-10 py-4 bg-slate-900 text-white hover:bg-slate-800 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 flex items-center justify-center gap-2 group/btn"
+                        className="text-[9px] font-black text-slate-500 hover:text-white uppercase tracking-widest pl-4 text-left transition-colors"
                     >
-                        View Market Details
-                        <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                        Review Data History
                     </button>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 });
 
