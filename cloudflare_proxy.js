@@ -129,18 +129,36 @@ export default {
                 const query = url.searchParams.get("q");
                 if (!query) throw new Error("Missing query");
 
+                // 🛡️ ANTI-BOT HARDENING (v31.1)
                 const response = await fetchWithTimeout(`https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`, {
                     headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "Cache-Control": "no-cache",
+                        "Pragma": "no-cache"
                     }
                 });
 
                 const html = await response.text();
-                if (!html || html.length < 1000) throw new Error("BLOCKED");
+                
+                // Detection: Check for Bot-Challenge/Blocked
+                if (!html || html.length < 1000 || html.includes('firewall') || html.includes('sliding_pc_code')) {
+                     return new Response(JSON.stringify({ 
+                         status: "BRIDGE_THROTTLED", 
+                         error: "AliExpress has invoked a security challenge. Please try again in 5 minutes.",
+                         code: 429
+                     }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+                }
 
                 return new Response(html, { headers: { ...corsHeaders, "Content-Type": "text/html" } });
+
             } catch (err) { 
-                return new Response(JSON.stringify({ status: "BRIDGE_ERROR", error: err.message }), { status: 500, headers: corsHeaders }); 
+                return new Response(JSON.stringify({ 
+                    status: "SCRAPER_ERROR", 
+                    error: err.message,
+                    context: "Search discovery failed on the worker."
+                }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }); 
             }
         }
 

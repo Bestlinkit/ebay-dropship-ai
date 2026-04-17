@@ -172,8 +172,10 @@ class SourcingService {
         this.log({ type: 'ITERATION_PROBE', vector: 'SCRAPER', attempt: i + 1, query: currentQuery });
 
         try {
-            // Pivot to Scraper Vector
-            const searchUrl = this.CONFIG.GATEWAY.replace(/\/api\/ali-ds-proxy|\/ali-ds-proxy/, '') + `/aliexpress-search?q=${encodeURIComponent(currentQuery)}`;
+            // 🛡️ PATH SANITIZATION (v31.1-HARDENED)
+            // Ensure no double slashes (//) occur during concatenation
+            const baseUrl = this.CONFIG.GATEWAY.replace(/\/api\/ali-ds-proxy|\/ali-ds-proxy/, '').replace(/\/$/, '');
+            const searchUrl = `${baseUrl}/aliexpress-search?q=${encodeURIComponent(currentQuery)}`;
             
             const { data: html } = await axios.get(searchUrl, { timeout: 10000 });
 
