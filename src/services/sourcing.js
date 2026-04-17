@@ -285,15 +285,42 @@ class SourcingService {
     return str;
   }
 
-  async runIterativePipeline(context) {
-    const result = await this.runAliExpressOfficial(context.query);
-    
-    return {
-        status: result.status,
-        sources: { aliexpress: result.status, eprolo: 'DISABLED' },
-        telemetry: { aliexpress: result, eprolo: null },
-        products: result.products
-    };
+  async runIterativePipeline(context, requesters) {
+    try {
+        // 🚀 STAGE 1: TRY DIRECT API BRIDGE (v27.5)
+        const result = await this.runAliExpressOfficial(context.query);
+        
+        if (result.status === 'SUCCESS' && result.products.length > 0) {
+            return {
+                status: 'SUCCESS',
+                sources: { aliexpress: 'SUCCESS', eprolo: 'DISABLED' },
+                telemetry: { aliexpress: result, eprolo: null },
+                products: result.products
+            };
+        }
+
+        // 🚀 STAGE 2: FALLBACK TO EXTENSION BRIDGE (If API empty or failed)
+        if (requesters?.fetchAliExpress) {
+            console.warn("Direct API returned no results. Falling back to Extension Bridge...");
+            const extResult = await requesters.fetchAliExpress();
+            return {
+                status: extResult.status || 'SUCCESS',
+                sources: { aliexpress: 'EXTENSION', eprolo: 'DISABLED' },
+                telemetry: { aliexpress: extResult, eprolo: null },
+                products: extResult.products || []
+            };
+        }
+
+        return {
+            status: result.status,
+            sources: { aliexpress: result.status, eprolo: 'DISABLED' },
+            telemetry: { aliexpress: result, eprolo: null },
+            products: result.products
+        };
+    } catch (e) {
+        console.error("Pipeline Execution Critical Failure:", e);
+        return { status: 'ERROR', products: [] };
+    }
   }
 
   /**
@@ -312,48 +339,33 @@ class SourcingService {
         sign_method: 'md5',
         keywords: query,
         page_size: 20,
-        ship_to_country: 'US', // Primary Filter: USA 
-        min_seller_rating: 4, // Quality filter
+        ship_to_country: 'US',
+        min_seller_rating: 4,
         min_product_rating: 4.5
       };
       
       params.sign = this._generateSignature(params);
 
-      // Simulation of fetch result for professional integration
-      // We generate realistic products matching the query to avoid "Error/No Result" frustration
-      const products = [
-        {
-          id: `ali_${Math.random().toString(36).substr(2, 9)}`,
-          title: `${query} - Premium DS Edition`,
-          price: (this.CONFIG.targetPrice || 25) * 0.45, // DS pricing usually ~45% of retail
-          image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=80&w=600",
-          url: "https://aliexpress.com",
-          source: 'aliexpress',
-          rating: 4.8
-        },
-        {
-          id: `ali_${Math.random().toString(36).substr(2, 9)}`,
-          title: `Genuine ${query} (Factory Direct)`,
-          price: (this.CONFIG.targetPrice || 25) * 0.38,
-          image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&q=80&w=600",
-          url: "https://aliexpress.com",
-          source: 'aliexpress',
-          rating: 4.7
-        },
-        {
-          id: `ali_${Math.random().toString(36).substr(2, 9)}`,
-          title: `Pro Series: ${query} (US Stock)`,
-          price: (this.CONFIG.targetPrice || 25) * 0.52,
-          image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=600",
-          url: "https://aliexpress.com",
-          source: 'aliexpress',
-          rating: 4.9
-        }
-      ];
+      // 🌐 REAL API FETCH (Direct Bridge)
+      // Note: This may fail due to CORS in browser; Extension will handle the fallback
+      const url = new URL(this.CONFIG.GATEWAY);
+      Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+      
+      const response = await fetch(url.toString(), { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      }).catch(() => null); // Silent catch to allow fallback logic
 
-      return { status: 'SUCCESS', products }; 
+      if (response && response.ok) {
+        const data = await response.json();
+        const rawProducts = data?.aliexpress_ds_product_get_response?.products?.product || [];
+        return { status: 'SUCCESS', products: rawProducts };
+      }
+
+      // If fetch fails or returns error, return empty to trigger extension fallback
+      return { status: 'ERROR', products: [] }; 
     } catch (e) {
-      console.error("AliExpress Engine Fault:", e);
+      console.error("AliExpress Direct Bridge Fault:", e);
       return { status: 'ERROR', products: [] };
     }
   }

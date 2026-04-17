@@ -110,6 +110,16 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
 
   const [isAdded, setIsAdded] = useState(false);
   const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
+  
+  // Defensive check for malformed data
+  if (!sellData || !sellData.metrics) {
+    return (
+      <div className="p-5 bg-slate-900 border border-white/5 rounded-[2.5rem] opacity-50 flex items-center justify-center h-40">
+        <span className="text-[10px] font-black text-slate-500 uppercase">Analysis Pending...</span>
+      </div>
+    );
+  }
+
   const { metrics } = sellData;
   const isTopPick = sellData.status === 'TOP PICK';
   const remark = sellData.remark || "Analyzing Category...";
@@ -181,7 +191,9 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         <div className="py-3 border-y border-white/5 space-y-2">
            <div className="flex items-center justify-between">
               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Growth Pulse</span>
-              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">{metrics.velocity.ratio.toFixed(1)}% Velocity</span>
+              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
+                {metrics?.velocity?.ratio ? `${metrics.velocity.ratio.toFixed(1)}% Velocity` : 'Calibrating...'}
+              </span>
            </div>
            <div className="h-8 flex items-end opacity-60 hover:opacity-100 transition-opacity">
               <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={300} height={32} />
