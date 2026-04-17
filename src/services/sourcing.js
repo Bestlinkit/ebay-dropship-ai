@@ -100,43 +100,35 @@ class SourcingService {
     
     const insights = [];
 
-    // 1. MARKET SATURATION
-    let satLabel = "Moderate Saturation";
-    if (saturation.density < 200) satLabel = "Low Saturation";
-    else if (saturation.density > 800) satLabel = "High Saturation";
+    const satLabel = saturation.density > 600 ? "High Saturation" : (saturation.density < 200 ? "Low Saturation" : "Moderate Saturation");
+    const priceLabel = positioning.zScore < -0.4 ? "Below Market Median" : (positioning.zScore > 0.4 ? "Above Market Median" : "At Market Median");
+    const demandLabel = velocity.ratio > 8 ? "Strong Demand" : (velocity.ratio < 3 ? "Weak Demand" : "Stable Demand");
 
+    // 1. MARKET SATURATION
     insights.push({
       id: 'saturation',
       icon: 'Layers',
       label: 'Market Saturation',
       value: satLabel,
-      description: saturation.density > 800 
-        ? `Listing density exceeds 800 units, indicating a mature market node with significant keyword competition.` 
-        : (saturation.density < 200 ? `Listing density below 200 units indicates a low-competition niche with high rank capture potential.` : `Market density is within standard operational parameters for this category.`),
-      type: saturation.density > 800 ? 'negative' : (saturation.density < 200 ? 'positive' : 'neutral')
+      description: saturation.density > 600 
+        ? `Elevated listing density indicates a competitive and mature category node.`
+        : (saturation.density < 200 ? `Fragmented listing density suggests early-stage opportunity for visibility capture.` : `Standard listing density consistent with category-wide equilibrium benchmarks.`),
+      type: saturation.density > 600 ? 'negative' : (saturation.density < 200 ? 'positive' : 'neutral')
     });
 
     // 2. PRICE POSITION
-    let priceLabel = "At Market Median";
-    if (positioning.zScore < -0.3) priceLabel = "Below Market Median";
-    else if (positioning.zScore > 0.3) priceLabel = "Above Market Median";
-
     insights.push({
       id: 'positioning',
       icon: 'Target',
       label: 'Price Position',
       value: priceLabel,
-      description: positioning.zScore < -0.3 
-        ? `Entry price is statistically lower than the category median, supporting higher conversion rates.`
-        : (positioning.zScore > 0.3 ? `Entry price exceeds the category median, requiring higher perceived value for conversion.` : `Pricing aligns with the category median. Profit margins correspond to standard industry averages.`),
-      type: positioning.zScore < -0.3 ? 'positive' : (positioning.zScore > 0.3 ? 'negative' : 'neutral')
+      description: positioning.zScore < -0.4 
+        ? `Pricing is optimized below category average, favoring conversion velocity.`
+        : (positioning.zScore > 0.4 ? `Premium pricing relative to category standard, requiring differentiated offer value.` : `Price point aligns with current competitive median for this specific category index.`),
+      type: positioning.zScore < -0.4 ? 'positive' : (positioning.zScore > 0.4 ? 'negative' : 'neutral')
     });
 
     // 3. DEMAND SIGNAL
-    let demandLabel = "Stable Demand";
-    if (velocity.ratio < 3) demandLabel = "Weak Demand";
-    else if (velocity.ratio > 8) demandLabel = "Strong Demand";
-
     insights.push({
       id: 'velocity',
       icon: 'Zap',
@@ -148,7 +140,7 @@ class SourcingService {
       type: velocity.ratio > 8 ? 'positive' : (velocity.ratio < 3 ? 'negative' : 'neutral')
     });
 
-    // 4. COMPETITION PRESSURE & RISK (Calculated from cross-signals)
+    // 4. COMPETITION PRESSURE & RISK (Calculated from cross-signals)-signals)
     const riskLevel = score >= 85 ? "Low Risk" : (score >= 60 ? "Medium Risk" : "High Risk");
     const compPressure = saturation.density > 600 ? "High Competition" : (saturation.density < 150 ? "Low Competition" : "Balanced Competition");
 
@@ -161,7 +153,7 @@ class SourcingService {
 
     const reason = saturation.density > 800 
       ? `Excessive listing density creates significant visibility friction.` 
-      : (positioning.zScore > 0.5 ? `Uncompetitive pricing relative to category median.` : `Data signals indicate ${demandLabel.toLowerCase()} in the current market window.`);
+      : (positioning.zScore > 0.5 ? `Uncompetitive pricing relative to category median.` : `Data signals indicate ${demandLabel.toLowerCase()} in the current market cycle.`);
 
     return {
       insights,
@@ -231,9 +223,31 @@ class SourcingService {
   }
 
   _md5(string) {
-    // Standard JS MD5 implementation placeholder - assuming browser or utility presence
-    // In a real environment, we'd import md5.
-    return require('crypto').createHash('md5').update(string).digest('hex');
+    // Browser-safe MD5 implementation (Lightweight utility)
+    let k = [], i = 0;
+    for (; i < 64; ) k[i] = 0 | (Math.abs(Math.sin(++i)) * 4294967296);
+    let b = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476],
+      s = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21],
+      str = unescape(encodeURIComponent(string)),
+      len = str.length,
+      msgs = [i = 0];
+    for (; i < len; ) msgs[i >> 2] |= str.charCodeAt(i) << (((i++) % 4) << 3);
+    msgs[len >> 2] |= 0x80 << ((len % 4) << 3);
+    msgs[(((len + 8) >> 6) << 4) + 14] = len * 8;
+    for (i = 0; i < msgs.length; i += 16) {
+      let [a, c, d, e] = b;
+      for (let j = 0; j < 64; j++) {
+        let f, g;
+        if (j < 16) { f = (c & d) | (~c & e); g = j; }
+        else if (j < 32) { f = (e & c) | (~e & d); g = (5 * j + 1) % 16; }
+        else if (j < 48) { f = c ^ d ^ e; g = (3 * j + 5) % 16; }
+        else { f = d ^ (c | ~e); g = (7 * j) % 16; }
+        [a, c, d, e] = [e, a + (f + k[j] + (msgs[i + g] >>> 0)) + (((a = c) << (f = s[j])) | (a >>> (32 - f))), c, d];
+      }
+      for (let j = 0; j < 4; j++) b[j] = (b[j] + [a, c, d, e][j]) | 0;
+    }
+    for (str = "", i = 0; i < 32; ) str += ((b[i >> 3] >> (((i++) % 8) * 4)) & 15).toString(16);
+    return str;
   }
 
   async runIterativePipeline(context) {
