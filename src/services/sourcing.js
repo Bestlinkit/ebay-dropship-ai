@@ -178,10 +178,10 @@ class SourcingService {
                 timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
                 format: 'json',
                 v: '2.0',
-                sign_method: 'hmac-sha256',  // UPGRADED (v34.0)
+                sign_method: 'hmac-sha256',
                 page_size: '20',
                 page_no: '1',
-                feed_id: '1', 
+                feed_name: 'intelligence', // MANDATORY for v2.0 Global (Singapore)
                 target_currency: 'USD',
                 target_language: 'EN',
                 ship_to_country: 'US',

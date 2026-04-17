@@ -90,8 +90,8 @@ export default {
         // v2.0 Protocol: Singapore Gateway
         const GATEWAY = 'https://api-sg.aliexpress.com/sync';
         
-        // HMAC Signing Prep: /sync + sorted keyValues
-        let signBase = "/sync"; 
+        // HMAC Signing Prep: Standard Sorted keyValues (No Prefix)
+        let signBase = ""; 
         Object.keys(params).sort().forEach(k => {
             if (params[k] !== undefined && params[k] !== null) {
                 signBase += k + params[k];
