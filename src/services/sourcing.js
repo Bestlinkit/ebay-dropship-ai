@@ -125,6 +125,101 @@ class SourcingService {
     return intersection.size / union.size;
   }
 
+  /**
+   * Phase III: Pipeline Orchestration (AliExpress DS v2.0)
+   */
+  createContext(query, targetProduct) {
+    return {
+      query,
+      targetProduct,
+      startTime: Date.now(),
+      trace: []
+    };
+  }
+
+  async runIterativePipeline(context) {
+    const { query } = context;
+    this.log({ type: 'PIPELINE_START', query });
+
+    try {
+        // 1. Initial Discovery (AliExpress DS API Protocol 1.0)
+        const payload = {
+            method: 'aliexpress.ds.recommend.feed.get',
+            app_key: this.CONFIG.ALI_APP_KEY,
+            timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+            format: 'json',
+            v: '2.0',
+            sign_method: 'md5',
+            page_size: '20',
+            page_no: '1',
+            sort: 'sale_price_asc',
+            feed_id: '1', // Default trending/recommendations
+            target_currency: 'USD'
+        };
+
+        const result = await this.runAliExpressOfficial(payload);
+
+        if (result.status === "ERROR") throw new Error(result.message);
+
+        // 2. Intelligence Mapping
+        const rawProducts = result.data?.aliexpress_ds_recommend_feed_get_response?.result?.products?.promotion_product || [];
+        
+        return {
+            status: "SUCCESS",
+            sources: { aliexpress: 'COMPLETED' },
+            products: rawProducts,
+            telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length } }
+        };
+
+    } catch (err) {
+        this.log({ type: 'PIPELINE_CRASH', error: err.message });
+        return { 
+            status: "ERROR", 
+            message: err.message, 
+            sources: { aliexpress: 'FAILED' },
+            rawError: err
+        };
+    }
+  }
+
+  normalize(raw) {
+    return {
+      id: raw.product_id,
+      title: raw.product_title,
+      price: parseFloat(raw.target_sale_price || raw.sale_price || 0),
+      image: raw.product_main_image_url || raw.first_level_category_name,
+      thumbnail: raw.product_main_image_url,
+      url: raw.product_detail_url,
+      source: 'aliexpress',
+      shipping: raw.logistics_info?.delivery_time || "12-20 Days",
+      shipping_cost: parseFloat(raw.logistics_info?.shipping_fee || 0),
+      orders: raw.relevant_market_commission || 0,
+      rating: 4.5
+    };
+  }
+
+  calculateOpportunityScore(product, targetPrice) {
+    const cost = product.price + product.shipping_cost;
+    const margin = targetPrice - cost;
+    const roi = (margin / cost) * 100;
+
+    let score = 50;
+    if (roi > 50) score += 30;
+    else if (roi > 20) score += 10;
+    
+    if (product.shipping_cost === 0) score += 10;
+    if (margin > 15) score += 10;
+
+    return Math.min(100, score);
+  }
+
+  calculateROI(target, cost) {
+    if (!cost || cost === 0) return { margin: 0, roip: 0 };
+    const margin = target - cost;
+    const roip = (margin / cost) * 100;
+    return { margin, roip };
+  }
+
   async runAliExpressOfficial(payload) {
     this.log({ type: 'REQUEST', endpoint: this.CONFIG.GATEWAY, payload });
 
