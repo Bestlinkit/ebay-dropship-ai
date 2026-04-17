@@ -103,6 +103,7 @@ const MiniMomentumLine = ({ data, color = "#22C55E", width = 80, height = 24 }) 
 const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = false }) => {
   if (!product) return null;
 
+  const [isAdded, setIsAdded] = useState(false);
   const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
   const { metrics } = sellData;
   const isTopPick = sellData.status === 'TOP PICK';
@@ -190,26 +191,25 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
            </div>
 
            {/* INSIGHT TEXT (RELOCATED TO DETAIL VIEW) */}
-
            <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-4 border-t border-white/10">
               <div className="flex flex-col gap-0.5">
                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Market Saturation</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{sellData.labels?.saturation || "Calculated"}</span>
+                    <span className="text-[10px] font-black text-white italic">{sellData.interpretation?.labels?.saturation || "Calculated"}</span>
                     <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Volume: {metrics.saturation.density}</span>
                  </div>
               </div>
               <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Price Position</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{sellData.labels?.position || "Neutral"}</span>
+                    <span className="text-[10px] font-black text-white italic">{sellData.interpretation?.labels?.position || "Neutral"}</span>
                     <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Z-Score: {metrics.positioning.zScore.toFixed(2)}</span>
                  </div>
               </div>
               <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Demand Signal</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{sellData.labels?.demand || "Stable"}</span>
+                    <span className="text-[10px] font-black text-white italic">{sellData.interpretation?.labels?.demand || "Stable"}</span>
                     <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Rate: {metrics.velocity.ratio.toFixed(1)}%</span>
                  </div>
               </div>
@@ -227,32 +227,46 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
               </div>
 
               {/* ACTION STACK */}
-              <div className="flex flex-col gap-2.5 order-2 md:order-2">
-                 <button 
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     onAdd({
-                       ...product,
-                       id: product.id,
-                       title: product.title,
-                       price: Number(product.price) || 0,
-                       image: product.image || product.thumbnail || product.image_url || null
-                     })
-                   }}
-                   className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
-                 >
-                   Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
-                 </button>
-                 <button 
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     onAdd(product);
-                   }}
-                   className="px-8 md:px-12 py-3 md:py-4 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center"
-                 >
-                   View Details
-                 </button>
-              </div>
+               <div className="flex flex-col gap-2.5 order-2 md:order-2">
+                  {!isAdded ? (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAdd({
+                          ...product,
+                          id: product.id,
+                          title: product.title,
+                          price: Number(product.price) || 0,
+                          image: product.image || product.thumbnail || product.image_url || null
+                        });
+                        setIsAdded(true);
+                      }}
+                      className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
+                    >
+                      Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // This would trigger the new AliExpress Official Search
+                        window.dispatchEvent(new CustomEvent('explore-global', { detail: product }));
+                      }}
+                      className="px-8 md:px-12 py-3.5 md:py-4.5 bg-[#FF4747] text-white hover:bg-[#E63939] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2 animate-in slide-in-from-right duration-300"
+                    >
+                      Explore Global Market <ExternalLink size={14} />
+                    </button>
+                  )}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdd(product);
+                    }}
+                    className="px-8 md:px-12 py-3 md:py-4 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center"
+                  >
+                    View Details
+                  </button>
+               </div>
            </div>
         </div>
       </div>

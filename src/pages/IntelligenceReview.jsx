@@ -151,7 +151,7 @@ const IntelligenceReview = () => {
 
                     {/* Structured Insight Hub */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {(product.sellData?.insights || []).map((insight) => {
+                        {(product.sellData?.interpretation?.insights || []).map((insight) => {
                             const IconMap = { Layers, Target, Zap };
                             const Icon = IconMap[insight.icon] || Info;
                             
