@@ -191,26 +191,26 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
 
            {/* INSIGHT TEXT (RELOCATED TO DETAIL VIEW) */}
 
-           <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-4 border-t border-white/5">
+           <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-4 border-t border-white/10">
               <div className="flex flex-col gap-0.5">
-                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Pricing Signal</span>
+                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Market Saturation</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{metrics.positioning.signal}</span>
-                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.positioning.score}</span>
+                    <span className="text-[10px] font-black text-white italic">{sellData.labels?.saturation || "Calculated"}</span>
+                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Volume: {metrics.saturation.density}</span>
                  </div>
               </div>
               <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
-                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Density Analysis</span>
+                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Price Position</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{metrics.saturation.density} QTY</span>
-                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.saturation.score}</span>
+                    <span className="text-[10px] font-black text-white italic">{sellData.labels?.position || "Neutral"}</span>
+                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Z-Score: {metrics.positioning.zScore.toFixed(2)}</span>
                  </div>
               </div>
               <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
-                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Velocity Lead</span>
+                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Demand Signal</span>
                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">+{metrics.velocity.ratio.toFixed(1)}%</span>
-                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.velocity.score}</span>
+                    <span className="text-[10px] font-black text-white italic">{sellData.labels?.demand || "Stable"}</span>
+                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Rate: {metrics.velocity.ratio.toFixed(1)}%</span>
                  </div>
               </div>
               <div className="ml-auto flex flex-col items-end gap-1.5 order-1 md:order-1">

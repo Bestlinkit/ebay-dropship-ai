@@ -93,72 +93,94 @@ class SourcingService {
   }
 
   /**
-   * Generates a structured analysis for high-fidelity UI rendering (v25.0 - Humanized)
+   * Generates a deterministic market classification for professional decision-grade UI (v26.0)
    */
   _getInterpretationReport(score, product, context, metrics) {
-    const { positioning, saturation, velocity, category } = metrics;
+    const { positioning, saturation, velocity } = metrics;
     
     const insights = [];
 
-    // 🔴 SATURATION ANALYSIS
+    // 1. MARKET SATURATION
+    let satLabel = "Moderate Saturation";
+    if (saturation.density < 200) satLabel = "Low Saturation";
+    else if (saturation.density > 800) satLabel = "High Saturation";
+
     insights.push({
       id: 'saturation',
       icon: 'Layers',
-      label: 'Market Node Density',
-      value: saturation.density > 800 ? 'Deep Competition' : (saturation.density < 200 ? 'Rank Vacuum' : 'Balanced Node'),
+      label: 'Market Saturation',
+      value: satLabel,
       description: saturation.density > 800 
-        ? `Keyword density (${saturation.density} listings) indicates a mature node. High ad-spend required for rank retention.` 
-        : (saturation.density < 200 ? `Extreme rank vacancy detected. Low friction pathway for organic search dominance.` : `Market equilibrium reached. Success depends on visual differentiation and listing copy quality.`),
+        ? `Listing density exceeds 800 units, indicating a mature market node with significant keyword competition.` 
+        : (saturation.density < 200 ? `Listing density below 200 units indicates a low-competition niche with high rank capture potential.` : `Market density is within standard operational parameters for this category.`),
       type: saturation.density > 800 ? 'negative' : (saturation.density < 200 ? 'positive' : 'neutral')
     });
 
-    // 🟡 POSITIONING ANALYSIS
+    // 2. PRICE POSITION
+    let priceLabel = "At Market Median";
+    if (positioning.zScore < -0.3) priceLabel = "Below Market Median";
+    else if (positioning.zScore > 0.3) priceLabel = "Above Market Median";
+
     insights.push({
       id: 'positioning',
       icon: 'Target',
-      label: 'Price Pulse',
-      value: positioning.zScore < -0.3 ? 'Pricing Edge' : (positioning.zScore > 0.5 ? 'Premium Friction' : 'Standard Alignment'),
+      label: 'Price Position',
+      value: priceLabel,
       description: positioning.zScore < -0.3 
-        ? `Strategic entry point (${Math.abs(positioning.zScore).toFixed(1)}σ below median) allows for aggressive PPC and high conversion.`
-        : (positioning.zScore > 0.5 ? `Price positioning exceeds the market floor. Expect lower conversion without a strong brand narrative.` : `Price sits at the category heart. Margin health depends strictly on shipping logistics and supplier reliability.`),
-      type: positioning.zScore < -0.3 ? 'positive' : (positioning.zScore > 0.5 ? 'negative' : 'neutral')
+        ? `Entry price is statistically lower than the category median, supporting higher conversion rates.`
+        : (positioning.zScore > 0.3 ? `Entry price exceeds the category median, requiring higher perceived value for conversion.` : `Pricing aligns with the category median. Profit margins correspond to standard industry averages.`),
+      type: positioning.zScore < -0.3 ? 'positive' : (positioning.zScore > 0.3 ? 'negative' : 'neutral')
     });
 
-    // 🔵 VELOCITY ANALYSIS
+    // 3. DEMAND SIGNAL
+    let demandLabel = "Stable Demand";
+    if (velocity.ratio < 3) demandLabel = "Weak Demand";
+    else if (velocity.ratio > 8) demandLabel = "Strong Demand";
+
     insights.push({
       id: 'velocity',
       icon: 'Zap',
-      label: 'Demand Momentum',
-      value: velocity.ratio > 8 ? 'High Velocity' : (velocity.ratio < 3 ? 'Velocity Lag' : 'Steady Flow'),
+      label: 'Demand Signal',
+      value: demandLabel,
       description: velocity.ratio > 8 
-        ? `Exceptional movement pattern found. This item is capturing significant category market-share right now.`
-        : (velocity.ratio < 3 ? `Stagnant movement signals detected. High inventory turnover risk for this specific SKU.` : `Consistent demand baseline. Ideal for steady, predictable cashflow without hyper-scaling stress.`),
+        ? `Sales-to-listing ratio indicates high inventory turnover and consistent buyer engagement.`
+        : (velocity.ratio < 3 ? `Low sales velocity indicates slow inventory turnover for this specific product profile.` : `Standard sales momentum detected, consistent with historical category performance data.`),
       type: velocity.ratio > 8 ? 'positive' : (velocity.ratio < 3 ? 'negative' : 'neutral')
     });
 
-    // 🏆 FINAL VERDICT (Professional Marketer Tone)
-    let verdict = "";
-    if (score >= 90) verdict = "EXECUTIVE SUMMARY: High-conviction entry. This product displays a rare alignment of low competition and aggressive pricing edge. Scale immediately.";
-    else if (score >= 80) verdict = "MARKET OUTLOOK: Strong tactical fit. Stable demand signals and healthy category alignment suggest a high-probability winner with 7-day conversion window.";
-    else if (score >= 60) verdict = "STRATEGIC ADVISORY: Viable with optimization. Moderate keyword friction expected. Focus on secondary long-tail keywords for best ROI.";
-    else {
-      const reason = saturation.density > 800 ? "extreme competitive saturation" : 
-                    (positioning.zScore > 0.5 ? "uncompetitive price architecture" : "insufficient demand velocity");
-      verdict = `DECISION: DEFER. This item is restricted by ${reason}. Resource allocation better spent in lower-friction price windows.`;
-    }
+    // 4. COMPETITION PRESSURE & RISK (Calculated from cross-signals)
+    const riskLevel = score >= 85 ? "Low Risk" : (score >= 60 ? "Medium Risk" : "High Risk");
+    const compPressure = saturation.density > 600 ? "High Competition" : (saturation.density < 150 ? "Low Competition" : "Balanced Competition");
+
+    // 🏆 EXECUTIVE VERDICT (Deterministic Format)
+    let grade = "D";
+    let action = "REJECT";
+    if (score >= 90) { grade = "A"; action = "APPROVE"; }
+    else if (score >= 75) { grade = "B"; action = "TEST"; }
+    else if (score >= 55) { grade = "C"; action = "MONITOR"; }
+
+    const reason = saturation.density > 800 
+      ? `Excessive listing density creates significant visibility friction.` 
+      : (positioning.zScore > 0.5 ? `Uncompetitive pricing relative to category median.` : `Data signals indicate ${demandLabel.toLowerCase()} in the current market window.`);
 
     return {
       insights,
-      verdict,
-      scoreLabel: score >= 80 ? 'Strong' : (score >= 60 ? 'Decent' : 'Weak')
+      verdict: `Market Grade: ${grade} | Action: ${action} | Reason: ${reason}`,
+      summary: `[Market Grade: ${grade}] [Action: ${action}] ${reason}`,
+      scoreLabel: riskLevel,
+      labels: {
+        saturation: satLabel,
+        position: priceLabel,
+        demand: demandLabel,
+        competition: compPressure,
+        risk: riskLevel
+      }
     };
   }
 
   _getHumanizedMarketSummary(score, product, context, metrics) {
     const report = this._getInterpretationReport(score, product, context, metrics);
-    const parts = report.insights.map(i => `[${i.label}: ${i.value}] ${i.description}`);
-    parts.push(`[Final Verdict] ${report.verdict}`);
-    return parts.join("\n\n");
+    return report.summary;
   }
 
   detectCategory(title) {

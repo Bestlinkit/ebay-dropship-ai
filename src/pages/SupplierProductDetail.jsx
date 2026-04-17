@@ -263,28 +263,28 @@ const SupplierProductDetail = () => {
                                     const Icon = IconMap[insight.icon] || Info;
                                     
                                     return (
-                                        <div key={insight.id} className="p-5 bg-white border border-slate-100 rounded-2xl flex items-start gap-4 hover:border-slate-300 transition-colors group">
+                                        <div key={insight.id} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-start gap-4 hover:border-slate-400 transition-colors group shadow-sm">
                                             <div className={cn(
                                                 "p-3 rounded-xl shrink-0 transition-colors",
-                                                insight.type === 'positive' ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white" :
-                                                insight.type === 'negative' ? "bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white" :
-                                                "bg-slate-50 text-slate-500 group-hover:bg-slate-950 group-hover:text-white"
+                                                insight.type === 'positive' ? "bg-emerald-100 text-emerald-700 group-hover:bg-emerald-500 group-hover:text-white" :
+                                                insight.type === 'negative' ? "bg-rose-100 text-rose-700 group-hover:bg-rose-500 group-hover:text-white" :
+                                                "bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white"
                                             )}>
                                                 <Icon size={20} />
                                             </div>
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{insight.label}</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{insight.label}</span>
                                                     <span className={cn(
                                                         "px-2 py-0.5 rounded text-[8px] font-black uppercase",
-                                                        insight.type === 'positive' ? "bg-emerald-100 text-emerald-700" :
-                                                        insight.type === 'negative' ? "bg-rose-100 text-rose-700" :
-                                                        "bg-slate-100 text-slate-600"
+                                                        insight.type === 'positive' ? "bg-emerald-600 text-white" :
+                                                        insight.type === 'negative' ? "bg-rose-600 text-white" :
+                                                        "bg-slate-800 text-white"
                                                     )}>
                                                         {insight.value}
                                                     </span>
                                                 </div>
-                                                <p className="text-[11px] font-medium text-slate-600 leading-relaxed italic">
+                                                <p className="text-[11px] font-bold text-slate-700 leading-relaxed italic">
                                                     "{insight.description}"
                                                 </p>
                                             </div>
@@ -293,14 +293,19 @@ const SupplierProductDetail = () => {
                                 })}
                             </div>
 
-                            <div className="p-6 bg-emerald-50/50 border border-emerald-100/50 rounded-2xl">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Star size={14} className="text-emerald-500 fill-emerald-500" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900">Strategic Verdict</span>
+                            <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Zap size={40} className="text-emerald-500" />
                                 </div>
-                                <p className="text-[12px] font-black text-emerald-950 italic leading-snug">
-                                    {location.state.sellData.interpretation?.verdict}
-                                </p>
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Star size={14} className="text-emerald-500 fill-emerald-500" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Executive Verdict</span>
+                                    </div>
+                                    <p className="text-[12px] font-black text-white italic leading-snug">
+                                        {location.state.sellData.verdict || location.state.sellData.summary}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     )}
