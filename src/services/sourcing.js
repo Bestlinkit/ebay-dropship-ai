@@ -36,18 +36,34 @@ class SourcingService {
     return {
       resellScore,
       confidence: resellScore >= 80 ? 'High' : (resellScore < 40 ? 'Low' : 'Medium'),
-      summary: this._getHumanizedMarketSummary(resellScore),
+      summary: this._getHumanizedMarketSummary(resellScore, product, batchContext),
       momentum: Array.from({ length: 14 }, (_, i) => ({ x: i, y: Math.floor(resellScore * (0.8 + Math.random() * 0.4)) })),
       status: resellScore >= 80 ? 'TOP PICK' : (resellScore >= 60 ? 'TRENDING' : 'CONSIDERING'),
       profitLevel: resellScore >= 70 ? 'High' : (resellScore >= 40 ? 'Medium' : 'Low'),
       color: resellScore >= 70 ? "#10b981" : "#f59e0b",
-      isWinner: resellScore >= 80
     };
   }
 
-  _getHumanizedMarketSummary(score) {
-    if (score >= 80) return "Strong market momentum. High high-intent search density.";
-    return "Moderate alignment. Success requires optimized marketing.";
+  _getHumanizedMarketSummary(score, product, context) {
+    const { avgPrice = 50 } = context;
+    const price = Number(product.price) || 0;
+    const isUnderAverage = price < avgPrice;
+    const isHighlyCompetitive = Number(product.totalFound || 0) > 500;
+    const hasHighVelocity = Number(product.soldCount || 0) > 100;
+
+    let summary = "";
+
+    if (score >= 85) {
+      summary = `Elite opportunity. ${isUnderAverage ? "Aggressive pricing" : "Premium placement"} backed by ${hasHighVelocity ? "massive" : "solid"} demand signals and ${isHighlyCompetitive ? "validated" : "low"} competition.`;
+    } else if (score >= 70) {
+      summary = `Strong market fit. Pricing aligns with ${isUnderAverage ? "budget-conscious" : "mid-tier"} segments. High likelihood of consistent conversion.`;
+    } else if (score >= 50) {
+      summary = `Moderate alignment. ${isHighlyCompetitive ? "High saturation requires" : "Strategic focus on"} optimized marketing and unique listing hooks to drive volume.`;
+    } else {
+      summary = `Challenging node. High friction detected. Success limited to niche pivots or significant price restructuring.`;
+    }
+
+    return summary;
   }
 
   calculateROI(ebayPrice, supplierCost, shipping = 0) {

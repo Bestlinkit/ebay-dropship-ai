@@ -9,12 +9,16 @@ import {
 import { cn } from '../../lib/utils';
 
 /**
- * Sourcing Status Header (v22.0 - Quick Response)
- * Truth-based status bar with manual AliExpress bypass.
+ * Sourcing Status Header (v24.0 - Engine Wired)
+ * Truth-based status bar with manual AliExpress bypass and engine retry.
  */
-const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false, query = "" }) => {
+const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false, query = "", onAliTrigger, onRetry }) => {
     
     const handleAliJump = () => {
+        if (onAliTrigger) {
+          onAliTrigger();
+          return;
+        }
         if (!query) return;
         const url = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query)}`;
         window.open(url, '_blank');
@@ -45,11 +49,22 @@ const SourcingStatusHeader = ({ state, loading, resultsCount, isGlobal = false, 
 
             <div className="flex flex-wrap items-center gap-6">
                 {/* 📊 RESULT COUNTER */}
-                <div className="px-5 py-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3 shadow-lg">
-                    <Package size={14} className="text-slate-500" />
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">
-                        {resultsCount} Products Located
-                    </span>
+                <div className="flex items-center gap-2">
+                    <div className="px-5 py-3 bg-slate-950 border border-slate-800 rounded-2xl flex items-center gap-3 shadow-lg">
+                        <Package size={14} className="text-slate-500" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">
+                            {resultsCount} Products Located
+                        </span>
+                    </div>
+                    {!loading && (
+                      <button 
+                        onClick={onRetry}
+                        className="p-3 bg-white text-slate-900 border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all shadow-md active:scale-95"
+                        title="Re-initiate Discovery"
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                    )}
                 </div>
 
                 {/* ⚡ QUICK JUMP (Manual Bypass) */}

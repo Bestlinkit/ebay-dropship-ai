@@ -108,6 +108,52 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
   const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
   const isTopPick = sellData.status === 'TOP PICK';
 
+  if (isCompact) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ y: -5, scale: 1.02 }}
+        onClick={() => onAdd(product)}
+        className={cn(
+          "group relative flex flex-col gap-4 p-5 bg-[#111C33] border border-[#2A3A55] rounded-[2rem] cursor-pointer hover:border-emerald-500/50 transition-all shadow-xl",
+          isTopPick && "border-green-500/20 bg-green-500/5"
+        )}
+      >
+        <div className="relative aspect-square rounded-2xl overflow-hidden bg-[#0A0F1E] border border-white/5">
+           <img 
+             src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
+             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+           />
+           <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+              <ConfidenceBadge level={sellData.confidence} />
+              <div className="px-2 py-0.5 bg-slate-950/80 backdrop-blur-md rounded-md border border-white/10 text-[7px] font-black text-white uppercase tracking-widest">
+                Score: {sellData.resellScore}
+              </div>
+           </div>
+        </div>
+        
+        <div className="space-y-2">
+           <h4 className="text-[10px] font-black text-white uppercase tracking-tight line-clamp-1 opacity-80 group-hover:opacity-100">{product.title}</h4>
+           <div className="flex items-center justify-between">
+              <span className="text-xl font-black text-white italic tracking-tighter">${(Number(product.price) || 0).toFixed(2)}</span>
+              <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                 <ArrowRight size={14} />
+              </div>
+           </div>
+        </div>
+
+        {isTopPick && (
+          <div className="absolute -left-1 -top-1">
+             <div className="bg-emerald-500 text-white text-[6px] font-black px-2 py-1 rounded-br-lg rounded-tl-xl uppercase tracking-tighter animate-pulse">
+                Winner
+             </div>
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -188,19 +234,25 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
            {/* ACTION STACK */}
            <div className="flex flex-col gap-2.5 order-2 md:order-2">
               <button 
-                onClick={() => onAdd({
-                  ...product,
-                  id: product.id,
-                  title: product.title,
-                  price: Number(product.price) || 0,
-                  image: product.image || product.thumbnail || product.image_url || null
-                })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdd({
+                    ...product,
+                    id: product.id,
+                    title: product.title,
+                    price: Number(product.price) || 0,
+                    image: product.image || product.thumbnail || product.image_url || null
+                  })
+                }}
                 className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
               >
                 Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
               </button>
               <button 
-                onClick={() => onAdd(product)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdd(product);
+                }}
                 className="px-8 md:px-12 py-3 md:py-4 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center"
               >
                 View Details

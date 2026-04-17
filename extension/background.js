@@ -84,17 +84,21 @@ async function handleSearch(request) {
             await chrome.scripting.executeScript({
                 target: { tabId },
                 func: (q) => {
-                    const input = document.querySelector('input[placeholder*="Search"]');
-                    const btn = Array.from(document.querySelectorAll('button, div, span')).find(el => el.innerText?.trim() === "Search");
+                    // Refined selector based on production source code
+                    const input = document.querySelector('.input-search input') || document.querySelector('input[placeholder*="Search"]');
+                    const btn = document.querySelector('.search-btn1') || 
+                                Array.from(document.querySelectorAll('button, div, span')).find(el => el.innerText?.trim() === "Search");
+                    
                     if (input && btn) {
                         input.value = q;
                         input.dispatchEvent(new Event('input', { bubbles: true }));
-                        btn.click();
+                        // Simulate natural sequence
+                        setTimeout(() => btn.click(), 500);
                     }
                 },
                 args: [query]
             });
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 3000)); // Increased wait for results injection
         }
 
         // 🚀 RUN DETERMINISTIC INLINE PARSER
@@ -139,7 +143,7 @@ async function extractAliExpressData() {
     console.log("[Ali-Parser] Inline Execution Started...");
     
     // 1. POLLING HELPER
-    const waitForSelector = (selector, timeout = 8000) => {
+    const waitForSelector = (selector, timeout = 12000) => {
         return new Promise((resolve) => {
             const start = Date.now();
             const check = () => {
@@ -233,7 +237,7 @@ async function extractAliExpressData() {
  * Feature: DOM-polling up to 10s
  */
 async function extractEproloData() {
-    const waitForSelector = (selector, timeout = 8000) => {
+    const waitForSelector = (selector, timeout = 12000) => {
         return new Promise((resolve) => {
             const start = Date.now();
             const check = () => {

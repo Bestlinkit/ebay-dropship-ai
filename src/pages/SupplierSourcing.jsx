@@ -361,6 +361,8 @@ const SupplierSourcing = () => {
                 resultsCount={products.length} 
                 isGlobal={false} 
                 query={searchQuery}
+                onAliTrigger={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
+                onRetry={() => performSourcing()}
             />
 
             {/* 🛡️ PIPELINE STATUS ALERTS */}
@@ -571,23 +573,6 @@ const SupplierSourcing = () => {
                                 <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Re-initiate Discovery"}
                             </button>
                             <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105 italic">Optimize Strategy</button>
-                        </div>
-
-                        {/* WORKFLOW EDUCATION */}
-                        <div className="mt-12 p-8 bg-blue-50 border border-blue-100 rounded-[2.5rem] flex items-start gap-6 text-left">
-                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-500 shadow-sm border border-blue-100 shrink-0">
-                                <Info size={24} />
-                            </div>
-                            <div className="space-y-3">
-                                <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-widest leading-none">Strategy Tip: Eprolo Sync Workflow</h4>
-                                <p className="text-[11px] font-medium text-blue-700/80 leading-relaxed">
-                                    The Eprolo API primarily searches your <span className="font-bold">Import List</span>. If a product exists in the catalog but doesn't show up here, follow this path:
-                                    <br />
-                                    <span className="inline-block mt-2 font-black text-blue-900">
-                                        Eprolo Website → Search Catalog → Add to Import List → Sync
-                                    </span>
-                                </p>
-                            </div>
                         </div>
                     </div>
                 )}
