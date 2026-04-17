@@ -158,45 +158,74 @@ class SourcingService {
 
     const cleanQuery = this._sanitizeQuery(rawQuery);
     
-    // 🏗️ SLIDING TRUNCATION STRATEGY (v32.0-PRECISION)
-    // Mirrors native AliExpress search behavior: Truncate to thresholds (50, 35)
-    // instead of aggressive word-slicing which loses critical product type context.
+    // 🏗️ SLIDING TRUNCATION + OFFICIAL API VECTOR (v33.0-OFFICIAL)
     const variations = [
-      cleanQuery,                                // 1. High Fidelity (Clean Full Title)
-      cleanQuery.substring(0, 50).trim(),        // 2. AliExpress Standard Threshold (50 Chars)
-      cleanQuery.substring(0, 35).trim()         // 3. Brand-Focused Threshold (35 Chars)
+      cleanQuery,                                // 1. Full Precision
+      cleanQuery.substring(0, 50).trim(),        // 2. AliExpress Standard 
+      cleanQuery.substring(0, 35).trim()         // 3. Brand Focus
     ].filter((v, i, self) => v.length > 0 && self.indexOf(v) === i);
 
     let lastResult = { status: "ERROR", message: "No search iterations executed." };
 
     for (let i = 0; i < variations.length; i++) {
         const currentQuery = variations[i];
-        this.log({ type: 'ITERATION_PROBE', vector: 'SCRAPER', attempt: i + 1, query: currentQuery });
+        this.log({ type: 'ITERATION_PROBE', vector: 'OFFICIAL_API', attempt: i + 1, query: currentQuery });
 
         try {
-            // 🛡️ PATH SANITIZATION (v31.1-HARDENED)
-            // Ensure no double slashes (//) occur during concatenation
-            const baseUrl = this.CONFIG.GATEWAY.replace(/\/api\/ali-ds-proxy|\/ali-ds-proxy/, '').replace(/\/$/, '');
-            const searchUrl = `${baseUrl}/aliexpress-search?q=${encodeURIComponent(currentQuery)}`;
-            
-            const { data: html } = await axios.get(searchUrl, { timeout: 10000 });
+            const payload = {
+                method: 'aliexpress.ds.recommend.feed.get',
+                app_key: this.CONFIG.ALI_APP_KEY || '532310',
+                timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+                format: 'json',
+                v: '2.0',
+                sign_method: 'md5',
+                page_size: '20',
+                page_no: '1',
+                feed_id: '1', // Intelligence Intelligence
+                target_currency: 'USD',  // MANDATORY for keyword search
+                target_language: 'EN',  // MANDATORY for keyword search
+                ship_to_country: 'US',  // MANDATORY for keyword search
+                keywords: currentQuery
+            };
 
-            if (typeof html !== 'string' || html.length < 5000) {
-                throw new Error("SCRAPER_BLOCKED: HTML payload too small or invalid.");
+            const result = await this.runAliExpressOfficial(payload);
+
+            if (result.status === "ERROR") {
+                lastResult = result;
+                continue;
             }
 
-            const rawProducts = this._parseAliExpressHTML(html);
+            // 🛡️ FUZZY MAPPING (v33.0 - OFFICIAL JSON NESTING)
+            const findProducts = (obj) => {
+                if (!obj || typeof obj !== 'object') return null;
+                if (Array.isArray(obj)) return obj;
+                const keys = ['promotion_product', 'products', 'list', 'product_list', 'promotion_products', 'item'];
+                for (const key of keys) {
+                    if (obj[key]) {
+                        const val = obj[key];
+                        if (Array.isArray(val)) return val;
+                        if (val.promotion_product) return Array.isArray(val.promotion_product) ? val.promotion_product : null;
+                    }
+                }
+                for (const key in obj) {
+                    const found = findProducts(obj[key]);
+                    if (found) return found;
+                }
+                return null;
+            };
+
+            const rawProducts = findProducts(result.data) || [];
 
             if (rawProducts.length > 0) {
                 return {
                     status: "SUCCESS",
-                    sources: { aliexpress: 'COMPLETED_SCRAPE' },
+                    sources: { aliexpress: 'COMPLETED_OFFICIAL' },
                     products: rawProducts,
-                    telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length, vector: 'SCRAPER' } }
+                    telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length, vector: 'OFFICIAL_API' } }
                 };
             }
 
-            lastResult = { status: "SUCCESS", products: [], debug: { message: `Scraper iteration ${i+1} returned 0 results.`, query: currentQuery } };
+            lastResult = { status: "SUCCESS", products: [], debug: { message: `API iteration ${i+1} returned 0 results.`, query: currentQuery } };
 
         } catch (err) {
             this.log({ type: 'ITERATION_FAULT', error: err.message });
