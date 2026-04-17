@@ -27,6 +27,7 @@ import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../context/NotificationContext';
+import DebugPanel from './DebugPanel';
 
 const SidebarItem = ({ icon: Icon, label, href, active, collapsed, onClick }) => (
   <Link
@@ -249,6 +250,9 @@ const Layout = ({ children }) => {
         <div className="p-6 lg:p-10 max-w-[1700px] mx-auto min-h-[calc(100vh-5rem)]">
           {children}
         </div>
+
+        {/* 🛠️ DEBUG OVERRIDE PANEL */}
+        <DebugPanel />
 
         {/* Footer Info */}
         <footer className="px-12 py-8 bg-slate-50 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100/50">
