@@ -158,12 +158,14 @@ class SourcingService {
 
     const cleanQuery = this._sanitizeQuery(rawQuery);
     
-    // 🏗️ DUAL-VECTOR ITERATIVE STRATEGY (v31.0-SCRAPE)
-    // We prioritize the Scraper Vector (/aliexpress-search) for keyword discovery
+    // 🏗️ SLIDING TRUNCATION STRATEGY (v32.0-PRECISION)
+    // Mirrors native AliExpress search behavior: Truncate to thresholds (50, 35)
+    // instead of aggressive word-slicing which loses critical product type context.
     const variations = [
-      cleanQuery,
-      cleanQuery.split(/\s+/).slice(0, 3).join(' ')
-    ].filter(v => v.trim().length > 0);
+      cleanQuery,                                // 1. High Fidelity (Clean Full Title)
+      cleanQuery.substring(0, 50).trim(),        // 2. AliExpress Standard Threshold (50 Chars)
+      cleanQuery.substring(0, 35).trim()         // 3. Brand-Focused Threshold (35 Chars)
+    ].filter((v, i, self) => v.length > 0 && self.indexOf(v) === i);
 
     let lastResult = { status: "ERROR", message: "No search iterations executed." };
 
