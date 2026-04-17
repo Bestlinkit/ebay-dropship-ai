@@ -46,8 +46,10 @@ const SupplierSourcing = () => {
     const location = useLocation();
     const navigate = useNavigate();
     
-    const ebayProduct = location?.state?.ebayProduct || location?.state?.product || null;
-    const initialQuery = location.state?.query || ebayProduct?.title || '';
+    // Core Sourcing Context
+    const { ebayProduct, targetPrice = 50, query } = location.state || {};
+    const batchContext = location.state?.batchContext || { avgPrice: targetPrice };
+    const initialQuery = query || ebayProduct?.title || '';
     const targetProduct = ebayProduct;
 
     const [loading, setLoading] = useState(false);
@@ -57,8 +59,6 @@ const SupplierSourcing = () => {
     const [showAliExpansion, setShowAliExpansion] = useState(false);
     const [page, setPage] = useState(1);
     const PAGE_SIZE = 8;
-
-    const targetPrice = targetProduct?.price || 0;
 
     const [pipelineState, setPipelineState] = useState({
         status: sourcingService.Status.LOADING,

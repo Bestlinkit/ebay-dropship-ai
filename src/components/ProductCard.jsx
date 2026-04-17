@@ -15,9 +15,13 @@ import {
   ShieldAlert,
   ShieldQuestion,
   LineChart,
-  Activity
+  Activity,
+  Rocket,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import sourcingService from '../services/sourcing';
 
@@ -97,16 +101,18 @@ const MiniMomentumLine = ({ data, color = "#22C55E", width = 80, height = 24 }) 
 };
 
 /**
- * High-Performance Market Research Row (v11.4 RESTORATION)
- * Full-width horizontal architecture based on Image 2 reference.
+ * High-Performance Product Card (v12.0 - Premium Hardening)
+ * Optimized for high-end aesthetics and "Punchy" AI remarks.
  */
 const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = false }) => {
+  const navigate = useNavigate();
   if (!product) return null;
 
   const [isAdded, setIsAdded] = useState(false);
   const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
   const { metrics } = sellData;
   const isTopPick = sellData.status === 'TOP PICK';
+  const remark = sellData.remark || "Analyzing Category...";
 
   if (isCompact) {
     return (
@@ -116,7 +122,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
         whileHover={{ y: -5, scale: 1.02 }}
         onClick={() => onAdd(product)}
         className={cn(
-          "group relative flex flex-col gap-4 p-5 bg-[#111C33] border border-[#2A3A55] rounded-[2rem] cursor-pointer hover:border-emerald-500/50 transition-all shadow-xl",
+          "group relative flex flex-col gap-4 p-5 bg-slate-900 border border-white/5 rounded-[2.5rem] cursor-pointer hover:border-emerald-500/50 transition-all shadow-xl",
           isTopPick && "border-green-500/20 bg-green-500/5"
         )}
       >
@@ -127,7 +133,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
            />
            <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
               <ConfidenceBadge level={sellData.confidence} />
-              <div className="px-2 py-0.5 bg-slate-950/80 backdrop-blur-md rounded-md border border-white/10 text-[7px] font-black text-white uppercase tracking-widest">
+              <div className="px-2 py-1 bg-emerald-500 text-white rounded-md text-[7px] font-black uppercase tracking-widest shadow-xl">
                 Score: {sellData.resellScore}
               </div>
            </div>
@@ -142,14 +148,6 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
               </div>
            </div>
         </div>
-
-        {isTopPick && (
-          <div className="absolute -left-1 -top-1">
-             <div className="bg-emerald-500 text-white text-[6px] font-black px-2 py-1 rounded-br-lg rounded-tl-xl uppercase tracking-tighter animate-pulse">
-                Winner
-             </div>
-          </div>
-        )}
       </motion.div>
     );
   }
@@ -160,141 +158,161 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
       className={cn(
-        "group saas-card p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden",
-        isTopPick && "border-green-500/30 shadow-[0_30px_60px_rgba(0,0,0,0.5)]",
-        "bg-[#111C33] rounded-[2.5rem]"
+        "group saas-card p-6 md:p-10 flex flex-col gap-8 relative overflow-hidden",
+        isTopPick && "border-emerald-500/20 shadow-[0_40px_80px_rgba(0,0,0,0.6)]",
+        "bg-slate-900 border border-white/5 rounded-[3.5rem] transition-all duration-500"
       )}
     >
-      {/* 🚀 1. TITLE HEADER (FULL WIDTH) */}
-      <h3 className="text-[11px] md:text-[13px] font-black text-white leading-tight uppercase tracking-tight line-clamp-1 opacity-90 group-hover:opacity-100 transition-opacity">
-        {product.title}
-      </h3>
-
-      {/* 📦 2. CONTENT CORE (HORIZONTAL FLEX) */}
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-8 md:gap-12">
-        
-        {/* LEFT: VISUAL */}
-        <SafeImage 
-          src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
-          alt={product?.title} 
-          className="w-24 h-24 md:w-32 md:h-32 shadow-2xl" 
-        />
-
-        {/* CENTER: PRIMARY DATA & INSIGHTS */}
-        <div className="flex-1 min-w-0 space-y-4">
-           {/* PRICE & CONFIDENCE ROW */}
-           <div className="flex items-center gap-4">
-              <span className="text-3xl font-black text-white italic tracking-tighter">
-                {product.price ? `$${product.price.toFixed(2)}` : 'N/A'}
-              </span>
-              <ConfidenceBadge level={sellData.confidence} />
-           </div>
-
-           {/* INSIGHT TEXT (RELOCATED TO DETAIL VIEW) */}
-           <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-4 border-t border-white/10">
-              <div className="flex flex-col gap-0.5">
-                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Market Saturation</span>
-                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{sellData.interpretation?.labels?.saturation || "Calculated"}</span>
-                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Volume: {metrics.saturation.density}</span>
-                 </div>
-              </div>
-              <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
-                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Price Position</span>
-                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{sellData.interpretation?.labels?.position || "Neutral"}</span>
-                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Z-Score: {metrics.positioning.zScore.toFixed(2)}</span>
-                 </div>
-              </div>
-              <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
-                 <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Demand Signal</span>
-                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white italic">{sellData.interpretation?.labels?.demand || "Stable"}</span>
-                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-200">Rate: {metrics.velocity.ratio.toFixed(1)}%</span>
-                 </div>
-              </div>
-              <div className="ml-auto flex flex-col items-end gap-1.5 order-1 md:order-1">
-                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest leading-none">Resell Score</span>
-                 <div className={cn(
-                   "w-12 h-12 md:w-16 md:h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl md:text-2xl italic border shadow-2xl relative",
-                   isTopPick ? "bg-green-500/10 border-green-500/30 text-green-500" : "bg-slate-900/50 border-white/5 text-white"
-                 )}>
-                    {sellData.resellScore}
-                    <div className="absolute -bottom-2 px-2 py-0.5 bg-slate-950 border border-slate-800 rounded-md text-[6px] font-black uppercase tracking-widest whitespace-nowrap">
-                       {sellData.resellScore >= 80 ? "Strong" : (sellData.resellScore >= 60 ? "Decent" : "Weak")}
-                    </div>
-                 </div>
-              </div>
-
-              {/* ACTION STACK */}
-               <div className="flex flex-col gap-2.5 order-2 md:order-2">
-                  {!isAdded ? (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAdd({
-                          ...product,
-                          id: product.id,
-                          title: product.title,
-                          price: Number(product.price) || 0,
-                          image: product.image || product.thumbnail || product.image_url || null
-                        });
-                        setIsAdded(true);
-                      }}
-                      className="px-8 md:px-12 py-3.5 md:py-4.5 bg-white text-slate-950 hover:bg-[#22C55E] hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
-                    >
-                      Add to Store <Plus size={14} className="group-hover/btn:rotate-90 transition-transform" />
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // This would trigger the new AliExpress Official Search
-                        window.dispatchEvent(new CustomEvent('explore-global', { detail: product }));
-                      }}
-                      className="px-8 md:px-12 py-3.5 md:py-4.5 bg-[#FF4747] text-white hover:bg-[#E63939] rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2 animate-in slide-in-from-right duration-300"
-                    >
-                      Explore Global Market <ExternalLink size={14} />
-                    </button>
-                  )}
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdd(product);
-                    }}
-                    className="px-8 md:px-12 py-3 md:py-4 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/30 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center"
-                  >
-                    View Details
-                  </button>
-               </div>
-           </div>
-        </div>
+      {/* 🚀 1. TITLE & PUNCHY VERDICT HEADER */}
+      <div className="flex items-center justify-between gap-6">
+         <div className="flex flex-col gap-1 flex-1">
+            <h3 className="text-[12px] md:text-[14px] font-black text-white leading-tight uppercase tracking-tightest line-clamp-1 opacity-80 group-hover:opacity-100 transition-opacity italic">
+               {product.title}
+            </h3>
+            <div className="flex items-center gap-2">
+               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{product.id}</span>
+            </div>
+         </div>
+         {remark && (
+            <div className={cn(
+               "px-4 py-2 rounded-full border flex items-center gap-3 animate-in slide-in-from-right-4 duration-500",
+               remark === 'HOT CAKE' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+               remark === 'RISKY' ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
+               "bg-white/5 border-white/10 text-slate-400"
+            )}>
+               {remark === 'HOT CAKE' && <Zap size={14} className="fill-emerald-400 text-emerald-400" />}
+               <span className="text-[10px] font-black uppercase tracking-widest italic">{remark}</span>
+            </div>
+         )}
       </div>
 
-      {/* 📊 3. EXPANDED TREND ANALYTICS (FILLS MARKED AREA) */}
-      <div className="mt-4 pt-6 border-t border-white/5 flex flex-col md:flex-row items-end justify-between gap-6">
-          <div className="flex-1 w-full bg-slate-950/30 rounded-2xl p-4 border border-white/5 relative overflow-hidden group/trend">
-              <div className="absolute top-4 left-4 flex items-center gap-2">
-                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Market Velocity Trend (30D)</span>
-              </div>
-              <div className="h-16 w-full flex items-end">
-                <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={600} height={60} />
-              </div>
-          </div>
-          
-          {sellData.isHandpicked && (
-            <div className="shrink-0 px-6 py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3 animate-in zoom-in-95 duration-500 shadow-lg shadow-emerald-500/5">
-               <Sparkles className="text-emerald-500" size={18} />
+      {/* 📦 2. CONTENT CORE */}
+      <div className="flex flex-col md:flex-row items-center gap-12">
+         <div className="relative group/img shrink-0">
+            <SafeImage 
+              src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
+              alt={product?.title} 
+              className="w-32 h-32 md:w-44 md:h-44 shadow-3xl rounded-[2.5rem] object-cover transition-transform duration-700 group-hover/img:scale-105" 
+            />
+            {isTopPick && (
+               <div className="absolute -top-3 -right-3 w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-2xl rotate-12 group-hover/img:rotate-0 transition-transform">
+                  <StarIcon size={24} className="fill-white" />
+               </div>
+            )}
+         </div>
+
+         <div className="flex-1 min-w-0 flex flex-col gap-8">
+            <div className="flex items-center gap-10">
                <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-none">Handpicked For You</span>
-                  <span className="text-[7px] font-bold text-emerald-600/60 uppercase mt-1">High-Signal Opportunity</span>
+                  <span className="text-5xl font-black text-white italic tracking-tightest">
+                    {product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
+                  </span>
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Target Retail Value</span>
+               </div>
+               <div className="h-12 w-px bg-white/10" />
+               <ConfidenceBadge level={sellData.confidence} />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-12">
+               <div className="flex flex-col gap-2">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Saturation</span>
+                  <div className="flex flex-col">
+                     <span className="text-[13px] font-black text-white italic tracking-tight">{sellData.interpretation?.labels?.saturation}</span>
+                     <span className="text-[9px] font-bold text-slate-600">Density: {metrics.saturation.density}</span>
+                  </div>
+               </div>
+               <div className="flex flex-col gap-2 border-l border-white/5 pl-12">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Positioning</span>
+                  <div className="flex flex-col">
+                     <span className="text-[13px] font-black text-white italic tracking-tight">{sellData.interpretation?.labels?.position}</span>
+                     <span className="text-[9px] font-bold text-slate-600">Z-Score: {metrics.positioning.zScore.toFixed(2)}</span>
+                  </div>
+               </div>
+               <div className="flex flex-col gap-2 border-l border-white/5 pl-12">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Growth Velocity</span>
+                  <div className="flex flex-col">
+                     <span className="text-[13px] font-black text-white italic tracking-tight">{sellData.interpretation?.labels?.demand}</span>
+                     <span className="text-[9px] font-bold text-slate-600">Rate: {metrics.velocity.ratio.toFixed(1)}%</span>
+                  </div>
                </div>
             </div>
-          )}
+         </div>
+
+         <div className="flex flex-col items-center gap-4 shrink-0">
+            <div className={cn(
+               "w-24 h-24 md:w-32 md:h-32 rounded-[3.5rem] flex flex-col items-center justify-center font-black italic border shadow-3xl relative transition-all duration-500 group-hover:scale-105",
+               isTopPick ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-slate-800/50 border-white/5 text-white"
+            )}>
+               <span className="text-4xl md:text-5xl">{sellData.resellScore}</span>
+               <span className="text-[8px] font-black uppercase tracking-widest opacity-60">Resell Score</span>
+            </div>
+         </div>
+      </div>
+
+      {/* 🛠️ 3. ACTION FOOTER */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-white/5">
+         <div className="flex items-center gap-4">
+            <div className="flex items-center -space-x-3">
+               {[1,2,3].map(i => (
+                  <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 overflow-hidden">
+                     <img src={`https://i.pravatar.cc/100?u=${i + product.id}`} className="w-full h-full object-cover grayscale opacity-50" />
+                  </div>
+               ))}
+            </div>
+            <span className="text-[10px] font-bold text-slate-500">
+               <span className="text-white">12+ Sellers</span> optimized this niche today
+            </span>
+         </div>
+
+         <div className="flex items-center gap-3 w-full md:w-auto">
+            {!isAdded ? (
+               <button 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   onAdd({
+                     ...product,
+                     id: product.id,
+                     title: product.title,
+                     price: Number(product.price) || 0,
+                     image: product.image || product.thumbnail || product.image_url || null
+                   });
+                   setIsAdded(true);
+                 }}
+                 className="flex-1 md:flex-none px-12 py-5 bg-white text-slate-950 hover:bg-emerald-500 hover:text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
+               >
+                 Add to Store <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
+               </button>
+            ) : (
+               <button 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   navigate('/supplier-sourcing', { state: { ebayProduct: product, query: product.title, targetPrice: product.price, batchContext } });
+                 }}
+                 className="flex-1 md:flex-none px-12 py-5 bg-emerald-500 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2 animate-in zoom-in-95"
+               >
+                 Explore Global Market <Rocket size={18} className="animate-bounce" />
+               </button>
+            )}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/intelligence-review/${product.id}`, { state: { product, batchContext } });
+              }}
+              className="flex-1 md:flex-none px-10 py-5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all group/detail flex items-center justify-center gap-2"
+            >
+              View Analysis <ChevronRight size={18} className="group-hover/detail:translate-x-1 transition-transform" />
+            </button>
+         </div>
       </div>
     </motion.div>
   );
 });
+
+const StarIcon = ({ size, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+    <path d="M12 2L14.81 8.62L22 9.24L16.55 13.97L18.18 21L12 17.27L5.82 21L7.45 13.97L2 9.24L9.19 8.62L12 2Z" fill="currentColor" />
+  </svg>
+);
 
 export default ProductCard;
