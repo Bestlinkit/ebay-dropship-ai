@@ -18,7 +18,7 @@ class SourcingService {
     this.CONFIG = {
       APP_KEY: '532310',
       APP_SECRET: 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3',
-      GATEWAY: 'https://eco.taobao.com/router/rest',
+      GATEWAY: '/api/ali-ds-proxy', // Use proxy to bypass CORS
       PROXY_GATEWAY: '/api/ali-ds-proxy' // Unified proxy endpoint
     };
   }
@@ -236,6 +236,17 @@ class SourcingService {
         }
       });
 
+      const responseData = data?.aliexpress_ds_product_get_response || data?.error_response;
+      
+      if (data?.error_response) {
+        return { 
+            status: "ERROR", 
+            message: data.error_response.msg || "AliExpress API Authentication Failure", 
+            products: [],
+            rawError: data.error_response 
+        };
+      }
+
       const rawProducts = data?.aliexpress_ds_product_get_response?.products?.product || [];
       return {
         status: "SUCCESS",
@@ -244,7 +255,12 @@ class SourcingService {
       };
     } catch (error) {
       console.error("AliExpress API Fault:", error);
-      return { status: "ERROR", message: error.message, products: [] };
+      return { 
+        status: "ERROR", 
+        message: error.message, 
+        products: [], 
+        rawError: error.response?.data || error.message 
+      };
     }
   }
 
@@ -272,8 +288,14 @@ class SourcingService {
         }
       });
 
-      const raw = data?.aliexpress_ds_product_get_response?.result;
-      if (!raw) throw new Error("Product metadata unreachable");
+      const raw = data?.aliexpress_ds_product_get_response?.result || data?.error_response;
+      if (!raw || data?.error_response) {
+         return { 
+            status: "ERROR", 
+            message: data?.error_response?.msg || "Product metadata unreachable",
+            rawError: data?.error_response || data 
+         };
+      }
 
       return {
         status: "SUCCESS",
@@ -285,7 +307,11 @@ class SourcingService {
       };
     } catch (error) {
       console.error("Deep Hydration Failure:", error);
-      return { status: "ERROR", message: error.message };
+      return { 
+        status: "ERROR", 
+        message: error.message,
+        rawError: error.response?.data || error.message
+      };
     }
   }
 

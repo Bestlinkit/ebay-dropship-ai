@@ -19,6 +19,11 @@ export default defineConfig({
         target: 'https://api.ebay.com/ws/api.dll',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ws\/ebay/, ''),
+      },
+      '/api/ali-ds-proxy': {
+        target: 'https://eco.taobao.com/router/rest',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/ali-ds-proxy/, ''),
       }
     }
   },

@@ -59,6 +59,8 @@ const SupplierSourcing = () => {
     });
 
     const [telemetry, setTelemetry] = useState({ aliexpress: null });
+    const [lastError, setLastError] = useState(null);
+    const [showLog, setShowLog] = useState(false);
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
@@ -76,11 +78,14 @@ const SupplierSourcing = () => {
 
             if (result.status === "SUCCESS") {
                 toast.success(`Discovered ${result.products.length} products`);
+                setLastError(null);
             } else if (result.status === "ERROR") {
+                setLastError(result.rawError);
                 toast.error(result.message || "AliExpress API Connection Failed");
             }
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
+            setLastError(e.message);
             setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
             toast.error(`AliExpress API Connection Failed.`);
         } finally {
@@ -234,7 +239,37 @@ const SupplierSourcing = () => {
                             <button onClick={performSourcing} className="w-full sm:w-auto px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all transform hover:scale-105 italic flex items-center justify-center gap-4 shadow-2xl">
                                 <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Re-initiate Discovery"}
                             </button>
+                            
+                            {lastError && (
+                                <button 
+                                    onClick={() => setShowLog(!showLog)}
+                                    className="w-full sm:w-auto px-10 py-6 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3"
+                                >
+                                    <Activity size={18} /> {showLog ? "Hide Diagnostic Log" : "View Diagnostic Log"}
+                                </button>
+                            )}
                         </div>
+
+                        <AnimatePresence>
+                            {showLog && lastError && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-10 p-10 bg-slate-950 rounded-[3rem] text-left border border-slate-800 shadow-3xl overflow-hidden"
+                                >
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-3">
+                                            <Lock size={14} /> Backend Diagnostic Payload
+                                        </h4>
+                                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Protocol v28.0-Hardened</span>
+                                    </div>
+                                    <pre className="text-[11px] font-mono text-slate-400 bg-slate-900/50 p-6 rounded-2xl border border-white/5 overflow-x-auto selection:bg-emerald-500/30">
+                                        {JSON.stringify(lastError, null, 2)}
+                                    </pre>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 )}
             </div>
