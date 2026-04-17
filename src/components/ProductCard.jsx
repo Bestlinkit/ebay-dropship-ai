@@ -106,6 +106,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
   if (!product) return null;
 
   const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
+  const { metrics } = sellData;
   const isTopPick = sellData.status === 'TOP PICK';
 
   if (isCompact) {
@@ -190,25 +191,34 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
               <ConfidenceBadge level={sellData.confidence} />
            </div>
 
-           {/* INSIGHT TEXT (MUTED) */}
-           <p className="text-[10px] md:text-[11px] font-medium text-slate-400 italic line-clamp-2 leading-relaxed max-w-2xl border-l border-slate-700/50 pl-4 py-0.5">
-              "{sellData.summary}"
-           </p>
+           {/* INSIGHT TEXT (ANALYTICAL REPORT) */}
+           <div className="text-[10px] md:text-[11px] font-medium text-slate-400 border-l border-slate-700/50 pl-4 py-2 space-y-4 whitespace-pre-line leading-relaxed">
+              {sellData.summary}
+           </div>
 
-           <div className="flex items-center gap-8 md:gap-12 pt-2">
+           <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-4 border-t border-white/5">
               <div className="flex flex-col gap-0.5">
-                 <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">Competition Level</span>
-                 <span className={cn("text-[9px] font-black text-white")}>
-                    {product.totalFound < 300 ? 'Low Saturation' : 'Balanced Market'}
-                 </span>
+                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Pricing Signal</span>
+                 <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-white italic">{metrics.positioning.signal}</span>
+                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.positioning.score}</span>
+                 </div>
               </div>
-              <div className="flex flex-col">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Market Price</p>
-              <span className="text-3xl font-black text-white italic tracking-tighter">
-                {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : 'N/A'}
-              </span>
-            </div>
-              <div className="hidden sm:block">
+              <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
+                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Density Analysis</span>
+                 <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-white italic">{metrics.saturation.density} QTY</span>
+                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.saturation.score}</span>
+                 </div>
+              </div>
+              <div className="flex flex-col gap-0.5 border-l border-white/10 pl-6">
+                 <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Velocity Lead</span>
+                 <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-white italic">+{metrics.velocity.ratio.toFixed(1)}%</span>
+                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[6px] font-black text-slate-400">Score: {metrics.velocity.score}</span>
+                 </div>
+              </div>
+              <div className="ml-auto hidden xl:block">
                  <MiniMomentumLine data={sellData.momentum} color={sellData.color} />
               </div>
            </div>

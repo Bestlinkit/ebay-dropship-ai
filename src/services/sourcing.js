@@ -17,92 +17,131 @@ class SourcingService {
    * Stage 1: Market Intelligence (eBay-side)
    */
   calculateSellScore(product, batchContext = {}) {
-    const { avgPrice = 50, stdDev = 10 } = batchContext;
-    const price = Number(product.price) || 0;
-    let resellScore = 50;
+    const metrics = this._analyzeMarketSignals(product, batchContext);
     
-    if (price > 0) {
-      if (price < avgPrice - (stdDev * 0.5)) resellScore += 20; 
-      else if (price < avgPrice) resellScore += 10;
-      else if (price > avgPrice + stdDev) resellScore -= 15;
-    }
+    // Multivariate Scoring Model (v24.0)
+    // 1. Price Health (35%) - Distance from median/target
+    const priceScore = metrics.positioning.score * 0.35;
+    
+    // 2. Velocity Signal (30%) - Movement vs Density
+    const velocityScore = metrics.velocity.score * 0.30;
+    
+    // 3. Barrier Index (25%) - Saturation Density
+    const barrierScore = metrics.saturation.score * 0.25;
+    
+    // 4. Category Momentum (10%) - Focus Alignment
+    const categoryModifier = metrics.category?.momentum || 1.0;
+    const categoryScore = 10 * categoryModifier;
 
-    const soldCount = Number(product.soldCount || 0);
-    if (soldCount > 50) resellScore += 15;
-    const totalFound = Number(product.totalFound || 0);
-    if (totalFound < 300) resellScore += 10;
+    let resellScore = Math.min(100, Math.max(0, Math.round(priceScore + velocityScore + barrierScore + categoryScore)));
 
-    resellScore = Math.min(100, Math.max(0, resellScore));
     return {
       resellScore,
       confidence: resellScore >= 80 ? 'High' : (resellScore < 40 ? 'Low' : 'Medium'),
-      summary: this._getHumanizedMarketSummary(resellScore, product, batchContext),
+      summary: this._getHumanizedMarketSummary(resellScore, product, batchContext, metrics),
       momentum: Array.from({ length: 14 }, (_, i) => ({ x: i, y: Math.floor(resellScore * (0.8 + Math.random() * 0.4)) })),
       status: resellScore >= 80 ? 'TOP PICK' : (resellScore >= 60 ? 'TRENDING' : 'CONSIDERING'),
       profitLevel: resellScore >= 70 ? 'High' : (resellScore >= 40 ? 'Medium' : 'Low'),
       color: resellScore >= 70 ? "#10b981" : "#f59e0b",
+      isWinner: resellScore >= 85,
+      metrics // Pass metrics for UI justification
     };
   }
 
-  _getHumanizedMarketSummary(score, product, context) {
-    const { avgPrice = 50 } = context;
+  _analyzeMarketSignals(product, context) {
+    const { avgPrice = 50, stdDev = 15 } = context;
     const price = Number(product.price) || 0;
-    const isUnderAverage = price < avgPrice;
-    const isHighlyCompetitive = Number(product.totalFound || 0) > 500;
-    const hasHighVelocity = Number(product.soldCount || 0) > 100;
+    const soldCount = Number(product.soldCount || 0);
+    const totalFound = Number(product.totalFound || 0);
+    const category = this.detectCategory(product.title);
 
-    let summary = "";
+    // 📊 1. POSITIONING ANALYSIS
+    const zScore = stdDev > 0 ? (price - avgPrice) / stdDev : 0;
+    let positioningScore = 50;
+    if (zScore < -0.5) positioningScore = 90; // Significantly underpriced
+    else if (zScore < 0) positioningScore = 75; // Competitive
+    else if (zScore < 1) positioningScore = 40; // Overpriced
+    else positioningScore = 15; // Extreme friction
 
-    if (score >= 85) {
-      summary = `Elite opportunity. ${isUnderAverage ? "Aggressive pricing" : "Premium placement"} backed by ${hasHighVelocity ? "massive" : "solid"} demand signals and ${isHighlyCompetitive ? "validated" : "low"} competition.`;
-    } else if (score >= 70) {
-      summary = `Strong market fit. Pricing aligns with ${isUnderAverage ? "budget-conscious" : "mid-tier"} segments. High likelihood of consistent conversion.`;
-    } else if (score >= 50) {
-      summary = `Moderate alignment. ${isHighlyCompetitive ? "High saturation requires" : "Strategic focus on"} optimized marketing and unique listing hooks to drive volume.`;
+    // 📊 2. SATURATION ANALYSIS
+    let saturationScore = 50;
+    if (totalFound < 100) saturationScore = 95; // Rare/Niche
+    else if (totalFound < 300) saturationScore = 75; // Balanced
+    else if (totalFound > 1000) saturationScore = 20; // Hyper-saturated
+
+    // 📊 3. VELOCITY ANALYSIS
+    // Demand Strength inferred from movement vs density ratio
+    const velocityRatio = totalFound > 0 ? (soldCount / totalFound) * 100 : 0;
+    let velocityScore = 50;
+    if (velocityRatio > 15) velocityScore = 95; 
+    else if (velocityRatio > 5) velocityScore = 70;
+    else if (soldCount === 0) velocityScore = 10;
+
+    return {
+      positioning: { score: positioningScore, signal: zScore < 0 ? "Underpriced" : "Premium", zScore },
+      saturation: { score: saturationScore, density: totalFound },
+      velocity: { score: velocityScore, ratio: velocityRatio, totalSold: soldCount },
+      category
+    };
+  }
+
+  _getHumanizedMarketSummary(score, product, context, metrics) {
+    const { positioning, saturation, velocity, category } = metrics;
+    
+    const parts = [];
+
+    // [SATURATION]
+    const satText = saturation.density > 800 
+      ? `[Saturation: Critical] High keyword density (${saturation.density} listings) creates extreme visibility friction.` 
+      : (saturation.density < 200 ? `[Saturation: Sparse] Low competitive density detected. Significant vacancy in keyword node.` : `[Saturation: Moderate] Balanced listing volume. Strategy requires specific differentiators.`);
+    parts.push(satText);
+
+    // [POSITIONING]
+    const posText = positioning.zScore < -0.3 
+      ? `[Positioning: Aggressive] Entry price is ${Math.abs(positioning.zScore).toFixed(1)}σ below median. High capture potential.`
+      : `[Positioning: Neutral] Price aligns with category standard. Margin depends on shipping optimization.`;
+    parts.push(posText);
+
+    // [PRESSURE & CATEGORY]
+    let pressureText = "";
+    if (category?.id === 'beauty' || category?.id === 'skincare') {
+      pressureText = "[Pressure: Category Focus] Beauty niche detected. High recurring demand signals offset saturation risk.";
+    } else if (category?.id === 'fashion') {
+      pressureText = "[Pressure: Trend-Driven] Visual momentum is high. Volatility risk remains medium.";
+    } else if (category?.id === 'home' || category?.id === 'kitchen') {
+      pressureText = "[Pressure: Utility-Reliant] Stable demand floor. Resale potential linked to durability signals.";
     } else {
-      summary = `Challenging node. High friction detected. Success limited to niche pivots or significant price restructuring.`;
+      pressureText = "[Pressure: General] Standard competitive model. Evidence-based capture strategy advised.";
     }
+    parts.push(pressureText);
 
-    return summary;
+    // [VERDICT]
+    const verdict = score >= 80 
+      ? `[Verdict] Elite liquidity detected. High probability of search-rank dominance via pricing edge.`
+      : (score >= 60 ? `[Verdict] Validated fit. Moderate volume expected with keyword optimization.` : `[Verdict] Structural friction detected. Limited scalability in current price-density node.`);
+    parts.push(verdict);
+
+    return parts.join("\n\n");
   }
 
-  calculateROI(ebayPrice, supplierCost, shipping = 0) {
-    const cost = Number(supplierCost);
-    const target = Number(ebayPrice);
-    if (!cost || cost <= 0 || !target || target <= 0) return null;
-    const totalCost = cost + Number(shipping);
-    return { expected: Math.round(((target - totalCost) / totalCost) * 100) };
-  }
-
-  evaluateSupplierTrust(product) {
-    if (product.source === 'eprolo') return { level: 'High', score: 95, label: "Verified Eprolo" };
-    if (product.source === 'aliexpress') {
-      const rating = Number(product.rating || 0);
-      const score = rating >= 4.5 ? 80 : 40;
-      return { level: score >= 80 ? 'High' : 'Low', score, label: `${rating} / 5` };
-    }
-    return { level: 'Medium', score: 50, label: "Secondary" };
-  }
-
-  calculateOpportunityScore(product, targetPrice) {
-    const roi = this.calculateROI(targetPrice, product.price);
-    const trust = this.evaluateSupplierTrust(product);
-    let score = roi ? (roi.expected * 0.6) : 0;
-    score += (trust.score * 0.4);
-    return Math.max(0, Math.min(100, Math.round(score)));
-  }
-
+  /**
+   * Enhanced Categorization (v24.0 Focal Points)
+   */
   detectCategory(title) {
-    if (!title) return null;
+    if (!title) return { id: 'general', momentum: 1.0 };
     const t = title.toLowerCase();
-    const categories = [
-        { id: 'electronics', keywords: ['phone', 'tablet', 'laptop', 'wireless'] },
-        { id: 'beauty', keywords: ['soap', 'cleanser', 'skincare'] }
-    ];
-    for (const cat of categories) {
-        if (cat.keywords.some(kw => t.includes(kw))) return cat.id;
-    }
-    return null;
+    
+    // Priority Segments
+    if (/(skin|face|cream|serum|oil|beauty|cosmetic|lotion|wash)/i.test(t)) return { id: 'skincare', label: 'Skincare', momentum: 1.2 };
+    if (/(health|vitamin|supplement|wellness|care)/i.test(t)) return { id: 'health', label: 'Health & Beauty', momentum: 1.15 };
+    if (/(dress|shirt|pant|shoe|fashion|clothing|vintage)/i.test(t)) return { id: 'fashion', label: 'Fashion', momentum: 1.1 };
+    if (/(kitchen|pan|pot|knife|cook|chef|bake)/i.test(t)) return { id: 'kitchen', label: 'Kitchen Items', momentum: 1.1 };
+    if (/(home|decor|bed|pillow|lamp|furniture|rug)/i.test(t)) return { id: 'home', label: 'Home Items', momentum: 1.1 };
+
+    // Commodities
+    if (/(book|cd|dvd|media|magazine)/i.test(t)) return { id: 'media', label: 'Books/Media', momentum: 0.8 };
+
+    return { id: 'general', label: 'General', momentum: 1.0 };
   }
 
   createContext(query, targetProduct) {
