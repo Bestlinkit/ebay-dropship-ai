@@ -116,9 +116,18 @@ class SourcingService {
     parts.push(pressureText);
 
     // [VERDICT]
-    const verdict = score >= 80 
-      ? `[Verdict] Elite liquidity detected. High probability of search-rank dominance via pricing edge.`
-      : (score >= 60 ? `[Verdict] Validated fit. Moderate volume expected with keyword optimization.` : `[Verdict] Structural friction detected. Limited scalability in current price-density node.`);
+    let verdict = "";
+    if (score >= 80) {
+      verdict = `[Verdict] Elite liquidity detected. High probability of search-rank dominance via pricing edge.`;
+    } else if (score >= 60) {
+      verdict = `[Verdict] Validated fit. Moderate volume expected with keyword optimization.`;
+    } else {
+      // Humanized Avoidance Insight
+      const reason = saturation.density > 800 ? "overwhelmed by extreme competitor density" : 
+                    (positioning.zScore > 0.5 ? "priced too high above the market median" : "showing stagnant demand signals");
+      
+      verdict = `[Verdict] Avoid for now. This item is currently ${reason}, which means your effort would likely result in high advertising costs for minimal return. Better opportunities exist in lower-density price windows.`;
+    }
     parts.push(verdict);
 
     return parts.join("\n\n");
