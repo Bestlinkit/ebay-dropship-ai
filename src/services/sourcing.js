@@ -224,15 +224,27 @@ class SourcingService {
   }
 
   async runAliExpressOfficial(payload) {
-    this.log({ type: 'REQUEST', endpoint: this.CONFIG.GATEWAY, payload });
+    let finalUrl = this.CONFIG.GATEWAY;
+    
+    // 🛡️ GATEWAY PATH PROTECTION (v7.7-TRACE)
+    // Ensure the Crystal Bridge endpoint is included if only the root was provided
+    if (finalUrl && !finalUrl.includes('/api/ali-ds-proxy') && !finalUrl.includes('/ali-ds-proxy')) {
+      finalUrl = finalUrl.replace(/\/$/, '') + '/api/ali-ds-proxy';
+    }
+
+    this.log({ type: 'REQUEST', endpoint: finalUrl, payload });
 
     try {
-      const { data } = await axios.post(this.CONFIG.GATEWAY, payload);
+      const { data } = await axios.post(finalUrl, payload, {
+        timeout: 10000,
+        headers: { 'Content-Type': 'application/json' }
+      });
+
       this.log({ type: 'RESPONSE', data: data });
 
       // Response Validation (Phase 4)
       if (typeof data === 'string' && data.includes('<!doctype')) {
-         throw new Error("INVALID_API_ROUTE: HTML returned instead of JSON");
+         throw new Error("INVALID_API_ROUTE: HTML returned instead of JSON. Ensure the worker is deployed correctly.");
       }
 
       if (data.status === "INVALID_API_ROUTE") {
@@ -241,8 +253,17 @@ class SourcingService {
 
       return { status: "SUCCESS", data };
     } catch (error) {
-      this.log({ type: 'ERROR', message: error.message, raw: error.response?.data });
-      return { status: "ERROR", message: error.message };
+      const errorPayload = {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        requestUrl: finalUrl,
+        responseData: error.response?.data
+      };
+      
+      this.log({ type: 'ERROR', ...errorPayload });
+      return { status: "ERROR", message: error.message, debug: errorPayload };
     }
   }
 }

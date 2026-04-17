@@ -80,13 +80,16 @@ const SupplierSourcing = () => {
                 toast.success(`Discovered ${result.products.length} products`);
                 setLastError(null);
             } else if (result.status === "ERROR") {
-                setLastError(result.rawError || "API_NEGOTIATION_FAILED: No payload received.");
+                setLastError(result.debug || result.rawError || result.message);
                 toast.error(result.message || "AliExpress API Connection Failed");
             }
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
             const crashLog = {
                 message: e.message,
+                status: e.response?.status,
+                statusText: e.response?.statusText,
+                url: e.config?.url,
                 stack: e.stack,
                 context: "Discovery_Pipeline_Crash"
             };
