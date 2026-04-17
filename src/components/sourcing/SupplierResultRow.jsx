@@ -8,105 +8,113 @@ import {
   Zap,
   Info,
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  DollarSign,
+  Truck,
+  Package,
+  Activity
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 
 /**
- * Supplier Discovery Row (v8.0)
- * Optimized for Stage 1 (Discovery).
+ * Supplier Discovery Row (v10.0 - SaaS Elite Redesign)
+ * High-fidelity dark layout as requested by the user.
  */
-const SupplierResultRow = ({ product, targetPrice, isBest, onContinue }) => {
+const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     
-    const sourceIntel = { name: "AliExpress DS", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" };
+    // Derived Intelligence
+    const roiData = product.roiData || { roi: "0", profit: "0", label: "Low Yield" };
+    const sourceLabel = "AliExpress DS API";
 
     return (
         <motion.div 
-            whileHover={{ y: -2 }}
-            className={cn(
-                "group relative bg-white border p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-10 transition-all shadow-sm",
-                isBest ? "border-emerald-500/30 shadow-[0_20px_60px_rgba(34,197,94,0.05)]" : "border-slate-200 hover:border-slate-300"
-            )}
+            whileHover={{ y: -2, scale: 1.01 }}
+            className="group relative bg-[#0B1120] border border-white/5 p-8 rounded-[3.5rem] flex flex-col xl:flex-row items-center gap-12 transition-all shadow-2xl overflow-hidden"
         >
-            {isBest && (
-                <div className="absolute -top-4 left-10 px-4 py-1.5 bg-emerald-500 rounded-full flex items-center gap-2 text-[8px] font-black text-white uppercase tracking-widest shadow-lg">
-                    <Star size={10} className="fill-white" /> High Match
-                </div>
-            )}
-
-            {product.sellData?.resellScore >= 90 && (
-                <div className="absolute -top-4 left-40 px-4 py-1.5 bg-indigo-600 rounded-full flex items-center gap-2 text-[8px] font-black text-white uppercase tracking-widest shadow-lg">
-                    <Zap size={10} className="fill-white text-yellow-400" /> AI Choice
-                </div>
-            )}
+            {/* Background Grain/Effect */}
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
             {/* PRODUCT VISUAL */}
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-[2rem] overflow-hidden border border-slate-100 shrink-0 shadow-lg relative">
-                <img src={product.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] overflow-hidden border-2 border-white/10 shrink-0 shadow-2xl relative bg-slate-900 group-hover:border-emerald-500/30 transition-colors">
+                <img 
+                    src={product.image} 
+                    alt="" 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+                />
             </div>
 
             {/* DATA CORE */}
-            <div className="flex-1 min-w-0 space-y-4">
-                <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <span className={cn(
-                            "px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border",
-                            sourceIntel.bg, sourceIntel.color, sourceIntel.border
-                        )}>
-                            Source: {sourceIntel.name}
+            <div className="flex-1 min-w-0 space-y-6">
+                <div className="flex flex-wrap items-center gap-4">
+                    <span className="px-4 py-1.5 bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-full text-[8px] font-black uppercase tracking-widest">
+                        Source: {sourceLabel}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="px-4 py-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+                            <Activity size={10} /> Thin Margin
                         </span>
-                        
-                        {product.price && targetPrice > 0 && (
-                            <div className="px-2 py-0.5 bg-slate-50 text-slate-500 rounded-md text-[7px] font-black uppercase tracking-widest border border-slate-100 italic">
-                                Price Node: {product.price < targetPrice ? 'Below Target' : 'Above Target'}
-                            </div>
-                        )}
+                        <span className="px-4 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+                            <TrendingUp size={10} /> Economy
+                        </span>
                     </div>
-                    <h3 className="text-[14px] font-black text-slate-950 uppercase tracking-tight line-clamp-1">{product.title}</h3>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-12">
-                    <div className="flex flex-col">
-                        <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Base Cost</span>
-                        <span className="text-xl font-black text-slate-950 italic tracking-tighter">
-                            {product.price ? `$${product.price.toFixed(2)}` : <span className="text-rose-500">N/A</span>}
+                <div className="space-y-2">
+                    <h3 className="text-lg md:text-xl font-black text-white uppercase tracking-tighter line-clamp-1 leading-none group-hover:text-emerald-400 transition-colors">
+                        {product.title}
+                    </h3>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-10 pt-4 border-t border-white/5">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Base Cost</span>
+                        <div className="text-3xl font-black text-white italic tracking-tighter">
+                            {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : product.price}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Shipping</span>
+                        <span className="text-[12px] font-black text-slate-300 uppercase tracking-tight">
+                            Free (15-25 days)
                         </span>
                     </div>
-                    {product.source === 'aliexpress' && (
-                        <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Trust Metrics</span>
-                            <div className="flex items-center gap-4">
-                                <span className="text-xl font-black text-slate-950 italic tracking-tighter flex items-center gap-1.5">
-                                    <Star size={16} className="fill-orange-400 text-orange-400" />
-                                    {product.rating ? product.rating.toFixed(1) : "N/A"}
-                                </span>
-                                {product.variants?.length > 0 && (
-                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-500 rounded-md text-[7px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-1">
-                                        <Zap size={8} className="fill-indigo-500" /> {product.variants.length} Variants
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Ships From</span>
+                        <span className="text-[12px] font-black text-white uppercase tracking-widest">
+                            {product.shipsFrom || 'CN'}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {/* ACTION GATE */}
-            <div className="flex items-center gap-10 shrink-0 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-10 w-full md:w-auto justify-between md:justify-end">
-                <div className="flex flex-col gap-2.5">
+            {/* ROI & ACTION ZONE */}
+            <div className="flex items-center gap-12 shrink-0 border-t xl:border-t-0 xl:border-l border-white/5 pt-10 xl:pt-0 xl:pl-12 w-full xl:w-auto justify-between xl:justify-end">
+                <div className="flex flex-col gap-6 text-right">
+                    <div className="space-y-1">
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">ROI Estimate</span>
+                        <div className="text-4xl font-black text-emerald-400 italic tracking-tighter leading-none">
+                            {roiData.roi}%
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 justify-end">
+                        <div className="px-3 py-1 bg-slate-900 border border-white/10 rounded-lg flex items-center gap-2">
+                           <ShieldCheck size={12} className="text-emerald-500" />
+                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Reliability: Low</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
                     <button 
                         onClick={() => onContinue(product)}
-                        className={cn(
-                            "px-10 py-4 bg-slate-950 text-white hover:bg-emerald-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 group/btn"
-                        )}
+                        className="px-12 py-5 bg-white text-slate-950 hover:bg-emerald-400 rounded-full text-[11px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group/btn hover:scale-105 active:scale-95"
                     >
-                        View Details
-                        <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                        Continue
+                        <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
                     </button>
-                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest text-center">
-                        Mandatory Enrichment
-                    </p>
                 </div>
             </div>
         </motion.div>

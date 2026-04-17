@@ -323,14 +323,23 @@ class SourcingService {
     if (!raw) return null;
     const id = raw.product_id || raw.id || raw.item_id;
     const title = raw.product_title || raw.title || raw.subject;
-    const price = raw.target_sale_price || raw.price || raw.sale_price || 0;
+    
+    // Hardened Price Extraction (v29.0)
+    const price = raw.target_sale_price || 
+                  raw.sale_price || 
+                  raw.product_price || 
+                  raw.app_sale_price || 
+                  raw.target_app_sale_price ||
+                  (raw.target_sale_price_min ? `${raw.target_sale_price_min} - ${raw.target_sale_price_max}` : 0);
+
     const image = raw.product_main_image_url || raw.image || raw.thumbnail_url || "/placeholder.png";
     const rating = raw.evaluate_rate || raw.rating || 0;
 
     return {
       id: String(id),
       title: title || "Untitled Product",
-      price: Number(price),
+      price: typeof price === 'string' && price.includes('-') ? price : Number(price || 0),
+      rawPrice: price,
       image: image,
       images: Array.isArray(raw.images) ? raw.images : [image],
       source: 'aliexpress',

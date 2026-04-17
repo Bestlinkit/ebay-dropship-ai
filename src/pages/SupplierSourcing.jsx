@@ -80,12 +80,17 @@ const SupplierSourcing = () => {
                 toast.success(`Discovered ${result.products.length} products`);
                 setLastError(null);
             } else if (result.status === "ERROR") {
-                setLastError(result.rawError);
+                setLastError(result.rawError || "API_NEGOTIATION_FAILED: No payload received.");
                 toast.error(result.message || "AliExpress API Connection Failed");
             }
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
-            setLastError(e.message);
+            const crashLog = {
+                message: e.message,
+                stack: e.stack,
+                context: "Discovery_Pipeline_Crash"
+            };
+            setLastError(crashLog);
             setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
             toast.error(`AliExpress API Connection Failed.`);
         } finally {
@@ -105,11 +110,13 @@ const SupplierSourcing = () => {
                 const res = sourcingService.normalize(raw);
                 const relevance = sourcingService.calculateOpportunityScore(res, targetPrice);
                 const sellData = sourcingService.calculateSellScore(res, batchContext || { avgPrice: targetPrice });
+                const roiData = sourcingService.calculateROI(targetPrice, res.price);
 
                 return { 
                     ...res, 
                     relevance,
-                    sellData
+                    sellData,
+                    roiData
                 };
             })
             .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
@@ -231,7 +238,7 @@ const SupplierSourcing = () => {
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
                                 {pipelineState.status === 'NO_RESULTS' ? "The AliExpress catalog has no matches for this specific query." : 
                                  pipelineState.status === 'TIMEOUT' ? "The request to AliExpress took too long." :
-                                 "The extraction logic encountered a structural mismatch."}
+                                 "The secure DS API tunnel encountered an unexpected data structure. Technical diagnostics required."}
                             </p>
                         </div>
 
