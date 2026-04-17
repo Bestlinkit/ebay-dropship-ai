@@ -1,15 +1,43 @@
 /**
- * Drop-AI Background Engine (v21.5 - Inline Determination)
- * Rules: strictly active:false, functional injection, DOM-polling.
+ * Drop-AI Background Engine (v23.0 - Production Hardening)
+ * Rules: MV3 persistence, active keep-alive, diagnostic tracing.
  */
 
-console.log("[Drop-AI Worker] v21.5 - Inline Scripting Active");
+console.log("[Drop-AI Worker] v23.0 - Production Hardening Active");
+
+// 🏁 LIFECYCLE LISTENERS
+chrome.runtime.onInstalled.addListener(() => {
+    console.log("[Drop-AI Worker] INSTALL_COMPLETE - Initializing Bridge...");
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    console.log("[Drop-AI Worker] STARTUP_COMPLETE - Worker Primed.");
+});
+
+// 💓 KEEP-ALIVE HEARTBEAT (v23.0 Lifecycle Persistence)
+let heartbeatInterval;
+function startKeepAlive() {
+    if (heartbeatInterval) return;
+    console.log("[Drop-AI Worker] Heartbeat Started - Persistence Active");
+    heartbeatInterval = setInterval(() => {
+        chrome.storage.local.set({ '_last_ping': Date.now() });
+    }, 10000); // 10s interval
+}
+
+function stopKeepAlive() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+        console.log("[Drop-AI Worker] Heartbeat Stopped - Releasing Persistence");
+    }
+}
 
 chrome.runtime.onMessage.addListener(handleRuntimeMessage);
 
 // 🌐 EXTERNAL MESSAGE HANDLER (v22.0 Direct Bridge)
 chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
-    console.log("[Drop-AI DEBUG] EXTERNAL MESSAGE RECEIVED", request, "from", sender.url);
+    console.log("[Drop-AI DEBUG] EXTERNAL MESSAGE RECEIVED:", request.type, "from", sender.url);
+    startKeepAlive();
     handleRuntimeMessage(request, sender, sendResponse);
     return true; // Keep channel open
 });
@@ -18,7 +46,7 @@ async function handleRuntimeMessage(request, sender, sendResponse) {
     try {
         if (request.type === "PING" || request.type === "EXT_PING") {
             console.log("[Drop-AI Worker] PING received. Sending PONG.");
-            sendResponse({ status: "SUCCESS", pong: true, version: "v22.0" });
+            sendResponse({ status: "SUCCESS", pong: true, version: "v23.1" });
             return;
         }
 
@@ -28,8 +56,8 @@ async function handleRuntimeMessage(request, sender, sendResponse) {
             sendResponse(result);
         }
     } catch (e) {
-        console.error("[Drop-AI Worker] Error in HandleRuntimeMessage:", e.message);
-        sendResponse({ status: "ERROR", error: "MESSAGE_EXECUTION_FAILED", source: request.source });
+        console.error("[Drop-AI Worker] Fatal Messaging Failure:", e.message);
+        sendResponse({ status: "ERROR", error: "MESSAGE_EXECUTION_FAILED", detail: e.message, source: request.source });
     }
 }
 
@@ -92,10 +120,12 @@ async function handleSearch(request) {
         };
 
     } catch (e) {
-        console.error(`[Drop-AI Worker] Exception in ${source}:`, e.message);
-        return { status: "ERROR", source, products: [] };
+        console.error(`[Drop-AI Worker] CRITICAL_SEARCH_FAILURE in ${source}:`, e.message);
+        return { status: "ERROR", source, error: e.message, products: [] };
     } finally {
+        stopKeepAlive();
         if (tabId) {
+            console.log(`[Drop-AI Worker] Cleaning up silent tab ${tabId}...`);
             chrome.tabs.remove(tabId).catch(() => {});
         }
     }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Drop-AI Data Bridge",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "High-fidelity product extraction for AliExpress and Eprolo.",
   "permissions": [
     "tabs",
@@ -10,6 +10,7 @@
     "activeTab"
   ],
   "host_permissions": [
+    "<all_urls>",
     "*://*.aliexpress.com/*",
     "*://*.eprolo.com/*"
   ],

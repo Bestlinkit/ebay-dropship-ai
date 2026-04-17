@@ -71,7 +71,9 @@ class ExtensionConnector {
                     if (chrome.runtime.lastError) {
                         resolve({ status: "ERROR", error: chrome.runtime.lastError.message, source, products: [] });
                     } else {
-                        resolve(response || { status: "ERROR", source, products: [] });
+                        const res = response || { status: "ERROR", source, products: [] };
+                        if (res.status === "ERROR" && !res.error && res.detail) res.error = res.detail;
+                        resolve(res);
                     }
                 });
             } catch (e) {
