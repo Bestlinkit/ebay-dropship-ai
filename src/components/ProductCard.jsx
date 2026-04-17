@@ -223,9 +223,12 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
                   </div>
                </div>
                <div className="flex flex-col gap-2 border-l border-white/5 pl-12">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Positioning</span>
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pricing Strategy</span>
                   <div className="flex flex-col">
-                     <span className="text-[13px] font-black text-white italic tracking-tight">{sellData.interpretation?.labels?.position}</span>
+                     <span className="text-[13px] font-black text-white italic tracking-tight">
+                        {sellData.interpretation?.labels?.position === 'At Market Median' ? 'COMPETITIVE MARKET PRICE' : 
+                         (sellData.interpretation?.labels?.position === 'Below Market Median' ? 'OPTIMIZED ENTRY VALUE' : 'PREMIUM POSITION')}
+                     </span>
                      <span className="text-[9px] font-bold text-slate-600">Z-Score: {metrics.positioning.zScore.toFixed(2)}</span>
                   </div>
                </div>
@@ -250,8 +253,30 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
          </div>
       </div>
 
+      {/* 📊 RESTORED TREND GRAPH & ANALYTICAL PULSE */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 bg-white/[0.01] border-y border-white/5">
+          <div className="space-y-4">
+             <div className="flex items-center gap-2">
+                <TrendingUp size={12} className="text-emerald-500" />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">30-Day Market Velocity</span>
+             </div>
+             <div className="h-12 w-full flex items-end">
+                <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={400} height={48} />
+             </div>
+          </div>
+          <div className="flex flex-col justify-center gap-2 pr-6">
+             <div className="flex items-center gap-2">
+                <ShieldCheck size={12} className="text-emerald-500" />
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Growth Recommendation</span>
+             </div>
+             <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic opacity-80 border-l-2 border-white/5 pl-4">
+                "{sellData.summary?.split(']').pop()?.trim()}"
+             </p>
+          </div>
+      </div>
+
       {/* 🛠️ 3. ACTION FOOTER */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-white/5">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-2">
          <div className="flex items-center gap-4">
             <div className="flex items-center -space-x-3">
                {[1,2,3].map(i => (
@@ -261,7 +286,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
                ))}
             </div>
             <span className="text-[10px] font-bold text-slate-500">
-               <span className="text-white">12+ Sellers</span> optimized this niche today
+               <span className="text-white">{sellData.sellerCount || 12}+ Sellers</span> optimized this niche
             </span>
          </div>
 

@@ -193,7 +193,7 @@ const IntelligenceReview = () => {
                                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
                                     <Target size={20} />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Executive Verdict</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Strategic Recommendation</span>
                                 {sellData.interpretation?.remark && (
                                     <span className={cn(
                                         "ml-auto px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse",
@@ -207,17 +207,19 @@ const IntelligenceReview = () => {
                             </div>
                             
                             <h2 className="text-3xl sm:text-4xl font-black text-white leading-tight tracking-tightest italic">
-                                "{sellData.interpretation?.verdict?.split('|').pop()?.split(':').pop()?.trim()}"
+                                "{sellData.interpretation?.summary?.split(']').pop()?.trim()}"
                             </h2>
                             
                             <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-white/5">
                                 <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10 flex items-center gap-2">
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Market Grade</span>
-                                    <span className="text-[12px] font-black text-emerald-400">{sellData.interpretation?.verdict?.match(/Grade: (\w)/)?.[1] || 'N/A'}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Strategic Action</span>
+                                    <span className="text-[12px] font-black text-emerald-400 uppercase">
+                                        {sellData.interpretation?.verdict?.match(/Action: (\w+)/)?.[1] || 'MONITOR'}
+                                    </span>
                                 </div>
                                 <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10 flex items-center gap-2">
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Action</span>
-                                    <span className="text-[12px] font-black text-white">{sellData.interpretation?.verdict?.match(/Action: (\w+)/)?.[1] || 'N/A'}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Market Health</span>
+                                    <span className="text-[12px] font-black text-white">{sellData.resellScore}% Stability</span>
                                 </div>
                             </div>
                         </div>

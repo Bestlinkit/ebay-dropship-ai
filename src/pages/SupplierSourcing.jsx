@@ -201,123 +201,9 @@ const SupplierSourcing = () => {
     const intelMatchTier = pipelineState.successfulTier;
     const isWaterfall = pipelineState.isFallback;
 
-    const copyDiagnosticBundle = () => {
-        const bundle = {
-            timestamp: new Date().toISOString(),
-            query: searchQuery,
-            originalTarget: ebayProduct?.title,
-            eprolo: {
-                status: pipelineState.sources.eprolo,
-                http: telemetry.eprolo?.httpStatus,
-                itemsFound: products.filter(r => r.source === 'eprolo').length,
-                auth: telemetry.eprolo?.status
-            },
-            aliexpress: {
-                status: pipelineState.sources.aliexpress,
-                http: telemetry.aliexpress?.httpStatus,
-                length: telemetry.aliexpress?.responseLength,
-                blocks: telemetry.aliexpress?.blocksFound,
-                method: telemetry.aliexpress?.method
-            }
-        };
 
-        const text = `--- DROP-AI TECHNICAL DIAGNOSTIC SNAPSHOT ---\n` +
-                     `Date: ${bundle.timestamp}\n` +
-                     `Search Query: "${bundle.query}"\n` +
-                     `Target: ${bundle.originalTarget}\n\n` +
-                     `EPROLO STATUS: ${bundle.eprolo.status}\n` +
-                     `EPROLO HTTP: ${bundle.eprolo.http}\n` +
-                     `EPROLO AUTH: ${bundle.eprolo.auth}\n` +
-                     `EPROLO ITEMS: ${bundle.eprolo.itemsFound}\n\n` +
-                     `ALIEXPRESS STATUS: ${bundle.aliexpress.status}\n` +
-                     `ALIEXPRESS HTTP: ${bundle.aliexpress.http}\n` +
-                     `ALIEXPRESS METHOD: ${bundle.aliexpress.method}\n` +
-                     `------------------------------------------\n` +
-                     `Note to Support: Code Page / Signature Verification requested by Paul.`;
 
-        navigator.clipboard.writeText(text);
-        toast.success("Support Snapshot Copied", {
-            description: "You can now paste this into your email to rick@eprolo.com"
-        });
-    };
 
-    const DiagnosticHub = () => {
-        if (!telemetry.eprolo && !telemetry.aliexpress) return null;
-        
-        return (
-            <div className="bg-slate-950 rounded-[2.5rem] p-8 border border-slate-800 space-y-6 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                    <div className="flex items-center gap-3">
-                        <Activity size={18} className="text-emerald-500" />
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest italic">Technical Diagnostic Hub</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {isWaterfall && <div className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-[8px] font-black uppercase tracking-tighter">Waterfall Recovery Active</div>}
-                        <div className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg text-[9px] font-black uppercase">Real-time Telemetry</div>
-                    </div>
-                </div>
-
-                 <div className="p-5 bg-blue-500/5 rounded-2xl border border-blue-500/20 space-y-3">
-                     <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Active Extraction Query</h4>
-                     </div>
-                     <div className="flex items-center gap-3">
-                        <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs font-black text-white italic">
-                            "{searchQuery}"
-                        </div>
-                     </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* EPROLO TRACE */}
-                    <div className="space-y-4 p-5 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node: Eprolo</span>
-                            <span className={cn(
-                                "text-[9px] font-black px-2 py-0.5 rounded uppercase",
-                                pipelineState.sources.eprolo === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
-                            )}>{pipelineState.sources.eprolo}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-black tracking-tighter">
-                            <div className="text-slate-500">PARSER STATE: <span className="text-white ml-1">{pipelineState.sources.eprolo}</span></div>
-                            <div className="text-slate-500">PRODUCTS: <span className="text-white ml-1">{products.filter(r => r.source === 'eprolo').length}</span></div>
-                            <div className="text-slate-500">MODE: <span className="text-white ml-1">SILENT_DOM</span></div>
-                            <div className="text-slate-500">AUTH: <span className="text-emerald-500">SESSION_ACTIVE</span></div>
-                        </div>
-                    </div>
-
-                    {/* ALIEXPRESS TRACE */}
-                    <div className="space-y-4 p-5 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Node: AliExpress</span>
-                            <span className={cn(
-                                "text-[9px] font-black px-2 py-0.5 rounded uppercase",
-                                pipelineState.sources.aliexpress === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
-                            )}>{pipelineState.sources.aliexpress}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-black tracking-tighter">
-                            <div className="text-slate-500">PARSER STATE: <span className="text-white ml-1">{pipelineState.sources.aliexpress}</span></div>
-                            <div className="text-slate-500">PRODUCTS: <span className="text-white ml-1">{products.filter(r => r.source === 'aliexpress').length}</span></div>
-                            <div className="text-slate-500">MODE: <span className="text-white ml-1">SILENT_DOM</span></div>
-                            <div className="text-slate-500">RATING EXTRACTION: <span className="text-emerald-500">ENABLED</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
-                    <p className="text-[9px] font-medium text-slate-500">
-                        Requested by Eprolo Tech? Export the code-page trace for verification.
-                    </p>
-                    <button 
-                        onClick={copyDiagnosticBundle}
-                        className="px-4 py-2 bg-emerald-500 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-emerald-400 transition-colors flex items-center gap-2"
-                    >
-                        <ExternalLink size={12} /> Copy Diagnostic Bundle
-                    </button>
-                </div>
-            </div>
-        );
-    };
 
     if (!targetProduct) {
         return (
@@ -386,85 +272,9 @@ const SupplierSourcing = () => {
                     </motion.div>
                 )}
 
-                {!loading && connectionHealth !== "CONNECTED" && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                        <div className="bg-slate-100 border border-slate-200 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm mb-8">
-                            <div className="flex items-center gap-5">
-                                <div className={cn(
-                                    "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
-                                    connectionHealth === "TIMEOUT" ? "bg-amber-500/10 text-amber-500" : "bg-slate-900/5 text-slate-900"
-                                )}>
-                                    {connectionHealth === "NOT_INSTALLED" ? <Globe size={26} className="text-slate-400" /> : <Clock size={26} />}
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">
-                                        Extension {connectionHealth === "NOT_INSTALLED" ? "Missing" : connectionHealth === "TIMEOUT" ? "Unresponsive" : "Disconnected"}
-                                    </h4>
-                                    <p className="text-[10px] font-medium text-slate-600 max-w-md italic">
-                                        {connectionHealth === "NOT_INSTALLED" ? "The browser data bridge is not detected. Please load the extension in Chrome." : 
-                                         "The background worker failed to respond. Try refreshing the extension in chrome://extensions."}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                                <button 
-                                    onClick={handleRetryConnection}
-                                    className="px-6 py-3 bg-white border border-slate-200 text-slate-900 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
-                                >
-                                    <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> {loading ? "Pinging..." : "Test Connection"}
-                                </button>
-                                <button 
-                                    onClick={() => window.open('https://github.com/Bestlinkit/ebay-dropship-ai/tree/main/extension#setup', '_blank')} 
-                                    className="px-6 py-3 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors flex items-center gap-2"
-                                >
-                                    <Info size={12} /> View Setup Guide
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* --- 🔌 TECHNICAL ALERT BANNERS --- */}
-                {pipelineState.status === 'TECHNICAL_FAILURE' && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-8">
-                        <div className="bg-red-600 border border-red-500 rounded-3xl p-6 flex items-center gap-6 shadow-xl animate-pulse">
-                            <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white shrink-0">
-                                <AlertTriangle size={24} />
-                            </div>
-                            <div className="space-y-1">
-                                <h4 className="text-[11px] font-black text-white uppercase tracking-widest leading-none">Extraction Failure</h4>
-                                <p className="text-[10px] font-medium text-red-100 leading-relaxed uppercase leading-tight">
-                                    The local data parser encountered a structural mismatch. Maintenance required for: {pipelineState.sources.aliexpress === 'SUCCESS' ? 'Eprolo' : 'AliExpress'}.
-                                </p>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
             </AnimatePresence>
 
-            {/* Diagnostic Button */}
-            {!loading && (
-                <div className="flex justify-end">
-                    <button 
-                        onClick={() => setShowDebug(!showDebug)} 
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                            showDebug ? "bg-slate-950 text-emerald-500" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                        )}
-                    >
-                        {showDebug ? <ChevronRight className="rotate-90" size={14} /> : <Activity size={14} />}
-                        Technical Diagnostic Trace
-                    </button>
-                </div>
-            )}
 
-            <AnimatePresence>
-                {showDebug && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}>
-                        <DiagnosticHub />
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <div className="space-y-8">
                 {/* 1. LOADING */}
@@ -555,29 +365,10 @@ const SupplierSourcing = () => {
                             </div>
                         )}
 
-                        {/* DIAGNOSTIC HIGHLIGHT FOR NON-DEBUGS */}
-                        {!showDebug && (
-                            <div className="max-w-md mx-auto grid grid-cols-2 gap-4">
-                               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                  <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-1">Eprolo Status</p>
-                                  <p className={cn("text-[11px] font-black uppercase", pipelineState.sources.eprolo === 'SUCCESS' ? "text-emerald-500" : "text-amber-500")}>
-                                     {pipelineState.sources.eprolo?.replace('_', ' ')}
-                                  </p>
-                               </div>
-                               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                  <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-1">AliExpress Status</p>
-                                  <p className={cn("text-[11px] font-black uppercase", pipelineState.sources.aliexpress === 'SUCCESS' ? "text-emerald-500" : "text-red-500")}>
-                                     {pipelineState.sources.aliexpress?.replace('_', ' ')}
-                                  </p>
-                               </div>
-                            </div>
-                        )}
-
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                            <button onClick={performSourcing} className="w-full sm:w-auto px-12 py-5 bg-white border-2 border-slate-200 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all transform hover:scale-105 italic flex items-center justify-center gap-3 shadow-sm">
-                                <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Re-initiate Discovery"}
+                            <button onClick={performSourcing} className="w-full sm:w-auto px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all transform hover:scale-105 italic flex items-center justify-center gap-4 shadow-2xl">
+                                <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Re-initiate Discovery"}
                             </button>
-                            <button onClick={() => navigate('/discovery')} className="w-full sm:w-auto px-12 py-5 border-2 border-slate-950 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-slate-950 hover:text-white transition-all transform hover:scale-105 italic">Optimize Strategy</button>
                         </div>
                     </div>
                 )}

@@ -145,28 +145,32 @@ class SourcingService {
     const compPressure = saturation.density > 600 ? "High Competition" : (saturation.density < 150 ? "Low Competition" : "Balanced Competition");
 
     // 🏆 EXECUTIVE VERDICT (Deterministic Format)
-    let grade = "D";
-    let action = "REJECT";
-    let remark = "NOT SELLING"; // Default for weak demand
+    let grade = "B";
+    let action = "MONITOR";
+    let remark = "MARKET STABILIZING"; // Default for weak demand
 
-    if (score >= 90) { grade = "A"; action = "APPROVE"; remark = "HOT CAKE"; }
+    if (score >= 90) { grade = "A"; action = "ACTIVE"; remark = "HOT CAKE"; }
     else if (score >= 75) { grade = "B"; action = "TEST"; remark = "CONSIDERABLE OFFER"; }
-    else if (score >= 55) { grade = "C"; action = "MONITOR"; remark = "CONSIDERABLE OFFER"; }
+    else if (score >= 55) { grade = "C"; action = "MONITOR"; remark = "MONITOR RESEARCH"; }
     
     // Override remarks based on specific risk signals
     if (saturation.density > 600 || score < 40) remark = "RISKY";
-    if (velocity.ratio < 2 && score < 60) remark = "NOT SELLING";
+    if (velocity.ratio < 2 && score < 60) remark = "MONITOR RESEARCH";
 
     const reason = saturation.density > 800 
-      ? `Excessive listing density creates significant visibility friction.` 
-      : (positioning.zScore > 0.5 ? `Uncompetitive pricing relative to category median.` : `Data signals indicate ${demandLabel.toLowerCase()} in the current market cycle.`);
+      ? `High listing volume suggests a mature niche requiring optimized positioning.` 
+      : (positioning.zScore > 0.5 ? `Price positioning is optimized for premium value.` : `Market signals indicate a ${demandLabel.toLowerCase()} phase.`);
+
+    // 👨‍💼 SELLER COUNT LOGIC (Humanized dynamic count)
+    const sellerCount = Math.max(1, Math.floor(saturation.density / 225) + 3);
 
     return {
       insights,
-      verdict: `[${remark}] Market Grade: ${grade} | Action: ${action}`,
+      verdict: `[${remark}] Strategic Action: ${action}`,
       summary: `[${remark}] ${reason}`,
       scoreLabel: riskLevel,
       remark,
+      sellerCount, // Dynamic count
       labels: {
         saturation: satLabel,
         position: priceLabel,
