@@ -55,8 +55,14 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
     const { metrics, interpretation } = sellData;
     const labels = interpretation?.labels || {};
 
+    const getScoreColor = (score) => {
+        if (score >= 70) return "text-emerald-500";
+        if (score >= 40) return "text-yellow-500";
+        return "text-rose-500";
+    };
+
     const handleViewDetails = () => {
-        navigate(`/intelligence-review/${product.id}`, { state: { product } });
+        navigate(`/intelligence-review/${product.id}`, { state: { product, batchContext } });
     };
 
     return (
@@ -65,9 +71,10 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
             {/* 1. LEFT - IMAGE (Rounded with Padding) */}
             <div className="w-40 h-40 bg-white rounded-3xl p-4 shrink-0 overflow-hidden relative shadow-inner">
                 <img 
-                    src={product?.images?.[0] || product?.image || "/placeholder-product.png"} 
+                    src={product?.thumbnail || product?.image || product?.images?.[0] || product?.image_url || "/placeholder-product.png"} 
                     alt={product.title} 
                     className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" 
+                    onError={(e) => { e.target.src = "/placeholder-product.png"; }}
                 />
             </div>
 
@@ -125,7 +132,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
             <div className="flex items-center gap-12 shrink-0">
                 <div className="flex flex-col items-end gap-1 px-8 border-l border-white/5">
                     <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">RESELL SCORE</span>
-                    <span className="text-4xl font-bold text-emerald-500 tracking-tighter">
+                    <span className={cn("text-4xl font-bold tracking-tighter", getScoreColor(sellData.resellScore))}>
                         {sellData.resellScore}%
                     </span>
                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded border border-white/10 mt-1">

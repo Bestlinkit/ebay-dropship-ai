@@ -70,10 +70,18 @@ class SourcingService {
       momentum: trendData,
       grade: resellScore >= 80 ? 'A' : (resellScore >= 60 ? 'B' : (resellScore >= 40 ? 'C' : 'D')),
       interpretation: {
+        classification: resellScore >= 75 ? "HIGH-VELOCITY OPPORTUNITY" : (resellScore >= 50 ? "BREAD & BUTTER PRODUCT" : "HIGH-RISK SEGMENT"),
+        action: resellScore >= 75 ? "SCALE" : (resellScore >= 50 ? "OBSERVE" : "AVOID"),
+        basis: [
+          `Velocity Index: ${velocity.toFixed(0)}%`,
+          `Market Trend: ${growthVector}`,
+          `Price Stability: ${priceStability.toFixed(0)}%`
+        ],
+        marketIndex: (resellScore * 1.2).toFixed(1),
         labels: {
           competition: competitionInverse < 30 ? "HIGH COMPETITION" : (competitionInverse > 70 ? "LOW COMPETITION" : "STANDARD"),
           growthVector: growthVector,
-          confidence: resellScore >= 75 ? "HIGH CONFIDENCE" : (resellScore >= 50 ? "MEDIUM" : "LOW CONFIDENCE")
+          confidence: resellScore >= 75 ? "HIGH" : (resellScore >= 50 ? "MEDIUM" : "LOW")
         },
         analysis: this._generateIntelligenceReport(resellScore, { velocity, trend, competitionInverse, priceStability })
       }

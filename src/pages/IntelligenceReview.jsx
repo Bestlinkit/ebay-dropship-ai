@@ -191,9 +191,20 @@ const IntelligenceReview = () => {
                                 <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
                                     <Target size={20} />
                                 </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Market Classification</span>
-                                <span className="ml-auto px-4 py-1.5 rounded-full bg-slate-900 border border-white/10 text-[10px] font-black text-white uppercase tracking-widest">
-                                    Grade: {sellData.interpretation?.grade}
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Market Classification</span>
+                                    <span className={cn(
+                                        "text-[10px] font-black uppercase",
+                                        sellData.resellScore >= 70 ? "text-emerald-400" : (sellData.resellScore >= 40 ? "text-yellow-400" : "text-rose-400")
+                                    )}>
+                                        {sellData.interpretation?.classification}
+                                    </span>
+                                </div>
+                                <span className={cn(
+                                    "ml-auto px-4 py-1.5 rounded-full bg-slate-900 border border-white/10 text-[10px] font-black uppercase tracking-widest",
+                                    sellData.resellScore >= 70 ? "text-emerald-400" : (sellData.resellScore >= 40 ? "text-yellow-400" : "text-rose-400")
+                                )}>
+                                    Grade: {sellData.grade}
                                 </span>
                             </div>
                             
@@ -201,7 +212,12 @@ const IntelligenceReview = () => {
                                 <div className="space-y-4">
                                    <div className="flex flex-col">
                                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Target Action</span>
-                                      <span className="text-4xl font-black text-emerald-400 uppercase italic tracking-tighter">{sellData.interpretation?.action}</span>
+                                      <span className={cn(
+                                          "text-4xl font-black uppercase italic tracking-tighter",
+                                          sellData.resellScore >= 70 ? "text-emerald-400" : (sellData.resellScore >= 40 ? "text-yellow-400" : "text-rose-400")
+                                      )}>
+                                          {sellData.interpretation?.action}
+                                      </span>
                                    </div>
                                 </div>
                                 
@@ -226,9 +242,14 @@ const IntelligenceReview = () => {
                <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
                   <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Resell Score</p>
                   <div className="flex flex-wrap items-center gap-6">
-                     <span className="text-6xl font-black text-white italic tracking-tighter leading-none">{sellData.resellScore}</span>
+                     <span className={cn(
+                         "text-6xl font-black italic tracking-tighter leading-none",
+                         sellData.resellScore >= 70 ? "text-emerald-500" : (sellData.resellScore >= 40 ? "text-yellow-500" : "text-rose-500")
+                     )}>
+                         {sellData.resellScore}%
+                     </span>
                      <span className="text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border border-white/10 text-slate-400">
-                        {sellData.interpretation?.grade} CLASSIFICATION
+                        {sellData.grade} CLASSIFICATION
                      </span>
                   </div>
                </div>
@@ -236,10 +257,12 @@ const IntelligenceReview = () => {
                <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
                   <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Market Index</p>
                   <div className="flex items-center gap-6">
-                     <Activity className="text-slate-500" size={40} />
+                     <Activity className={cn(
+                         sellData.resellScore >= 70 ? "text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : (sellData.resellScore >= 40 ? "text-yellow-500" : "text-rose-500")
+                     )} size={40} />
                      <div className="flex flex-col">
                         <span className="text-xl font-black italic tracking-tighter text-white uppercase leading-none">
-                           {sellData.interpretation?.action}
+                           {sellData.interpretation?.marketIndex} INDEX
                         </span>
                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2 px-1">Calculated Signal Strength</span>
                      </div>
