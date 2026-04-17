@@ -1,7 +1,7 @@
 /**
- * Unified Crystal Bridge (v31.3-COMPACT)
- * Compact version to prevent truncation errors.
- * USES WEB CRYPTO API FOR MD5.
+ * Unified Crystal Bridge (v34.0-HMAC)
+ * Protocol: AliExpress DS v2.0 (Singapore Global)
+ * Security: HMAC-SHA256 with Path-Prefix Signing
  */
 
 const corsHeaders = {
@@ -10,14 +10,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*"
 };
 
-// 🛡️ NATIVE ASYNC MD5 (Prevents 150 lines of legacy code)
-async function md5(message) {
-  const msgUint8 = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('MD5', msgUint8);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+// 🛡️ NATIVE HMAC-SHA256 (Required for v2.0 Protocol)
+async function hmacSha256(key, message) {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(key);
+  const messageData = encoder.encode(message);
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', 
+    keyData, 
+    { name: 'HMAC', hash: 'SHA-256' }, 
+    false, 
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
 }
 
-const fetchWithTimeout = (url, options, timeout = 8000) =>
+const fetchWithTimeout = (url, options, timeout = 10000) =>
   Promise.race([
     fetch(url, options),
     new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), timeout))
@@ -30,7 +44,7 @@ export default {
 
     const pathname = url.pathname.replace(/\/+$/, '') || '/';
 
-    // 1. EBAY GATEWAY (Priority)
+    // 1. EBAY GATEWAY (Remains legacy passthrough)
     const targetUrl = url.searchParams.get("url");
     if (targetUrl) {
       try {
@@ -39,7 +53,6 @@ export default {
         const auth = url.searchParams.get("auth");
         const callname = url.searchParams.get("callname");
         const siteid = url.searchParams.get("siteid");
-
         if (auth) headers.set("X-EBAY-API-IAF-TOKEN", auth);
         if (callname) headers.set("X-EBAY-API-CALL-NAME", callname);
         if (siteid) headers.set("X-EBAY-API-SITEID", siteid);
@@ -56,7 +69,7 @@ export default {
       } catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders }); }
     }
 
-    // 2. ALI SEARCH (Hardened Scraper)
+    // 2. ALI SEARCH (Scraper Fallback)
     if (pathname === "/aliexpress-search") {
       try {
         const query = url.searchParams.get("q");
@@ -64,33 +77,49 @@ export default {
           headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" }
         });
         const html = await res.text();
-        if (html.includes('firewall')) return new Response("THROTTLED", { status: 429, headers: corsHeaders });
         return new Response(html, { headers: { ...corsHeaders, "Content-Type": "text/html" } });
       } catch (err) { return new Response(err.message, { status: 500, headers: corsHeaders }); }
     }
 
-    // 3. ALI DS API (Official)
-    if (pathname === "/api/ali-ds-proxy") {
+    // 3. ALI DS API v2.0 (OFFICIAL SYNC GATEWAY)
+    if (pathname === "/api/ali-ds-proxy" || pathname === "/ali-ds-proxy") {
       try {
         const params = await request.json();
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
         
-        let signStr = ALI_SECRET;
-        Object.keys(params).sort().forEach(k => { signStr += k + params[k]; });
-        signStr += ALI_SECRET;
+        // v2.0 Protocol: Singapore Gateway
+        const GATEWAY = 'https://api-sg.aliexpress.com/sync';
+        
+        // HMAC Signing Prep: /sync + sorted keyValues
+        let signBase = "/sync"; 
+        Object.keys(params).sort().forEach(k => {
+            if (params[k] !== undefined && params[k] !== null) {
+                signBase += k + params[k];
+            }
+        });
 
-        const sign = await md5(signStr);
+        const sign = await hmacSha256(ALI_SECRET, signBase);
         const searchParams = new URLSearchParams({ ...params, sign });
         
-        const res = await fetchWithTimeout('https://eco.taobao.com/router/rest', {
+        const res = await fetchWithTimeout(GATEWAY, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: searchParams.toString()
         });
-        return new Response(await res.text(), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      } catch (err) { return new Response(err.message, { status: 500, headers: corsHeaders }); }
+
+        const data = await res.text();
+        return new Response(data, {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message, context: "v2.0 Protocol Failure" }), { 
+          status: 500, 
+          headers: corsHeaders 
+        });
+      }
     }
 
-    return new Response("Crystal Bridge v31.3 Live", { headers: corsHeaders });
+    return new Response("Crystal Bridge v34.0 HMAC Live", { headers: corsHeaders });
   }
 };

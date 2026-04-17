@@ -178,13 +178,13 @@ class SourcingService {
                 timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
                 format: 'json',
                 v: '2.0',
-                sign_method: 'md5',
+                sign_method: 'hmac-sha256',  // UPGRADED (v34.0)
                 page_size: '20',
                 page_no: '1',
-                feed_id: '1', // Intelligence Intelligence
-                target_currency: 'USD',  // MANDATORY for keyword search
-                target_language: 'EN',  // MANDATORY for keyword search
-                ship_to_country: 'US',  // MANDATORY for keyword search
+                feed_id: '1', 
+                target_currency: 'USD',
+                target_language: 'EN',
+                ship_to_country: 'US',
                 keywords: currentQuery
             };
 
