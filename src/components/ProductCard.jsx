@@ -114,221 +114,133 @@ const ProductCard = React.memo(({ product, onAdd, batchContext, isCompact = fals
   const isTopPick = sellData.status === 'TOP PICK';
   const remark = sellData.remark || "Analyzing Category...";
 
-  if (isCompact) {
-    return (
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        whileHover={{ y: -5, scale: 1.02 }}
-        onClick={() => onAdd(product)}
-        className={cn(
-          "group relative flex flex-col gap-4 p-5 bg-slate-900 border border-white/5 rounded-[2.5rem] cursor-pointer hover:border-emerald-500/50 transition-all shadow-xl",
-          isTopPick && "border-green-500/20 bg-green-500/5"
-        )}
-      >
-        <div className="relative aspect-square rounded-2xl overflow-hidden bg-[#0A0F1E] border border-white/5">
-           <img 
-             src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
-             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-           />
-           <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-              <ConfidenceBadge level={sellData.confidence} />
-              <div className="px-2 py-1 bg-emerald-500 text-white rounded-md text-[7px] font-black uppercase tracking-widest shadow-xl">
-                Score: {sellData.resellScore}
-              </div>
-           </div>
-        </div>
-        
-        <div className="space-y-2">
-           <h4 className="text-[10px] font-black text-white uppercase tracking-tight line-clamp-1 opacity-80 group-hover:opacity-100">{product.title}</h4>
-           <div className="flex items-center justify-between">
-              <span className="text-xl font-black text-white italic tracking-tighter">${(Number(product.price) || 0).toFixed(2)}</span>
-              <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                 <ArrowRight size={14} />
-              </div>
-           </div>
-        </div>
-      </motion.div>
-    );
-  }
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2 }}
+      whileHover={{ y: -5 }}
       className={cn(
-        "group saas-card p-6 md:p-10 flex flex-col gap-8 relative overflow-hidden",
-        isTopPick && "border-emerald-500/20 shadow-[0_40px_80px_rgba(0,0,0,0.6)]",
-        "bg-slate-900 border border-white/5 rounded-[3.5rem] transition-all duration-500"
+        "saas-card group relative p-5 bg-slate-900 border border-white/5 rounded-[2.5rem] transition-all duration-500 hover:border-emerald-500/30 overflow-hidden",
+        isTopPick && "border-emerald-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
       )}
     >
-      {/* 🚀 1. TITLE & PUNCHY VERDICT HEADER */}
-      <div className="flex items-center justify-between gap-6">
-         <div className="flex flex-col gap-1 flex-1">
-            <h3 className="text-[12px] md:text-[14px] font-black text-white leading-tight uppercase tracking-tightest line-clamp-1 opacity-80 group-hover:opacity-100 transition-opacity italic">
-               {product.title}
-            </h3>
-            <div className="flex items-center gap-2">
-               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{product.id}</span>
+      {/* 🚀 1. IMAGE & TOP BADGE */}
+      <div className="relative aspect-square rounded-3xl overflow-hidden mb-5 bg-[#0A0F1E]">
+        <SafeImage 
+          src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
+          alt={product?.title} 
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+        />
+        
+        {remark && (
+          <div className={cn(
+            "absolute top-4 right-4 px-3 py-1.5 rounded-xl border backdrop-blur-md shadow-2xl transition-all duration-500",
+            remark === 'HOT CAKE' ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" :
+            remark === 'RISKY' ? "bg-rose-500/20 border-rose-500/30 text-rose-400" :
+            "bg-slate-950/40 border-white/10 text-slate-400"
+          )}>
+            <div className="flex items-center gap-1.5">
+              {remark === 'HOT CAKE' && <Zap size={10} className="fill-emerald-400" />}
+              <span className="text-[9px] font-black uppercase tracking-widest">{remark}</span>
             </div>
-         </div>
-         {remark && (
-            <div className={cn(
-               "px-4 py-2 rounded-full border flex items-center gap-3 animate-in slide-in-from-right-4 duration-500",
-               remark === 'HOT CAKE' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-               remark === 'RISKY' ? "bg-rose-500/10 border-rose-500/20 text-rose-400" :
-               "bg-white/5 border-white/10 text-slate-400"
-            )}>
-               {remark === 'HOT CAKE' && <Zap size={14} className="fill-emerald-400 text-emerald-400" />}
-               <span className="text-[10px] font-black uppercase tracking-widest italic">{remark}</span>
-            </div>
-         )}
+          </div>
+        )}
+
+        {isTopPick && (
+          <div className="absolute top-4 left-4 w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-2xl rotate-12">
+            <StarIcon size={16} className="fill-white" />
+          </div>
+        )}
       </div>
 
       {/* 📦 2. CONTENT CORE */}
-      <div className="flex flex-col md:flex-row items-center gap-12">
-         <div className="relative group/img shrink-0">
-            <SafeImage 
-              src={product?.images?.[0] || product?.image || product?.thumbnail || product?.image_url || "/placeholder-product.png"} 
-              alt={product?.title} 
-              className="w-32 h-32 md:w-44 md:h-44 shadow-3xl rounded-[2.5rem] object-cover transition-transform duration-700 group-hover/img:scale-105" 
-            />
-            {isTopPick && (
-               <div className="absolute -top-3 -right-3 w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-2xl rotate-12 group-hover/img:rotate-0 transition-transform">
-                  <StarIcon size={24} className="fill-white" />
-               </div>
-            )}
-         </div>
-
-         <div className="flex-1 min-w-0 flex flex-col gap-8">
-            <div className="flex items-center gap-10">
-               <div className="flex flex-col">
-                  <span className="text-5xl font-black text-white italic tracking-tightest">
-                    {product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
-                  </span>
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Target Retail Value</span>
-               </div>
-               <div className="h-12 w-px bg-white/10" />
-               <ConfidenceBadge level={sellData.confidence} />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-12">
-               <div className="flex flex-col gap-2">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Saturation</span>
-                  <div className="flex flex-col">
-                     <span className="text-[13px] font-black text-white italic tracking-tight">{sellData.interpretation?.labels?.saturation}</span>
-                     <span className="text-[9px] font-bold text-slate-600">Density: {metrics.saturation.density}</span>
-                  </div>
-               </div>
-               <div className="flex flex-col gap-2 border-l border-white/5 pl-12">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pricing Strategy</span>
-                  <div className="flex flex-col">
-                     <span className="text-[13px] font-black text-white italic tracking-tight">
-                        {sellData.interpretation?.labels?.position === 'At Market Median' ? 'COMPETITIVE MARKET PRICE' : 
-                         (sellData.interpretation?.labels?.position === 'Below Market Median' ? 'OPTIMIZED ENTRY VALUE' : 'PREMIUM POSITION')}
-                     </span>
-                     <span className="text-[9px] font-bold text-slate-600">Z-Score: {metrics.positioning.zScore.toFixed(2)}</span>
-                  </div>
-               </div>
-               <div className="flex flex-col gap-2 border-l border-white/5 pl-12">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Growth Velocity</span>
-                  <div className="flex flex-col">
-                     <span className="text-[13px] font-black text-white italic tracking-tight">{sellData.interpretation?.labels?.demand}</span>
-                     <span className="text-[9px] font-bold text-slate-600">Rate: {metrics.velocity.ratio.toFixed(1)}%</span>
-                  </div>
-               </div>
-            </div>
-         </div>
-
-         <div className="flex flex-col items-center gap-4 shrink-0">
-            <div className={cn(
-               "w-24 h-24 md:w-32 md:h-32 rounded-[3.5rem] flex flex-col items-center justify-center font-black italic border shadow-3xl relative transition-all duration-500 group-hover:scale-105",
-               isTopPick ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-slate-800/50 border-white/5 text-white"
-            )}>
-               <span className="text-4xl md:text-5xl">{sellData.resellScore}</span>
-               <span className="text-[8px] font-black uppercase tracking-widest opacity-60">Resell Score</span>
-            </div>
-         </div>
-      </div>
-
-      {/* 📊 RESTORED TREND GRAPH & ANALYTICAL PULSE */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 bg-white/[0.01] border-y border-white/5">
-          <div className="space-y-4">
-             <div className="flex items-center gap-2">
-                <TrendingUp size={12} className="text-emerald-500" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">30-Day Market Velocity</span>
-             </div>
-             <div className="h-12 w-full flex items-end">
-                <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={400} height={48} />
-             </div>
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-[11px] font-black text-white/90 uppercase tracking-tighter line-clamp-2 leading-tight group-hover:text-white transition-colors h-8">
+            {product.title}
+          </h3>
+          <div className="flex items-center gap-2 mt-1 opacity-40">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{product.id}</span>
           </div>
-          <div className="flex flex-col justify-center gap-2 pr-6">
-             <div className="flex items-center gap-2">
-                <ShieldCheck size={12} className="text-emerald-500" />
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Growth Recommendation</span>
-             </div>
-             <p className="text-[11px] font-medium text-slate-400 leading-relaxed italic opacity-80 border-l-2 border-white/5 pl-4">
-                "{sellData.summary?.split(']').pop()?.trim()}"
-             </p>
+        </div>
+
+        <div className="flex items-baseline justify-between pt-2">
+          <div className="flex flex-col">
+            <span className="text-2xl font-black text-white italic tracking-tightest">
+              {product.price ? `$${Number(product.price).toFixed(2)}` : 'N/A'}
+            </span>
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Market Value</span>
           </div>
+          <div className="text-right">
+            <div className="text-[18px] font-black text-emerald-400 italic leading-none">{sellData.resellScore}</div>
+            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Resell Score</div>
+          </div>
+        </div>
+
+        {/* 📉 TREND PREVIEW */}
+        <div className="py-3 border-y border-white/5 space-y-2">
+           <div className="flex items-center justify-between">
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Growth Pulse</span>
+              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">{metrics.velocity.ratio.toFixed(1)}% Velocity</span>
+           </div>
+           <div className="h-8 flex items-end opacity-60 hover:opacity-100 transition-opacity">
+              <MiniMomentumLine data={sellData.momentum} color={sellData.color} width={300} height={32} />
+           </div>
+        </div>
+
+        {/* 🏷️ LABELS GRID */}
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="space-y-1">
+            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Strategy</span>
+            <p className="text-[9px] font-black text-white uppercase italic truncate">
+              {sellData.interpretation?.labels?.position === 'At Market Median' ? 'COMPETITIVE' : 
+               (sellData.interpretation?.labels?.position === 'Below Market Median' ? 'OPTIMIZED' : 'PREMIUM')}
+            </p>
+          </div>
+          <div className="space-y-1 text-right">
+            <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Saturation</span>
+            <p className="text-[9px] font-black text-white uppercase italic truncate">{sellData.interpretation?.labels?.saturation}</p>
+          </div>
+        </div>
       </div>
 
       {/* 🛠️ 3. ACTION FOOTER */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-2">
-         <div className="flex items-center gap-4">
-            <div className="flex items-center -space-x-3">
-               {[1,2,3].map(i => (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 overflow-hidden">
-                     <img src={`https://i.pravatar.cc/100?u=${i + product.id}`} className="w-full h-full object-cover grayscale opacity-50" />
-                  </div>
-               ))}
-            </div>
-            <span className="text-[10px] font-bold text-slate-500">
-               <span className="text-white">{sellData.sellerCount || 12}+ Sellers</span> optimized this niche
-            </span>
-         </div>
+      <div className="flex items-center gap-2 mt-6">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd({
+              ...product,
+              sellData
+            });
+            setIsAdded(true);
+          }}
+          className={cn(
+            "flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xl",
+            isAdded ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500" : "bg-white text-slate-950 hover:bg-emerald-400"
+          )}
+        >
+          {isAdded ? "Added" : <><Plus size={12} /> Add to Store</>}
+        </button>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewAnalysis();
+          }}
+          className="w-10 h-10 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0"
+          title="View Analysis"
+        >
+          <BarChart3 size={14} />
+        </button>
+      </div>
 
-         <div className="flex items-center gap-3 w-full md:w-auto">
-            {!isAdded ? (
-               <button 
-                 onClick={(e) => {
-                   e.stopPropagation();
-                   onAdd({
-                     ...product,
-                     id: product.id,
-                     title: product.title,
-                     price: Number(product.price) || 0,
-                     image: product.image || product.thumbnail || product.image_url || null
-                   });
-                   setIsAdded(true);
-                 }}
-                 className="flex-1 md:flex-none px-12 py-5 bg-white text-slate-950 hover:bg-emerald-500 hover:text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2"
-               >
-                 Add to Store <Plus size={18} className="group-hover/btn:rotate-90 transition-transform" />
-               </button>
-            ) : (
-               <button 
-                 onClick={(e) => {
-                   e.stopPropagation();
-                   navigate('/supplier-sourcing', { state: { ebayProduct: product, query: product.title, targetPrice: product.price, batchContext } });
-                 }}
-                 className="flex-1 md:flex-none px-12 py-5 bg-emerald-500 text-white rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 group/btn flex items-center justify-center gap-2 animate-in zoom-in-95"
-               >
-                 Explore Global Market <Rocket size={18} className="animate-bounce" />
-               </button>
-            )}
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/intelligence-review/${product.id}`, { state: { product, batchContext } });
-              }}
-              className="flex-1 md:flex-none px-10 py-5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all group/detail flex items-center justify-center gap-2"
-            >
-              View Analysis <ChevronRight size={18} className="group-hover/detail:translate-x-1 transition-transform" />
-            </button>
-         </div>
+      {/* 🤖 RECOMMENDATION TOOLTIP HOVER EFFECT (Glassmorphism) */}
+      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm p-6 flex flex-col items-center justify-center text-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none duration-500">
+         <ShieldCheck size={24} className="text-emerald-500 mb-4" />
+         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">Strategic Insight</span>
+         <p className="text-[11px] font-medium text-white italic leading-relaxed">
+            "{sellData.summary?.split(']').pop()?.trim()}"
+         </p>
       </div>
     </motion.div>
   );

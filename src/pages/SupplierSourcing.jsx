@@ -233,7 +233,7 @@ const SupplierSourcing = () => {
                     <div>
                         <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">Discovery Pipeline</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-emerald-500" /> Secure Sourcing Node v2.0
+                             <Lock size={12} className="text-emerald-500" /> Secure Intelligence Bridge v2.0
                         </p>
                     </div>
                 </div>

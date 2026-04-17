@@ -156,12 +156,12 @@ const IntelligenceReview = () => {
                             const Icon = IconMap[insight.icon] || Info;
                             
                             return (
-                                <div key={insight.id} className="p-6 bg-slate-950/40 border border-white/10 rounded-3xl flex flex-col gap-4 transition-all hover:bg-white/[0.08] hover:border-white/20 group/item shadow-2xl">
+                                <div key={insight.id} className="p-6 bg-slate-900/60 border border-white/5 rounded-[2.5rem] flex flex-col gap-4 transition-all hover:bg-emerald-500/5 hover:border-emerald-500/20 group/item shadow-2xl backdrop-blur-md">
                                     <div className={cn(
-                                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
-                                        insight.type === 'positive' ? "bg-emerald-500/20 text-emerald-400 group-hover/item:bg-emerald-500 group-hover/item:text-white" :
-                                        insight.type === 'negative' ? "bg-rose-500/20 text-rose-400 group-hover/item:bg-rose-500 group-hover/item:text-white" :
-                                        "bg-white/5 text-slate-200 group-hover/item:bg-white group-hover/item:text-slate-950"
+                                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-xl",
+                                        insight.type === 'positive' ? "bg-emerald-500/10 text-emerald-400 group-hover/item:bg-emerald-500 group-hover/item:text-slate-950" :
+                                        insight.type === 'negative' ? "bg-rose-500/10 text-rose-400 group-hover/item:bg-rose-500 group-hover/item:text-white" :
+                                        "bg-white/5 text-slate-300 group-hover/item:bg-white group-hover/item:text-slate-950"
                                     )}>
                                         <Icon size={24} />
                                     </div>
@@ -184,8 +184,8 @@ const IntelligenceReview = () => {
                         })}
                     </div>
 
-                    {/* Executive Verdict Overhaul */}
-                    <div className="p-10 bg-slate-900/60 border border-white/10 rounded-[2.5rem] relative overflow-hidden group shadow-3xl">
+                    {/* Strategic Intelligence Overhaul */}
+                    <div className="p-10 bg-[#0A0F1E] border border-white/5 rounded-[3rem] relative overflow-hidden group shadow-3xl">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32" />
                         
                         <div className="relative z-10 flex flex-col gap-6">
@@ -240,7 +240,7 @@ const IntelligenceReview = () => {
                </div>
 
                <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 hover:border-slate-700 transition-all shadow-2xl relative overflow-hidden">
-                  <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Seller Status</p>
+                  <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Market Fit</p>
                   <div className="flex items-center gap-6">
                      <Activity className={sellData.resellScore >= 60 ? "text-emerald-400" : "text-slate-600"} size={40} />
                      <div className="flex flex-col">
@@ -285,7 +285,7 @@ const IntelligenceReview = () => {
                      <Info size={24} className="text-emerald-500" />
                   </div>
                   <p className="text-[12px] font-medium text-slate-400 leading-relaxed">
-                    Initializing the sourcing bridge will cross-reference this market node against production-ready supply chains. No investment is committed at this stage.
+                    Initializing the sourcing bridge will cross-reference this market signal against production-ready supply chains. No investment is committed at this stage.
                   </p>
                </div>
                
