@@ -24,6 +24,7 @@ import SupplierSourcing from './pages/SupplierSourcing';
 import AliSourcing from './pages/AliSourcing';
 import SupplierProductDetail from './pages/SupplierProductDetail';
 import ProductImportPreview from './pages/ProductImportPreview';
+import AliExpressCallback from './pages/AliExpressCallback';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -151,10 +152,11 @@ function App() {
                 </ProtectedRoute>
               } />
 
-              {/* eBay API Routes */}
+              {/* API Routes */}
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/auth/ebay/callback" element={<AuthCallback />} />
               <Route path="/auth/ebay/declined" element={<AuthCallback />} />
+              <Route path="/callback" element={<AliExpressCallback />} />
             </Routes>
           </ErrorBoundary>
         </ThemeProvider>

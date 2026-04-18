@@ -172,20 +172,24 @@ class SourcingService {
         this.log({ type: 'ITERATION_PROBE', vector: 'OFFICIAL_API', attempt: i + 1, query: currentQuery });
 
         try {
+            const aliToken = sessionStorage.getItem('ali_access_token');
             const payload = {
-                method: 'aliexpress.ds.recommend.feed.get',
-                app_key: this.CONFIG.ALI_APP_KEY || '532310',
-                timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
-                format: 'json',
-                v: '2.0',
-                sign_method: 'hmac-sha256',
-                page_size: '20',
-                page_no: '1',
-                feed_name: 'intelligence', // MANDATORY for v2.0 Global (Singapore)
-                target_currency: 'USD',
-                target_language: 'EN',
-                ship_to_country: 'US',
-                keywords: currentQuery
+                path: '/sync/ds/feed/query',
+                params: {
+                    method: 'aliexpress.ds.feed.query',
+                    app_key: this.CONFIG.ALI_APP_KEY || '532310',
+                    timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+                    format: 'json',
+                    v: '2.0',
+                    sign_method: 'hmac-sha256',
+                    page_size: '20',
+                    page_no: '1',
+                    target_currency: 'USD',
+                    target_language: 'EN',
+                    ship_to_country: 'US',
+                    keywords: currentQuery,
+                    ...(aliToken && { session: aliToken }) // session is used for access_token in TOP/Global
+                }
             };
 
             const result = await this.runAliExpressOfficial(payload);

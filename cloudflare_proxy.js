@@ -82,16 +82,15 @@ export default {
     }
 
     // 3. ALI DS API v2.0 (OFFICIAL SYNC GATEWAY)
-    if (pathname === "/api/ali-ds-proxy" || pathname === "/ali-ds-proxy") {
+    if (pathname.includes("/ali-ds-proxy")) {
       try {
-        const params = await request.json();
+        const body = await request.json();
+        const { path = "/sync", params } = body;
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+        const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
         
-        // v2.0 Protocol: Singapore Gateway
-        const GATEWAY = 'https://api-sg.aliexpress.com/sync';
-        
-        // HMAC Signing Prep: Standard Sorted keyValues (No Prefix)
-        let signBase = ""; 
+        // v2.0 Protocol: HMAC-SHA256 with PATH prefix
+        let signBase = path; 
         Object.keys(params).sort().forEach(k => {
             if (params[k] !== undefined && params[k] !== null) {
                 signBase += k + params[k];
@@ -101,7 +100,9 @@ export default {
         const sign = await hmacSha256(ALI_SECRET, signBase);
         const searchParams = new URLSearchParams({ ...params, sign });
         
-        const res = await fetchWithTimeout(GATEWAY, {
+        const finalUrl = `${ALI_GATEWAY}${path}`;
+        
+        const res = await fetchWithTimeout(finalUrl, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: searchParams.toString()
@@ -113,13 +114,33 @@ export default {
         });
 
       } catch (err) {
-        return new Response(JSON.stringify({ error: err.message, context: "v2.0 Protocol Failure" }), { 
+        return new Response(JSON.stringify({ error: err.message, context: "AliExpress Proxy Failure" }), { 
           status: 500, 
           headers: corsHeaders 
         });
       }
     }
 
-    return new Response("Crystal Bridge v34.0 HMAC Live", { headers: corsHeaders });
+    // 4. ALIEXPRESS OAUTH HANDLERS
+    if (pathname === "/oauth/token" || pathname === "/oauth/token-refresh") {
+      try {
+        const params = await request.json();
+        const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
+        const tokenUrl = `${ALI_GATEWAY}/rest/auth/token/security/create`; // Common AliExpress token path
+        
+        const res = await fetch(tokenUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(params).toString()
+        });
+
+        const data = await res.text();
+        return new Response(data, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+      }
+    }
+
+    return new Response("Crystal Bridge v34.1 HMAC Live", { headers: corsHeaders });
   }
 };
