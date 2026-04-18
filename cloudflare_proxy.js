@@ -197,16 +197,15 @@ export default {
     if (pathname.includes("/ali-ds-proxy")) {
       try {
         const body = await request.json();
-        const { path = "/sync", params } = body;
+        const { params } = body;
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
         const ALI_KEY = env.ALI_APP_KEY || '532310';
-        const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
         
         // 🛡️ Standard TOP System Parameters
         const apiParams = {
           ...params,
           app_key: ALI_KEY,
-          timestamp: getTopTimestamp(), // 🎯 Standard TOP Format
+          timestamp: getTopTimestamp(), // 🎯 Forced Standard: yyyy-MM-dd HH:mm:ss
           sign_method: 'md5',
           format: 'json',
           v: '2.0'
@@ -218,25 +217,35 @@ export default {
         delete apiParams['client_id'];
 
         // Generate TOP Signature
-        console.log('=== ALIEXPRESS API REQUEST START ===');
+        console.log('=== ALIEXPRESS API SIGNATURE DEBUG ===');
         const sign = await generateTopSignature(apiParams, ALI_SECRET);
         apiParams.sign = sign;
 
         const bodyString = new URLSearchParams(apiParams).toString();
         
-        console.log('1. Method:', apiParams.method);
-        console.log('2. Parameters:', { ...apiParams, app_key: 'PRESENT', session: apiParams.session ? 'PRESENT' : 'MISSING' });
-        console.log('3. Signature:', sign);
+        // 🧪 MANDATORY PROTOCOL ISOLATION & GATEWAY FIX (InvalidApiPath resolution)
+        const finalUrl = "https://api-sg.aliexpress.com/sync";
+        const finalHeaders = {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json"
+        };
+        
+        console.log('=== FINAL API REQUEST AUDIT ===');
+        console.log('METHOD:', 'POST');
+        console.log('URL:', finalUrl);
+        console.log('HEADERS:', finalHeaders);
+        console.log('BODY:', bodyString);
+        console.log('SIGNATURE:', sign);
 
-        const res = await fetchWithTimeout(`${ALI_GATEWAY}${path}`, {
+        const res = await fetchWithTimeout(finalUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          headers: finalHeaders,
           body: bodyString
         });
 
         const data = await res.text();
-        console.log('4. Response Status:', res.status);
-        console.log('=== ALIEXPRESS API REQUEST END ===');
+        console.log('5. Response status:', res.status);
+        console.log('6. Response Raw:', data.substring(0, 500));
 
         return new Response(data, { 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -250,6 +259,6 @@ export default {
       }
     }
 
-    return new Response("Crystal Bridge v34.23-PROTOCOL_ISOLATED Live", { headers: corsHeaders });
+    return new Response("Crystal Bridge v34.24-GATEWAY_HARDENED Live", { headers: corsHeaders });
   }
 };
