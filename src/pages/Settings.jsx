@@ -427,6 +427,7 @@ const Settings = () => {
       `client_id=532310&` +
       `redirect_uri=${encodeURIComponent('https://geonoyc-dropshipping.web.app/callback')}&` +
       `state=${state}&` +
+      `scope=aliexpress.dropship&` + // 🚀 Explicitly requesting dropship scope
       `timestamp=${Date.now()}`;
                                 console.log("[AliExpress OAuth] Initiating Redirect:", authUrl);
                                 window.location.href = authUrl;

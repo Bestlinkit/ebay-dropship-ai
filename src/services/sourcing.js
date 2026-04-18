@@ -174,21 +174,20 @@ class SourcingService {
         try {
             const aliToken = sessionStorage.getItem('ali_access_token');
             const payload = {
-                path: '/sync/ds/feed/query',
+                path: '/sync', // 🛡️ Standard REST Sync Gateway
                 params: {
-                    method: 'aliexpress.ds.feed.query',
+                    method: 'aliexpress.ds.feed.get', // 🎯 Dropshipping Feed Endpoint
                     app_key: this.CONFIG.ALI_APP_KEY || '532310',
                     timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
                     format: 'json',
                     v: '2.0',
-                    sign_method: 'hmac-sha256',
+                    sign_method: 'md5', // 🔒 Standard TOP signing
+                    feed_name: 'DS_bestselling', 
                     page_size: '20',
                     page_no: '1',
                     target_currency: 'USD',
                     target_language: 'EN',
-                    ship_to_country: 'US',
-                    keywords: currentQuery,
-                    ...(aliToken && { session: aliToken }) // session is used for access_token in TOP/Global
+                    ...(aliToken && { session: aliToken })
                 }
             };
 

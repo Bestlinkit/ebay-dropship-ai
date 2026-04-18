@@ -122,18 +122,31 @@ export default {
         };
 
         // Generate TOP Signature
+        console.log('=== ALIEXPRESS API REQUEST START ===');
+        console.log('Target Path:', path);
+        
+        // Generate TOP Signature
         const sign = await generateTopSignature(apiParams, ALI_SECRET);
         apiParams.sign = sign;
 
-        console.log(`[AliExpress DS Proxy] Method: ${apiParams.method} | session: ${apiParams.session ? 'PRESENT' : 'MISSING'}`);
+        const bodyString = new URLSearchParams(apiParams).toString();
+        
+        console.log('1. Method:', apiParams.method);
+        console.log('2. Parameters:', { ...apiParams, app_key: 'PRESENT', session: apiParams.session ? 'PRESENT' : 'MISSING' });
+        console.log('3. Signature:', sign);
+        console.log('4. Body String:', bodyString);
 
         const res = await fetchWithTimeout(`${ALI_GATEWAY}${path}`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(apiParams).toString()
+          body: bodyString
         });
 
         const data = await res.text();
+        console.log('5. Response Status:', res.status);
+        console.log('6. Response Body:', data.substring(0, 1000));
+        console.log('=== ALIEXPRESS API REQUEST END ===');
+
         return new Response(data, { 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
