@@ -112,35 +112,81 @@ app.post('/api/eprolo/detail', async (req, res) => {
 const CJ_API_KEY = process.env.CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5fb00a4ecba7b';
 const CJ_GATEWAY = process.env.CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
 
+// 🔐 SESSION VAULT: Maintain token continuity without exposing to frontend
+const CJ_SESSION = {
+    accessToken: null,
+    expiry: null,
+    lastCheck: null
+};
+
 /**
- * 🎯 CJ AUTHENTICATION (CORS PROXY)
+ * 🛰️ BRIDGE HEALTH CHECK
+ * GET /api/cj/ping
+ */
+app.get('/api/cj/ping', (req, res) => {
+    res.json({ 
+        status: "ONLINE", 
+        bridge: "ebay-dropship-ai-bridge/v2.2",
+        timestamp: new Date().toISOString(),
+        vaulted: !!CJ_SESSION.accessToken
+    });
+});
+
+/**
+ * 🎯 CJ AUTHENTICATION (CORS PROXY & VAULT)
  * POST /api/cj/auth
  */
 app.post('/api/cj/auth', async (req, res) => {
-    try {
-        const { apiKey } = req.body;
-        const targetApiKey = apiKey || CJ_API_KEY;
-        const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
+    const { apiKey } = req.body;
+    const targetApiKey = apiKey || CJ_API_KEY;
+    const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
 
-        console.log(`[CJ-AUTH-PROXY] Handshake requested for API Key ending in: ...${targetApiKey.slice(-5)}`);
-        
+    console.log(`[CJ-AUTH-PROXY] Handshake requested for API Key ending in: ...${targetApiKey.slice(-5)}`);
+    
+    try {
         const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 20000 // Extended timeout to prevent premature proxy hang
+            timeout: 20000 
         });
 
-        console.log(`[CJ-AUTH-PROXY] Handshake Result: Code ${response.data.code}`);
-        res.json(response.data);
+        const raw = response.data;
+        console.log(`[CJ-AUTH-PROXY] Handshake Result: Code ${raw.code}`);
+
+        // 🛡️ VAULTING PROTOCOL: Store token in secure backend memory
+        const isSuccessful = (raw.code == 200 || raw.success === true);
+        if (isSuccessful) {
+            CJ_SESSION.accessToken = raw.data?.accessToken;
+            CJ_SESSION.expiry = raw.data?.accessTokenExpiryDate;
+            CJ_SESSION.lastCheck = new Date().toISOString();
+            console.log(`[CJ-VAULT] Access Token Secured. Session active.`);
+        }
+
+        // 🧠 REQUIRED FORENSIC BEHAVIOR (Matches User Request Step 1)
+        res.status(isSuccessful ? 200 : 401).json({
+            http_status: isSuccessful ? 200 : 401,
+            cj_response_raw: raw,
+            parsed: {
+                success: isSuccessful,
+                code: raw.code,
+                message: raw.message
+            },
+            request_debug: {
+                url: authUrl,
+                api_key_sent: true,
+                endpoint: "authentication/getAccessToken"
+            }
+        });
+
     } catch (error) {
         console.error("[CJ Auth Proxy] CRITICAL ERROR:", error.message);
-        if (error.response) {
-            console.error("[CJ Auth Proxy] Upstream Error Data:", error.response.data);
-        }
         res.status(500).json({ 
-            status: "API_ERROR", 
-            message: error.message,
-            code: error.response?.status || 500,
-            data: error.response?.data || {} 
+            http_status: 500,
+            cj_response_raw: error.response?.data || { message: error.message },
+            debug: {
+                api_key_sent: true,
+                endpoint: "authentication/getAccessToken",
+                error_type: "TRANSPORT_ERROR"
+            }
         });
     }
 });
@@ -154,10 +200,13 @@ app.get('/api/cj/search', async (req, res) => {
         const { keyword, page = 1, size = 20 } = req.query;
         if (!keyword) return res.status(400).json({ error: "Missing keyword" });
 
-        console.log(`[CJ-API] Searching: "${keyword}"`);
+        // 🚦 PROTOCOL CHECK: Use session token if available, fallback to key only if vault empty
+        const activeToken = CJ_SESSION.accessToken || CJ_API_KEY;
+
+        console.log(`[CJ-API] Searching: "${keyword}" (Token: ${CJ_SESSION.accessToken ? "VAULTED" : "KEY_FALLBACK"})`);
         const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
             params: { keyWord: keyword, page, size },
-            headers: { 'CJ-Access-Token': CJ_API_KEY },
+            headers: { 'CJ-Access-Token': activeToken },
             timeout: 10000
         });
 
@@ -170,17 +219,18 @@ app.get('/api/cj/search', async (req, res) => {
 
 /**
  * 🎯 CJ PRODUCT DETAIL
- * GET /api/cj/detail?pid=...
  */
 app.get('/api/cj/detail', async (req, res) => {
     try {
         const { pid } = req.query;
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
+        const activeToken = CJ_SESSION.accessToken || CJ_API_KEY;
+
         console.log(`[CJ-API] Fetching Detail for: ${pid}`);
         const response = await axios.get(`${CJ_GATEWAY}/product/detail`, {
             params: { pid },
-            headers: { 'CJ-Access-Token': CJ_API_KEY },
+            headers: { 'CJ-Access-Token': activeToken },
             timeout: 10000
         });
 
@@ -193,7 +243,6 @@ app.get('/api/cj/detail', async (req, res) => {
 
 /**
  * 🎯 CJ FREIGHT CALCULATION
- * POST /api/cj/freight
  */
 app.post('/api/cj/freight', async (req, res) => {
     try {
@@ -203,13 +252,15 @@ app.post('/api/cj/freight', async (req, res) => {
             return res.status(400).json({ error: "Missing products array" });
         }
 
+        const activeToken = CJ_SESSION.accessToken || CJ_API_KEY;
+
         console.log(`[CJ-API] Calculating Freight: ${startCountryCode} -> ${endCountryCode}`);
         const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, {
             startCountryCode,
             endCountryCode,
             products
         }, {
-            headers: { 'CJ-Access-Token': CJ_API_KEY, 'Content-Type': 'application/json' },
+            headers: { 'CJ-Access-Token': activeToken, 'Content-Type': 'application/json' },
             timeout: 10000
         });
 

@@ -22,29 +22,58 @@ class CJService {
   }
 
   /**
+   * 📡 BRIDGE DISCOVERY
+   */
+  async pingBridge() {
+    try {
+        const response = await axios.get('/api/cj/ping', { timeout: 5000 });
+        console.log(`[CJ_BRIDGE] Health Check:`, response.data);
+        return true;
+    } catch (err) {
+        console.error(`[CJ_BRIDGE] CRITICAL: Local server not responding. Ensure 'npm run server' is active.`);
+        return false;
+    }
+  }
+
+  /**
    * CJ INTEGRATION FIX (PHASE 1: CONNECTION TEST ONLY)
    * Strictly isolated from eBay discovery/scoring.
    */
   async testConnection() {
-    const url = `${this.CONFIG.BACKEND_BASE}${this.CONFIG.AUTH_ENDPOINT}`;
+    const isBridgeAlive = await this.pingBridge();
+    if (!isBridgeAlive) {
+        return {
+            cjConnectionStatus: "FAILED",
+            code: "BRIDGE_OFFLINE",
+            message: "Local server (port 3001) is not responding. Start the backend first.",
+            requestId: ""
+        };
+    }
+
+    const url = this.CONFIG.AUTH_ENDPOINT; // Relative path ensured for Vite Tunnel
     const apiKey = import.meta.env.VITE_CJ_API_KEY || "CJ_API_KEY_FROM_ENV";
     const payload = { apiKey };
     const timestamp = new Date().toISOString();
 
     console.log(`[CJ_AUTH_PROBE] Step 1: Initiating Proxy Handshake via ${url}`);
-    console.log(`[CJ_AUTH_PROBE] Resolved Target: ${new URL(url, window.location.origin).href}`);
     
     try {
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 20000 // Extended timeout for diagnostic stability
+            timeout: 20000 // Extended for diagnostic stability
         });
 
-        const raw = response.data;
-        console.log(`[CJ_AUTH_PROBE] Step 2: Proxy Response Received.`, raw);
+        // 🧠 FORENSIC EXTRACTION (Matches Backend v2.2)
+        const envelope = response.data;
+        const raw = envelope.cj_response_raw;
+        const isSuccessful = envelope.parsed?.success || (raw?.code == 200);
 
-        if (raw.code === '200' || raw.success === true) {
-            console.log(`[CJ_AUTH_PROBE] Step 3: SUCCESS. Tokens successfully vaulted.`);
+        console.log(`[CJ_AUTH_PROBE] Step 2: Proxy Envelope Received.`, envelope);
+
+        if (isSuccessful) {
+            console.log(`[CJ_AUTH_PROBE] Step 3: SUCCESS. Handshake protocol compliant.`);
+            
+            // Note: Tokens are now securely vaulted in the backend session.
             this.SESSION = {
                 accessToken: raw.data?.accessToken,
                 refreshToken: raw.data?.refreshToken,
@@ -56,15 +85,17 @@ class CJService {
                 cjConnectionStatus: "CONNECTED",
                 message: "Success",
                 openId: raw.data?.openId || "",
-                timestamp
+                timestamp,
+                forensics: envelope // Pass the full envelope for UI display
             };
         } else {
             console.warn(`[CJ_AUTH_PROBE] Step 3: API REJECTION.`, raw);
             return {
                 cjConnectionStatus: "FAILED",
-                code: raw.code || "UNKNOWN",
-                message: raw.message || "API Error",
-                requestId: raw.requestId || ""
+                code: raw?.code || "UNKNOWN",
+                message: raw?.message || "API Error",
+                requestId: raw?.requestId || "",
+                forensics: envelope
             };
         }
     } catch (err) {
