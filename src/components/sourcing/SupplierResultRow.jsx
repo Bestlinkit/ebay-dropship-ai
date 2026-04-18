@@ -53,9 +53,9 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
             {/* RANK & SCORE HEX */}
             <div className="flex flex-col items-center justify-center shrink-0 w-24 h-24 bg-slate-900 border border-white/10 rounded-[2rem] shadow-2xl group-hover:border-emerald-500/50 transition-colors">
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Rank Score</span>
-                 <span className={cn("text-3xl font-black italic tracking-tighter mt-1", scores.final >= 80 ? "text-emerald-400" : "text-amber-400")}>
-                    {scores.final}
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Match Score</span>
+                 <span className={cn("text-3xl font-black italic tracking-tighter mt-1", (product.alignmentScore || 0) >= 70 ? "text-emerald-400" : "text-amber-400")}>
+                    {product.alignmentScore || 0}%
                  </span>
             </div>
 
@@ -136,15 +136,18 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                    <button 
-                        onClick={() => onContinue(product)}
-                        className="px-10 py-5 bg-white text-slate-950 hover:bg-emerald-400 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group/btn hover:scale-105 active:scale-95"
-                    >
-                        Select Supplier
-                        <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
-                    </button>
-                </div>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 mb-2">
+                             <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">{product.matchReason}</div>
+                        </div>
+                        <button 
+                            onClick={() => onContinue(product)}
+                            className="px-10 py-5 bg-white text-slate-950 hover:bg-emerald-400 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all shadow-2xl flex items-center justify-center gap-3 group/btn hover:scale-105 active:scale-95"
+                        >
+                            Select Supplier
+                            <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
             </div>
         </motion.div>
     );

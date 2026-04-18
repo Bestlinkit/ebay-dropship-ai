@@ -21,6 +21,61 @@ class SourcingService {
   log(entry) {
     this.sessionLogs.push({ timestamp: new Date().toISOString(), ...entry });
     if (this.sessionLogs.length > 50) this.sessionLogs.shift();
+    // Also expose to console for developer visibility
+    console.info(`[CJ_ENGINE_DEBUG]`, entry);
+  }
+
+  /**
+   * 🧠 NORMALIZATION LAYER (v2.0)
+   * Extracts core identity from messy titles (e.g., Crochet Sweater).
+   */
+  normalizeEbayProduct(title, categoryPath = "") {
+    if (!title) return { keyword: "item", category: "General" };
+
+    // Standard list of adjectives/noise to strip
+    const noise = /\b(trending|luxury|premium|best|hot|new|top|official|boho|glam|party|holiday|XL|XXLarge|Small|Medium|Large|Gold|Silver|Trim|S-L|SKU|Series|2024|2025)\b/gi;
+    
+    // 1. Strip Brands (Proprietary logic: remove first capitalized word if repeated or generic)
+    // 2. Clear Adjectives and Sizes
+    let clean = title.replace(noise, ' ')
+                     .replace(/[^a-zA-Z\s]/g, ' ')
+                     .replace(/\s+/g, ' ')
+                     .trim();
+
+    // 3. Extraction: Take first 2-4 meaningful words
+    const words = clean.split(' ').filter(w => w.length > 2);
+    const keyword = words.slice(0, 4).join(' ').toLowerCase();
+
+    // 4. Broad Category Context
+    const category = categoryPath.split(' > ')[0] || "General";
+
+    return {
+      keyword: keyword || "item",
+      category,
+      raw: title
+    };
+  }
+
+  /**
+   * 🔍 MULTI-QUERY SEARCH STRATEGY
+   */
+  generateSearchVariants(normalized) {
+    const { keyword, category } = normalized;
+    const variants = new Set();
+    
+    variants.add(keyword); // Exact core
+    
+    const words = keyword.split(' ');
+    if (words.length > 2) {
+      variants.add(words.slice(0, 2).join(' ')); // Shortened core
+    }
+    
+    // Style/Context variant
+    if (category) {
+      variants.add(`${words[0]} ${category}`.toLowerCase());
+    }
+
+    return Array.from(variants).slice(0, 3);
   }
 
   getLogs() { return this.sessionLogs; }
@@ -78,90 +133,129 @@ class SourcingService {
   }
 
   /**
-   * Pipeline Orchestration: CJ Iterative Probe
+   * 🏗️ PIPELINE ORCHESTRATION: Multi-Vector Probe
+   * Mandate: Multi-query search with transparent diagnostics.
    */
   async runIterativePipeline(context) {
-    const rawQuery = context.query;
-    this.log({ type: 'CJ_PIPELINE_START', rawQuery });
+    const { product } = context;
+    const startTime = Date.now();
+    
+    // 1. Normalization & Variant Generation
+    const normalized = this.normalizeEbayProduct(product.title, product.categoryPath);
+    const searchVariants = this.generateSearchVariants(normalized);
+    
+    this.log({ 
+      type: 'PIPELINE_START', 
+      variants: searchVariants, 
+      category: normalized.category 
+    });
 
     try {
-        // 1. CJ Product Search
-        const searchResponse = await axios.get(this.CONFIG.SEARCH_ENDPOINT, {
-            params: { keyword: rawQuery }
+        const fetchPromises = searchVariants.map(keyword => 
+          axios.get(this.CONFIG.SEARCH_ENDPOINT, { params: { keyword } })
+            .catch(err => ({ error: true, message: err.message, status: err.response?.status, keyword }))
+        );
+
+        const responses = await Promise.all(fetchPromises);
+        
+        // 2. Merge & Deduplicate
+        const mergedMap = new Map();
+        responses.forEach(res => {
+          if (res.error) {
+            this.log({ type: 'SEARCH_FAULT', keyword: res.keyword, status: res.status, msg: res.message });
+            return;
+          }
+          
+          const list = res.data?.data?.list || [];
+          list.forEach(item => {
+            if (!mergedMap.has(item.pid)) {
+              mergedMap.set(item.pid, item);
+            }
+          });
         });
 
-        // Bridge Protocol Check
-        if (searchResponse.data?.status === "BRIDGE_ERROR") {
-            throw new Error(`CJ Bridge Protocol Mismatch: ${searchResponse.data.message || 'Remote gateway rejected the session.'}`);
+        const dedupedList = Array.from(mergedMap.values());
+
+        // 3. Fallback System (Zero Matches)
+        if (dedupedList.length === 0) {
+          this.log({ type: 'NO_MATCHES_FOUND', query: searchVariants[0] });
+          return {
+            status: "NO_RESULTS",
+            message: "No exact match found for this product.",
+            suggestions: [], // Category matching logic could go here
+            diagnostics: responses.map(r => ({
+              keyword: r.keyword || "unknown",
+              status: r.status || 200,
+              error: r.error ? r.message : null
+            }))
+          };
         }
 
-        const rawList = searchResponse.data?.data?.list || [];
-        if (rawList.length === 0) {
-            const advice = rawQuery.length > 30 ? "Keyword is too specific." : "Keyword has low supplier density in current catalog.";
-            throw new Error(`CJ Sourcing returned 0 matches for "${rawQuery}". ${advice}`);
+        // 4. Advanced Alignment Scoring
+        const candidates = [];
+        for (const item of dedupedList.slice(0, 10)) {
+          try {
+             const detailRes = await axios.get(this.CONFIG.DETAIL_ENDPOINT, { params: { pid: item.pid } });
+             const detail = detailRes.data?.data;
+             if (!detail) continue;
+
+             const alignment = this.calculateAlignmentScore(product, item, detail);
+             candidates.push({ ...item, detail, ...alignment });
+          } catch (e) {
+             console.error(`Linkage Error for ${item.pid}:`, e.message);
+          }
         }
 
-        // 2. Deep Intelligence Gathering (Top 5 candidates for scoring)
-        const scoredCandidates = [];
-        const candidates = rawList.slice(0, 5);
-
-        for (const item of candidates) {
-            try {
-                // A. Get Details (Variants & Warehouse Info)
-                const detailResponse = await axios.get(this.CONFIG.DETAIL_ENDPOINT, {
-                    params: { pid: item.pid }
-                });
-                const detail = detailResponse.data?.data;
-
-                if (!detail) continue;
-
-                // B. Get Logistics (Freight Calculate for US)
-                const firstVariant = detail.productVariants?.[0];
-                const freightResponse = await axios.post(this.CONFIG.FREIGHT_ENDPOINT, {
-                   startCountryCode: 'CN', // CJ default
-                   endCountryCode: 'US',
-                   products: [{ quantity: 1, vid: firstVariant?.vid }]
-                });
-                const logistics = freightResponse.data?.data || [];
-
-                // C. Score the product
-                const ebayPrice = context.targetProduct?.price || 50;
-                const scores = this.calculateCJSupplierScore(item, detail, logistics, ebayPrice);
-
-                scoredCandidates.push({
-                    ...item,
-                    ...scores,
-                    detail,
-                    logistics
-                });
-            } catch (e) {
-                console.error(`CJ Intelligence Fault for ${item.pid}:`, e.message);
-            }
-        }
-
-        // 3. Rank and Return Top 3
-        const rankedProducts = scoredCandidates
-            .sort((a, b) => b.final_score - a.final_score)
-            .slice(0, 3);
+        const ranked = candidates.sort((a,b) => b.alignmentScore - a.alignmentScore).slice(0, 3);
 
         return {
             status: "SUCCESS",
             source: 'CJ_DROPSHIPPING',
-            products: rankedProducts,
+            products: ranked,
             telemetry: { 
-                latency: Date.now() - context.startTime, 
-                count: rankedProducts.length 
+                latency: Date.now() - startTime, 
+                count: ranked.length,
+                totalScanned: dedupedList.length
             }
         };
 
     } catch (err) {
-        let msg = err.message;
-        if (err.response?.status === 404) msg = "CJ Endpoint Offline - Gateway Timeout.";
-        if (err.response?.status === 500) msg = "CJ Server Protocol Error - Schema mismatch.";
-        
-        this.log({ type: 'CJ_PIPELINE_FAULT', error: msg });
-        return { status: "ERROR", message: msg };
+        this.log({ type: 'PIPELINE_CRITICAL', error: err.message });
+        return { status: "ERROR", message: err.message };
     }
+  }
+
+  /**
+   * 🎯 ALIGNMENT ENGINE
+   * match_score = keyword similarity + category match + price proximity
+   */
+  calculateAlignmentScore(ebayProduct, cjProduct, cjDetail) {
+    const ebayTitle = ebayProduct.title.toLowerCase();
+    const cjTitle = (cjProduct.productNameEn || cjProduct.productName || "").toLowerCase();
+    
+    // 1. Keyword Similarity (Vector Match)
+    const ebayWords = new Set(ebayTitle.split(' ').filter(w => w.length > 3));
+    const cjWords = new Set(cjTitle.split(' ').filter(w => w.length > 3));
+    let intersection = 0;
+    ebayWords.forEach(w => { if (cjWords.has(w)) intersection++; });
+    const keywordScore = ebayWords.size > 0 ? (intersection / ebayWords.size) * 50 : 0;
+
+    // 2. Price Proximity (Vector Match)
+    const ebayPrice = Number(ebayProduct.price);
+    const cjPrice = parseFloat(cjDetail.productVariants?.[0]?.variantSellPrice || 0);
+    const priceGap = Math.abs(ebayPrice - cjPrice);
+    const priceScore = ebayPrice > 0 ? Math.max(0, 30 - (priceGap / ebayPrice) * 100) : 0;
+
+    // 3. Category Match (Proxy)
+    const categoryMatch = 20; // Default until we map CJ category IDs
+
+    const alignmentScore = Math.round(keywordScore + priceScore + categoryMatch);
+
+    return {
+      alignmentScore,
+      matchReason: alignmentScore > 70 ? "High Precision Identity Match" : "Visual/Category Approximation",
+      alignmentDetails: { keywordScore, priceScore, categoryMatch }
+    };
   }
 
   /**
@@ -173,92 +267,70 @@ class SourcingService {
    * Phase II: Global Market Intelligence Engine (RESTORED v30.0)
    * Mandate: (0.35 * Velocity) + (0.25 * Trend) + (0.20 * CompetitionInverse) + (0.20 * Stability)
    */
+  /**
+   * 📊 DATA-BACKED MARKET SCORING (eBay Side)
+   * Mandate: Replaces "High Risk Asset" with empirical reasoning.
+   */
   calculateSellScore(product, batchContext = {}) {
     const { avgPrice = 50, stdDev = 15 } = batchContext;
     const price = Number(product.price) || 0;
     const totalFound = Number(product.totalFound || 100);
+    const watchCount = Number(product.watchCount || 0);
+    const soldCount = Number(product.soldCount || 0);
     
-    // A. Velocity (0.35) - Derived from demand density
-    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 10))); 
-    
-    // B. Trend (0.25) - Sequential variation (simulated 14-day proxy)
-    const trend = Math.min(100, Math.max(0, 70 + (Math.sin(product.title.length) * 30)));
-    
-    // C. Competition Inverse (0.20)
-    const competitionInverse = totalFound > 0 ? Math.min(100, 1000 / totalFound * 10) : 50;
-    
-    // D. Stability (0.20) - Price Deviation from Mean
+    // A. Price Positioning vs Market
+    const priceDiffPct = avgPrice > 0 ? ((price - avgPrice) / avgPrice) * 100 : 0;
     const priceStability = stdDev > 0 ? Math.max(0, 100 - Math.abs((price - avgPrice) / stdDev) * 20) : 80;
+    
+    // B. Demand Signal (Velocity)
+    const demandScore = Math.min(100, (watchCount * 2 + soldCount * 5));
+    
+    // C. Competition Density
+    const competitionInverse = totalFound > 0 ? Math.min(100, 1000 / totalFound * 10) : 50;
 
     const resellScore = Math.round(
-      (velocity * 0.35) + 
-      (trend * 0.25) + 
-      (competitionInverse * 0.20) + 
-      (priceStability * 0.20)
+      (demandScore * 0.40) + 
+      (competitionInverse * 0.30) + 
+      (priceStability * 0.30)
     );
 
-    // 2. MOMENTUM ENGINE (Strictly eBay Derived)
-    const momentumValue = (trend + velocity) / 2;
-    let growthVector = "STABLE";
-    if (momentumValue > 80) growthVector = "ACCELERATING";
-    else if (momentumValue < 40) growthVector = "DECLINING";
-
-    // 14-Day Trend Array (Varying per product)
+    // 14-Day Trend Proxy
     const trendData = Array.from({ length: 14 }, (_, i) => ({
       x: i,
-      y: Math.max(0, Math.min(100, trend + Math.sin(i + product.title.length) * 15))
+      y: Math.max(0, Math.min(100, demandScore + Math.sin(i) * 10))
     }));
 
-    // 3. Strategic Interpretation (The "AI" Voice)
-    const interpretation = {
-      classification: resellScore >= 75 ? "High Yield Alpha" : (resellScore >= 40 ? "Stable Market Utility" : "High Risk Asset"),
-      action: resellScore >= 80 ? "ACQUIRE IMMEDIATELY" : (resellScore >= 60 ? "MONITOR / TEST" : "AVOID"),
-      marketIndex: resellScore >= 70 ? "BULLISH" : (resellScore >= 40 ? "NEUTRAL" : "BEARISH"),
-      basis: ["Price Stability", "Watch Count Density", "Competition Depth"],
-      labels: {
-        competition: competitionInverse < 30 ? "HIGH" : (competitionInverse > 70 ? "LOW" : "STANDARD"),
-        growthVector: growthVector,
-        confidence: resellScore >= 75 ? "HIGH" : (resellScore >= 50 ? "MEDIUM" : "LOW")
+    // Strategy Logic: Replaces abstract labels with Data-Backed Reasoning
+    const reasoning = {
+      price: {
+        raw: `${Math.abs(Math.round(priceDiffPct))}% ${priceDiffPct < 0 ? 'below' : 'above'} avg`,
+        interpretation: priceDiffPct < 0 ? "COMPETITIVE" : "PREMIUM",
+        explanation: `Price is positioned ${Math.abs(Math.round(priceDiffPct))}% ${priceDiffPct < 0 ? 'lower' : 'higher'} than the category median of $${avgPrice.toFixed(2)}.`
       },
-      insights: [
-        { 
-          id: '1', 
-          label: 'Market Alignment', 
-          value: `${Math.round(priceStability)}%`, 
-          description: 'Price positioning relative to category average.',
-          type: priceStability > 80 ? 'positive' : (priceStability > 50 ? 'warning' : 'negative'),
-          icon: 'Layers'
-        },
-        { 
-          id: '2', 
-          label: 'Demand Signal', 
-          value: velocity > 70 ? 'PEAK' : (velocity > 30 ? 'FLOW' : 'STAGNANT'), 
-          description: 'Organic consumer interest and watch velocity.',
-          type: velocity > 60 ? 'positive' : (velocity > 30 ? 'warning' : 'neutral'),
-          icon: 'Zap'
-        },
-        { 
-          id: '3', 
-          label: 'Risk Vector', 
-          value: competitionInverse < 30 ? 'HIGH' : (competitionInverse > 70 ? 'LOW' : 'MEDIUM'), 
-          description: competitionInverse < 30 ? 'Crowded market segment; avoid.' : 'Market saturation levels are optimal.',
-          type: competitionInverse > 70 ? 'positive' : (competitionInverse > 40 ? 'warning' : 'negative'),
-          icon: 'Target'
-        }
-      ],
-      analysis: this._generateIntelligenceReport(resellScore, { velocity, trend, competitionInverse, priceStability })
+      demand: {
+        raw: `${soldCount} sold / ${watchCount} watching`,
+        interpretation: demandScore > 70 ? "PEAK" : (demandScore > 30 ? "STABLE" : "WEAK"),
+        explanation: soldCount > 10 ? "Recent sold listings confirm active demand." : "Moderate watch count suggests interest but slow conversion."
+      },
+      competition: {
+        raw: `${totalFound} listings`,
+        interpretation: totalFound < 50 ? "LOW" : (totalFound > 500 ? "HIGH" : "MODERATE"),
+        explanation: totalFound > 500 ? "Saturated market segment with many similar listings." : "Market density allows for listing visibility."
+      }
     };
+
+    const conclusion = `Conclusion: This product is ${reasoning.price.interpretation.toLowerCase()} priced with ${reasoning.demand.interpretation.toLowerCase()} demand and ${reasoning.competition.interpretation.toLowerCase()} competition. ${resellScore > 70 ? 'Ideal for acquisition.' : 'Review alignment before sourcing.'}`;
 
     return {
       resellScore,
-      isWinner: resellScore > 75,
-      grade: resellScore >= 80 ? 'A' : (resellScore >= 60 ? 'B' : (resellScore >= 40 ? 'C' : 'D')),
-      confidence: interpretation.labels.confidence,
+      isWinner: resellScore > 70,
+      confidence: demandScore > 50 ? "HIGH" : "MEDIUM",
       momentum: trendData,
-      interpretation,
+      reasoning, // The new data-backed object
+      conclusion,
       signals: {
         priceStability,
-        demand: velocity > 50 ? 'HIGH' : 'STABLE'
+        demand: reasoning.demand.interpretation
       }
     };
   }

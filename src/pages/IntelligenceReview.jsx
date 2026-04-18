@@ -149,43 +149,39 @@ const IntelligenceReview = () => {
                         </div>
                     </div>
 
-                    {/* Structured Insight Hub */}
+                    {/* Structured Insight Hub (Data-Backed Reasoning) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {(sellData.interpretation?.insights || []).map((insight) => {
-                            const IconMap = { Layers, Target, Zap };
-                            const Icon = IconMap[insight.icon] || Info;
+                        {Object.entries(sellData.reasoning || {}).map(([key, signal]) => {
+                            const icons = { price: DollarSign, demand: Zap, competition: Activity };
+                            const Icon = icons[key] || Info;
+                            const type = signal.interpretation === 'COMPETITIVE' || signal.interpretation === 'PEAK' || signal.interpretation === 'LOW' ? 'positive' : 'warning';
                             
                             return (
-                                <div key={insight.id} className="p-6 bg-slate-900/60 border border-white/5 rounded-[2.5rem] flex flex-col gap-4 transition-all hover:bg-emerald-500/5 hover:border-emerald-500/20 group/item shadow-2xl backdrop-blur-md">
+                                <div key={key} className="p-6 bg-slate-900/60 border border-white/5 rounded-[2.5rem] flex flex-col gap-4 transition-all hover:bg-emerald-500/5 hover:border-emerald-500/20 group/item shadow-2xl backdrop-blur-md">
                                     <div className={cn(
                                         "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-xl",
-                                        insight.type === 'positive' ? "bg-emerald-500/10 text-emerald-400 group-hover/item:bg-emerald-500 group-hover/item:text-slate-950" :
-                                        insight.type === 'warning' ? "bg-amber-500/10 text-amber-400 group-hover/item:bg-amber-500 group-hover/item:text-slate-950" :
-                                        insight.type === 'negative' ? "bg-rose-500/10 text-rose-400 group-hover/item:bg-rose-500 group-hover/item:text-white" :
-                                        "bg-white/5 text-slate-300 group-hover/item:bg-white group-hover/item:text-slate-950"
+                                        type === 'positive' ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
                                     )}>
                                         <Icon size={24} />
                                     </div>
                                     <div className="flex flex-col gap-0.5">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{insight.label}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{key.replace(/([A-Z])/g, ' $1')}</span>
                                         <span className={cn(
                                             "text-[13px] font-black uppercase tracking-tight",
-                                            insight.type === 'positive' ? "text-emerald-400" :
-                                            insight.type === 'negative' ? "text-rose-400" :
-                                            "text-white"
+                                            type === 'positive' ? "text-emerald-400" : "text-amber-400"
                                         )}>
-                                            {insight.value}
+                                            {signal.raw}
                                         </span>
                                     </div>
                                     <p className="text-[11px] font-black text-white/40 leading-relaxed uppercase tracking-widest border-l-2 border-white/5 pl-3 mt-2">
-                                        {insight.description}
+                                        {signal.explanation}
                                     </p>
                                 </div>
                             );
                         })}
                     </div>
 
-                    {/* Strategic Intelligence [STRICT OVERRIDE] */}
+                    {/* Strategic Intelligence [DATA-BACKED] */}
                     <div className="p-10 bg-[#0A0F1E] border border-white/5 rounded-[3rem] relative overflow-hidden group shadow-3xl">
                         <div className="relative z-10 flex flex-col gap-8">
                             <div className="flex items-center gap-3">
@@ -193,45 +189,17 @@ const IntelligenceReview = () => {
                                     <Target size={20} />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Market Classification</span>
-                                    <span className={cn(
-                                        "text-[10px] font-black uppercase",
-                                        sellData.resellScore >= 70 ? "text-emerald-400" : (sellData.resellScore >= 40 ? "text-yellow-400" : "text-rose-400")
-                                    )}>
-                                        {sellData.interpretation?.classification}
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Market Consensus</span>
+                                    <span className="text-[10px] font-black uppercase text-emerald-400">
+                                        {sellData.resellScore >= 70 ? "HIGH PERF IDENTITY" : "STABLE UTILITY"}
                                     </span>
                                 </div>
-                                <span className={cn(
-                                    "ml-auto px-4 py-1.5 rounded-full bg-slate-900 border border-white/10 text-[10px] font-black uppercase tracking-widest",
-                                    sellData.resellScore >= 70 ? "text-emerald-400" : (sellData.resellScore >= 40 ? "text-yellow-400" : "text-rose-400")
-                                )}>
-                                    Grade: {sellData.grade}
-                                </span>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                <div className="space-y-4">
-                                   <div className="flex flex-col">
-                                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Target Action</span>
-                                      <span className={cn(
-                                          "text-4xl font-black uppercase italic tracking-tighter",
-                                          sellData.resellScore >= 70 ? "text-emerald-400" : (sellData.resellScore >= 40 ? "text-yellow-400" : "text-rose-400")
-                                      )}>
-                                          {sellData.interpretation?.action}
-                                      </span>
-                                   </div>
-                                </div>
-                                
-                                <div className="space-y-4">
-                                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Classification Basis</span>
-                                   <div className="flex flex-wrap gap-2">
-                                       {(sellData.interpretation?.basis || []).map((item, idx) => (
-                                           <div key={idx} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-black text-white uppercase tracking-tight">
-                                               {item}
-                                           </div>
-                                       ))}
-                                   </div>
-                                </div>
+                            <div className="space-y-4">
+                               <p className="text-3xl font-black text-white italic tracking-tighter uppercase leading-tight">
+                                  {sellData.conclusion}
+                               </p>
                             </div>
                         </div>
                     </div>
@@ -255,20 +223,20 @@ const IntelligenceReview = () => {
                   </div>
                </div>
 
-               <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
-                  <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Market Index</p>
-                  <div className="flex items-center gap-6">
-                     <Activity className={cn(
-                         sellData.resellScore >= 70 ? "text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : (sellData.resellScore >= 40 ? "text-yellow-500" : "text-rose-500")
-                     )} size={40} />
-                     <div className="flex flex-col">
-                        <span className="text-xl font-black italic tracking-tighter text-white uppercase leading-none">
-                           {sellData.interpretation?.marketIndex} INDEX
-                        </span>
-                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2 px-1">Calculated Signal Strength</span>
-                     </div>
-                  </div>
-               </div>
+                <div className="bg-[#111C33] border border-[#2A3A55] p-10 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
+                   <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Demand Index</p>
+                   <div className="flex items-center gap-6">
+                      <Activity className={cn(
+                          sellData.resellScore >= 70 ? "text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : (sellData.resellScore >= 40 ? "text-yellow-500" : "text-rose-500")
+                      )} size={40} />
+                      <div className="flex flex-col">
+                         <span className="text-xl font-black italic tracking-tighter text-white uppercase leading-none">
+                            {sellData.reasoning?.demand?.interpretation} SIGNAL
+                         </span>
+                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-2 px-1">Empirical Momentum</span>
+                      </div>
+                   </div>
+                </div>
             </div>
 
             {/* 📈 MARKET MOMENTUM DETAIL (ESTIMATED) */}
