@@ -50,6 +50,8 @@ const Discovery = () => {
   
   const [pagination, setPagination] = useState({ page: 1 });
   const [error, setError] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   const cacheRegistry = useRef(new Map());
   const navigate = useNavigate();
@@ -134,6 +136,22 @@ const Discovery = () => {
     }
   }, [query, filters.categoryId, filters.minPrice, filters.maxPrice, pagination.page]);
 
+  // 6. AUTO-COMPLETE INTERFACE (v11.7)
+  const handleQueryChange = async (e) => {
+    const val = e.target.value;
+    setQuery(val);
+    setPagination({ page: 1 });
+    
+    if (val.length >= 2) {
+       const sugs = await ebayService.getAutocompleteSuggestions(val);
+       setSuggestions(sugs);
+       setShowSuggestions(true);
+    } else {
+       setSuggestions([]);
+       setShowSuggestions(false);
+    }
+  };
+
   // Reactive Debounce
   useEffect(() => {
     const timer = setTimeout(() => executeSearch(), 450);
@@ -181,16 +199,45 @@ const Discovery = () => {
       {/* 📊 STAGE II: RESEARCH TERMINAL */}
       <div className="space-y-10">
          <div className="flex flex-col gap-4">
-            <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-4 pl-10 shadow-2xl flex items-center gap-8 relative overflow-hidden">
+            <section className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-4 pl-10 shadow-2xl flex items-center gap-8 relative overflow-visible">
                <div className="flex-1 flex items-center gap-6">
                   <Search className="text-slate-600" size={20} />
-                  <input 
-                    type="text" 
-                    value={query}
-                    onChange={(e) => { setQuery(e.target.value); setPagination({ page: 1 }); }}
-                    placeholder="Analyze Marketplace Opportunities..."
-                    className="flex-1 bg-transparent py-4 text-sm font-bold text-white outline-none placeholder:text-slate-700"
-                  />
+                  <div className="flex-1 relative">
+                    <input 
+                        type="text" 
+                        value={query}
+                        onChange={handleQueryChange}
+                        onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+                        placeholder="Analyze Marketplace Opportunities..."
+                        className="w-full bg-transparent py-4 text-sm font-bold text-white outline-none placeholder:text-slate-700"
+                    />
+
+                    {/* 🔌 EBAY AUTO-COMPLETE ENGINE (v11.7) */}
+                    <AnimatePresence>
+                        {showSuggestions && suggestions.length > 0 && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute top-full left-0 right-0 mt-4 bg-[#0B1121] border border-white/10 rounded-[2rem] shadow-4xl z-[100] overflow-hidden"
+                            >
+                                {suggestions.map((sug, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => {
+                                            setQuery(sug);
+                                            setShowSuggestions(false);
+                                            executeSearch();
+                                        }}
+                                        className="w-full text-left px-8 py-4 text-[11px] font-black text-slate-400 hover:text-white hover:bg-white/5 transition-all uppercase tracking-widest border-b border-white/5 last:border-0 flex items-center gap-4"
+                                    >
+                                        <Search size={14} className="text-slate-600" /> {sug}
+                                    </button>
+                                ))}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                  </div>
                </div>
 
                <div className="flex items-center gap-4 px-6 relative z-30">
@@ -210,36 +257,6 @@ const Discovery = () => {
                   </div>
                </div>
             </section>
-
-            {/* 💡 SUGGESTED TRENDS (High-Velocity Discovery) */}
-            {!loading && !query && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-wrap items-center gap-4 px-4"
-              >
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  <Sparkles size={12} className="text-emerald-500" /> Suggested Origins:
-                </span>
-                {[
-                  "Ergonomic Chair",
-                  "Power Station",
-                  "MagSafe Wallet",
-                  "Massage Gun",
-                  "Earbuds",
-                  "Smart Camera",
-                  "Camping Kit"
-                ].map(trend => (
-                  <button
-                    key={trend}
-                    onClick={() => { setQuery(trend); setPagination({ page: 1 }); }}
-                    className="px-4 py-2 bg-slate-950/50 border border-slate-800 rounded-xl text-[10px] font-black text-slate-400 hover:text-white hover:border-slate-700 transition-all uppercase tracking-widest"
-                  >
-                    {trend}
-                  </button>
-                ))}
-              </motion.div>
-            )}
 
             {/* HIGH-CONTRAST FILTER STRIP (ADAPTIVE UI) */}
             <AnimatePresence>

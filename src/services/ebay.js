@@ -430,6 +430,23 @@ class eBayService {
         return null;
     }
   }
+
+  async getAutocompleteSuggestions(query) {
+    if (!query || query.length < 2) return [];
+    try {
+        const targetUrl = `https://autosug.ebay.com/autosug?kwd=${encodeURIComponent(query)}`;
+        // Prioritize Private Bridge for latency
+        const finalUrl = this.proxyUrl ? `${this.proxyUrl}/?url=${encodeURIComponent(targetUrl)}` : `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        
+        const response = await axios.get(finalUrl, { timeout: 3000 });
+        if (Array.isArray(response.data) && response.data[1]) {
+            return response.data[1];
+        }
+        return [];
+    } catch (e) {
+        return [];
+    }
+  }
 }
 
 export default new eBayService();

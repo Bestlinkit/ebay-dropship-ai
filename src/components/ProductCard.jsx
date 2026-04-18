@@ -145,8 +145,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                         {sellData.resellScore}%
                     </span>
                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 rounded border border-white/10 mt-1">
-                        <ShieldCheck size={10} className="text-slate-500" />
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest underline decoration-emerald-500/30">RELIABILITY: HIGH</span>
+                        <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">RELIABILITY: HIGH</span>
                     </div>
                 </div>
 
