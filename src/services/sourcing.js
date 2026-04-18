@@ -163,13 +163,16 @@ class SourcingService {
     const avgPrice = batchContext?.avgPrice || price;
     
     // 1. Core Viability Logic
-    const priceStability = 1 - (Math.abs(price - avgPrice) / Math.max(price, avgPrice));
+    const priceStability = 1 - (Math.abs(price - avgPrice) / Math.max(price, avgPrice || 1));
     const demandSignal = product.watchCount || product.soldCount || 0;
     
-    const score = Math.min(100, Math.round(
-      (priceStability * 40) + 
-      (Math.min(1, demandSignal / 100) * 60)
-    ));
+    // Competition Density (Risk Vector)
+    const totalFound = product.totalFound || 1000;
+    const riskFactor = Math.min(1, totalFound / 5000); // Normalize: 5000+ is max risk
+    
+    // Weighted Score (v42.1): Stability (35%) + Demand (45%) + Lower Competition (20%)
+    const weightedScore = (priceStability * 35) + (Math.min(1, demandSignal / 50) * 45) + ((1 - riskFactor) * 20);
+    const score = Math.max(0, Math.min(100, Math.round(weightedScore)));
 
     // 2. Grade & Confidence Assignment
     const grade = score >= 85 ? 'AAA+' : (score >= 70 ? 'A' : (score >= 40 ? 'B' : 'C'));
@@ -183,33 +186,33 @@ class SourcingService {
 
     // 4. Strategic Interpretation (The "AI" Voice)
     const interpretation = {
-      classification: score >= 75 ? "High Yield Alpha" : "Stable Market Utility",
-      action: score >= 80 ? "ACQUIRE IMMEDIATELY" : (score >= 40 ? "MONITOR / TEST" : "AVOID"),
-      marketIndex: score >= 70 ? "BULLISH" : "NEUTRAL",
-      basis: ["Price Stability", "Watch Count Density", "Historical Velocity"],
+      classification: score >= 75 ? "High Yield Alpha" : (score >= 40 ? "Stable Market Utility" : "High Risk Asset"),
+      action: score >= 80 ? "ACQUIRE IMMEDIATELY" : (score >= 60 ? "MONITOR / TEST" : "AVOID"),
+      marketIndex: score >= 70 ? "BULLISH" : (score >= 40 ? "NEUTRAL" : "BEARISH"),
+      basis: ["Price Stability", "Watch Count Density", "Competition Depth"],
       insights: [
         { 
           id: '1', 
           label: 'Market Alignment', 
           value: `${Math.round(priceStability * 100)}%`, 
-          description: 'Strong price alignment with category averages.',
-          type: 'positive',
+          description: 'Price positioning relative to category average.',
+          type: priceStability > 0.8 ? 'positive' : (priceStability > 0.5 ? 'warning' : 'negative'),
           icon: 'Layers'
         },
         { 
           id: '2', 
           label: 'Demand Signal', 
-          value: demandSignal > 50 ? 'PEAK' : 'FLOW', 
-          description: 'Active consumer interest detected in the last 48h.',
-          type: demandSignal > 20 ? 'positive' : 'neutral',
+          value: demandSignal > 50 ? 'PEAK' : (demandSignal > 0 ? 'FLOW' : 'STAGNANT'), 
+          description: 'Organic consumer interest and watch velocity.',
+          type: demandSignal > 30 ? 'positive' : (demandSignal > 0 ? 'warning' : 'neutral'),
           icon: 'Zap'
         },
         { 
           id: '3', 
           label: 'Risk Vector', 
-          value: 'LOW', 
-          description: 'Minimal saturation for this specific keyword cluster.',
-          type: 'positive',
+          value: totalFound > 2000 ? 'HIGH' : (totalFound > 500 ? 'MEDIUM' : 'LOW'), 
+          description: totalFound > 2000 ? 'Crowded market segment; avoid.' : 'Market saturation levels are optimal.',
+          type: totalFound > 2000 ? 'negative' : (totalFound > 500 ? 'warning' : 'positive'),
           icon: 'Target'
         }
       ]

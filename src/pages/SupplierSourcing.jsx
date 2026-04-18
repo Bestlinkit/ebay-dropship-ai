@@ -232,10 +232,24 @@ const SupplierSourcing = () => {
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
                                  "Intelligence Failure"}
                             </h3>
-                            <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'NO_RESULTS' ? "CJ Dropshipping inventory has no compatible matches for this entry." : 
-                                 "The CJ Sourcing Engine encountered a protocol bridge error. Direct API connectivity required."}
-                            </p>
+                            <div className="flex flex-col gap-6 items-center">
+                                <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed font-medium">
+                                    {pipelineState.status === 'NO_RESULTS' ? "Your current search constraints yielded 0 matches in the CJ Dropshipping catalog." : 
+                                     "The CJ Sourcing Engine encountered a protocol bridge error. This often occurs due to keyword specificity."}
+                                </p>
+                                
+                                <div className="p-8 bg-slate-900/50 rounded-[2.5rem] border border-white/5 max-w-lg w-full text-left space-y-6 shadow-3xl">
+                                     <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                                         <Activity size={14} /> Search Consultant Analysis
+                                     </h4>
+                                     <ul className="text-[11px] text-slate-400 space-y-3 list-disc pl-5 font-medium uppercase tracking-[0.1em] leading-relaxed">
+                                         <li>Broaden your keyword (e.g. "Portable Charger" instead of "X-Max 5000mAh Power Bank")</li>
+                                         <li>Remove restrictive brand names or SKU model numbers</li>
+                                         <li>Verify there are no character encoding issues in the title</li>
+                                         <li>Execute a "Sync" to refresh the CJ Catalog linkage</li>
+                                     </ul>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">

@@ -160,6 +160,7 @@ const IntelligenceReview = () => {
                                     <div className={cn(
                                         "w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-xl",
                                         insight.type === 'positive' ? "bg-emerald-500/10 text-emerald-400 group-hover/item:bg-emerald-500 group-hover/item:text-slate-950" :
+                                        insight.type === 'warning' ? "bg-amber-500/10 text-amber-400 group-hover/item:bg-amber-500 group-hover/item:text-slate-950" :
                                         insight.type === 'negative' ? "bg-rose-500/10 text-rose-400 group-hover/item:bg-rose-500 group-hover/item:text-white" :
                                         "bg-white/5 text-slate-300 group-hover/item:bg-white group-hover/item:text-slate-950"
                                     )}>

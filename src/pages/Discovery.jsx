@@ -211,6 +211,36 @@ const Discovery = () => {
                </div>
             </section>
 
+            {/* 💡 SUGGESTED TRENDS (High-Velocity Discovery) */}
+            {!loading && !query && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-wrap items-center gap-4 px-4"
+              >
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles size={12} className="text-emerald-500" /> Suggested Origins:
+                </span>
+                {[
+                  "Ergonomic Chair",
+                  "Power Station",
+                  "MagSafe Wallet",
+                  "Massage Gun",
+                  "Earbuds",
+                  "Smart Camera",
+                  "Camping Kit"
+                ].map(trend => (
+                  <button
+                    key={trend}
+                    onClick={() => { setQuery(trend); setPagination({ page: 1 }); }}
+                    className="px-4 py-2 bg-slate-950/50 border border-slate-800 rounded-xl text-[10px] font-black text-slate-400 hover:text-white hover:border-slate-700 transition-all uppercase tracking-widest"
+                  >
+                    {trend}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+
             {/* HIGH-CONTRAST FILTER STRIP (ADAPTIVE UI) */}
             <AnimatePresence>
                {showFilters && (
