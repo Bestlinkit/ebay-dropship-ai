@@ -162,12 +162,10 @@ export default {
         const performExchange = async (endpointPath) => {
           const tokenUrl = `${ALI_GATEWAY}${endpointPath}`;
           
-          // UTC Timestamp: yyyy-MM-dd HH:mm:ss
-          const timestamp = new Date().toISOString()
-            .replace('T', ' ')
-            .replace(/\.\d{3}Z$/, '');
+          // Timestamp in milliseconds (Required for Singapore Gateway)
+          const timestamp = Date.now().toString();
 
-          // DUAL NAMING STRATEGY: Include both app_key/client_id for max compatibility
+          // DUAL-NAMING STRATEGY: Include both app_key/client_id for max compatibility
           const baseParams = {
               ...params,
               client_id: params.client_id || ALI_KEY,
@@ -185,6 +183,11 @@ export default {
           const bodyString = new URLSearchParams(finalParams).toString();
           
           console.log(`[AliExpress OAuth] Request URL: ${tokenUrl}`);
+          console.log(`[AliExpress OAuth] Timestamp Audit:`, {
+            value: finalParams.timestamp,
+            isNumeric: /^\d+$/.test(finalParams.timestamp),
+            length: finalParams.timestamp.length
+          });
           console.log(`[AliExpress OAuth] Parameters (sanitized):`, {
             ...finalParams,
             client_secret: '***',

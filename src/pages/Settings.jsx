@@ -422,7 +422,12 @@ const Settings = () => {
                                 const state = Math.random().toString(36).substring(7);
                                 sessionStorage.setItem('ali_oauth_state', state);
                                 
-                                const authUrl = `https://api-sg.aliexpress.com/oauth/authorize?response_type=code&force_auth=true&redirect_uri=${redirectUri}&client_id=${clientId}&state=${state}`;
+                                const authUrl = `https://api-sg.aliexpress.com/oauth/authorize?` +
+      `response_type=code&` +
+      `client_id=532310&` +
+      `redirect_uri=${encodeURIComponent('https://geonoyc-dropshipping.web.app/callback')}&` +
+      `state=${state}&` +
+      `timestamp=${Date.now()}`;
                                 console.log("[AliExpress OAuth] Initiating Redirect:", authUrl);
                                 window.location.href = authUrl;
                             }}

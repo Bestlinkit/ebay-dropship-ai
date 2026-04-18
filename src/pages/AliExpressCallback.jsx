@@ -49,7 +49,10 @@ const AliExpressCallback = () => {
         const responseText = await response.text();
         
         // 🛡️ Always store the last response for immediate diagnostic display
-        sessionStorage.setItem('ali_last_error_debug', `Status: ${response.status}\nBody: ${responseText.substring(0, 500)}`);
+        const debugInfo = `Status: ${response.status}\n` +
+                         `Timestamp: ${Date.now()}\n` +
+                         `Body: ${responseText.substring(0, 500)}`;
+        sessionStorage.setItem('ali_last_error_debug', debugInfo);
 
         console.log('[AliExpress OAuth] Raw Response details:', {
           status: response.status,
