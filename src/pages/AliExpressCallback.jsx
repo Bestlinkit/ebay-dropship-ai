@@ -46,17 +46,22 @@ const AliExpressCallback = () => {
         });
 
         const responseText = await response.text();
-        console.log('[AliExpress OAuth] Raw Response:', {
+        console.log('[AliExpress OAuth] Raw Response details:', {
           status: response.status,
           headers: Object.fromEntries(response.headers),
-          bodyPreview: responseText.substring(0, 500)
+          bodyPreview: responseText.substring(0, 1000)
         });
 
         let data;
         if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
-          data = JSON.parse(responseText);
+          try {
+            data = JSON.parse(responseText);
+          } catch (pe) {
+            throw new Error(`JSON Parse Error: ${pe.message}. Raw: ${responseText.substring(0, 100)}`);
+          }
         } else {
-          throw new Error(`Non-JSON response received. First 100 characters: ${responseText.substring(0, 100)}`);
+          // If AliExpress returned HTML (e.g. 404 or 500 error page)
+          throw new Error(`AliExpress returned non-JSON response (Status ${response.status}). Body starts with: ${responseText.substring(0, 100)}`);
         }
 
         if (data.access_token) {
@@ -81,12 +86,19 @@ const AliExpressCallback = () => {
           toast.success("AliExpress Connection Verified!");
           setTimeout(() => navigate('/dashboard'), 2000);
         } else {
-          throw new Error(data.error_description || data.msg || data.error || "Token exchange failed");
+          // Check for common OAuth error fields
+          const errorMsg = data.error_description || data.msg || data.error || data.sub_msg || "Token exchange failed";
+          const errorCode = data.error || data.code || "unknown_error";
+          
+          console.error(`[AliExpress OAuth] Detailed Error:`, { errorCode, errorMsg, data });
+          throw new Error(`${errorMsg} (${errorCode})`);
         }
       } catch (error) {
         console.error("AliExpress Exchange Error:", error);
         setStatus('error');
-        toast.error(`AliExpress Auth Failed: ${error.message}`);
+        // Extract the most helpful part of the error message for the toast
+        const displayError = error.message.length > 100 ? error.message.substring(0, 100) + "..." : error.message;
+        toast.error(`Auth Failed: ${displayError}`);
       }
     };
 

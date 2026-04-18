@@ -128,17 +128,37 @@ export default {
       try {
         const params = await request.json();
         const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
-        const tokenUrl = `${ALI_GATEWAY}/rest/auth/token/security/create`; // Common AliExpress token path
+        const ALI_KEY = env.ALI_APP_KEY || '532310';
+        const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+
+        const tokenUrl = `${ALI_GATEWAY}/oauth/token`;
+        const bodyParams = {
+            ...params,
+            client_id: params.client_id || ALI_KEY,
+            client_secret: params.client_secret || ALI_SECRET
+        };
+
+        const bodyString = new URLSearchParams(bodyParams).toString();
+        
+        console.log(`[AliExpress OAuth] Proxied POST to: ${tokenUrl}`);
+        console.log(`[AliExpress OAuth] Body (sanitized): ${bodyString.replace(/client_secret=[^&]+/, "client_secret=***")}`);
         
         const res = await fetch(tokenUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(params).toString()
+          headers: { 
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json"
+          },
+          body: bodyString
         });
 
         const data = await res.text();
-        console.log(`[AliExpress OAuth] Response (${res.status}):`, data.substring(0, 500));
-        return new Response(data, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.log(`[AliExpress OAuth] Response (${res.status}):`, data.substring(0, 1000));
+        
+        return new Response(data, { 
+          status: res.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
       } catch (err) {
         console.error(`[AliExpress OAuth] Error:`, err.message);
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
