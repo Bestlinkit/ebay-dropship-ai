@@ -59,9 +59,28 @@ const SupplierSourcing = () => {
         sources: { aliexpress: 'PENDING' }
     });
 
-    const [telemetry, setTelemetry] = useState({ aliexpress: null });
+    const [telemetry, setTelemetry] = useState({ cj: null });
     const [lastError, setLastError] = useState(null);
     const [showLog, setShowLog] = useState(false);
+
+    // CJ Connection Auth Status
+    const [authStatus, setAuthStatus] = useState('CHECKING'); // CHECKING, CONNECTED, FAILED
+    const [authDetails, setAuthDetails] = useState(null);
+
+    const checkCjConnection = useCallback(async () => {
+        setAuthStatus('CHECKING');
+        const result = await cjService.testConnection();
+        if (result.cj_connection === 'connected') {
+            setAuthStatus('CONNECTED');
+        } else {
+            setAuthStatus('FAILED');
+            setAuthDetails(result);
+        }
+    }, []);
+
+    useEffect(() => {
+        checkCjConnection();
+    }, [checkCjConnection]);
 
     const performSourcing = useCallback(async (query = searchQuery) => {
         if (!targetProduct?.id || !query?.trim()) return;
@@ -182,6 +201,63 @@ const SupplierSourcing = () => {
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">eBay Target Price</p>
                         <p className="text-lg font-black text-emerald-600 italic leading-none">${targetPrice.toFixed(2)}</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* 🔥 CJ API CONNECTION STATUS CARD */}
+            <div className={cn(
+                "p-8 rounded-[2.5rem] border-2 flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-500 shadow-2xl shadow-slate-100",
+                authStatus === 'CHECKING' ? "bg-slate-50 border-slate-200" :
+                authStatus === 'CONNECTED' ? "bg-emerald-50/50 border-emerald-500/20" :
+                "bg-rose-50 border-rose-500/20"
+            )}>
+                <div className="flex items-center gap-6">
+                    <div className={cn(
+                        "w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-xl",
+                        authStatus === 'CHECKING' ? "bg-slate-200 text-slate-400 animate-pulse" :
+                        authStatus === 'CONNECTED' ? "bg-emerald-500 text-white" :
+                        "bg-rose-500 text-white"
+                    )}>
+                        {authStatus === 'CHECKING' ? <RefreshCw size={24} className="animate-spin" /> :
+                         authStatus === 'CONNECTED' ? <ShieldCheck size={28} /> :
+                         <ShieldAlert size={28} />}
+                    </div>
+                    <div className="space-y-1">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">CJ Discovery Bridge Status</h4>
+                        <div className="flex items-center gap-3">
+                            <span className={cn(
+                                "text-2xl font-black uppercase italic tracking-tighter leading-none",
+                                authStatus === 'CHECKING' ? "text-slate-400" :
+                                authStatus === 'CONNECTED' ? "text-emerald-600" :
+                                "text-rose-600"
+                            )}>
+                                {authStatus === 'CHECKING' ? "Checking..." :
+                                 authStatus === 'CONNECTED' ? "Secure Connection Est." :
+                                 "Authentication Failed"}
+                            </span>
+                            {authStatus === 'CONNECTED' && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {authStatus === 'FAILED' && (
+                        <button 
+                            onClick={checkCjConnection}
+                            className="px-6 py-3 bg-white border border-rose-200 text-rose-600 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                        >
+                            Retry Handshake
+                        </button>
+                    )}
+                    <div className="px-5 py-3 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-xl flex items-center gap-3">
+                        <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            authStatus === 'CONNECTED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300"
+                        )} />
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                            {authStatus === 'CONNECTED' ? "API v28.0 ONLINE" : "OFFLINE"}
+                        </span>
                     </div>
                 </div>
             </div>

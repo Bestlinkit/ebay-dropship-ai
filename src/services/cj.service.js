@@ -10,8 +10,61 @@ class CJService {
       BACKEND_BASE: import.meta.env.VITE_BACKEND_URL || '',
       SEARCH_ENDPOINT: '/api/cj/search',
       DETAIL_ENDPOINT: '/api/cj/detail',
-      FREIGHT_ENDPOINT: '/api/cj/freight'
+      FREIGHT_ENDPOINT: '/api/cj/freight',
+      AUTH_ENDPOINT: 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken'
     };
+  }
+
+  /**
+   * 🔥 STEP 1 — AUTH CONNECTION TEST (POST-SELECTION ONLY)
+   */
+  async testConnection() {
+    const url = this.CONFIG.AUTH_ENDPOINT;
+    const apiKey = import.meta.env.VITE_CJ_API_KEY || "CJ_API_KEY_FROM_ENV";
+    const payload = { apiKey };
+    const timestamp = new Date().toISOString();
+
+    console.log(`[CJ_AUTH_PROBE] Initiating Connection Test at ${timestamp}`);
+    console.log(`[CJ_AUTH_PROBE] URL: ${url}`);
+    console.log(`[CJ_AUTH_PROBE] Payload:`, payload);
+
+    try {
+        const response = await axios.post(url, payload, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+        });
+
+        const rawResponse = response.data;
+        const result = {
+            cj_connection: rawResponse.code === '200' || rawResponse.success ? "connected" : "failed",
+            status: response.status,
+            message: rawResponse.message || "CJ API connection successful",
+            openId: rawResponse.data?.openId || null,
+            token_valid: !!rawResponse.data?.accessToken,
+            raw_response: rawResponse,
+            timestamp
+        };
+
+        console.log(`[CJ_AUTH_PROBE] Raw Response:`, rawResponse);
+        console.log(`[CJ_AUTH_PROBE] Parsed Response:`, result);
+        
+        return result;
+    } catch (err) {
+        const errorResult = {
+            cj_connection: "failed",
+            status: err.response?.status || 500,
+            message: err.response?.data?.message || "CJ authentication failed",
+            error_code: err.response?.data?.code || "1601000",
+            raw_response: err.response?.data || { error: err.message },
+            timestamp
+        };
+
+        console.error(`[CJ_AUTH_PROBE] Connection Failed:`, err.message);
+        console.log(`[CJ_AUTH_PROBE] Raw Response:`, errorResult.raw_response);
+        console.log(`[CJ_AUTH_PROBE] Parsed Response:`, errorResult);
+
+        return errorResult;
+    }
   }
 
   /**
