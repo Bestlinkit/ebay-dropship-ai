@@ -37,46 +37,22 @@ const fetchWithTimeout = (url, options, timeout = 15000) =>
 /**
  * 🛰️ TOP SIGNATURE GENERATOR (MD5 Wrapping)
  * Algorithm: MD5(secret + sorted_params + secret)
- * Variation 1: Exclude secret from inside the params list
  */
 async function generateTopSignature(params, appSecret) {
     const paramsCopy = { ...params };
-    // Step 1: Remove 'sign' and secret-related parameters from the signing string
     delete paramsCopy['sign'];
-    delete paramsCopy['client_secret'];
-    delete paramsCopy['secret'];
     
-    // Step 2: Sort parameters alphabetically by key
     const sortedKeys = Object.keys(paramsCopy).sort();
-    
-    console.log('=== SIGNATURE GENERATION DEBUG ===');
-    console.log('1. App Secret:', appSecret ? 'PRESENT' : 'MISSING');
-    console.log('2. Sorted Keys:', sortedKeys);
-    
-    // Step 3: Build string as: key1value1key2value2...
     let signString = '';
-    console.log('3. Parameter Audit:');
+    
     for (const key of sortedKeys) {
         if (paramsCopy[key] !== undefined && paramsCopy[key] !== null) {
             signString += key + paramsCopy[key];
-            console.log(`   ${key} = ${paramsCopy[key]}`);
         }
     }
     
-    console.log('4. Concatenated String (no secret):', signString);
-    
-    // Step 4: Wrap with app_secret at BOTH ends
     const stringToSign = appSecret + signString + appSecret;
-    console.log('5. String to Sign (with secret wrapper):', stringToSign);
-    console.log('6. String to Sign Length:', stringToSign.length);
-    
-    const signature = await md5Hash(stringToSign);
-    
-    console.log('7. Generated Signature:', signature);
-    console.log('8. Signature Length:', signature.length);
-    console.log('=== END SIGNATURE DEBUG ===');
-    
-    return signature;
+    return await md5Hash(stringToSign);
 }
 
 export default {
@@ -125,115 +101,51 @@ export default {
       } catch (err) { return new Response(err.message, { status: 500, headers: corsHeaders }); }
     }
 
-    // 3. ALI DS API v2.0 (OFFICIAL SYNC GATEWAY)
+    // 3. ALI DS API (Strict TOP Signed Proxy)
+    // Model: Direct Session (Auth Code used as Session Token)
     if (pathname.includes("/ali-ds-proxy")) {
       try {
         const body = await request.json();
         const { path = "/sync", params } = body;
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+        const ALI_KEY = env.ALI_APP_KEY || '532310';
         const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
         
-        // v2.0 Protocol: HMAC-SHA256 with PATH prefix
-        let signBase = path; 
-        Object.keys(params).sort().forEach(k => {
-            if (params[k] !== undefined && params[k] !== null) {
-                signBase += k + params[k];
-            }
-        });
+        // 🛡️ Standard TOP System Parameters
+        const apiParams = {
+          ...params,
+          app_key: ALI_KEY,
+          timestamp: Date.now().toString(),
+          sign_method: 'md5',
+          format: 'json',
+          v: '2.0'
+        };
 
-        const sign = await hmacSha256(ALI_SECRET, signBase);
-        const searchParams = new URLSearchParams({ ...params, sign });
-        
-        const finalUrl = `${ALI_GATEWAY}${path}`;
-        
-        const res = await fetchWithTimeout(finalUrl, {
+        // Generate TOP Signature
+        const sign = await generateTopSignature(apiParams, ALI_SECRET);
+        apiParams.sign = sign;
+
+        console.log(`[AliExpress DS Proxy] Method: ${apiParams.method} | session: ${apiParams.session ? 'PRESENT' : 'MISSING'}`);
+
+        const res = await fetchWithTimeout(`${ALI_GATEWAY}${path}`, {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: searchParams.toString()
+          body: new URLSearchParams(apiParams).toString()
         });
 
         const data = await res.text();
-        return new Response(data, {
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        return new Response(data, { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
 
       } catch (err) {
-        return new Response(JSON.stringify({ error: err.message, context: "AliExpress Proxy Failure" }), { 
+        return new Response(JSON.stringify({ error: err.message }), { 
           status: 500, 
           headers: corsHeaders 
         });
       }
     }
 
-    // 4. ALIEXPRESS OAUTH HANDLERS
-    if (pathname === "/oauth/token" || pathname === "/oauth/token-refresh") {
-      try {
-        console.log('=== TOKEN EXCHANGE DEBUG START ===');
-        console.log(`[AliExpress OAuth] INCOMING | Method: ${request.method} | Path: ${pathname}`);
-        
-        const params = await request.json();
-        const authCode = params.code;
-        const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
-        const ALI_KEY = env.ALI_APP_KEY || '532310';
-        const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
-
-        const performWaterfall = async () => {
-          // --- ATTEMPT 1: Standard OAuth 2.0 (No Signature) ---
-          console.log('=== ATTEMPTING STANDARD OAUTH (NO SIGNATURE) ===');
-          const standardParams = new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: ALI_KEY,
-            client_secret: ALI_SECRET,
-            headers: { 
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Accept": "application/json",
-              "User-Agent": "Mozilla/5.0 (Bridge/v34.7)"
-            },
-            body: bodyString
-          });
-        };
-
-        // Try primary endpoint (/oauth/token)
-        let res = await performExchange('/oauth/token');
-        let dataStr = await res.text();
-
-        // FALLBACK: If 405 Method Not Allowed, try the alternative REST endpoint
-        if (res.status === 405) {
-          console.warn(`[AliExpress OAuth] Primary endpoint blocked (405). Attempting REST fallback...`);
-          res = await performExchange('/rest/auth/token/security/create');
-          dataStr = await res.text();
-        }
-
-        console.log('=== ALIEXPRESS RESPONSE START ===');
-        console.log(`[AliExpress OAuth] Status: ${res.status} ${res.statusText}`);
-        console.log(`[AliExpress OAuth] Headers:`, Object.fromEntries(res.headers.entries()));
-        console.log(`[AliExpress OAuth] Raw Body:`, dataStr);
-
-        // Try to parse TOP error response structure
-        try {
-          const data = JSON.parse(dataStr);
-          if (data.error_response) {
-            console.log('--- DETAILED TOP ERROR ---');
-            console.log(`Code: ${data.error_response.code}`);
-            console.log(`Msg: ${data.error_response.msg}`);
-            console.log(`Sub-Code: ${data.error_response.sub_code}`);
-            console.log(`Sub-Msg: ${data.error_response.sub_msg}`);
-          }
-        } catch (e) {}
-
-        console.log('=== ALIEXPRESS RESPONSE END ===');
-        console.log('=== TOKEN EXCHANGE DEBUG END ===');
-        
-        return new Response(dataStr, { 
-          status: res.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        });
-      } catch (err) {
-        console.error(`[AliExpress OAuth] Global Exception:`, err.message);
-        return new Response(JSON.stringify({ error: err.message, stack: err.stack }), { status: 500, headers: corsHeaders });
-      }
-    }
-
-    return new Response("Crystal Bridge v34.8-STABLE Live", { headers: corsHeaders });
+    return new Response("Crystal Bridge v34.14-DIRECT_SESSION Live", { headers: corsHeaders });
   }
 };

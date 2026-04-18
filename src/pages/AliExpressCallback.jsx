@@ -12,7 +12,7 @@ const AliExpressCallback = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const exchangeCode = async () => {
+    const handleCallback = async () => {
       try {
         const query = new URLSearchParams(location.search);
         const code = query.get('code');
@@ -23,95 +23,49 @@ const AliExpressCallback = () => {
           return;
         }
 
-        const proxyBase = import.meta.env.VITE_PROXY_URL || '';
-        const endpoint = `${proxyBase}/oauth/token`;
-        
-        const payload = {
-          grant_type: 'authorization_code',
-          code: code,
-          client_id: import.meta.env.VITE_ALI_APP_KEY || '532310',
-          client_secret: import.meta.env.VITE_ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3',
-          redirect_uri: 'https://geonoyc-dropshipping.web.app/callback'
-        };
+        console.log("[AliExpress Callback] Capturing Auth Code as Direct Session Token:", code);
 
-        console.log("[AliExpress OAuth] Exchange Request:", {
-          endpoint,
-          method: 'POST',
-          payload: { ...payload, client_secret: '***' }
-        });
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const responseText = await response.text();
-        
-        // 🛡️ Always store the last response for immediate diagnostic display
-        const debugInfo = `Status: ${response.status}\n` +
-                         `Timestamp: ${Date.now()}\n` +
-                         `Body: ${responseText.substring(0, 500)}`;
-        sessionStorage.setItem('ali_last_error_debug', debugInfo);
-
-        console.log('[AliExpress OAuth] Raw Response details:', {
-          status: response.status,
-          headers: Object.fromEntries(response.headers),
-          bodyPreview: responseText.substring(0, 1000)
-        });
-
-        let data;
-        if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
-          try {
-            data = JSON.parse(responseText);
-          } catch (pe) {
-            throw new Error(`JSON Parse Error: ${pe.message}. Raw: ${responseText.substring(0, 100)}`);
-          }
-        } else {
-          // If AliExpress returned HTML (e.g. 404 or 500 error page)
-          throw new Error(`AliExpress returned non-JSON response (Status ${response.status}). Body starts with: ${responseText.substring(0, 100)}`);
+        // 💾 Save to Firestore (Treating the code as the session token)
+        if (auth.currentUser) {
+          const userRef = doc(db, 'users', auth.currentUser.uid);
+          await updateDoc(userRef, {
+            aliexpress: {
+              access_token: code, // Code is the session token in this model
+              session: code,      // Explicitly store as session
+              expires_at: Date.now() + (30 * 24 * 60 * 60 * 1000), // Default 30 days
+              created_at: serverTimestamp(),
+              linked_at: new Date().toISOString(),
+              model: 'DIRECT_SESSION'
+            }
+          });
         }
 
-        if (data.access_token) {
-          // Store in Session Storage for immediate use
-          sessionStorage.setItem('ali_access_token', data.access_token);
-          
-          // Store in Firestore for persistence
-          if (auth.currentUser) {
-            const userRef = doc(db, 'users', auth.currentUser.uid);
-            await updateDoc(userRef, {
-              aliexpress: {
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
-                expires_at: Date.now() + (data.expires_in * 1000),
-                created_at: serverTimestamp(),
-                linked_at: new Date().toISOString()
-              }
-            });
-          }
+        // 🛡️ Store in session storage for immediate UI feedback
+        sessionStorage.setItem('ali_access_token', code);
 
-          setStatus('success');
-          toast.success("AliExpress Connection Verified!");
-          setTimeout(() => navigate('/dashboard'), 2000);
-        } else {
-          // Check for common OAuth error fields
-          const topError = data.error_response || data;
-          const errorMsg = topError.sub_msg || topError.error_description || topError.msg || topError.error || "Token exchange failed";
-          const errorCode = topError.sub_code || topError.code || topError.error || "unknown_error";
-          
-          console.error(`[AliExpress OAuth] Detailed Error:`, { errorCode, errorMsg, data });
-          throw new Error(`${errorMsg} (${errorCode})`);
-        }
+        setStatus('success');
+        toast.success("AliExpress Connection Secured!");
+        
+        // Auto-close if in popup, else navigate
+        setTimeout(() => {
+          if (window.opener) {
+            window.opener.postMessage({ type: 'ALIEXPRESS_AUTH_SUCCESS' }, window.location.origin);
+            window.close();
+          } else {
+            navigate('/settings');
+          }
+        }, 2000);
+
       } catch (error) {
-        console.error("AliExpress Exchange Error:", error);
+        console.error("AliExpress Callback Error:", error);
         setStatus('error');
-        // Extract the most helpful part of the error message for the toast
-        const displayError = error.message.length > 100 ? error.message.substring(0, 100) + "..." : error.message;
-        toast.error(`Auth Failed: ${displayError}`);
+        toast.error(`Connection Failed: ${error.message}`);
       }
     };
 
-    exchangeCode();
+    if (auth.currentUser) {
+      handleCallback();
+    }
   }, [location, navigate]);
 
   return (
