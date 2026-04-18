@@ -8,21 +8,26 @@ class SourcingService {
   constructor() {
     this.Status = { SUCCESS: 'SUCCESS', ERROR: 'ERROR' };
     
-    // API CONFIGURATION (Universal Deployment Vector)
+    // API CONFIGURATION (CJ v2.0 Standard Unified)
     this.CONFIG = {
       BACKEND_BASE: import.meta.env.VITE_BACKEND_URL || '',
-      GATEWAY: import.meta.env.PROD 
-        ? (import.meta.env.VITE_PROXY_URL || '/api/ali-ds-proxy') 
-        : '/api/ali-ds-proxy',
-      ALI_APP_KEY: import.meta.env.VITE_ALI_APP_KEY,
+      CJ_ACCOUNT_ID: import.meta.env.VITE_CJ_ACCOUNT_ID || 'UNLINKED',
     };
 
     this.sessionLogs = [];
   }
 
   log(entry) {
-    this.sessionLogs.push({ timestamp: new Date().toISOString(), ...entry });
+    const logEntry = { 
+      timestamp: new Date().toISOString(), 
+      id: Math.random().toString(36).substring(7),
+      ...entry 
+    };
+    this.sessionLogs.push(logEntry);
     if (this.sessionLogs.length > 50) this.sessionLogs.shift();
+    
+    // Broadcast for components that need immediate reaction if any
+    window.dispatchEvent(new CustomEvent('cj-diagnostic-log', { detail: logEntry }));
   }
 
   getLogs() { return this.sessionLogs; }
@@ -168,14 +173,13 @@ class SourcingService {
   }
 
   /**
-   * 🛑 INACTIVE BRIDGE: AliExpress Search Logic (LOCKED BASELINE)
-   * AliExpress activity is disabled to prevent background calls.
+   * 🛑 BRIDGE GATEWAY: CJ Discovery Pipeline
    */
-  _sanitizeQuery(query) { return ""; }
+  _sanitizeQuery(query) { return query?.trim() || ""; }
   async runIterativePipeline(context) {
     return { 
       status: "ERROR", 
-      message: "Market discovery active in eBay-only local mode. AliExpress activity disabled.", 
+      message: "Market discovery active in eBay-only local mode. CJ discovery active but requires sourcing logic integration.", 
       products: [] 
     };
   }

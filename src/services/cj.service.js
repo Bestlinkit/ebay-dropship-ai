@@ -1,4 +1,5 @@
 import axios from 'axios';
+import sourcingService from './sourcing';
 
 /**
  * 🛰️ CJ DROPSHIPPING ISOLATED MODULE (v1.0)
@@ -26,12 +27,29 @@ class CJService {
    */
   async pingBridge() {
     try {
-        const response = await axios.get('/api/cj/ping', { timeout: 5000 });
-        console.log(`[CJ_BRIDGE] Health Check:`, response.data);
-        return true;
-    } catch (err) {
-        console.error(`[CJ_BRIDGE] CRITICAL: Local server not responding. Ensure 'npm run server' is active.`);
-        return false;
+      const startTime = Date.now();
+      const response = await axios.get('/api/cj/ping');
+      const latency = Date.now() - startTime;
+      
+      const status = response.data?.status === 'ONLINE';
+      
+      sourcingService.log({
+        type: status ? 'SUCCESS' : 'ERROR',
+        endpoint: '/api/cj/ping',
+        message: `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
+        latency: `${latency}ms`,
+        data: response.data
+      });
+
+      return status;
+    } catch (error) {
+      sourcingService.log({
+        type: 'ERROR',
+        endpoint: '/api/cj/ping',
+        message: 'Bridge Connection Failed. Server (3001) likely offline.',
+        error: error.message
+      });
+      return false;
     }
   }
 

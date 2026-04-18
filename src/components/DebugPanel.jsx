@@ -36,13 +36,17 @@ const DebugPanel = () => {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-3 bg-slate-950 border-b border-white/5">
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-emerald-500">
+                    <div className="flex items-center gap-2 text-indigo-500">
                         <Terminal size={16} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">System Diagnostics v1.2</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">CJ PROTOCOL v2.0 Diagnostics</span>
                     </div>
                     <div className="h-4 w-[1px] bg-white/10" />
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest underline decoration-emerald-500/30">
-                        Active AppKey: 532310
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest underline decoration-indigo-500/30">
+                        Active CJID: {sourcingService.CONFIG.CJ_ACCOUNT_ID}
+                    </span>
+                    <div className="h-4 w-[1px] bg-white/10" />
+                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">
+                        BRIDGE: ONLINE
                     </span>
                 </div>
                 <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
