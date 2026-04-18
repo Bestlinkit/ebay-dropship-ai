@@ -31,11 +31,33 @@ async function hmacSha256(key, message) {
     .toUpperCase();
 }
 
-const fetchWithTimeout = (url, options, timeout = 10000) =>
+const fetchWithTimeout = (url, options, timeout = 15000) =>
   Promise.race([
     fetch(url, options),
-    new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), timeout))
+    new Promise((_, reject) => setTimeout(() => reject(new Error("GATEWAY_TIMEOUT")), timeout))
   ]);
+
+/**
+ * 🛰️ TOP SIGNATURE GENERATOR (AliExpress v2.0 Requirements)
+ * Algorithm: HMAC-SHA256(secret, secret + sorted_params + secret)
+ */
+async function generateTopSignature(params, appSecret) {
+    const sortedKeys = Object.keys(params).sort();
+    let signString = '';
+    for (const key of sortedKeys) {
+        if (key !== 'sign' && params[key] !== undefined && params[key] !== null) {
+            signString += key + params[key];
+        }
+    }
+    
+    // Pattern: secret + sorted_params + secret
+    const finalSignString = appSecret + signString + appSecret;
+    console.log('[AliExpress OAuth] Signature String (pre-hash):', finalSignString);
+    
+    const signature = await hmacSha256(appSecret, finalSignString);
+    console.log('[AliExpress OAuth] Resulting Signature:', signature);
+    return signature;
+}
 
 export default {
   async fetch(request, env) {
@@ -133,24 +155,42 @@ export default {
         const ALI_KEY = env.ALI_APP_KEY || '532310';
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
 
-        // Helper to perform the exchange
+        // Helper for Token Exchange (Signed)
         const performExchange = async (endpointPath) => {
           const tokenUrl = `${ALI_GATEWAY}${endpointPath}`;
-          const bodyParams = {
+          
+          // UTC Timestamp: yyyy-MM-dd HH:mm:ss
+          const timestamp = new Date().toISOString()
+            .replace('T', ' ')
+            .replace(/\.\d{3}Z$/, '');
+
+          const baseParams = {
               ...params,
               client_id: params.client_id || ALI_KEY,
-              client_secret: params.client_secret || ALI_SECRET
+              client_secret: params.client_secret || ALI_SECRET,
+              timestamp: timestamp,
+              sign_method: 'sha256'
           };
 
-          const bodyString = new URLSearchParams(bodyParams).toString();
-          console.log(`[AliExpress OAuth] OUTGOING POST to: ${tokenUrl}`);
+          // Generate Signature
+          const sign = await generateTopSignature(baseParams, ALI_SECRET);
+          const finalParams = { ...baseParams, sign };
+
+          const bodyString = new URLSearchParams(finalParams).toString();
           
+          console.log(`[AliExpress OAuth] Parameters:`, {
+            grant_type: finalParams.grant_type,
+            client_id: finalParams.client_id,
+            timestamp: finalParams.timestamp,
+            sign: 'GENERATED'
+          });
+
           return await fetch(tokenUrl, {
             method: "POST",
             headers: { 
               "Content-Type": "application/x-www-form-urlencoded",
               "Accept": "application/json",
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+              "User-Agent": "Mozilla/5.0 (Bridge/v34.6)"
             },
             body: bodyString
           });
