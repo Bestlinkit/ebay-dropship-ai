@@ -47,6 +47,10 @@ const AliExpressCallback = () => {
         });
 
         const responseText = await response.text();
+        
+        // 🛡️ Always store the last response for immediate diagnostic display
+        sessionStorage.setItem('ali_last_error_debug', `Status: ${response.status}\nBody: ${responseText.substring(0, 500)}`);
+
         console.log('[AliExpress OAuth] Raw Response details:', {
           status: response.status,
           headers: Object.fromEntries(response.headers),
@@ -157,27 +161,31 @@ const AliExpressCallback = () => {
           )}
 
           {status === 'error' && (
-            <motion.div 
-              key="error"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="space-y-6"
-            >
-              <div className="w-24 h-24 bg-rose-500/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-rose-500/20">
-                <AlertCircle size={48} className="text-rose-500" />
+              <div className="space-y-4">
+                <div className="w-24 h-24 bg-rose-500/10 rounded-[2.5rem] flex items-center justify-center mx-auto border border-rose-500/20">
+                  <AlertCircle size={48} className="text-rose-500" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black text-white uppercase tracking-tight">Auth Failure</h2>
+                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Protocol Interrupted</p>
+                </div>
+                
+                {/* 🛡️ HYPER-VERBOSE DEBUG LOGS for USER */}
+                <div className="bg-black/50 p-4 rounded-xl border border-white/5 text-left overflow-hidden">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Diagnostic Data</p>
+                  <pre className="text-[10px] text-rose-400 font-mono break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {sessionStorage.getItem('ali_last_error_debug') || 'Attempting to fetch logs...'}
+                  </pre>
+                </div>
+
+                <p className="text-slate-400 text-sm font-medium">We could not finalize the AliExpress link. Please share the diagnostic data above with support.</p>
+                <button 
+                  onClick={() => navigate('/settings')}
+                  className="w-full h-14 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Return to Settings
+                </button>
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black text-white uppercase tracking-tight">Auth Failure</h2>
-                <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.4em]">Protocol Interrupted</p>
-              </div>
-              <p className="text-slate-400 text-sm font-medium">We could not finalize the AliExpress link. Please try again.</p>
-              <button 
-                onClick={() => navigate('/settings')}
-                className="w-full h-14 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all"
-              >
-                Return to Settings
-              </button>
-            </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
