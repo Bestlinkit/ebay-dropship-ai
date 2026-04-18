@@ -32,6 +32,7 @@ class CJService {
     const timestamp = new Date().toISOString();
 
     console.log(`[CJ_AUTH_PROBE] Step 1: Initiating Proxy Handshake via ${url}`);
+    console.log(`[CJ_AUTH_PROBE] Resolved Target: ${new URL(url, window.location.origin).href}`);
     
     try {
         const response = await axios.post(url, payload, {

@@ -31,6 +31,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/ebay/, ''),
       },
+      '/api/cj': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
       '/ws/ebay': {
         target: 'https://api.ebay.com/ws/api.dll',
         changeOrigin: true,
