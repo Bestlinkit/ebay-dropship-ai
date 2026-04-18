@@ -35,20 +35,48 @@ const fetchWithTimeout = (url, options, timeout = 15000) =>
   ]);
 
 /**
- * 🛰️ TOP SIGNATURE GENERATOR
+ * 🛰️ TOP SIGNATURE GENERATOR (MD5 Wrapping)
  * Algorithm: MD5(secret + sorted_params + secret)
+ * Variation 1: Exclude secret from inside the params list
  */
 async function generateTopSignature(params, appSecret) {
-    const sortedKeys = Object.keys(params).sort();
+    const paramsCopy = { ...params };
+    // Step 1: Remove 'sign' and secret-related parameters from the signing string
+    delete paramsCopy['sign'];
+    delete paramsCopy['client_secret'];
+    delete paramsCopy['secret'];
+    
+    // Step 2: Sort parameters alphabetically by key
+    const sortedKeys = Object.keys(paramsCopy).sort();
+    
+    console.log('=== SIGNATURE GENERATION DEBUG ===');
+    console.log('1. App Secret:', appSecret ? 'PRESENT' : 'MISSING');
+    console.log('2. Sorted Keys:', sortedKeys);
+    
+    // Step 3: Build string as: key1value1key2value2...
     let signString = '';
+    console.log('3. Parameter Audit:');
     for (const key of sortedKeys) {
-        if (key !== 'sign' && params[key] !== undefined && params[key] !== null) {
-            signString += key + params[key];
+        if (paramsCopy[key] !== undefined && paramsCopy[key] !== null) {
+            signString += key + paramsCopy[key];
+            console.log(`   ${key} = ${paramsCopy[key]}`);
         }
     }
-    const finalSignString = appSecret + signString + appSecret;
-    console.log('[AliExpress OAuth] Signature String (pre-hash):', finalSignString);
-    return await md5Hash(finalSignString);
+    
+    console.log('4. Concatenated String (no secret):', signString);
+    
+    // Step 4: Wrap with app_secret at BOTH ends
+    const stringToSign = appSecret + signString + appSecret;
+    console.log('5. String to Sign (with secret wrapper):', stringToSign);
+    console.log('6. String to Sign Length:', stringToSign.length);
+    
+    const signature = await md5Hash(stringToSign);
+    
+    console.log('7. Generated Signature:', signature);
+    console.log('8. Signature Length:', signature.length);
+    console.log('=== END SIGNATURE DEBUG ===');
+    
+    return signature;
 }
 
 export default {
@@ -155,20 +183,25 @@ export default {
           // Timestamp in milliseconds (Required for Singapore Gateway)
           const timestamp = Date.now().toString();
 
-          // DUAL-NAMING STRATEGY: Include both app_key/client_id for max compatibility
-          const baseParams = {
+          // 🛡️ Variation 1: Exclude secrets from the parameters being signed
+          const paramsForSigning = {
               ...params,
               client_id: params.client_id || ALI_KEY,
-              client_secret: params.client_secret || ALI_SECRET,
               app_key: params.client_id || ALI_KEY,
-              secret: params.client_secret || ALI_SECRET,
               timestamp: timestamp,
               sign_method: 'md5'
           };
 
           // Generate Signature
-          const sign = await generateTopSignature(baseParams, ALI_SECRET);
-          const finalParams = { ...baseParams, sign };
+          const sign = await generateTopSignature(paramsForSigning, ALI_SECRET);
+          
+          // Add secrets and signature back for the final request body
+          const finalParams = { 
+            ...paramsForSigning, 
+            client_secret: ALI_SECRET,
+            secret: ALI_SECRET,
+            sign 
+          };
 
           const bodyString = new URLSearchParams(finalParams).toString();
           
