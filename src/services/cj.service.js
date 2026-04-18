@@ -13,67 +13,64 @@ class CJService {
       FREIGHT_ENDPOINT: '/api/cj/freight',
       AUTH_ENDPOINT: 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken'
     };
+    this.SESSION = {
+        accessToken: null,
+        refreshToken: null,
+        expiry: null,
+        openId: null
+    };
   }
 
   /**
-   * 🔥 CJ AUTH DEBUG TRANSPARENCY FIX
-   * Direct visibility into raw CJ API responses.
+   * CJ INTEGRATION FIX (PHASE 1: CONNECTION TEST ONLY)
+   * Strictly isolated from eBay discovery/scoring.
    */
   async testConnection() {
     const url = this.CONFIG.AUTH_ENDPOINT;
     const apiKey = import.meta.env.VITE_CJ_API_KEY || "CJ_API_KEY_FROM_ENV";
     const payload = { apiKey };
-    const headers = { 'Content-Type': 'application/json' };
     const timestamp = new Date().toISOString();
-
-    const request_debug = {
-        url,
-        body: payload,
-        headers_used: headers
-    };
 
     try {
         const response = await axios.post(url, payload, {
-            headers,
+            headers: { 'Content-Type': 'application/json' },
             timeout: 10000
         });
 
         const raw = response.data;
-        const result = {
-            http_status: response.status,
-            cj_response_raw: raw,
-            parsed: {
-                success: raw.code === '200' || raw.success === true,
-                code: raw.code,
-                message: raw.message
-            },
-            request_debug,
-            timestamp
-        };
 
-        console.log(`[CJ_AUTH_RAW] HTTP ${result.http_status}`, result);
-        return result;
+        if (raw.code === '200' || raw.success === true) {
+            // SUCCESS: Store tokens
+            this.SESSION = {
+                accessToken: raw.data?.accessToken,
+                refreshToken: raw.data?.refreshToken,
+                expiry: raw.data?.accessTokenExpiry,
+                openId: raw.data?.openId
+            };
+
+            return {
+                cjConnectionStatus: "CONNECTED",
+                message: "Success",
+                openId: raw.data?.openId || "",
+                timestamp
+            };
+        } else {
+            // FAILURE: Return raw error only
+            return {
+                cjConnectionStatus: "FAILED",
+                code: raw.code || "UNKNOWN",
+                message: raw.message || "API Error",
+                requestId: raw.requestId || ""
+            };
+        }
     } catch (err) {
-        const rawError = err.response?.data || { 
-            error: err.message,
-            code: "TRANSPORT_ERROR",
-            raw_axios: err.code
+        // NETWORK/TRANSPORT FAILURE: Return raw error only
+        return {
+            cjConnectionStatus: "FAILED",
+            code: err.code || "TRANSPORT_ERROR",
+            message: err.message,
+            requestId: ""
         };
-
-        const result = {
-            http_status: err.response?.status || 500,
-            cj_response_raw: rawError,
-            parsed: {
-                success: false,
-                code: rawError.code || "500",
-                message: rawError.message || err.message
-            },
-            request_debug,
-            timestamp
-        };
-
-        console.error(`[CJ_AUTH_RAW] HTTP ${result.http_status}`, result);
-        return result;
     }
   }
 

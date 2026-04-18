@@ -70,7 +70,7 @@ const SupplierSourcing = () => {
         const result = await cjService.testConnection();
         setAuthDetails(result);
 
-        if (result.parsed?.success) {
+        if (result.cjConnectionStatus === 'CONNECTED') {
             setAuthStatus('CONNECTED');
         } else {
             setAuthStatus('FAILED');
@@ -126,7 +126,8 @@ const SupplierSourcing = () => {
     }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
 
     useEffect(() => { 
-        if (searchQuery?.trim()) performSourcing(); 
+        // Automatic search pipeline disabled for Connection Test Phase
+        // if (searchQuery?.trim()) performSourcing(); 
     }, [targetProduct?.id]);
 
     const processedResults = useMemo(() => {
@@ -204,77 +205,78 @@ const SupplierSourcing = () => {
                 </div>
             </div>
 
-            {/* 🔥 CJ API CONNECTION STATUS CARD */}
+            {/* 🔥 CJ API CONNECTION STATUS BADGE ONLY */}
             <div className={cn(
-                "p-8 rounded-[2.5rem] border-2 flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-500 shadow-2xl shadow-slate-100",
-                authStatus === 'CHECKING' ? "bg-slate-50 border-slate-200" :
-                authStatus === 'CONNECTED' ? "bg-emerald-50/50 border-emerald-500/20" :
-                "bg-rose-50 border-rose-500/20"
+                "p-12 rounded-[3.5rem] border-2 flex flex-col items-center justify-center gap-10 transition-all duration-500 shadow-3xl shadow-slate-100 bg-white",
+                authStatus === 'CHECKING' ? "border-slate-100" :
+                authStatus === 'CONNECTED' ? "border-emerald-500/20" :
+                "border-rose-500/20"
             )}>
-                <div className="flex items-center gap-6">
+                <div className="flex flex-col items-center gap-6">
                     <div className={cn(
-                        "w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-xl",
-                        authStatus === 'CHECKING' ? "bg-slate-200 text-slate-400 animate-pulse" :
+                        "w-24 h-24 rounded-[2.5rem] flex items-center justify-center transition-all shadow-2xl",
+                        authStatus === 'CHECKING' ? "bg-slate-100 text-slate-400" :
                         authStatus === 'CONNECTED' ? "bg-emerald-500 text-white" :
                         "bg-rose-500 text-white"
                     )}>
-                        {authStatus === 'CHECKING' ? <RefreshCw size={24} className="animate-spin" /> :
-                         authStatus === 'CONNECTED' ? <ShieldCheck size={28} /> :
-                         <ShieldAlert size={28} />}
+                        {authStatus === 'CHECKING' ? <RefreshCw size={40} className="animate-spin" /> :
+                         authStatus === 'CONNECTED' ? <ShieldCheck size={48} /> :
+                         <ShieldAlert size={48} />}
                     </div>
-                    <div className="space-y-1">
-                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">CJ Discovery Bridge Status</h4>
-                        <div className="flex items-center gap-3">
-                            <span className={cn(
-                                "text-2xl font-black uppercase italic tracking-tighter leading-none",
-                                authStatus === 'CHECKING' ? "text-slate-400" :
-                                authStatus === 'CONNECTED' ? "text-emerald-600" :
-                                "text-rose-600"
-                            )}>
-                                {authStatus === 'CHECKING' ? "Checking..." :
-                                 authStatus === 'CONNECTED' ? "Secure Connection Est." :
-                                 `Auth Fault: ${authDetails?.cj_response_raw?.code || 'ERR'}`}
-                            </span>
-                            {authStatus === 'CONNECTED' && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
-                        </div>
+                    
+                    <div className="text-center space-y-3">
+                        <span className={cn(
+                            "text-4xl font-black uppercase italic tracking-tighter leading-none flex items-center gap-4",
+                            authStatus === 'CHECKING' ? "text-slate-400" :
+                            authStatus === 'CONNECTED' ? "text-emerald-600" :
+                            "text-rose-600"
+                        )}>
+                            {authStatus === 'CHECKING' ? "🟡 CHECKING" :
+                             authStatus === 'CONNECTED' ? "🟢 CONNECTED" :
+                             "🔴 FAILED"}
+                        </span>
                         {authStatus === 'FAILED' && (
-                            <p className="text-[11px] font-bold text-rose-500 uppercase tracking-tight mt-1">
-                                {authDetails?.cj_response_raw?.message || "Unknown API Error"}
+                            <div className="space-y-1">
+                                <p className="text-[12px] font-black text-rose-500 uppercase tracking-[0.2em]">
+                                    {authDetails?.message || "AUTHENTICATION FAULT"}
+                                </p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Raw Code: {authDetails?.code || "ERR"}
+                                </p>
+                            </div>
+                        )}
+                        {authStatus === 'CONNECTED' && (
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest animate-pulse">
+                                Secure Session Established
                             </p>
                         )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-6">
                     {authStatus === 'FAILED' && (
                         <button 
                             onClick={checkCjConnection}
-                            className="px-6 py-3 bg-white border border-rose-200 text-rose-600 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                            className="px-10 py-5 bg-rose-500 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20"
                         >
-                            Retry Handshake
+                            Retry Connection
                         </button>
                     )}
-                    <div className="px-5 py-3 bg-white/50 backdrop-blur-sm border border-slate-200 rounded-xl flex items-center gap-3">
-                        <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            authStatus === 'CONNECTED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-300"
-                        )} />
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                            {authStatus === 'CONNECTED' ? "API v28.0 ONLINE" : "OFFLINE"}
-                        </span>
-                    </div>
                 </div>
             </div>
 
-            <SourcingStatusHeader 
-                state={loading ? 'searching' : 'results'} 
-                loading={loading} 
-                resultsCount={products.length} 
-                isGlobal={false} 
-                query={searchQuery}
-                onAliTrigger={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
-                onRetry={() => performSourcing()}
-            />
+            {/* PRODUCT MATCHING UI DISABLED IN THIS PHASE */}
+            <div className="hidden">
+                 <SourcingStatusHeader 
+                    state={loading ? 'searching' : 'results'} 
+                    loading={loading} 
+                    resultsCount={products.length} 
+                    isGlobal={false} 
+                    query={searchQuery}
+                    onAliTrigger={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
+                    onRetry={() => performSourcing()}
+                />
+            </div>
 
             <div className="space-y-8">
                 {/* 1. LOADING */}
