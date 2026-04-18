@@ -1,8 +1,11 @@
 import axios from 'axios';
 import sourcingService from './sourcing';
 
+// DETECT BRIDGE BASE (Resilient for Production Builds)
+const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || '';
+
 /**
- * 🛰️ CJ DROPSHIPPING ISOLATED MODULE (v1.0)
+ * 🛰️ CJ DROPSHIPPING ISOLATED MODULE (v1.5 - Production Resilient)
  * Mandate: Pure supplier retrieval. Zero impact on Market Analytics.
  */
 class CJService {
@@ -12,7 +15,7 @@ class CJService {
       SEARCH_ENDPOINT: '/api/cj/search',
       DETAIL_ENDPOINT: '/api/cj/detail',
       FREIGHT_ENDPOINT: '/api/cj/freight',
-      AUTH_ENDPOINT: '/api/cj/auth'
+      AUTH_ENDPOINT: `${BRIDGE_BASE}/api/cj/auth`
     };
     this.SESSION = {
         accessToken: null,
@@ -28,7 +31,7 @@ class CJService {
   async pingBridge() {
     try {
       const startTime = Date.now();
-      const response = await axios.get('/api/cj/ping');
+      const response = await axios.get(`${BRIDGE_BASE}/api/cj/ping`);
       const latency = Date.now() - startTime;
       
       const status = response.data?.status === 'ONLINE';
@@ -73,16 +76,36 @@ class CJService {
     const payload = { apiKey };
     const timestamp = new Date().toISOString();
 
-    console.log(`[CJ_AUTH_PROBE] Step 1: Initiating Proxy Handshake via ${url}`);
-    
     try {
+        // 1. Diagnostics: Log Handshake request
+        sourcingService.log({
+            type: 'REQUEST',
+            endpoint: '/api/cj/auth',
+            message: `Initiating backend session handshake (v2.0) via ${BRIDGE_BASE || 'VITE_PROXY'}`,
+            timestamp: new Date().toISOString()
+        });
+
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' },
             timeout: 20000 // Extended for diagnostic stability
         });
 
+        // 🕵️ DETECTION: SPA Fallback (HTML returned instead of JSON)
+        if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
+            throw new Error('BRIDGE_OFFLINE: Server returned index.html. Ensure local bridge (3001) is running and VITE_BACKEND_URL is correct.');
+        }
+
         // 🧠 FORENSIC EXTRACTION (Matches Backend v2.2)
         const envelope = response.data;
+        
+        // 2. Diagnostics: Log Forensic Response
+        sourcingService.log({
+            type: envelope.parsed?.success ? 'RESPONSE' : 'ERROR',
+            endpoint: '/api/cj/auth',
+            http_status: 200,
+            message: envelope.parsed?.message || 'Handshake Completed',
+            raw: envelope.cj_response_raw
+        });
         const raw = envelope.cj_response_raw;
         const isSuccessful = envelope.parsed?.success || (raw?.code == 200);
 

@@ -41,12 +41,13 @@ const DebugPanel = () => {
                         <span className="text-[10px] font-black uppercase tracking-widest">CJ PROTOCOL v2.0 Diagnostics</span>
                     </div>
                     <div className="h-4 w-[1px] bg-white/10" />
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest underline decoration-indigo-500/30">
+                    <span className={`text-[9px] font-black uppercase tracking-widest underline decoration-indigo-500/30 ${sourcingService.CONFIG.CJ_ACCOUNT_ID === 'UNLINKED' ? 'text-red-500 animate-pulse' : 'text-slate-500'}`}>
                         Active CJID: {sourcingService.CONFIG.CJ_ACCOUNT_ID}
+                        {sourcingService.CONFIG.CJ_ACCOUNT_ID === 'UNLINKED' && " [ACTION: RUN NPM BUILD]"}
                     </span>
                     <div className="h-4 w-[1px] bg-white/10" />
-                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest animate-pulse">
-                        BRIDGE: ONLINE
+                    <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                        BRIDGE: {import.meta.env.VITE_BACKEND_URL || 'PROXY_LOCAL'}
                     </span>
                 </div>
                 <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
@@ -76,7 +77,15 @@ const DebugPanel = () => {
                             </div>
                             
                             <div className="text-[11px] text-slate-400 bg-slate-950/80 p-3 rounded-lg overflow-x-auto border border-white/5">
-                                <pre>{JSON.stringify(log.payload || log.data || log.raw || log, null, 2)}</pre>
+                                <pre>
+                                    {(() => {
+                                        const content = log.payload || log.data || log.raw || log;
+                                        if (typeof content === 'string' && content.includes('<!doctype')) {
+                                            return "[CRITICAL: BRIDGE OFFLINE / SPA FALLBACK] - Received website HTML instead of API JSON. Ensure Node server is running on port 3001.";
+                                        }
+                                        return JSON.stringify(content, null, 2);
+                                    })()}
+                                </pre>
                             </div>
                         </div>
                     ))

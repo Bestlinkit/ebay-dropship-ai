@@ -274,5 +274,7 @@ app.post('/api/cj/freight', async (req, res) => {
 // Legacy Sourcing Logic Purged
 
 app.listen(PORT, () => {
-    console.log(`Stable Sourcing Backend running on port ${PORT}`);
+    console.log(`\n🚀 CJ BRIDGE ACTIVE: http://localhost:${PORT}`);
+    console.log(`🔗 REACHABLE VIA: /api/cj/ping`);
+    console.log(`🔐 VAULT STATUS: READY\n`);
 });
