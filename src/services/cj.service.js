@@ -26,21 +26,24 @@ class CJService {
    * Strictly isolated from eBay discovery/scoring.
    */
   async testConnection() {
-    const url = this.CONFIG.AUTH_ENDPOINT;
+    const url = `${this.CONFIG.BACKEND_BASE}${this.CONFIG.AUTH_ENDPOINT}`;
     const apiKey = import.meta.env.VITE_CJ_API_KEY || "CJ_API_KEY_FROM_ENV";
     const payload = { apiKey };
     const timestamp = new Date().toISOString();
 
+    console.log(`[CJ_AUTH_PROBE] Step 1: Initiating Proxy Handshake via ${url}`);
+    
     try {
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 10000
+            timeout: 20000 // Extended timeout for diagnostic stability
         });
 
         const raw = response.data;
+        console.log(`[CJ_AUTH_PROBE] Step 2: Proxy Response Received.`, raw);
 
         if (raw.code === '200' || raw.success === true) {
-            // SUCCESS: Store tokens
+            console.log(`[CJ_AUTH_PROBE] Step 3: SUCCESS. Tokens successfully vaulted.`);
             this.SESSION = {
                 accessToken: raw.data?.accessToken,
                 refreshToken: raw.data?.refreshToken,
@@ -55,7 +58,7 @@ class CJService {
                 timestamp
             };
         } else {
-            // FAILURE: Return raw error only
+            console.warn(`[CJ_AUTH_PROBE] Step 3: API REJECTION.`, raw);
             return {
                 cjConnectionStatus: "FAILED",
                 code: raw.code || "UNKNOWN",
@@ -64,7 +67,7 @@ class CJService {
             };
         }
     } catch (err) {
-        // NETWORK/TRANSPORT FAILURE: Return raw error only
+        console.error(`[CJ_AUTH_PROBE] Step 2 FAIL: TRANSPORT FAULT.`, err.message);
         return {
             cjConnectionStatus: "FAILED",
             code: err.code || "TRANSPORT_ERROR",

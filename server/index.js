@@ -126,13 +126,16 @@ app.post('/api/cj/auth', async (req, res) => {
         
         const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 15000
+            timeout: 20000 // Extended timeout to prevent premature proxy hang
         });
 
-        console.log(`[CJ-AUTH-PROXY] Result: ${response.data.code === '200' ? "SUCCESS ✅" : "FAILED ❌"}`);
+        console.log(`[CJ-AUTH-PROXY] Handshake Result: Code ${response.data.code}`);
         res.json(response.data);
     } catch (error) {
-        console.error("[CJ Auth Proxy] Error:", error.message);
+        console.error("[CJ Auth Proxy] CRITICAL ERROR:", error.message);
+        if (error.response) {
+            console.error("[CJ Auth Proxy] Upstream Error Data:", error.response.data);
+        }
         res.status(500).json({ 
             status: "API_ERROR", 
             message: error.message,
