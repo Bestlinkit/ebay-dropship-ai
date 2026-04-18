@@ -10,6 +10,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*"
 };
 
+const fetchWithTimeout = (url, options, timeout = 15000) =>
+  Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("GATEWAY_TIMEOUT")), timeout))
+  ]);
+
 // 🛡️ NATIVE HMAC-SHA256 (Required for DS API calls)
 async function hmacSha256(key, message) {
   const encoder = new TextEncoder();
@@ -28,29 +34,38 @@ async function md5Hash(message) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
-const fetchWithTimeout = (url, options, timeout = 15000) =>
-  Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) => setTimeout(() => reject(new Error("GATEWAY_TIMEOUT")), timeout))
-  ]);
+// 🛡️ NATIVE TOP TIMESTAMP HELPER
+function getTopTimestamp() {
+  const d = new Date();
+  return d.toISOString()
+    .replace('T', ' ')
+    .replace(/\..+/, ''); // Format: 2024-04-20 12:30:45
+}
 
 /**
- * 🛰️ TOP SIGNATURE GENERATOR (MD5 Wrapping)
- * Algorithm: MD5(secret + sorted_params + secret)
+ * 🛰️ TOP SIGNATURE GENERATOR (Strict Standard)
+ * Algorithm: UpperCase(MD5(secret + sorted_params + secret))
  */
 async function generateTopSignature(params, appSecret) {
     const paramsCopy = { ...params };
-    delete paramsCopy['sign'];
     
+    // ⚔️ CRITICAL: Remove specific keys from the signature string
+    // These should NOT be part of the concatenated hash
+    const keysToRemove = ['sign', 'client_secret', 'secret', 'sign_method_type'];
+    keysToRemove.forEach(key => delete paramsCopy[key]);
+    
+    // Sort keys alphabetically (ASCII)
     const sortedKeys = Object.keys(paramsCopy).sort();
-    let signString = '';
     
+    let signString = '';
     for (const key of sortedKeys) {
-        if (paramsCopy[key] !== undefined && paramsCopy[key] !== null) {
+        // Ensure we only concatenate values that exist
+        if (paramsCopy[key] !== undefined && paramsCopy[key] !== null && paramsCopy[key] !== '') {
             signString += key + paramsCopy[key];
         }
     }
     
+    // Final wrapping
     const stringToSign = appSecret + signString + appSecret;
     return await md5Hash(stringToSign);
 }
@@ -102,7 +117,6 @@ export default {
     }
 
     // 3. ALI DS API (Strict TOP Signed Proxy)
-    // Model: Direct Session (Auth Code used as Session Token)
     if (pathname.includes("/ali-ds-proxy")) {
       try {
         const body = await request.json();
@@ -115,17 +129,19 @@ export default {
         const apiParams = {
           ...params,
           app_key: ALI_KEY,
-          timestamp: Date.now().toString(),
+          timestamp: getTopTimestamp(), // 🎯 Standard TOP Format
           sign_method: 'md5',
           format: 'json',
           v: '2.0'
         };
 
+        // ⚔️ SECURITY: Scrub secrets from the transport body
+        delete apiParams['client_secret'];
+        delete apiParams['secret'];
+        delete apiParams['client_id'];
+
         // Generate TOP Signature
         console.log('=== ALIEXPRESS API REQUEST START ===');
-        console.log('Target Path:', path);
-        
-        // Generate TOP Signature
         const sign = await generateTopSignature(apiParams, ALI_SECRET);
         apiParams.sign = sign;
 
@@ -134,7 +150,6 @@ export default {
         console.log('1. Method:', apiParams.method);
         console.log('2. Parameters:', { ...apiParams, app_key: 'PRESENT', session: apiParams.session ? 'PRESENT' : 'MISSING' });
         console.log('3. Signature:', sign);
-        console.log('4. Body String:', bodyString);
 
         const res = await fetchWithTimeout(`${ALI_GATEWAY}${path}`, {
           method: "POST",
@@ -143,8 +158,7 @@ export default {
         });
 
         const data = await res.text();
-        console.log('5. Response Status:', res.status);
-        console.log('6. Response Body:', data.substring(0, 1000));
+        console.log('4. Response Status:', res.status);
         console.log('=== ALIEXPRESS API REQUEST END ===');
 
         return new Response(data, { 
@@ -159,6 +173,6 @@ export default {
       }
     }
 
-    return new Response("Crystal Bridge v34.14-DIRECT_SESSION Live", { headers: corsHeaders });
+    return new Response("Crystal Bridge v34.21-TOP_HARDENED Live", { headers: corsHeaders });
   }
 };

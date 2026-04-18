@@ -174,15 +174,15 @@ class SourcingService {
         try {
             const aliToken = sessionStorage.getItem('ali_access_token');
             const payload = {
-                path: '/sync', // 🛡️ Standard REST Sync Gateway
+                path: '/sync',
                 params: {
-                    method: 'aliexpress.ds.feed.get', // 🎯 Dropshipping Feed Endpoint
+                    method: 'aliexpress.ds.feed.get',
                     app_key: this.CONFIG.ALI_APP_KEY || '532310',
-                    timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''),
+                    timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''), // Sourcing side still uses it for its internal log context, worker will overwrite for TOP
                     format: 'json',
                     v: '2.0',
-                    sign_method: 'md5', // 🔒 Standard TOP signing
-                    feed_name: 'DS_bestselling', 
+                    sign_method: 'md5',
+                    feed_name: 'DS_bestselling', // 🚀 MANDATORY parameter identified in logs
                     page_size: '20',
                     page_no: '1',
                     target_currency: 'USD',
