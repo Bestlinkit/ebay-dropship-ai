@@ -11,7 +11,7 @@ class CJService {
       SEARCH_ENDPOINT: '/api/cj/search',
       DETAIL_ENDPOINT: '/api/cj/detail',
       FREIGHT_ENDPOINT: '/api/cj/freight',
-      AUTH_ENDPOINT: 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken'
+      AUTH_ENDPOINT: '/api/cj/auth'
     };
     this.SESSION = {
         accessToken: null,

@@ -113,6 +113,36 @@ const CJ_API_KEY = process.env.CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5
 const CJ_GATEWAY = process.env.CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
 
 /**
+ * 🎯 CJ AUTHENTICATION (CORS PROXY)
+ * POST /api/cj/auth
+ */
+app.post('/api/cj/auth', async (req, res) => {
+    try {
+        const { apiKey } = req.body;
+        const targetApiKey = apiKey || CJ_API_KEY;
+        const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
+
+        console.log(`[CJ-AUTH-PROXY] Handshake requested for API Key ending in: ...${targetApiKey.slice(-5)}`);
+        
+        const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 15000
+        });
+
+        console.log(`[CJ-AUTH-PROXY] Result: ${response.data.code === '200' ? "SUCCESS ✅" : "FAILED ❌"}`);
+        res.json(response.data);
+    } catch (error) {
+        console.error("[CJ Auth Proxy] Error:", error.message);
+        res.status(500).json({ 
+            status: "API_ERROR", 
+            message: error.message,
+            code: error.response?.status || 500,
+            data: error.response?.data || {} 
+        });
+    }
+});
+
+/**
  * 🎯 CJ SEARCH
  * GET /api/cj/search?keyword=...
  */
