@@ -163,17 +163,26 @@ export default {
         const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
         const finalUrl = `${ALI_GATEWAY}/rest/auth/token/security/create`;
         
-        console.log('5. Final Request URL:', finalUrl);
-        console.log('6. Request Body:', finalBodyParams.toString());
+        // 🧪 MANDATORY DEBUG LOGS (405 Prevention & Protocol Isolation)
+        const finalHeaders = {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json"
+        };
+        
+        console.log('=== FINAL OUTGOING REQUEST AUDIT ===');
+        console.log('METHOD:', 'POST');
+        console.log('URL:', finalUrl);
+        console.log('HEADERS:', finalHeaders);
+        console.log('BODY:', finalBodyParams.toString());
 
         const res = await fetchWithTimeout(finalUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          headers: finalHeaders,
           body: finalBodyParams.toString()
         });
 
         const data = await res.text();
-        console.log('7. Response:', data);
+        console.log('7. Response Raw:', data);
 
         return new Response(data, { 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
@@ -241,6 +250,6 @@ export default {
       }
     }
 
-    return new Response("Crystal Bridge v34.21-TOP_HARDENED Live", { headers: corsHeaders });
+    return new Response("Crystal Bridge v34.23-PROTOCOL_ISOLATED Live", { headers: corsHeaders });
   }
 };
