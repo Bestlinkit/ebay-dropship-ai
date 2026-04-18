@@ -42,7 +42,9 @@ export default {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-    const pathname = url.pathname.replace(/\/+$/, '') || '/';
+    const rawPath = url.pathname;
+    const pathname = rawPath.replace(/\/+/g, '/').replace(/\/+$/, '') || '/';
+    console.log(`[Bridge Route] Raw: ${rawPath} | Normalized: ${pathname}`);
 
     // 1. EBAY GATEWAY (Remains legacy passthrough)
     const targetUrl = url.searchParams.get("url");
@@ -135,8 +137,10 @@ export default {
         });
 
         const data = await res.text();
+        console.log(`[AliExpress OAuth] Response (${res.status}):`, data.substring(0, 500));
         return new Response(data, { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (err) {
+        console.error(`[AliExpress OAuth] Error:`, err.message);
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
       }
     }

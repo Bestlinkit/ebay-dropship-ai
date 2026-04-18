@@ -25,20 +25,39 @@ const AliExpressCallback = () => {
 
         const proxyBase = import.meta.env.VITE_PROXY_URL || '';
         const endpoint = `${proxyBase}/oauth/token`;
+        
+        const payload = {
+          grant_type: 'authorization_code',
+          code: code,
+          client_id: import.meta.env.VITE_ALI_APP_KEY || '532310',
+          client_secret: import.meta.env.VITE_ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3',
+          redirect_uri: 'https://geonoyc-dropshipping.web.app/callback'
+        };
+
+        console.log("[AliExpress OAuth] Exchange Request:", {
+          endpoint,
+          payload: { ...payload, client_secret: '***' }
+        });
 
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            grant_type: 'authorization_code',
-            code: code,
-            client_id: import.meta.env.VITE_ALI_APP_KEY || '532310',
-            client_secret: import.meta.env.VITE_ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3',
-            redirect_uri: 'https://geonoyc-dropshipping.web.app/callback'
-          })
+          body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log('[AliExpress OAuth] Raw Response:', {
+          status: response.status,
+          headers: Object.fromEntries(response.headers),
+          bodyPreview: responseText.substring(0, 500)
+        });
+
+        let data;
+        if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+          data = JSON.parse(responseText);
+        } else {
+          throw new Error(`Non-JSON response received. First 100 characters: ${responseText.substring(0, 100)}`);
+        }
 
         if (data.access_token) {
           // Store in Session Storage for immediate use
@@ -52,7 +71,8 @@ const AliExpressCallback = () => {
                 access_token: data.access_token,
                 refresh_token: data.refresh_token,
                 expires_at: Date.now() + (data.expires_in * 1000),
-                created_at: serverTimestamp()
+                created_at: serverTimestamp(),
+                linked_at: new Date().toISOString()
               }
             });
           }
@@ -61,7 +81,7 @@ const AliExpressCallback = () => {
           toast.success("AliExpress Connection Verified!");
           setTimeout(() => navigate('/dashboard'), 2000);
         } else {
-          throw new Error(data.error_description || data.msg || "Token exchange failed");
+          throw new Error(data.error_description || data.msg || data.error || "Token exchange failed");
         }
       } catch (error) {
         console.error("AliExpress Exchange Error:", error);

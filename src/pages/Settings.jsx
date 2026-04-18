@@ -419,7 +419,11 @@ const Settings = () => {
                             onClick={() => {
                                 const clientId = import.meta.env.VITE_ALI_APP_KEY || '532310';
                                 const redirectUri = encodeURIComponent('https://geonoyc-dropshipping.web.app/callback');
-                                const authUrl = `https://api-sg.aliexpress.com/oauth/authorize?response_type=code&force_auth=true&redirect_uri=${redirectUri}&client_id=${clientId}`;
+                                const state = Math.random().toString(36).substring(7);
+                                sessionStorage.setItem('ali_oauth_state', state);
+                                
+                                const authUrl = `https://api-sg.aliexpress.com/oauth/authorize?response_type=code&force_auth=true&redirect_uri=${redirectUri}&client_id=${clientId}&state=${state}`;
+                                console.log("[AliExpress OAuth] Initiating Redirect:", authUrl);
                                 window.location.href = authUrl;
                             }}
                             className="relative z-10 btn-premium bg-orange-500 text-white h-16 px-10 rounded-2xl flex items-center gap-4 hover:scale-105 transition-all shadow-xl shadow-orange-500/20"
