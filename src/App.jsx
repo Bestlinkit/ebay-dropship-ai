@@ -21,10 +21,10 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
-import AliSourcing from './pages/AliSourcing';
+import SupplierSourcing from './pages/SupplierSourcing';
 import SupplierProductDetail from './pages/SupplierProductDetail';
 import ProductImportPreview from './pages/ProductImportPreview';
-import AliExpressCallback from './pages/AliExpressCallback';
+import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -80,13 +80,6 @@ function App() {
               } />
 
 
-              <Route path="/ali-sourcing" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <AliSourcing />
-                  </Layout>
-                </ProtectedRoute>
-              } />
 
               <Route path="/product-import-preview" element={
                 <ProtectedRoute>
@@ -156,7 +149,7 @@ function App() {
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/auth/ebay/callback" element={<AuthCallback />} />
               <Route path="/auth/ebay/declined" element={<AuthCallback />} />
-              <Route path="/callback" element={<AliExpressCallback />} />
+              <Route path="/auth/ebay/declined" element={<AuthCallback />} />
             </Routes>
           </ErrorBoundary>
         </ThemeProvider>

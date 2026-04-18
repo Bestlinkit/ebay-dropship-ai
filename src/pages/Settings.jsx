@@ -50,7 +50,7 @@ const Settings = () => {
     ebayCertId: "PRD-2309-...",
     ebayRuName: import.meta.env.VITE_EBAY_RUNAME || "Geonoyc_App_Auth",
     geminiKey: "AI_823-...",
-    aliKey: "ALI-923-..."
+    cjKey: "CJ-API-..."
   });
 
   const [smtpConfig, setSmtpConfig] = useState({
@@ -125,8 +125,6 @@ const Settings = () => {
                 { id: 'profile', label: 'User Profile', icon: User },
                 { id: 'api', label: 'API Keys', icon: Key },
                 { id: 'store', label: 'eBay Store Link', icon: Store },
-                { id: 'aliexpress', label: 'AliExpress Link', icon: Zap },
-                { id: 'smtp', label: 'Mail Server (SMTP)', icon: Mail },
                 { id: 'security', label: 'Privacy & Security', icon: Shield },
             ].map(tab => (
                 <button
@@ -237,7 +235,7 @@ const Settings = () => {
                             { key: 'ebayCertId', label: 'eBay Production Cert ID' },
                             { key: 'ebayRuName', label: 'eBay Redirect URI (RuName)' },
                             { key: 'geminiKey', label: 'Gemini 1.5 Pro Key' },
-                            { key: 'aliKey', label: 'AliExpress DS Secret' },
+                            { key: 'cjKey', label: 'CJ Dropshipping API Key' },
                         ].map(input => (
                             <div key={input.key} className="space-y-4">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{input.label}</label>
@@ -374,72 +372,6 @@ const Settings = () => {
                   </div>
              )}
 
-              {activeTab === 'aliexpress' && (
-                  <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
-                    <div className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-[80px] -mr-32 -mt-32" />
-                        
-                        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                            <div className="space-y-4 text-center md:text-left">
-                                <div className={cn(
-                                    "w-20 h-20 rounded-3xl flex items-center justify-center mx-auto md:mx-0 shadow-2xl transition-all duration-700",
-                                    sessionStorage.getItem('ali_access_token') ? "bg-orange-500 text-white shadow-orange-500/30" : "bg-slate-100 text-slate-300"
-                                )}>
-                                    <ShoppingBag size={40} />
-                                </div>
-                                <div>
-                                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">AliExpress DS Center</h3>
-                                    <p className="text-slate-400 font-bold text-sm italic">Dropshipping Protocol v2.0 Global</p>
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col items-center md:items-end gap-4">
-                                <div className={cn(
-                                    "px-6 py-2 rounded-2xl flex items-center gap-3 text-xs font-black uppercase tracking-[0.2em]",
-                                    sessionStorage.getItem('ali_access_token') ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-rose-50 text-rose-600 border border-rose-100"
-                                )}>
-                                    <div className={cn("w-2 h-2 rounded-full", sessionStorage.getItem('ali_access_token') ? "bg-emerald-500 animate-pulse" : "bg-rose-500")} />
-                                    {sessionStorage.getItem('ali_access_token') ? "AliExpress Linked" : "Access Terminated"}
-                                </div>
-                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Gateway: api-sg.aliexpress.com</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-slate-900 p-12 rounded-[3.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-10 relative overflow-hidden group">
-                         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-orange-500/10 to-transparent" />
-                         <div className="relative z-10 max-w-md space-y-4">
-                            <h4 className="text-2xl font-black uppercase tracking-tight italic">Marketplace Authorization</h4>
-                            <p className="text-sm text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                                Authorize this application to access your AliExpress Dropshipping account. 
-                                This enables direct product imports and automated fulfillment.
-                            </p>
-                         </div>
-                         <button 
-                            onClick={() => {
-                                const clientId = import.meta.env.VITE_ALI_APP_KEY || '532310';
-                                const redirectUri = encodeURIComponent('https://geonoyc-dropshipping.web.app/callback');
-                                const state = Math.random().toString(36).substring(7);
-                                sessionStorage.setItem('ali_oauth_state', state);
-                                
-                                const authUrl = `https://api-sg.aliexpress.com/oauth/authorize?` +
-      `response_type=code&` +
-      `client_id=532310&` +
-      `redirect_uri=${encodeURIComponent('https://geonoyc-dropshipping.web.app/callback')}&` +
-      `state=${state}&` +
-      `scope=aliexpress.dropship&` + // 🚀 Explicitly requesting dropship scope
-      `timestamp=${Date.now()}`;
-                                console.log("[AliExpress OAuth] Initiating Redirect:", authUrl);
-                                window.location.href = authUrl;
-                            }}
-                            className="relative z-10 btn-premium bg-orange-500 text-white h-16 px-10 rounded-2xl flex items-center gap-4 hover:scale-105 transition-all shadow-xl shadow-orange-500/20"
-                         >
-                            <Zap size={20} className="fill-white" />
-                            <span className="font-black uppercase tracking-widest text-xs">Connect AliExpress</span>
-                         </button>
-                    </div>
-                  </div>
-              )}
         </div>
       </div>
 

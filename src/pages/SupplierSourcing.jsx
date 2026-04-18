@@ -23,19 +23,19 @@ import {
   Globe,
   Clock,
   Lock,
-  Box
+  Box,
+  Warehouse
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import sourcingService from '../services/sourcing';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
-// 🏗️ MODULAR COMPONENTS
 import SourcingStatusHeader from '../components/sourcing/SourcingStatusHeader';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 
 /**
- * Stable Supplier Sourcing (v4.0)
- * Implement discovery-first architecture with backend-driven safety.
+ * CJ Unified Supplier Sourcing (v5.0)
+ * HARD MANDATE: CJ Dropshipping only. Supplier Scoring Engine v1.0 active.
  */
 const SupplierSourcing = () => {
     const location = useLocation();
@@ -51,14 +51,14 @@ const SupplierSourcing = () => {
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
     const [page, setPage] = useState(1);
-    const PAGE_SIZE = 8;
+    const PAGE_SIZE = 3; // Focus on Top 3 as per mandate
 
     const [pipelineState, setPipelineState] = useState({
         status: sourcingService.Status.LOADING,
-        sources: { aliexpress: 'PENDING' }
+        sources: { cj: 'PENDING' }
     });
 
-    const [telemetry, setTelemetry] = useState({ aliexpress: null });
+    const [telemetry, setTelemetry] = useState({ cj: null });
     const [lastError, setLastError] = useState(null);
     const [showLog, setShowLog] = useState(false);
 
@@ -66,42 +66,33 @@ const SupplierSourcing = () => {
         if (!targetProduct?.id || !query?.trim()) return;
         
         setLoading(true);
-        setPipelineState({ status: 'LOADING', sources: { aliexpress: 'PENDING' } });
+        setPipelineState({ status: 'LOADING', sources: { cj: 'PENDING' } });
 
         try {
             const context = sourcingService.createContext(query, targetProduct);
             const result = await sourcingService.runIterativePipeline(context);
 
-            setPipelineState({ status: result.status, sources: result.sources });
+            setPipelineState({ status: result.status, sources: { cj: result.status === 'SUCCESS' ? 'COMPLETED' : 'FAILED' } });
             setProducts(result.products || []);
-            setTelemetry(result.telemetry || { aliexpress: null });
+            setTelemetry(result.telemetry || { cj: null });
 
             if (result.status === "SUCCESS") {
                 if ((result.products || []).length > 0) {
-                    toast.success(`Discovered ${result.products.length} products`);
+                    toast.success(`Discovered ${result.products.length} High-Rank Matches`);
                     setLastError(null);
                 } else {
-                    // Force diagnostic availability for 0 matches
-                    setLastError(result.debug || { message: "QUERY_EMPTY: No direct matches found." });
-                    toast.error("No matches found in AliExpress catalog.");
+                    setLastError({ message: "CJ_EMPTY: No direct matches found for this query." });
+                    toast.error("No matches found in CJ catalog.");
                 }
             } else if (result.status === "ERROR") {
-                setLastError(result.debug || result.rawError || result.message);
-                toast.error(result.message || "AliExpress API Connection Failed");
+                setLastError(result.message);
+                toast.error(result.message || "CJ API Connection Failed");
             }
         } catch (e) {
-            console.error("Discovery Pipeline Crash:", e);
-            const crashLog = {
-                message: e.message,
-                status: e.response?.status,
-                statusText: e.response?.statusText,
-                url: e.config?.url,
-                stack: e.stack,
-                context: "Discovery_Pipeline_Crash"
-            };
-            setLastError(crashLog);
+            console.error("CJ Discovery Pipeline Crash:", e);
+            setLastError({ message: e.message });
             setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
-            toast.error(`AliExpress API Connection Failed.`);
+            toast.error(`CJ API Connection Failed.`);
         } finally {
             setLoading(false);
         }
@@ -114,24 +105,8 @@ const SupplierSourcing = () => {
     const processedResults = useMemo(() => {
         if (!targetProduct || products.length === 0) return [];
         
-        return products
-            .map(raw => {
-                const res = sourcingService.normalize(raw);
-                const relevance = sourcingService.calculateOpportunityScore(res, targetPrice);
-                const sellData = sourcingService.calculateSellScore(res, batchContext || { avgPrice: targetPrice });
-                const roiData = sourcingService.calculateROI(targetPrice, res.price);
-
-                return { 
-                    ...res, 
-                    relevance,
-                    sellData,
-                    roiData
-                };
-            })
-            .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
-    }, [products, targetProduct, targetPrice, batchContext]);
-
-    const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);
+        return products.map(raw => sourcingService.normalize(raw));
+    }, [products, targetProduct]);
 
     const handleContinue = (product) => {
         navigate(`/supplier-detail/${product.source}/${product.id}`, { 
@@ -140,7 +115,7 @@ const SupplierSourcing = () => {
                 targetPrice,
                 productUrl: product.url,
                 preFetchedProduct: product,
-                sellData: product.sellData 
+                scores: product.scores
             } 
         });
     };
@@ -165,23 +140,23 @@ const SupplierSourcing = () => {
     return (
         <div className="max-w-[1300px] mx-auto space-y-12 pb-40 px-6 animate-in fade-in duration-700">
             {/* Header Section */}
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-white border border-slate-200 rounded-[3rem] shadow-sm">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-10 p-10 bg-[#0B1120] border border-white/5 rounded-[3rem] shadow-2xl">
                 <div className="flex items-center gap-6">
-                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-all bg-slate-50">
+                    <button onClick={() => navigate(-1)} className="w-14 h-14 rounded-2xl border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all bg-slate-900">
                         <ArrowLeft size={24} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">AliExpress Intelligence Bridge</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-emerald-500" /> Secure DS API Bridge v1.2.5
+                        <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">CJ Sourcing Intelligence</h1>
+                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-2 flex items-center gap-2">
+                             <ShieldCheck size={12} className="text-emerald-500" /> Unified Supplier Scoring Engine v5.0
                         </p>
                     </div>
                 </div>
-                <div className="bg-slate-50 border border-slate-200 p-6 rounded-[2rem] flex items-center gap-6">
-                    <img src={targetProduct.image} alt="" className="w-16 h-16 rounded-xl border border-slate-200 object-cover shadow-lg" />
+                <div className="bg-slate-900 border border-white/5 p-6 rounded-[2rem] flex items-center gap-6">
+                    <img src={targetProduct.image} alt="" className="w-16 h-16 rounded-xl border border-white/10 object-cover shadow-lg" />
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">eBay Target Price</p>
-                        <p className="text-lg font-black text-emerald-600 italic leading-none">${targetPrice.toFixed(2)}</p>
+                        <p className="text-lg font-black text-emerald-400 italic leading-none">${targetPrice.toFixed(2)}</p>
                     </div>
                 </div>
             </div>
@@ -192,7 +167,6 @@ const SupplierSourcing = () => {
                 resultsCount={products.length} 
                 isGlobal={false} 
                 query={searchQuery}
-                onAliTrigger={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
                 onRetry={() => performSourcing()}
             />
 
@@ -200,8 +174,8 @@ const SupplierSourcing = () => {
                 {/* 1. LOADING */}
                 {loading && (
                     <div className="space-y-6">
-                        {Array(3).fill(0).map((_, i) => (
-                           <div key={i} className="h-40 bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />
+                        {Array(PAGE_SIZE).fill(0).map((_, i) => (
+                           <div key={i} className="h-40 bg-[#0B1120] rounded-[3.5rem] animate-pulse border border-white/5" />
                         ))}
                     </div>
                 )}
@@ -209,83 +183,77 @@ const SupplierSourcing = () => {
                 {/* 2. DISCOVERY RESULTS */}
                 {!loading && processedResults.length > 0 && (
                     <div className="grid grid-cols-1 gap-6">
-                        {paginatedResults.map(res => (
+                        <div className="flex items-center justify-between px-10">
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-3">
+                                <TrendingUp size={14} className="text-emerald-500" /> Rank Top 3 Alpha Variants
+                            </h2>
+                            <div className="flex items-center gap-6">
+                                <span className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-4 py-1.5 rounded-full">
+                                    <Warehouse size={12} /> Priority: US Storage
+                                </span>
+                            </div>
+                        </div>
+                        {processedResults.map(res => (
                             <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} onContinue={handleContinue} />
                         ))}
-                        {processedResults.length > paginatedResults.length && (
-                             <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm">
-                                 Show Next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} Matches
-                             </button>
-                        )}
+                        
                         <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
-                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Targeted Discovery Engine</p>
-                             <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
-                                 Perform Manual Keyword Search
-                             </button>
+                             <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Global Supplier Purge Active: AliExpress DS & Affiliate Logic Decommissioned</p>
+                             <div className="flex items-center justify-center gap-10">
+                                 <div className="flex flex-col items-center">
+                                     <span className="text-xl font-black text-slate-950 italic">100%</span>
+                                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">CJ Match Rate</span>
+                                 </div>
+                                 <div className="w-px h-10 bg-slate-200" />
+                                 <div className="flex flex-col items-center">
+                                     <span className="text-xl font-black text-emerald-600 italic">v5.0</span>
+                                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Scoring Core</span>
+                                 </div>
+                             </div>
                         </div>
                     </div>
                 )}
 
                 {/* 3. DETERMINISTIC FAILURE STATES */}
                 {!loading && products.length === 0 && (
-                    <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
+                    <div className="bg-[#0B1120] border-2 border-dashed border-white/10 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl">
                         <div className={cn(
                             "w-24 h-24 border rounded-[3rem] flex items-center justify-center mx-auto shadow-inner",
-                            pipelineState.status === 'ERROR' ? "bg-red-50 text-red-300" : 
-                            "bg-slate-50 text-slate-300"
+                            pipelineState.status === 'ERROR' ? "bg-red-500/10 text-red-400 border-red-500/20" : 
+                            "bg-slate-900 text-slate-500 border-white/5"
                         )}>
                             {pipelineState.status === 'ERROR' ? <AlertTriangle size={48} /> : 
                              <Box size={48} />}
                         </div>
                         
                         <div className="space-y-4">
-                            <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
+                            <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-tight">
                                 {pipelineState.status === 'NO_RESULTS' ? "0 Results" : 
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
-                                 "System Error"}
+                                 "Intelligence Failure"}
                             </h3>
-                            <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'NO_RESULTS' ? "The AliExpress catalog has no matches for this specific query." : 
-                                 pipelineState.status === 'TIMEOUT' ? "The request to AliExpress took too long." :
-                                 "The secure DS API tunnel encountered an unexpected data structure. Technical diagnostics required."}
+                            <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed font-medium">
+                                {pipelineState.status === 'NO_RESULTS' ? "CJ Dropshipping inventory has no compatible matches for this entry." : 
+                                 "The CJ Sourcing Engine encountered a protocol bridge error. Direct API connectivity required."}
                             </p>
                         </div>
 
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                            <button onClick={performSourcing} className="w-full sm:w-auto px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all transform hover:scale-105 italic flex items-center justify-center gap-4 shadow-2xl">
-                                <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Re-initiate Discovery"}
+                            <button onClick={performSourcing} className="w-full sm:w-auto px-16 py-6 bg-white text-slate-950 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-400 transition-all transform hover:scale-105 italic flex items-center justify-center gap-4 shadow-2xl">
+                                <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> {loading ? "Searching..." : "Sync CJ Database"}
                             </button>
-                            
-                            {lastError && (
-                                <button 
-                                    onClick={() => setShowLog(!showLog)}
-                                    className="w-full sm:w-auto px-10 py-6 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 rounded-[2rem] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3"
-                                >
-                                    <Activity size={18} /> {showLog ? "Hide Diagnostic Log" : "View Diagnostic Log"}
-                                </button>
-                            )}
                         </div>
 
-                        <AnimatePresence>
-                            {showLog && lastError && (
-                                <motion.div 
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="mt-10 p-10 bg-slate-950 rounded-[3rem] text-left border border-slate-800 shadow-3xl overflow-hidden"
-                                >
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-3">
-                                            <Lock size={14} /> Backend Diagnostic Payload
-                                        </h4>
-                                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Protocol v28.0-Hardened</span>
-                                    </div>
-                                    <pre className="text-[11px] font-mono text-slate-400 bg-slate-900/50 p-6 rounded-2xl border border-white/5 overflow-x-auto selection:bg-emerald-500/30">
-                                        {JSON.stringify(lastError, null, 2)}
-                                    </pre>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        {lastError && (
+                            <div className="mt-10 p-6 bg-slate-900 rounded-3xl border border-white/5 text-left max-w-lg mx-auto">
+                                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    <AlertCircle size={12} /> Root Cause Analysis
+                                </p>
+                                <p className="text-[12px] font-mono text-slate-500 break-all">
+                                    {typeof lastError === 'string' ? lastError : lastError.message}
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

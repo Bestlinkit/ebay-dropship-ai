@@ -1,20 +1,18 @@
 import axios from 'axios';
 
 /**
- * Deterministic Sourcing & Debug Intelligence (v30.0 - System Override)
- * STRATEGIC MARKET INTELLIGENCE ENGINE.
+ * CJ Dropshipping Sourcing Intelligence & Supplier Scoring Engine (v40.0)
+ * MANDATE: Absolute CJ focus. AliExpress excise complete.
  */
 class SourcingService {
   constructor() {
     this.Status = { SUCCESS: 'SUCCESS', ERROR: 'ERROR' };
     
-    // API CONFIGURATION (Universal Deployment Vector)
     this.CONFIG = {
       BACKEND_BASE: import.meta.env.VITE_BACKEND_URL || '',
-      GATEWAY: import.meta.env.PROD 
-        ? (import.meta.env.VITE_PROXY_URL || '/api/ali-ds-proxy') 
-        : '/api/ali-ds-proxy',
-      ALI_APP_KEY: import.meta.env.VITE_ALI_APP_KEY,
+      SEARCH_ENDPOINT: '/api/cj/search',
+      DETAIL_ENDPOINT: '/api/cj/detail',
+      FREIGHT_ENDPOINT: '/api/cj/freight'
     };
 
     this.sessionLogs = [];
@@ -28,326 +26,191 @@ class SourcingService {
   getLogs() { return this.sessionLogs; }
 
   /**
-   * Phase II: Global Market Intelligence Engine
-   * Mandate: (0.35 * Velocity) + (0.25 * Trend) + (0.20 * CompetitionInverse) + (0.20 * Stability)
+   * 🧠 SUPPLIER SCORING ENGINE (CJ Specification)
+   * Ranks products based on Price, Shipping, Warehouse, and Stability.
    */
-  calculateSellScore(product, batchContext = {}) {
-    // 1. DYNAMIC METRIC EXTRACTION (STRICTLY EBAY)
-    const { avgPrice = 50, stdDev = 15 } = batchContext;
-    const price = Number(product.price) || 0;
-    const totalFound = Number(product.totalFound || 100);
-    
-    // A. Velocity (0.35) - Derived from demand density
-    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 10))); 
-    
-    // B. Trend (0.25) - Sequential variation (simulated 14-day proxy)
-    const trend = Math.min(100, Math.max(0, 70 + (Math.sin(product.title.length) * 30)));
-    
-    // C. Competition Inverse (0.20)
-    const competitionInverse = totalFound > 0 ? Math.min(100, 1000 / totalFound * 10) : 50;
-    
-    // D. Stability (0.20) - Price Deviation from Mean
-    const priceStability = stdDev > 0 ? Math.max(0, 100 - Math.abs((price - avgPrice) / stdDev) * 20) : 80;
+  calculateCJSupplierScore(product, detail, logistics, ebayPrice = 50) {
+    // 1. Price Gap Score (Lowest CJ Variant vs eBay)
+    const variants = detail.productVariants || [];
+    const lowestCJPrice = Math.min(...variants.map(v => parseFloat(v.variantSellPrice || 9999)));
+    const priceGap = ebayPrice - lowestCJPrice;
+    const price_gap_score = priceGap > 0 ? Math.min(100, Math.round((priceGap / ebayPrice) * 150)) : 10;
 
-    const resellScore = Math.round(
-      (velocity * 0.35) + 
-      (trend * 0.25) + 
-      (competitionInverse * 0.20) + 
-      (priceStability * 0.20)
+    // 2. Shipping Score (Speed & Location)
+    // Priority: US Warehouse > CN Warehouse
+    const hasUSWarehouse = variants.some(v => v.variantWarehouseCode === 'US' || v.variantWarehouseCode === 'USA');
+    const logisticAging = logistics[0]?.logisticAging || "10-15"; // e.g. "7-12"
+    const avgAging = this._parseAging(logisticAging);
+    
+    let shipping_score = hasUSWarehouse ? 100 : 60;
+    shipping_score -= (avgAging * 2); // Penalty for longer aging
+    shipping_score = Math.max(0, Math.min(100, Math.round(shipping_score)));
+
+    // 3. Warehouse Score (Availability)
+    const totalInventory = variants.reduce((sum, v) => sum + (v.variantInventory || 0), 0);
+    const warehouse_score = Math.min(100, Math.round((totalInventory / 500) * 100));
+
+    // 4. Final Score (Weighted Average)
+    const final_score = Math.round(
+      (price_gap_score * 0.45) + 
+      (shipping_score * 0.35) + 
+      (warehouse_score * 0.20)
     );
 
-    // 2. MOMENTUM ENGINE (Strictly eBay Derived)
-    const momentumValue = (trend + velocity) / 2;
-    let growthVector = "STABLE";
-    if (momentumValue > 80) growthVector = "ACCELERATING";
-    else if (momentumValue < 40) growthVector = "DECLINING";
+    return {
+      final_score,
+      price_gap_score,
+      shipping_score,
+      warehouse_score,
+      delivery_estimate: logisticAging,
+      lowest_price: lowestCJPrice,
+      stock_stability: totalInventory > 100 ? "HIGH" : (totalInventory > 20 ? "STABLE" : "LOW"),
+      top_warehouse: hasUSWarehouse ? "US STOCK" : "CN GLOBAL"
+    };
+  }
 
-    // 14-Day Trend Array (Varying per product)
-    const trendData = Array.from({ length: 14 }, (_, i) => ({
-      x: i,
-      y: Math.max(0, Math.min(100, trend + Math.sin(i + product.title.length) * 15))
-    }));
+  _parseAging(agingStr) {
+    if (!agingStr || typeof agingStr !== 'string') return 15;
+    const numbers = agingStr.match(/\d+/g);
+    if (!numbers) return 15;
+    const avg = numbers.reduce((a, b) => parseInt(a) + parseInt(b), 0) / numbers.length;
+    return avg;
+  }
+
+  /**
+   * Pipeline Orchestration: CJ Iterative Probe
+   */
+  async runIterativePipeline(context) {
+    const rawQuery = context.query;
+    this.log({ type: 'CJ_PIPELINE_START', rawQuery });
+
+    try {
+        // 1. CJ Product Search
+        const searchResponse = await axios.get(this.CONFIG.SEARCH_ENDPOINT, {
+            params: { keyword: rawQuery }
+        });
+
+        const rawList = searchResponse.data?.data?.list || [];
+        if (rawList.length === 0) {
+            throw new Error("No products found in CJ for this keyword.");
+        }
+
+        // 2. Deep Intelligence Gathering (Top 5 candidates for scoring)
+        const scoredCandidates = [];
+        const candidates = rawList.slice(0, 5);
+
+        for (const item of candidates) {
+            try {
+                // A. Get Details (Variants & Warehouse Info)
+                const detailResponse = await axios.get(this.CONFIG.DETAIL_ENDPOINT, {
+                    params: { pid: item.pid }
+                });
+                const detail = detailResponse.data?.data;
+
+                if (!detail) continue;
+
+                // B. Get Logistics (Freight Calculate for US)
+                const firstVariant = detail.productVariants?.[0];
+                const freightResponse = await axios.post(this.CONFIG.FREIGHT_ENDPOINT, {
+                   startCountryCode: 'CN', // CJ default
+                   endCountryCode: 'US',
+                   products: [{ quantity: 1, vid: firstVariant?.vid }]
+                });
+                const logistics = freightResponse.data?.data || [];
+
+                // C. Score the product
+                const ebayPrice = context.targetProduct?.price || 50;
+                const scores = this.calculateCJSupplierScore(item, detail, logistics, ebayPrice);
+
+                scoredCandidates.push({
+                    ...item,
+                    ...scores,
+                    detail,
+                    logistics
+                });
+            } catch (e) {
+                console.error(`CJ Intelligence Fault for ${item.pid}:`, e.message);
+            }
+        }
+
+        // 3. Rank and Return Top 3
+        const rankedProducts = scoredCandidates
+            .sort((a, b) => b.final_score - a.final_score)
+            .slice(0, 3);
+
+        return {
+            status: "SUCCESS",
+            source: 'CJ_DROPSHIPPING',
+            products: rankedProducts,
+            telemetry: { 
+                latency: Date.now() - context.startTime, 
+                count: rankedProducts.length 
+            }
+        };
+
+    } catch (err) {
+        this.log({ type: 'CJ_PIPELINE_FAULT', error: err.message });
+        return { status: "ERROR", message: err.message };
+    }
+  }
+
+  /**
+   * 📊 Market Scoring (eBay Side)
+   * Used by Discovery page to rank marketplace opportunities.
+   */
+  calculateSellScore(product, batchContext) {
+    const price = product.price || 0;
+    const avgPrice = batchContext?.avgPrice || price;
+    
+    // Simple market viability calculation
+    const priceStability = 1 - (Math.abs(price - avgPrice) / Math.max(price, avgPrice));
+    const demandSignal = product.watchCount || product.soldCount || 0;
+    
+    const score = Math.min(100, Math.round(
+      (priceStability * 40) + 
+      (Math.min(1, demandSignal / 100) * 60)
+    ));
 
     return {
-      resellScore,
-      momentum: trendData,
-      grade: resellScore >= 80 ? 'A' : (resellScore >= 60 ? 'B' : (resellScore >= 40 ? 'C' : 'D')),
-      interpretation: {
-        classification: resellScore >= 75 ? "HIGH-VELOCITY OPPORTUNITY" : (resellScore >= 50 ? "BREAD & BUTTER PRODUCT" : "HIGH-RISK SEGMENT"),
-        action: resellScore >= 75 ? "SELLABLE" : (resellScore >= 50 ? "OBSERVE" : "AVOID"),
-        basis: [
-          `Velocity Index: ${velocity.toFixed(0)}%`,
-          `Market Trend: ${growthVector}`,
-          `Price Stability: ${priceStability.toFixed(0)}%`
-        ],
-        marketIndex: (resellScore * 1.2).toFixed(1),
-        labels: {
-          competition: competitionInverse < 30 ? "HIGH COMPETITION" : (competitionInverse > 70 ? "LOW COMPETITION" : "STANDARD"),
-          growthVector: growthVector,
-          confidence: resellScore >= 75 ? "HIGH" : (resellScore >= 50 ? "MEDIUM" : "LOW")
-        },
-        analysis: this._generateIntelligenceReport(resellScore, { velocity, trend, competitionInverse, priceStability })
+      resellScore: score,
+      isWinner: score > 75,
+      signals: {
+        priceStability,
+        demand: demandSignal > 20 ? 'HIGH' : 'STABLE'
       }
     };
   }
 
-  _generateIntelligenceReport(score, metrics) {
-    if (score >= 80) return "High velocity signals coupled with price stability indicate a top-tier market entry opportunity.";
-    if (score >= 60) return "Stable demand detected. Competitive landscape is manageable but requires strategic pricing.";
-    if (score >= 40) return "Moderate risk. High competition and price volatility suggest a cautious observation period.";
-    return "High risk profile. Low demand trend and market saturation indicate low entry viability.";
-  }
-
   /**
-   * Mandatory Validation & Filtering
+   * 🛡️ Validation Bridge
    */
   validateAndFilter(products) {
     if (!Array.isArray(products)) return [];
-
-    return products.filter((p, index, self) => {
-      // 1. Phase 1: Field Validation (Discard if missing critical fields)
-      if (!p.image_url && !p.thumbnail) return false;
-      if (!p.price || p.price <= 0) return false;
-      if (!p.title) return false;
-      if (!p.categoryId) return false;
-
-      // 2. Phase 8: Duplicate Filter (Similarity > 85%)
-      const isDuplicate = self.findIndex(other => 
-        other.id !== p.id && this._calculateSimilarity(p.title, other.title) > 0.85
-      ) !== -1;
-
-      return !isDuplicate;
-    });
-  }
-
-  _calculateSimilarity(s1, s2) {
-    const words1 = new Set(s1.toLowerCase().split(/\s+/));
-    const words2 = new Set(s2.toLowerCase().split(/\s+/));
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
-    const union = new Set([...words1, ...words2]);
-    return intersection.size / union.size;
-  }
-
-  /**
-   * Phase III: Pipeline Orchestration (AliExpress DS v2.0)
-   */
-  createContext(query, targetProduct) {
-    return {
-      query,
-      targetProduct,
-      startTime: Date.now(),
-      trace: []
-    };
-  }
-
-  _sanitizeQuery(query) {
-    if (!query) return "";
-    const stopWords = ['and', 'with', 'for', 'the', 'in', 'on', 'at', 'by', 'from', '&', 'plus', 'containing'];
-    return query
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, '') // Keep alphanumeric, spaces, and hyphens
-      .split(/\s+/)
-      .filter(word => !stopWords.includes(word) && word.length > 2)
-      .join(' ')
-      .trim();
-  }
-
-  async runIterativePipeline(context) {
-    const rawQuery = context.query;
-    this.log({ type: 'PIPELINE_START', rawQuery });
-
-    const cleanQuery = this._sanitizeQuery(rawQuery);
-    
-    // 🏗️ SLIDING TRUNCATION + OFFICIAL API VECTOR (v33.0-OFFICIAL)
-    const variations = [
-      cleanQuery,                                // 1. Full Precision
-      cleanQuery.substring(0, 50).trim(),        // 2. AliExpress Standard 
-      cleanQuery.substring(0, 35).trim()         // 3. Brand Focus
-    ].filter((v, i, self) => v.length > 0 && self.indexOf(v) === i);
-
-    let lastResult = { status: "ERROR", message: "No search iterations executed." };
-
-    for (let i = 0; i < variations.length; i++) {
-        const currentQuery = variations[i];
-        this.log({ type: 'ITERATION_PROBE', vector: 'OFFICIAL_API', attempt: i + 1, query: currentQuery });
-
-        try {
-            const aliToken = sessionStorage.getItem('ali_access_token');
-            const payload = {
-                path: '/sync',
-                params: {
-                    method: 'aliexpress.ds.feed.get',
-                    app_key: this.CONFIG.ALI_APP_KEY || '532310',
-                    timestamp: new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''), // Sourcing side still uses it for its internal log context, worker will overwrite for TOP
-                    format: 'json',
-                    v: '2.0',
-                    sign_method: 'md5',
-                    feed_name: 'DS_bestselling', // 🚀 MANDATORY parameter identified in logs
-                    page_size: '20',
-                    page_no: '1',
-                    target_currency: 'USD',
-                    target_language: 'EN',
-                    ...(aliToken && { session: aliToken })
-                }
-            };
-
-            const result = await this.runAliExpressOfficial(payload);
-
-            if (result.status === "ERROR") {
-                lastResult = result;
-                continue;
-            }
-
-            // 🛡️ FUZZY MAPPING (v33.0 - OFFICIAL JSON NESTING)
-            const findProducts = (obj) => {
-                if (!obj || typeof obj !== 'object') return null;
-                if (Array.isArray(obj)) return obj;
-                const keys = ['promotion_product', 'products', 'list', 'product_list', 'promotion_products', 'item'];
-                for (const key of keys) {
-                    if (obj[key]) {
-                        const val = obj[key];
-                        if (Array.isArray(val)) return val;
-                        if (val.promotion_product) return Array.isArray(val.promotion_product) ? val.promotion_product : null;
-                    }
-                }
-                for (const key in obj) {
-                    const found = findProducts(obj[key]);
-                    if (found) return found;
-                }
-                return null;
-            };
-
-            const rawProducts = findProducts(result.data) || [];
-
-            if (rawProducts.length > 0) {
-                return {
-                    status: "SUCCESS",
-                    sources: { aliexpress: 'COMPLETED_OFFICIAL' },
-                    products: rawProducts,
-                    telemetry: { aliexpress: { latency: Date.now() - context.startTime, count: rawProducts.length, vector: 'OFFICIAL_API' } }
-                };
-            }
-
-            lastResult = { status: "SUCCESS", products: [], debug: { message: `API iteration ${i+1} returned 0 results.`, query: currentQuery } };
-
-        } catch (err) {
-            this.log({ type: 'ITERATION_FAULT', error: err.message });
-            lastResult = { status: "ERROR", message: err.message, debug: err };
-        }
-    }
-
-    return {
-        ...lastResult,
-        status: "ERROR",
-        message: "AliExpress Search exhausted all iterations with 0 matches.",
-        sources: { aliexpress: 'FAILED' }
-    };
-  }
-
-  _parseAliExpressHTML(html) {
-    // Forensic Regex to find product list in AliExpress window.runParams or __INITIAL_DATA__
-    try {
-        const regex = /window\.runParams\s*=\s*({.+?});/s;
-        const match = html.match(regex);
-        if (!match) return [];
-
-        const data = JSON.parse(match[1]);
-        const list = data?.mods?.itemList?.content || [];
-        
-        return list.map(item => ({
-            product_id: item.productId,
-            product_title: item.title?.displayTitle || item.title,
-            target_sale_price: item.price?.salePrice?.value || item.price?.value,
-            product_main_image_url: item.image?.imgUrl || `https:${item.image?.src}`,
-            product_detail_url: `https://www.aliexpress.com/item/${item.productId}.html`,
-            logistics_info: { shipping_fee: 0, delivery_time: "12-15 Days" }
-        }));
-    } catch (e) {
-        console.error("HTML_PARSING_FAULT:", e);
-        return [];
-    }
+    return products.filter(p => p.id && p.price > 0);
   }
 
   normalize(raw) {
     return {
-      id: raw.product_id,
-      title: raw.product_title,
-      price: parseFloat(raw.target_sale_price || raw.sale_price || 0),
-      image: raw.product_main_image_url || raw.first_level_category_name,
-      thumbnail: raw.product_main_image_url,
-      url: raw.product_detail_url,
-      source: 'aliexpress',
-      shipping: raw.logistics_info?.delivery_time || "12-20 Days",
-      shipping_cost: parseFloat(raw.logistics_info?.shipping_fee || 0),
-      orders: raw.relevant_market_commission || 0,
-      rating: 4.5
+      id: raw.pid,
+      title: raw.productNameEn || raw.productName,
+      price: raw.lowest_price || 0,
+      image: raw.productImage,
+      thumbnail: raw.productImage,
+      url: `https://cjdropshipping.com/product/${(raw.productNameEn || "").replace(/\s+/g, '-')}-p-${raw.pid}.html`,
+      source: 'cjdropshipping',
+      shipping: raw.delivery_estimate || "10-15 Days",
+      shipping_cost: 0,
+      orders: raw.num || 0,
+      rating: 4.8,
+      scores: {
+        final: raw.final_score,
+        price_gap: raw.price_gap_score,
+        shipping: raw.shipping_score,
+        warehouse: raw.warehouse_score,
+        stability: raw.stock_stability,
+        location: raw.top_warehouse
+      }
     };
-  }
-
-  calculateOpportunityScore(product, targetPrice) {
-    const cost = product.price + product.shipping_cost;
-    const margin = targetPrice - cost;
-    const roi = (margin / cost) * 100;
-
-    let score = 50;
-    if (roi > 50) score += 30;
-    else if (roi > 20) score += 10;
-    
-    if (product.shipping_cost === 0) score += 10;
-    if (margin > 15) score += 10;
-
-    return Math.min(100, score);
-  }
-
-  calculateROI(target, cost) {
-    if (!cost || cost === 0) return { margin: 0, roip: 0 };
-    const margin = target - cost;
-    const roip = (margin / cost) * 100;
-    return { margin, roip };
-  }
-
-  async runAliExpressOfficial(payload) {
-    let finalUrl = this.CONFIG.GATEWAY;
-    
-    // 🛡️ GATEWAY PATH PROTECTION (v7.7-TRACE)
-    // Ensure the Crystal Bridge endpoint is included if only the root was provided
-    if (finalUrl && !finalUrl.includes('/api/ali-ds-proxy') && !finalUrl.includes('/ali-ds-proxy')) {
-      finalUrl = finalUrl.replace(/\/$/, '') + '/api/ali-ds-proxy';
-    }
-
-    this.log({ type: 'REQUEST', endpoint: finalUrl, payload });
-
-    try {
-      const { data } = await axios.post(finalUrl, payload, {
-        timeout: 10000,
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      this.log({ type: 'RESPONSE', data: data });
-
-      // Response Validation (Phase 4)
-      if (typeof data === 'string' && data.includes('<!doctype')) {
-         throw new Error("INVALID_API_ROUTE: HTML returned instead of JSON. Ensure the worker is deployed correctly.");
-      }
-
-      if (data.status === "INVALID_API_ROUTE") {
-          throw new Error(data.message);
-      }
-
-      return { status: "SUCCESS", data };
-    } catch (error) {
-      const errorPayload = {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        requestUrl: finalUrl,
-        responseData: error.response?.data
-      };
-      
-      this.log({ type: 'ERROR', ...errorPayload });
-      return { status: "ERROR", message: error.message, debug: errorPayload };
-    }
   }
 }
 

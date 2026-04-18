@@ -52,6 +52,7 @@ const SupplierProductDetail = () => {
 
             setLoading(true);
             try {
+                // Sourcing is now 100% CJ based. getProductDetails refactored to use CJ proxy.
                 const result = await sourcingService.getProductDetails(id);
                 if (result.status === 'SUCCESS') {
                     setProduct(result.data);
@@ -59,11 +60,11 @@ const SupplierProductDetail = () => {
                         setSelectedVariant(result.data.variants[0]);
                     }
                 } else {
-                    toast.error(`API Fetch Failure: ${result.message}`);
+                    toast.error(`CJ API Fetch Failure: ${result.message}`);
                 }
             } catch (error) {
                 console.error("Deep Enrichment Fault:", error);
-                toast.error(`AliExpress API Connection Lost`);
+                toast.error(`CJ API Connection Lost`);
             } finally {
                 setLoading(false);
             }
@@ -144,8 +145,8 @@ const SupplierProductDetail = () => {
                             className="w-full aspect-square object-contain p-10 bg-white"
                         />
                         <div className="absolute bottom-10 left-10 flex items-center gap-2">
-                            <span className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl bg-orange-600">
-                                AliExpress Protocol 1.2.5
+                            <span className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl bg-indigo-600">
+                                CJ Dropshipping Proxy v2.0
                             </span>
                         </div>
                     </div>
@@ -298,31 +299,29 @@ const SupplierProductDetail = () => {
                         </div>
                     )}
 
-                    {/* Trust & Ratings (AliExpress Only) */}
-                    {source.toLowerCase() === 'aliexpress' && (
-                        <div className="p-8 bg-slate-950 rounded-[2.5rem] text-white space-y-6 shadow-xl">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Supplier Authority</h4>
-                                <ShieldCheck size={20} className="text-emerald-400" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-8">
-                                <div className="space-y-2">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Rating Score</p>
-                                    <div className="flex items-center gap-2">
-                                        <Star size={18} className="text-amber-400 fill-amber-400" />
-                                        <span className="text-xl font-black italic">{trust.label}</span>
-                                    </div>
+                    {/* Authority Matrix (CJ Specification) */}
+                    <div className="p-8 bg-slate-950 rounded-[2.5rem] text-white space-y-6 shadow-xl">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Supplier Authority</h4>
+                            <ShieldCheck size={20} className="text-emerald-400" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-2">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Platform Trust</p>
+                                <div className="flex items-center gap-2">
+                                    <Star size={18} className="text-amber-400 fill-amber-400" />
+                                    <span className="text-xl font-black italic">VERIFIED</span>
                                 </div>
-                                <div className="space-y-2">
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Review Volume</p>
-                                    <div className="flex items-center gap-2">
-                                        <CheckCircle2 size={18} className="text-emerald-400" />
-                                        <span className="text-xl font-black italic">{product.reviews || 0}+ Reviews</span>
-                                    </div>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">API Status</p>
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 size={18} className="text-emerald-400" />
+                                    <span className="text-xl font-black italic">ACTIVE</span>
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* Variant Engine */}
                     {product.variants && product.variants.length > 0 && (

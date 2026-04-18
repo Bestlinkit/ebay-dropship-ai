@@ -90,48 +90,7 @@ export function AuthProvider({ children }) {
                             }
                         }
 
-                        // AliExpress Protocol: Token Sync & Refresh
-                        if (data?.aliexpress) {
-                            const { access_token, refresh_token, expires_at } = data.aliexpress;
-                            
-                            // Sync to sessionStorage for sourcing service
-                            if (access_token) {
-                                sessionStorage.setItem('ali_access_token', access_token);
-                            }
-
-                            // Auto-Refresh AliExpress Token
-                            if (refresh_token && expires_at && expires_at < Date.now() + 300000) { // 5 min buffer
-                                try {
-                                    console.log("[AliExpress Sync] Token expiring soon. Initiating refresh...");
-                                    const proxyUrl = import.meta.env.VITE_PROXY_URL || '';
-                                    const response = await fetch(`${proxyUrl}/oauth/token-refresh`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            refresh_token: refresh_token,
-                                            client_id: import.meta.env.VITE_ALI_APP_KEY || '532310',
-                                            client_secret: import.meta.env.VITE_ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3'
-                                        })
-                                    });
-
-                                    const refreshData = await response.json();
-                                    if (refreshData.access_token) {
-                                        const { updateDoc } = await import('firebase/firestore');
-                                        await updateDoc(docRef, {
-                                            aliexpress: {
-                                                ...data.aliexpress,
-                                                access_token: refreshData.access_token,
-                                                expires_at: Date.now() + (refreshData.expires_in * 1000)
-                                            }
-                                        });
-                                        sessionStorage.setItem('ali_access_token', refreshData.access_token);
-                                        console.log("[AliExpress Sync] Token refreshed successfully.");
-                                    }
-                                } catch (e) {
-                                    console.error("[AliExpress Sync] Refresh failed:", e);
-                                }
-                            }
-                        }
+                        // Sourcing is now stateless via the CJ proxy.
                         setLoading(false);
                     } else {
                         setLoading(false);

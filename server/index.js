@@ -107,116 +107,87 @@ app.post('/api/eprolo/detail', async (req, res) => {
     }
 });
 
-// --- ALIEXPRESS DS API PROXY (v2.0 SIGNING) ---
+// --- CJ DROPSHIPPING API (v2.0 - Unified Sourcing) ---
 
-const ALI_APP_KEY = '532310';
-const ALI_APP_SECRET = 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+const CJ_API_KEY = process.env.CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5fb00a4ecba7b';
+const CJ_GATEWAY = process.env.CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
 
-app.post('/api/ali-ds-proxy', async (req, res) => {
+/**
+ * 🎯 CJ SEARCH
+ * GET /api/cj/search?keyword=...
+ */
+app.get('/api/cj/search', async (req, res) => {
     try {
-        const params = req.body;
-        
-        // 1. SIGNING PROTOCOL (v2.0 MD5)
-        const sortedKeys = Object.keys(params).sort();
-        let signStr = ALI_APP_SECRET;
-        for (const key of sortedKeys) {
-            signStr += key + params[key];
-        }
-        signStr += ALI_APP_SECRET;
-        
-        const sign = crypto.createHash('md5').update(signStr, 'utf8').digest('hex').toUpperCase();
-        
-        // 2. REQUEST EXECUTION
-        const gateway = 'https://eco.taobao.com/router/rest';
-        console.log(`[AliExpress Proxy] Request URL: ${gateway}`);
-        
-        const response = await axios.post(gateway, new URLSearchParams({
-            ...params,
-            sign
-        }), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        const { keyword, page = 1, size = 20 } = req.query;
+        if (!keyword) return res.status(400).json({ error: "Missing keyword" });
+
+        console.log(`[CJ-API] Searching: "${keyword}"`);
+        const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
+            params: { keyWord: keyword, page, size },
+            headers: { 'CJ-Access-Token': CJ_API_KEY },
             timeout: 10000
         });
-
-        const contentType = response.headers['content-type'];
-        const first100 = typeof response.data === 'string' 
-            ? response.data.substring(0, 100) 
-            : JSON.stringify(response.data).substring(0, 100);
-
-        console.log(`[AliExpress Proxy] Response Type: ${contentType}`);
-        console.log(`[AliExpress Proxy] Sample: ${first100}`);
-
-        // 3. HTML FALLBACK DETECTION
-        if (typeof response.data === 'string' && response.data.trim().startsWith('<!doctype')) {
-            console.error("[AliExpress Proxy] CRITICAL: HTML returned instead of JSON.");
-            return res.status(500).json({ 
-                status: "INVALID_API_ROUTE", 
-                message: "HTML returned instead of JSON",
-                preview: first100
-            });
-        }
 
         res.json(response.data);
     } catch (error) {
-        console.error("AliExpress Proxy Error:", error.message);
+        console.error("[CJ Search] Error:", error.message);
         res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
 
-// --- ALIEXPRESS ENDPOINTS ---
-
-app.get('/api/aliexpress/search', async (req, res) => {
+/**
+ * 🎯 CJ PRODUCT DETAIL
+ * GET /api/cj/detail?pid=...
+ */
+app.get('/api/cj/detail', async (req, res) => {
     try {
-        const { q } = req.query;
-        if (!q) return res.status(400).json({ message: "Missing query" });
+        const { pid } = req.query;
+        if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
-        const url = `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(q)}`;
-        const response = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Sec-Ch-Ua': '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
-                'Sec-Ch-Ua-Mobile': '?0',
-                'Sec-Ch-Ua-Platform': '"Windows"',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Upgrade-Insecure-Requests': '1',
-                'Cache-Control': 'no-cache'
-            },
+        console.log(`[CJ-API] Fetching Detail for: ${pid}`);
+        const response = await axios.get(`${CJ_GATEWAY}/product/detail`, {
+            params: { pid },
+            headers: { 'CJ-Access-Token': CJ_API_KEY },
             timeout: 10000
         });
 
-        console.log(`[AliExpress] Search: "${q}" -> Status: ${response.status}, Length: ${response.data.length}`);
-
-        res.send(response.data);
+        res.json(response.data);
     } catch (error) {
-        console.error("AliExpress Search Error:", error.message);
+        console.error("[CJ Detail] Error:", error.message);
         res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
 
-app.get('/api/aliexpress/detail', async (req, res) => {
+/**
+ * 🎯 CJ FREIGHT CALCULATION
+ * POST /api/cj/freight
+ */
+app.post('/api/cj/freight', async (req, res) => {
     try {
-        const { url } = req.query;
-        if (!url) return res.status(400).json({ message: "Missing URL" });
+        const { startCountryCode = 'CN', endCountryCode = 'US', products } = req.body;
+        
+        if (!products || !Array.isArray(products)) {
+            return res.status(400).json({ error: "Missing products array" });
+        }
 
-        const response = await axios.get(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-            },
+        console.log(`[CJ-API] Calculating Freight: ${startCountryCode} -> ${endCountryCode}`);
+        const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, {
+            startCountryCode,
+            endCountryCode,
+            products
+        }, {
+            headers: { 'CJ-Access-Token': CJ_API_KEY, 'Content-Type': 'application/json' },
             timeout: 10000
         });
 
-        res.send(response.data);
+        res.json(response.data);
     } catch (error) {
-        console.error("AliExpress Detail Error:", error.message);
+        console.error("[CJ Freight] Error:", error.message);
         res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
+
+// Legacy Sourcing Logic Purged
 
 app.listen(PORT, () => {
     console.log(`Stable Sourcing Backend running on port ${PORT}`);
