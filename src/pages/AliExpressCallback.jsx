@@ -88,8 +88,9 @@ const AliExpressCallback = () => {
           setTimeout(() => navigate('/dashboard'), 2000);
         } else {
           // Check for common OAuth error fields
-          const errorMsg = data.error_description || data.msg || data.error || data.sub_msg || "Token exchange failed";
-          const errorCode = data.error || data.code || "unknown_error";
+          const topError = data.error_response || data;
+          const errorMsg = topError.sub_msg || topError.error_description || topError.msg || topError.error || "Token exchange failed";
+          const errorCode = topError.sub_code || topError.code || topError.error || "unknown_error";
           
           console.error(`[AliExpress OAuth] Detailed Error:`, { errorCode, errorMsg, data });
           throw new Error(`${errorMsg} (${errorCode})`);

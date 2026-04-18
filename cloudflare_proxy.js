@@ -43,6 +43,8 @@ const fetchWithTimeout = (url, options, timeout = 15000) =>
  */
 async function generateTopSignature(params, appSecret) {
     const sortedKeys = Object.keys(params).sort();
+    console.log('[AliExpress OAuth] Sorted Keys for Signature:', sortedKeys);
+    
     let signString = '';
     for (const key of sortedKeys) {
         if (key !== 'sign' && params[key] !== undefined && params[key] !== null) {
@@ -148,7 +150,8 @@ export default {
     // 4. ALIEXPRESS OAUTH HANDLERS
     if (pathname === "/oauth/token" || pathname === "/oauth/token-refresh") {
       try {
-        console.log(`[AliExpress OAuth] INCOMING REQUEST | Method: ${request.method} | Path: ${pathname}`);
+        console.log('=== TOKEN EXCHANGE DEBUG START ===');
+        console.log(`[AliExpress OAuth] INCOMING | Method: ${request.method} | Path: ${pathname}`);
         
         const params = await request.json();
         const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
@@ -164,10 +167,13 @@ export default {
             .replace('T', ' ')
             .replace(/\.\d{3}Z$/, '');
 
+          // DUAL NAMING STRATEGY: Include both app_key/client_id for max compatibility
           const baseParams = {
               ...params,
               client_id: params.client_id || ALI_KEY,
               client_secret: params.client_secret || ALI_SECRET,
+              app_key: params.client_id || ALI_KEY,
+              secret: params.client_secret || ALI_SECRET,
               timestamp: timestamp,
               sign_method: 'sha256'
           };
@@ -178,11 +184,11 @@ export default {
 
           const bodyString = new URLSearchParams(finalParams).toString();
           
-          console.log(`[AliExpress OAuth] Parameters:`, {
-            grant_type: finalParams.grant_type,
-            client_id: finalParams.client_id,
-            timestamp: finalParams.timestamp,
-            sign: 'GENERATED'
+          console.log(`[AliExpress OAuth] Request URL: ${tokenUrl}`);
+          console.log(`[AliExpress OAuth] Parameters (sanitized):`, {
+            ...finalParams,
+            client_secret: '***',
+            secret: '***'
           });
 
           return await fetch(tokenUrl, {
@@ -190,7 +196,7 @@ export default {
             headers: { 
               "Content-Type": "application/x-www-form-urlencoded",
               "Accept": "application/json",
-              "User-Agent": "Mozilla/5.0 (Bridge/v34.6)"
+              "User-Agent": "Mozilla/5.0 (Bridge/v34.7)"
             },
             body: bodyString
           });
@@ -198,14 +204,44 @@ export default {
 
         // Try primary endpoint (/oauth/token)
         let res = await performExchange('/oauth/token');
-        let data = await res.text();
+        let dataStr = await res.text();
 
         // FALLBACK: If 405 Method Not Allowed, try the alternative REST endpoint
         if (res.status === 405) {
-          console.warn(`[AliExpress OAuth] URL /oauth/token returned 405. Attempting fallback to /rest/auth/token/security/create...`);
+          console.warn(`[AliExpress OAuth] Primary endpoint blocked (405). Attempting REST fallback...`);
           res = await performExchange('/rest/auth/token/security/create');
-          data = await res.text();
+          dataStr = await res.text();
         }
+
+        console.log('=== ALIEXPRESS RESPONSE START ===');
+        console.log(`[AliExpress OAuth] Status: ${res.status} ${res.statusText}`);
+        console.log(`[AliExpress OAuth] Headers:`, Object.fromEntries(res.headers.entries()));
+        console.log(`[AliExpress OAuth] Raw Body:`, dataStr);
+
+        // Try to parse TOP error response structure
+        try {
+          const data = JSON.parse(dataStr);
+          if (data.error_response) {
+            console.log('--- DETAILED TOP ERROR ---');
+            console.log(`Code: ${data.error_response.code}`);
+            console.log(`Msg: ${data.error_response.msg}`);
+            console.log(`Sub-Code: ${data.error_response.sub_code}`);
+            console.log(`Sub-Msg: ${data.error_response.sub_msg}`);
+          }
+        } catch (e) {}
+
+        console.log('=== ALIEXPRESS RESPONSE END ===');
+        console.log('=== TOKEN EXCHANGE DEBUG END ===');
+        
+        return new Response(dataStr, { 
+          status: res.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      } catch (err) {
+        console.error(`[AliExpress OAuth] Global Exception:`, err.message);
+        return new Response(JSON.stringify({ error: err.message, stack: err.stack }), { status: 500, headers: corsHeaders });
+      }
+    }
 
         console.log(`[AliExpress OAuth] Response (${res.status}):`, data.substring(0, 1000));
         
