@@ -183,13 +183,13 @@ export default {
           // Timestamp in milliseconds (Required for Singapore Gateway)
           const timestamp = Date.now().toString();
 
-          // 🛡️ Variation 1: Exclude secrets from the parameters being signed
+          // 🛡️ Variation 1 (MINIMAL): Only include core parameters in signature
+          // As requested: Exclude client_id/app_key from hashing
           const paramsForSigning = {
-              ...params,
-              client_id: params.client_id || ALI_KEY,
-              app_key: params.client_id || ALI_KEY,
-              timestamp: timestamp,
-              sign_method: 'md5'
+              code: params.code,
+              grant_type: 'authorization_code',
+              redirect_uri: 'https://geonoyc-dropshipping.web.app/callback',
+              timestamp: timestamp
           };
 
           // Generate Signature
@@ -198,8 +198,8 @@ export default {
           // Add secrets and signature back for the final request body
           const finalParams = { 
             ...paramsForSigning, 
+            client_id: ALI_KEY,
             client_secret: ALI_SECRET,
-            secret: ALI_SECRET,
             sign 
           };
 
