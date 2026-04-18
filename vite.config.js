@@ -36,10 +36,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ws\/ebay/, ''),
       },
-      '/api/ali-ds-proxy': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      }
     }
   },
   preview: {

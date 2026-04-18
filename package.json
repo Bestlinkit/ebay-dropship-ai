@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run check-bundle",
-    "check-bundle": "grep -q \"createContext\" dist/assets/*.js || (echo '❌ ERROR: React Context missing from bundle' && exit 1)",
+    "build": "vite build && node -e \"require('fs').readdirSync('dist/assets').some(f => f.endsWith('.js') && require('fs').readFileSync('dist/assets/' + f, 'utf8').includes('createContext')) ? process.exit(0) : (console.error('❌ ERROR: React Context missing from bundle'), process.exit(1))\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },

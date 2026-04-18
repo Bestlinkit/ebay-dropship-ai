@@ -21,9 +21,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
-import SupplierSourcing from './pages/SupplierSourcing';
 import SupplierProductDetail from './pages/SupplierProductDetail';
-import ProductImportPreview from './pages/ProductImportPreview';
 import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -148,7 +146,6 @@ function App() {
               {/* API Routes */}
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/auth/ebay/callback" element={<AuthCallback />} />
-              <Route path="/auth/ebay/declined" element={<AuthCallback />} />
               <Route path="/auth/ebay/declined" element={<AuthCallback />} />
             </Routes>
           </ErrorBoundary>
