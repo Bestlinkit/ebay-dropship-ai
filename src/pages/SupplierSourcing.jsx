@@ -65,16 +65,15 @@ const SupplierSourcing = () => {
 
     // CJ Connection Auth Status
     const [authStatus, setAuthStatus] = useState('CHECKING'); // CHECKING, CONNECTED, FAILED
-    const [authDetails, setAuthDetails] = useState(null);
-
     const checkCjConnection = useCallback(async () => {
         setAuthStatus('CHECKING');
         const result = await cjService.testConnection();
-        if (result.cj_connection === 'connected') {
+        setAuthDetails(result);
+
+        if (result.parsed?.success) {
             setAuthStatus('CONNECTED');
         } else {
             setAuthStatus('FAILED');
-            setAuthDetails(result);
         }
     }, []);
 
@@ -234,10 +233,15 @@ const SupplierSourcing = () => {
                             )}>
                                 {authStatus === 'CHECKING' ? "Checking..." :
                                  authStatus === 'CONNECTED' ? "Secure Connection Est." :
-                                 "Authentication Failed"}
+                                 `Auth Fault: ${authDetails?.cj_response_raw?.code || 'ERR'}`}
                             </span>
                             {authStatus === 'CONNECTED' && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
                         </div>
+                        {authStatus === 'FAILED' && (
+                            <p className="text-[11px] font-bold text-rose-500 uppercase tracking-tight mt-1">
+                                {authDetails?.cj_response_raw?.message || "Unknown API Error"}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -357,7 +361,7 @@ const SupplierSourcing = () => {
                                         <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Protocol v28.0-Hardened</span>
                                     </div>
                                     <pre className="text-[11px] font-mono text-slate-400 bg-slate-900/50 p-6 rounded-2xl border border-white/5 overflow-x-auto selection:bg-emerald-500/30">
-                                        {JSON.stringify(lastError, null, 2)}
+                                        {JSON.stringify(authStatus === 'FAILED' ? authDetails : lastError, null, 2)}
                                     </pre>
                                 </motion.div>
                             )}
