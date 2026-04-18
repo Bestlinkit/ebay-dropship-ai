@@ -141,6 +141,7 @@ app.post('/api/cj/auth', async (req, res) => {
     const targetApiKey = apiKey || CJ_API_KEY;
     const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
 
+    console.log("[CJ REQUEST] Endpoint hit");
     console.log(`[CJ-AUTH-PROXY] Handshake requested for API Key ending in: ...${targetApiKey.slice(-5)}`);
     
     try {
@@ -150,6 +151,7 @@ app.post('/api/cj/auth', async (req, res) => {
         });
 
         const raw = response.data;
+        console.log("[CJ RESPONSE]", raw);
         console.log(`[CJ-AUTH-PROXY] Handshake Result: Code ${raw.code}`);
 
         // 🛡️ VAULTING PROTOCOL: Store token in secure backend memory
@@ -272,6 +274,16 @@ app.post('/api/cj/freight', async (req, res) => {
 });
 
 // Legacy Sourcing Logic Purged
+
+// 404 Catch-all (Hardened for APIs)
+app.use((req, res) => {
+    res.status(404).json({ 
+        status: "ERROR", 
+        message: "Route not found on CJ Bridge", 
+        url: req.url,
+        instruction: "Ensure your frontend is calling http://localhost:3001"
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`\n🚀 CJ BRIDGE ACTIVE: http://localhost:${PORT}`);

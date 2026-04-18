@@ -2,7 +2,7 @@ import axios from 'axios';
 import sourcingService from './sourcing';
 
 // DETECT BRIDGE BASE (Resilient for Production Builds)
-const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || '';
+const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 /**
  * 🛰️ CJ DROPSHIPPING ISOLATED MODULE (v1.5 - Production Resilient)
