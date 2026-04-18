@@ -172,54 +172,18 @@ export default {
         console.log(`[AliExpress OAuth] INCOMING | Method: ${request.method} | Path: ${pathname}`);
         
         const params = await request.json();
+        const authCode = params.code;
         const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
         const ALI_KEY = env.ALI_APP_KEY || '532310';
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
 
-        // Helper for Token Exchange (Signed)
-        const performExchange = async (endpointPath) => {
-          const tokenUrl = `${ALI_GATEWAY}${endpointPath}`;
-          
-          // Timestamp in milliseconds (Required for Singapore Gateway)
-          const timestamp = Date.now().toString();
-
-          // 🛡️ Variation 1 (STANDARD TOP): Include app_key but exclude secret from hash string
-          const paramsForSigning = {
-              code: params.code,
-              grant_type: 'authorization_code',
-              redirect_uri: 'https://geonoyc-dropshipping.web.app/callback',
-              timestamp: timestamp,
-              app_key: ALI_KEY, // Mandatory system parameter for TOP
-              sign_method: 'md5'
-          };
-
-          // Generate Signature
-          const sign = await generateTopSignature(paramsForSigning, ALI_SECRET);
-          
-          // Add secrets and signature back for the final request body
-          const finalParams = { 
-            ...paramsForSigning, 
+        const performWaterfall = async () => {
+          // --- ATTEMPT 1: Standard OAuth 2.0 (No Signature) ---
+          console.log('=== ATTEMPTING STANDARD OAUTH (NO SIGNATURE) ===');
+          const standardParams = new URLSearchParams({
+            grant_type: 'authorization_code',
             client_id: ALI_KEY,
             client_secret: ALI_SECRET,
-            sign 
-          };
-
-          const bodyString = new URLSearchParams(finalParams).toString();
-          
-          console.log(`[AliExpress OAuth] Request URL: ${tokenUrl}`);
-          console.log(`[AliExpress OAuth] Timestamp Audit:`, {
-            value: finalParams.timestamp,
-            isNumeric: /^\d+$/.test(finalParams.timestamp),
-            length: finalParams.timestamp.length
-          });
-          console.log(`[AliExpress OAuth] Parameters (sanitized):`, {
-            ...finalParams,
-            client_secret: '***',
-            secret: '***'
-          });
-
-          return await fetch(tokenUrl, {
-            method: "POST",
             headers: { 
               "Content-Type": "application/x-www-form-urlencoded",
               "Accept": "application/json",
