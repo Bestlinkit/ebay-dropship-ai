@@ -116,7 +116,75 @@ export default {
       } catch (err) { return new Response(err.message, { status: 500, headers: corsHeaders }); }
     }
 
-    // 3. ALI DS API (Strict TOP Signed Proxy)
+    // 3. ALIEXPRESS OAUTH SURGICAL FIX (v34.22)
+    if (pathname.includes("/rest/auth/token/security/create") || pathname.includes("/oauth/token")) {
+      try {
+        const body = await request.json();
+        const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
+        const ALI_KEY = env.ALI_APP_KEY || '532310';
+        const ALI_REDIRECT = body.redirect_uri || 'https://geonoyc-dropshipping.web.app/callback';
+        
+        // 🛡️ Step 1: Baseline Parameters (EXCLUDING sign and sign_method from hash)
+        const signParams = {
+          app_key: ALI_KEY,
+          code: body.code,
+          grant_type: 'authorization_code',
+          redirect_uri: ALI_REDIRECT,
+          timestamp: Date.now().toString()
+        };
+
+        // 🛡️ Step 2: Alphabetical Sort
+        const sortedKeys = Object.keys(signParams).sort();
+        
+        // 🛡️ Step 3: Raw Concatenation (NO encoding, NO symbols)
+        let signString = '';
+        for (const key of sortedKeys) {
+          signString += key + signParams[key];
+        }
+
+        // 🛡️ Step 4: Final Wrap and MD5
+        const finalStringForHash = ALI_SECRET + signString + ALI_SECRET;
+        const signature = await md5Hash(finalStringForHash);
+
+        // 🛠️ MANDATORY LOGGING
+        console.log('=== ALIEXPRESS OAUTH SIGNING DEBUG ===');
+        console.log('1. Raw Params:', signParams);
+        console.log('2. Sorted Param String:', signString);
+        console.log('3. Final String Before Hash:', finalStringForHash);
+        console.log('4. Generated Sign:', signature);
+
+        // 🛡️ Step 5: Build Final URL-Encoded Body
+        const finalBodyParams = new URLSearchParams({
+          ...signParams,
+          sign: signature,
+          sign_method: 'md5'
+        });
+
+        const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
+        const finalUrl = `${ALI_GATEWAY}/rest/auth/token/security/create`;
+        
+        console.log('5. Final Request URL:', finalUrl);
+        console.log('6. Request Body:', finalBodyParams.toString());
+
+        const res = await fetchWithTimeout(finalUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: finalBodyParams.toString()
+        });
+
+        const data = await res.text();
+        console.log('7. Response:', data);
+
+        return new Response(data, { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+      }
+    }
+
+    // 4. ALI DS API (Strict TOP Signed Proxy)
     if (pathname.includes("/ali-ds-proxy")) {
       try {
         const body = await request.json();
