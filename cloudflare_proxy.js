@@ -10,25 +10,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "*"
 };
 
-// 🛡️ NATIVE HMAC-SHA256 (Required for v2.0 Protocol)
+// 🛡️ NATIVE HMAC-SHA256 (Required for DS API calls)
 async function hmacSha256(key, message) {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(key);
   const messageData = encoder.encode(message);
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw', 
-    keyData, 
-    { name: 'HMAC', hash: 'SHA-256' }, 
-    false, 
-    ['sign']
-  );
-
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-  return Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
-    .toUpperCase();
+  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+// 🛡️ NATIVE MD5 (Required for TOP OAuth Exchange)
+async function md5Hash(message) {
+  const msgUint8 = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('MD5', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
 const fetchWithTimeout = (url, options, timeout = 15000) =>
@@ -38,27 +35,20 @@ const fetchWithTimeout = (url, options, timeout = 15000) =>
   ]);
 
 /**
- * 🛰️ TOP SIGNATURE GENERATOR (AliExpress v2.0 Requirements)
- * Algorithm: HMAC-SHA256(secret, secret + sorted_params + secret)
+ * 🛰️ TOP SIGNATURE GENERATOR
+ * Algorithm: MD5(secret + sorted_params + secret)
  */
 async function generateTopSignature(params, appSecret) {
     const sortedKeys = Object.keys(params).sort();
-    console.log('[AliExpress OAuth] Sorted Keys for Signature:', sortedKeys);
-    
     let signString = '';
     for (const key of sortedKeys) {
         if (key !== 'sign' && params[key] !== undefined && params[key] !== null) {
             signString += key + params[key];
         }
     }
-    
-    // Pattern: secret + sorted_params + secret
     const finalSignString = appSecret + signString + appSecret;
     console.log('[AliExpress OAuth] Signature String (pre-hash):', finalSignString);
-    
-    const signature = await hmacSha256(appSecret, finalSignString);
-    console.log('[AliExpress OAuth] Resulting Signature:', signature);
-    return signature;
+    return await md5Hash(finalSignString);
 }
 
 export default {
@@ -173,7 +163,7 @@ export default {
               app_key: params.client_id || ALI_KEY,
               secret: params.client_secret || ALI_SECRET,
               timestamp: timestamp,
-              sign_method: 'sha256'
+              sign_method: 'md5'
           };
 
           // Generate Signature
@@ -246,18 +236,6 @@ export default {
       }
     }
 
-        console.log(`[AliExpress OAuth] Response (${res.status}):`, data.substring(0, 1000));
-        
-        return new Response(data, { 
-          status: res.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        });
-      } catch (err) {
-        console.error(`[AliExpress OAuth] Exception:`, err.message);
-        return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
-      }
-    }
-
-    return new Response("Crystal Bridge v34.1 HMAC Live", { headers: corsHeaders });
+    return new Response("Crystal Bridge v34.8-STABLE Live", { headers: corsHeaders });
   }
 };
