@@ -36,6 +36,7 @@ const AliExpressCallback = () => {
 
         console.log("[AliExpress OAuth] Exchange Request:", {
           endpoint,
+          method: 'POST',
           payload: { ...payload, client_secret: '***' }
         });
 

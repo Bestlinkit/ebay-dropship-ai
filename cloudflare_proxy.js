@@ -126,33 +126,47 @@ export default {
     // 4. ALIEXPRESS OAUTH HANDLERS
     if (pathname === "/oauth/token" || pathname === "/oauth/token-refresh") {
       try {
+        console.log(`[AliExpress OAuth] INCOMING REQUEST | Method: ${request.method} | Path: ${pathname}`);
+        
         const params = await request.json();
         const ALI_GATEWAY = env.ALIEXPRESS_API_GATEWAY || 'https://api-sg.aliexpress.com';
         const ALI_KEY = env.ALI_APP_KEY || '532310';
         const ALI_SECRET = env.ALI_APP_SECRET || 'oz81TWcu6CSR7ZjqoN0rwqUuWCSbY6o3';
 
-        const tokenUrl = `${ALI_GATEWAY}/oauth/token`;
-        const bodyParams = {
-            ...params,
-            client_id: params.client_id || ALI_KEY,
-            client_secret: params.client_secret || ALI_SECRET
+        // Helper to perform the exchange
+        const performExchange = async (endpointPath) => {
+          const tokenUrl = `${ALI_GATEWAY}${endpointPath}`;
+          const bodyParams = {
+              ...params,
+              client_id: params.client_id || ALI_KEY,
+              client_secret: params.client_secret || ALI_SECRET
+          };
+
+          const bodyString = new URLSearchParams(bodyParams).toString();
+          console.log(`[AliExpress OAuth] OUTGOING POST to: ${tokenUrl}`);
+          
+          return await fetch(tokenUrl, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Accept": "application/json",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            },
+            body: bodyString
+          });
         };
 
-        const bodyString = new URLSearchParams(bodyParams).toString();
-        
-        console.log(`[AliExpress OAuth] Proxied POST to: ${tokenUrl}`);
-        console.log(`[AliExpress OAuth] Body (sanitized): ${bodyString.replace(/client_secret=[^&]+/, "client_secret=***")}`);
-        
-        const res = await fetch(tokenUrl, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "application/json"
-          },
-          body: bodyString
-        });
+        // Try primary endpoint (/oauth/token)
+        let res = await performExchange('/oauth/token');
+        let data = await res.text();
 
-        const data = await res.text();
+        // FALLBACK: If 405 Method Not Allowed, try the alternative REST endpoint
+        if (res.status === 405) {
+          console.warn(`[AliExpress OAuth] URL /oauth/token returned 405. Attempting fallback to /rest/auth/token/security/create...`);
+          res = await performExchange('/rest/auth/token/security/create');
+          data = await res.text();
+        }
+
         console.log(`[AliExpress OAuth] Response (${res.status}):`, data.substring(0, 1000));
         
         return new Response(data, { 
@@ -160,7 +174,7 @@ export default {
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         });
       } catch (err) {
-        console.error(`[AliExpress OAuth] Error:`, err.message);
+        console.error(`[AliExpress OAuth] Exception:`, err.message);
         return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
       }
     }
