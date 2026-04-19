@@ -68,82 +68,83 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
             {/* PRODUCT VISUAL (v4.7 Image Logic) */}
-            <div className="w-40 h-40 rounded-[2.5rem] overflow-hidden border-2 border-white/10 shrink-0 shadow-2xl relative bg-slate-900 group-hover:border-indigo-500/30 transition-colors">
-                <img 
-                    src={product.mainImage || product.image} 
-                    alt="" 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                    onError={(e) => { 
-                        e.target.src = 'https://placehold.co/400x400/1e293b/white?text=CJ+Image+Not+Available'; 
-                    }}
-                />
-                <div className="absolute top-3 left-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10">
-                    <span className="text-[8px] font-black italic tracking-widest text-indigo-400 uppercase">CJ ID: {product.product_id}</span>
+            <div className="w-32 h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 bg-white rounded-[2.5rem] flex items-center justify-center overflow-hidden border-2 border-white/10 shrink-0 shadow-2xl relative group-hover:border-indigo-500/30 transition-colors p-2 md:p-4">
+                {product.mainImage && product.mainImage !== 'INVALID_IMAGE' ? (
+                    <img 
+                        src={product.mainImage} 
+                        alt={product.title} 
+                        className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-1000" 
+                    />
+                ) : (
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest text-center">No Image</span>
+                )}
+                <div className="absolute top-2 left-2 px-2.5 py-1 bg-slate-900 rounded-full shadow-lg">
+                    <span className="text-[7px] font-black italic tracking-widest text-white uppercase">CJ: {product.product_id}</span>
                 </div>
             </div>
 
             {/* DATA CORE */}
-            <div className="flex-1 min-w-0 space-y-6">
+            <div className="flex-1 min-w-0 space-y-5">
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-4 py-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[8px] font-black uppercase tracking-widest">
+                    <span className="px-3 md:px-4 py-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[8px] font-black uppercase tracking-widest">
                         MATCHING CATEGORY FAMILY
                     </span>
-                    <span className="px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <span className="px-3 md:px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
                         <Globe size={10} /> {shippingOrigin}
                     </span>
-                    <span className="px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <span className="px-3 md:px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
                          <Box size={10} /> {stock} STOCK
                     </span>
-                    <span className="px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <span className="px-3 md:px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
                         <Star size={10} className="text-amber-500" /> {rating}
                     </span>
                 </div>
 
-                <div className="space-y-2">
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter line-clamp-1 leading-none group-hover:text-indigo-400 transition-colors italic">
+                <div className="space-y-1 md:space-y-2">
+                    <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter line-clamp-1 leading-none group-hover:text-indigo-400 transition-colors italic pr-4">
                         {product.title}
                     </h3>
                 </div>
 
                 {/* KPI SECTION (v4.7 HERO PRIORITY) */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-10 pt-6 border-t border-white/5">
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Net Profit ($)</span>
-                        <div className={cn("text-4xl font-black italic tracking-tighter", getProfitColor(profit))}>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 pt-5 border-t border-white/5">
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
+                        <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap", getProfitColor(profit))}>
                             {profitFormatted}
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em]">{profitStatus}</span>
+                        <span className="text-[6px] md:text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] whitespace-nowrap">{profitStatus}</span>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">CJ Cost</span>
-                        <div className="text-3xl font-black text-white italic tracking-tighter">
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">CJ Cost</span>
+                        <div className="text-xl md:text-2xl font-black text-white italic tracking-tighter whitespace-nowrap">
                             ${parseFloat(product.price).toFixed(2)}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">eBay Target</span>
-                        <div className="text-3xl font-black text-slate-400 italic tracking-tighter">
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">eBay Target</span>
+                        <div className="text-xl md:text-2xl font-black text-slate-400 italic tracking-tighter whitespace-nowrap">
                             ${parseFloat(targetPrice).toFixed(2)}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Delivery</span>
-                        <div className="flex items-center gap-2 mt-2">
-                            <Truck size={14} className="text-indigo-400" />
-                            <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight">{deliveryTime}</span>
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Delivery</span>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Truck size={12} className="text-indigo-400 shrink-0 md:w-3.5 md:h-3.5" />
+                            <span className="text-[9px] md:text-[10px] font-black text-slate-200 uppercase tracking-tight whitespace-nowrap">{deliveryTime}</span>
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em]">SHIP: {shippingLabel}</span>
+                        <span className="text-[6px] md:text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] whitespace-nowrap mt-1">SHIP: {shippingLabel}</span>
                     </div>
 
-                    <div className="hidden lg:flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Match Score</span>
-                        <div className={cn("text-3xl font-black italic tracking-tighter", getScoreColor(finalScore).split(' ')[0])}>
+                    <div className="hidden lg:flex flex-col gap-1 min-w-0">
+                        <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Match Score</span>
+                        <div className={cn("text-xl md:text-2xl font-black italic tracking-tighter whitespace-nowrap", getScoreColor(finalScore).split(' ')[0])}>
                             {finalScore}%
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em]">{product.matchReason?.toUpperCase()}</span>
+                        <span className="text-[6px] md:text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] whitespace-nowrap">{product.matchReason?.toUpperCase()}</span>
                     </div>
                 </div>
             </div>
