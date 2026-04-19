@@ -87,7 +87,7 @@ const SupplierProductDetail = () => {
     if (!product) return <div className="p-20 text-center font-black uppercase tracking-widest text-slate-400">Enforcement Failure: Metadata Unreachable</div>;
 
     // Financial Analysis (v4.7 Rule)
-    const financials = product.financials;
+    const financials = product.intelligence?.financials;
     const currentPrice = selectedVariant?.price || product.price;
     const shippingCost = product.shipping?.cost || 0;
     const isEst = financials?.status === 'ESTIMATED ONLY';
