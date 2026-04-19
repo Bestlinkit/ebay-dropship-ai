@@ -73,6 +73,7 @@ class CJService {
     const payload = { apiKey };
     const timestamp = new Date().toISOString();
 
+    try {
         // Layer 1: Logs (Debug only)
         console.log("[CJ DEBUG] Initiating handshake via", BRIDGE_BASE);
 
