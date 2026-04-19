@@ -94,29 +94,13 @@ export const deconstructTitle = (title) => {
 };
 
 /**
- * 🔒 VALIDATION UTILS (v4.5 - Soft Filtering)
+ * 🔒 VALIDATION UTILS (v4.6 - Broad Discovery)
  */
 export const validateMatch = (ebayData, cjData) => {
     if (!ebayData || !cjData) return false;
-
-    // RULE: Category family mismatch is a rejection (Soft)
-    // Only reject if both have types and they are fundamentally different
-    if (ebayData.product_type && cjData.product_type) {
-        if (ebayData.product_type !== cjData.product_type) {
-            // Check for sibling types (e.g., shoes vs sneakers is allowed)
-            const shoeTypes = ['sneakers', 'shoes', 'boots', 'oxfords', 'loafers', 'sandals', 'flats', 'heels'];
-            const isEbayShoe = shoeTypes.includes(ebayData.product_type);
-            const isCjShoe = shoeTypes.includes(cjData.product_type);
-            
-            if (isEbayShoe && isCjShoe) return true; // Allow shoe-family matches
-            return false; 
-        }
-    }
-
-    // RULE: Gender mismatch (unless unisex)
-    if (ebayData.gender !== 'unisex' && cjData.gender !== 'unisex') {
-        if (ebayData.gender !== cjData.gender) return false;
-    }
-
+    
+    // v4.6 Broad Intent Discovery (Non-Destructive)
+    // We allow all candidates to pass through to the UI.
+    // The alignmentScore will handle ranking.
     return true;
 };

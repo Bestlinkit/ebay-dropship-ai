@@ -31,19 +31,27 @@ export const normalizeToContract = (raw) => {
     try {
         const id = raw.pid || raw.id || raw.productId;
         const title = raw.productNameEn || raw.productName || raw.nameEn || raw.title;
+        const sku = raw.productSku || raw.sku || id;
         
         if (!id || !title) return null;
 
         const price = parseFloat(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
         
-        // Handle images defensively (v4.5 - Protocol Security)
+        // CJ CDN Base (v4.6 Fix)
+        const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
+
+        // Handle images defensively (v4.6 - Protocol & CDN Security)
         let images = [];
         const rawImages = [raw.productImage, raw.bigImage, raw.image, ...(Array.isArray(raw.images) ? raw.images : [])];
         
         rawImages.forEach(img => {
             if (typeof img === 'string' && img.length > 0) {
-                // Fix missing protocol
                 let safeUrl = img;
+                // Prepend CDN if it's a relative path
+                if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) {
+                    safeUrl = CJ_CDN + safeUrl;
+                }
+                // Fix missing protocol
                 if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
                 images.push(safeUrl);
             }
@@ -53,10 +61,11 @@ export const normalizeToContract = (raw) => {
 
         const variants = Array.isArray(raw.productVariants || raw.variants) 
             ? (raw.productVariants || raw.variants).map(v => ({
-                sku_id: v.vid || v.variantId || v.sku || id,
+                sku_id: v.vid || v.variantId || v.variantSku || v.sku || id,
                 attributes: v.variantKey || v.variantName || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
-                stock: parseInt(v.variantInventory || v.inventory || 0)
+                stock: parseInt(v.variantInventory || v.inventory || 0),
+                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : images[0]
             }))
             : [];
 
@@ -65,14 +74,17 @@ export const normalizeToContract = (raw) => {
                          (variants.length > 0 ? variants.reduce((acc, v) => acc + v.stock, 0) : null);
         
         const realRating = raw.productRating || raw.rating || null;
+        const description = raw.productDesc || raw.description || raw.remark || "";
 
         return {
             ...CJ_PRODUCT_CONTRACT,
             product_id: id,
+            sku: sku,
             title: title,
             price: price,
             stock: realStock,
             rating: realRating,
+            description: description,
             warehouse: raw.warehouseName || raw.warehouse || "Global",
             shipping: {
                 from: raw.shippingFrom || (raw.warehouseName?.includes('US') ? 'US' : 'CN'),

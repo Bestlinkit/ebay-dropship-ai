@@ -118,14 +118,14 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
                     <div className="flex flex-col gap-1">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">ROI (Net)</span>
-                        <div className={cn("text-2xl font-black italic tracking-tighter", getScoreColor(roiPercent).split(' ')[0])}>
+                        <div className={cn("text-2xl font-black italic tracking-tighter whitespace-nowrap", getScoreColor(roiPercent).split(' ')[0])}>
                             {roiPercent.toFixed(1)}%
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Net Profit</span>
-                        <div className="text-2xl font-black text-emerald-400 italic tracking-tighter">
+                        <div className="text-2xl font-black text-emerald-400 italic tracking-tighter whitespace-nowrap">
                             +${roiVal.toFixed(2)}
                         </div>
                     </div>

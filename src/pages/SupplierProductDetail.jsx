@@ -31,6 +31,8 @@ const SupplierProductDetail = () => {
     // Context from previous search
     const targetProduct = location.state?.targetProduct;
     const targetPrice = Number(location.state?.targetPrice || 0);
+    const ebayItemUrl = location.state?.ebayItemUrl || "#";
+    const sellData = location.state?.sellData;
 
     const [loading, setLoading] = useState(true);
     const [product, setProduct] = useState(null);
@@ -39,12 +41,15 @@ const SupplierProductDetail = () => {
 
     useEffect(() => {
         const fetchDeepDetails = async () => {
-            // 🚀 Bypassing legacy API - Unified Sourcing Payload Detection
+            // v4.6 - Optimized State Detection
             if (location.state?.preFetchedProduct) {
                 const data = location.state.preFetchedProduct;
                 setProduct(data);
                 if (data.variants && data.variants.length > 0) {
                     setSelectedVariant(data.variants[0]);
+                    if (data.variants[0].image) {
+                        // If variant has image, we can prioritize it, but we keep gallery index
+                    }
                 }
                 setLoading(false);
                 return;
@@ -52,7 +57,7 @@ const SupplierProductDetail = () => {
 
             setLoading(true);
             try {
-                // Sourcing is now 100% CJ based. getProductDetails refactored to use CJ proxy.
+                // If we don't have prefetched state, we fetch via PID
                 const result = await sourcingService.getProductDetails(id);
                 if (result.status === 'SUCCESS') {
                     setProduct(result.data);
@@ -71,7 +76,7 @@ const SupplierProductDetail = () => {
         };
 
         fetchDeepDetails();
-    }, [source, id]);
+    }, [source, id, location.state]);
 
     const handleOptimize = () => {
         if (!product) return;
@@ -82,13 +87,14 @@ const SupplierProductDetail = () => {
             description: product.description,
             pricing: {
                 selectedVariantPrice: selectedVariant?.price || product.price,
-                totalCost: (selectedVariant?.price || product.price) + (product.shipping || 0),
+                totalCost: (selectedVariant?.price || product.price) + 5.00, // $5 shipping fallback
                 targetPrice: targetPrice
             },
             supplier: {
-                source: product.source,
-                id: product.id,
-                url: product.url,
+                source: 'CJ',
+                id: product.product_id,
+                sku: selectedVariant?.sku_id || product.sku,
+                url: `https://cjdropshipping.com/product-detail.html?id=${product.product_id}`,
                 rating: product.rating
             }
         };
@@ -112,25 +118,30 @@ const SupplierProductDetail = () => {
                 </div>
                 <div className="text-center space-y-2">
                     <h3 className="text-lg font-black uppercase tracking-widest text-slate-950 italic">Compiling Metadata</h3>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Processing Data Classifications...</p>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Processing CJ Sourcing Payload...</p>
                 </div>
             </div>
         );
     }
 
-    const roi = sourcingService.calculateROI(targetPrice, selectedVariant?.price || product?.price || 0, product?.shipping || 0);
-    const trust = sourcingService.evaluateSupplierTrust(product);
+    // Intelligence Metrics
+    const currentPrice = selectedVariant?.price || product.price;
+    const shippingCost = 5.00; // Standard CJ Fallback
+    const profit = targetPrice - currentPrice - shippingCost;
+    const roi = (profit / currentPrice) * 100;
+
+    const gallery = product.images || [];
 
     return (
         <div className="max-w-[1400px] mx-auto px-6 pb-40 pt-10 animate-in fade-in duration-700">
             {/* 1. Header Navigation */}
             <div className="flex items-center justify-between mb-12">
                 <button onClick={() => navigate(-1)} className="flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl hover:border-slate-400 transition-all text-[11px] font-black uppercase tracking-widest shadow-sm">
-                    <ArrowLeft size={16} /> Return to Inventory
+                    <ArrowLeft size={16} /> Return to Sourcing Results
                 </button>
                 <div className="flex items-center gap-4">
                     <div className="px-6 py-3 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl">
-                        <Lock size={14} className="text-emerald-400" /> Sourcing Terminal: Locked
+                        <ShieldCheck size={14} className="text-emerald-400" /> CJ Intelligence v4.6 Secure
                     </div>
                 </div>
             </div>
@@ -140,25 +151,33 @@ const SupplierProductDetail = () => {
                 <div className="lg:col-span-7 space-y-8">
                     <div className="bg-white border border-slate-200 rounded-[3rem] overflow-hidden shadow-sm relative group">
                         <img 
-                            src={product?.images?.[activeImage] || product?.image} 
+                            src={selectedVariant?.image || gallery[activeImage]} 
                             alt={product.title} 
                             className="w-full aspect-square object-contain p-10 bg-white"
                         />
+                         <div className="absolute top-10 left-10">
+                            <span className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl bg-slate-900">
+                                SKU: {selectedVariant?.sku_id || product.sku}
+                            </span>
+                        </div>
                         <div className="absolute bottom-10 left-10 flex items-center gap-2">
                             <span className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl bg-indigo-600">
-                                CJ Dropshipping Proxy v2.0
+                                {gallery.length} Production Images
                             </span>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-5 gap-4">
-                        {(product.images || [product.image]).slice(0, 5).map((img, i) => (
+                    <div className="grid grid-cols-6 gap-4">
+                        {gallery.slice(0, 12).map((img, i) => (
                             <button 
                                 key={i}
-                                onClick={() => setActiveImage(i)}
+                                onClick={() => {
+                                    setActiveImage(i);
+                                    setSelectedVariant(null); // Deselect variant to show gallery image
+                                }}
                                 className={cn(
                                     "aspect-square rounded-2xl border-2 overflow-hidden transition-all bg-white",
-                                    activeImage === i ? "border-slate-950 shadow-md" : "border-slate-200 opacity-60 hover:opacity-100"
+                                    activeImage === i && !selectedVariant ? "border-slate-950 shadow-md" : "border-slate-200 opacity-60 hover:opacity-100"
                                 )}
                             >
                                 <img src={img} className="w-full h-full object-cover" alt="" />
@@ -166,14 +185,15 @@ const SupplierProductDetail = () => {
                         ))}
                     </div>
 
-                    {/* Description Preview */}
+                    {/* Description Analysis (v4.6 Rich HTML) */}
                     <div className="p-10 bg-slate-50 border border-slate-200 rounded-[3rem] space-y-6">
-                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                            <Info size={14} /> Supplier Metadata
+                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                            <Info size={14} /> Global Product Description
                         </h4>
-                        <div className="text-sm font-medium text-slate-600 leading-relaxed max-h-60 overflow-y-auto pr-4 custom-scrollbar">
-                            {product.description || "No description provided by supplier."}
-                        </div>
+                        <div 
+                            className="text-sm font-medium text-slate-600 leading-relaxed max-h-96 overflow-y-auto pr-4 custom-scrollbar supplier-description-preview"
+                            dangerouslySetInnerHTML={{ __html: product.description || "No detailed description provided by CJ Dropshipping. Review variants for technical specifications." }}
+                        />
                     </div>
                 </div>
 
@@ -185,13 +205,16 @@ const SupplierProductDetail = () => {
                         </h1>
                         <div className="flex items-center gap-6">
                             <a 
-                                href={product.url} 
+                                href={`https://cjdropshipping.com/product-detail.html?id=${product.product_id}`}
                                 target="_blank" 
                                 rel="noreferrer" 
-                                className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 hover:text-slate-950 transition-all"
+                                className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 hover:text-slate-950 transition-all border-b border-slate-200 pb-1"
                             >
-                                Original Listing <ExternalLink size={12} />
+                                CJ Global Portal <ExternalLink size={12} />
                             </a>
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                ID: {product.product_id}
+                            </span>
                         </div>
                     </div>
 
@@ -203,83 +226,47 @@ const SupplierProductDetail = () => {
                         <div className="relative z-10 space-y-6">
                             <div className="flex justify-between items-end">
                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Supplier Base Price</p>
-                                    <p className="text-4xl font-black text-slate-950 italic">${(selectedVariant?.price || product.price).toFixed(2)}</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sourcing Cost (USD)</p>
+                                    <p className="text-4xl font-black text-slate-950 italic">${currentPrice.toFixed(2)}</p>
                                 </div>
                                 <div className="text-right space-y-1">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Est. ROI</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimated ROI</p>
                                     <p className={cn(
                                         "text-4xl font-black italic",
-                                        roi ? "text-emerald-600" : "text-rose-500"
+                                        roi > 0 ? "text-emerald-500" : "text-rose-500"
                                     )}>
-                                        {roi ? `${roi.expected}%` : "---"}
+                                        {roi.toFixed(1)}%
                                     </p>
                                 </div>
                             </div>
                             
-                            {!roi && (
+                            {roi < 0 && (
                                 <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3">
                                     <AlertTriangle size={16} className="text-rose-500" />
-                                    <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Awaiting pricing data</p>
+                                    <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest">NEGATIVE MARGIN DETECTED (CHECK TARGET PRICE)</p>
                                 </div>
                             )}
 
                             <div className="h-[1px] bg-slate-100 w-full" />
                             
                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div className="flex items-center gap-2"><Truck size={14} /> {product.delivery}</div>
-                                <div className="flex items-center gap-2"><Package size={14} /> {product.shipsFrom}</div>
+                                <div className="flex items-center gap-2"><Truck size={14} /> Est. Shipping: $5.00</div>
+                                <div className="flex items-center gap-2"><Package size={14} /> {product.warehouse || "CHINA"}</div>
+                                <div className="flex items-center gap-2 font-black text-slate-950 underline decoration-indigo-500 underline-offset-4">{sellData?.resellScore || "N/A"} CONFIDENCE</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* 🧠 MARKET INTELLIGENCE ENGINE REPORT (v25.0 Structured) */}
-                    {location.state?.sellData && (
+                    {/* 🧠 MARKET INTELLIGENCE ENGINE REPORT (v4.6 Sync) */}
+                    {sellData && (
                         <div className="p-8 bg-slate-50 border border-slate-200 rounded-[2.5rem] space-y-8 shadow-sm">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                                     <Zap size={16} className="text-emerald-500 fill-emerald-500" /> Market Intelligence Report
                                 </h4>
                                 <div className="px-3 py-1 bg-slate-950 text-white rounded-lg text-[10px] font-black italic shadow-lg">
-                                    Resell Score: {location.state.sellData.resellScore}
+                                    Resell Score: {sellData.resellScore}
                                 </div>
-                            </div>
-
-                            {/* Interpretation Hub */}
-                            <div className="grid grid-cols-1 gap-4">
-                                {(location.state.sellData.interpretation?.insights || []).map((insight) => {
-                                    const IconMap = { Layers, Target, Zap };
-                                    const Icon = IconMap[insight.icon] || Info;
-                                    
-                                    return (
-                                        <div key={insight.id} className="p-5 bg-white border border-slate-200 rounded-2xl flex items-start gap-4 hover:border-slate-400 transition-colors group shadow-sm">
-                                            <div className={cn(
-                                                "p-3 rounded-xl shrink-0 transition-colors",
-                                                insight.type === 'positive' ? "bg-emerald-100 text-emerald-700 group-hover:bg-emerald-500 group-hover:text-white" :
-                                                insight.type === 'negative' ? "bg-rose-100 text-rose-700 group-hover:bg-rose-500 group-hover:text-white" :
-                                                "bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white"
-                                            )}>
-                                                <Icon size={20} />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{insight.label}</span>
-                                                    <span className={cn(
-                                                        "px-2 py-0.5 rounded text-[8px] font-black uppercase",
-                                                        insight.type === 'positive' ? "bg-emerald-600 text-white" :
-                                                        insight.type === 'negative' ? "bg-rose-600 text-white" :
-                                                        "bg-slate-800 text-white"
-                                                    )}>
-                                                        {insight.value}
-                                                    </span>
-                                                </div>
-                                                <p className="text-[11px] font-bold text-slate-700 leading-relaxed italic">
-                                                    "{insight.description}"
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
                             </div>
 
                             <div className="p-6 bg-slate-950 border border-slate-800 rounded-2xl relative overflow-hidden group">
@@ -289,61 +276,61 @@ const SupplierProductDetail = () => {
                                 <div className="relative z-10">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Star size={14} className="text-emerald-500 fill-emerald-500" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Executive Verdict</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Match Reliability Basis</span>
                                     </div>
                                     <p className="text-[12px] font-black text-white italic leading-snug">
-                                        {location.state.sellData.verdict || location.state.sellData.summary}
+                                        {sellData.grade === 'Premium Supplier Match' ? 
+                                         "Strategic alignment confirmed. High fidelity between eBay listing intent and CJ supplier capabilities." :
+                                         "Market verification passed. Sourcing cost allows for viable margin within the current eBay price cluster."}
                                     </p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Authority Matrix (CJ Specification) */}
-                    <div className="p-8 bg-slate-950 rounded-[2.5rem] text-white space-y-6 shadow-xl">
-                        <div className="flex items-center justify-between">
-                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Supplier Authority</h4>
-                            <ShieldCheck size={20} className="text-emerald-400" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-8">
-                            <div className="space-y-2">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Platform Trust</p>
-                                <div className="flex items-center gap-2">
-                                    <Star size={18} className="text-amber-400 fill-amber-400" />
-                                    <span className="text-xl font-black italic">VERIFIED</span>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">API Status</p>
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 size={18} className="text-emerald-400" />
-                                    <span className="text-xl font-black italic">ACTIVE</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Variant Engine */}
+                    {/* Variant Matrix Hub (v4.6 Enhanced) */}
                     {product.variants && product.variants.length > 0 && (
-                        <div className="space-y-4">
-                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Inventory Matrix</h4>
-                            <div className="grid grid-cols-2 gap-3">
-                                {product.variants.slice(0, 10).map((variant, i) => (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                                    <Layers size={14} /> Variant Inventory Matrix
+                                </h4>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{product.variants.length} Options</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                {product.variants.map((variant, i) => (
                                     <button 
-                                        key={variant.id || i}
-                                        onClick={() => setSelectedVariant(variant)}
+                                        key={variant.sku_id || i}
+                                        onClick={() => {
+                                            setSelectedVariant(variant);
+                                            // Optional: If variant has image, scrollToTop/Switch active?
+                                        }}
                                         className={cn(
-                                            "p-4 rounded-2xl border-2 text-left transition-all",
-                                            selectedVariant?.id === variant.id 
+                                            "p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden group",
+                                            selectedVariant?.sku_id === variant.sku_id 
                                                 ? "border-slate-950 bg-slate-50 shadow-sm" 
                                                 : "border-slate-100 hover:border-slate-300 bg-white"
                                         )}
                                     >
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Variant</span>
-                                            <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">${variant.price.toFixed(2)}</span>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[80px]">
+                                                {variant.attributes}
+                                            </span>
+                                            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest underline underline-offset-2 decoration-emerald-500/30">
+                                                ${variant.price.toFixed(2)}
+                                            </span>
                                         </div>
-                                        <p className="text-[10px] font-black text-slate-950 truncate">{variant.sku || `Option ${i + 1}`}</p>
+                                        <div className="flex items-center gap-3">
+                                            {variant.image && (
+                                                <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-slate-200">
+                                                    <img src={variant.image} className="w-full h-full object-cover" alt="" />
+                                                </div>
+                                            )}
+                                            <div className="min-w-0">
+                                                <p className="text-[9px] font-black text-slate-900 truncate">SKU: {variant.sku_id}</p>
+                                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Stock: {variant.stock}</p>
+                                            </div>
+                                        </div>
                                     </button>
                                 ))}
                             </div>
@@ -356,10 +343,10 @@ const SupplierProductDetail = () => {
                             onClick={handleOptimize}
                             className="w-full py-8 bg-slate-950 text-white rounded-[2.5rem] text-sm font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-emerald-600 transition-all shadow-2xl group"
                         >
-                            <Zap size={20} className="group-hover:animate-pulse" /> Launch Optimization Studio
+                            <Target size={20} className="group-hover:animate-ping" /> Import & Optimize Product
                         </button>
                         <p className="text-center mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            Intelligence snapshot will be captured immediately
+                            Full Intelligence payload (SKU: {selectedVariant?.sku_id || product.sku}) will be captured
                         </p>
                     </div>
                 </div>

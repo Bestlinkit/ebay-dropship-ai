@@ -188,9 +188,12 @@ const SupplierSourcing = () => {
             state: { 
                 targetProduct: ebayProduct, 
                 targetPrice,
-                productUrl: product.url,
+                ebayItemUrl: ebayProduct?.itemUrl,
                 preFetchedProduct: product,
-                sellData: product.sellData 
+                sellData: {
+                    resellScore: product.alignmentScore,
+                    grade: product.matchReason
+                }
             } 
         });
     };
