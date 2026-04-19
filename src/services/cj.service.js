@@ -36,10 +36,13 @@ class CJService {
       
       const status = response.data?.status === 'ONLINE';
       
+      const serverIdentity = response.headers['x-bridge-identity'] || 'MISSING (Shadow Server detected)';
+      
       sourcingService.log({
         type: status ? 'SUCCESS' : 'ERROR',
-        endpoint: '/api/cj/ping',
-        message: `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
+        endpoint: `${BRIDGE_BASE}/api/cj/ping`,
+        identity: serverIdentity,
+        message: status ? `Connected to ${serverIdentity}` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
         latency: `${latency}ms`,
         data: response.data
       });
@@ -48,8 +51,8 @@ class CJService {
     } catch (error) {
       sourcingService.log({
         type: 'ERROR',
-        endpoint: '/api/cj/ping',
-        message: 'Bridge Connection Failed. Server (3001) likely offline.',
+        endpoint: `${BRIDGE_BASE}/api/cj/ping`,
+        message: 'Bridge Connection Failed. Target server unreachable or 404.',
         error: error.message
       });
       return false;
@@ -80,8 +83,8 @@ class CJService {
         // 1. Diagnostics: Log Handshake request
         sourcingService.log({
             type: 'REQUEST',
-            endpoint: '/api/cj/auth',
-            message: `Initiating backend session handshake (v2.0) via ${BRIDGE_BASE || 'VITE_PROXY'}`,
+            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
+            message: `Initiating handshake via ${BRIDGE_BASE}`,
             timestamp: new Date().toISOString()
         });
 
@@ -98,12 +101,15 @@ class CJService {
         // 🧠 FORENSIC EXTRACTION (Matches Backend v2.2)
         const envelope = response.data;
         
+        const serverIdentity = response.headers['x-bridge-identity'] || 'MISSING (Shadow Server detected)';
+
         // 2. Diagnostics: Log Forensic Response
         sourcingService.log({
             type: envelope.parsed?.success ? 'RESPONSE' : 'ERROR',
-            endpoint: '/api/cj/auth',
+            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
+            identity: serverIdentity,
             http_status: 200,
-            message: envelope.parsed?.message || 'Handshake Completed',
+            message: envelope.parsed?.message || `Handshake Complete (${serverIdentity})`,
             raw: envelope.cj_response_raw
         });
         const raw = envelope.cj_response_raw;

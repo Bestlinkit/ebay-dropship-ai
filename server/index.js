@@ -10,6 +10,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// 🛡️ IDENTITY MIDDLEWARE (Forensic Signature)
+app.use((req, res, next) => {
+    res.setHeader('X-Bridge-Identity', 'CJ-PRO-BRIDGE-v2.5');
+    next();
+});
+
 // Helper: MD5 Signing
 const generateMD5 = (data) => {
     return crypto.createHash('md5').update(data).digest('hex');
@@ -127,6 +133,8 @@ app.get('/api/cj/ping', (req, res) => {
     res.json({ 
         status: "ONLINE", 
         bridge: "ebay-dropship-ai-bridge/v2.2",
+        instance_id: `BRIDGE_${Math.random().toString(36).substring(7).toUpperCase()}`,
+        signature: "CJ-PRO-BRIDGE-ALPHA",
         timestamp: new Date().toISOString(),
         vaulted: !!CJ_SESSION.accessToken
     });
