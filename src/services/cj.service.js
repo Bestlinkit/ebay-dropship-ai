@@ -219,7 +219,7 @@ class CJService {
           if (res.error) return;
           const content = res.data?.data?.content || [];
           const list = content.length > 0 
-            ? content.flatMap(c => c.productList || []) 
+            ? (content[0]?.productList ? content.flatMap(c => c.productList || []) : content)
             : (res.data?.data?.list || []);
             
           list.forEach(item => { 
