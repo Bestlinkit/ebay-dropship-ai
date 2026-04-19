@@ -103,7 +103,8 @@ class CJService {
 
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 20000 
+            timeout: 20000,
+            validateStatus: () => true // Prevent axios from throwing on 401/500
         });
 
         // 🕵️ DETECTION: SPA Fallback
@@ -119,8 +120,8 @@ class CJService {
         sourcingService.log({
             type: isSuccessful ? 'RESPONSE' : 'ERROR',
             endpoint: `${BRIDGE_BASE}/api/cj/auth`,
-            http_status: 200,
-            message: envelope.message || `Handshake Complete`,
+            http_status: response.status,
+            message: envelope.message || (isSuccessful ? `Handshake Complete` : `Auth Protocol Rejected`),
             raw: envelope
         });
 
@@ -136,11 +137,19 @@ class CJService {
             console.warn(`[CJ DEBUG] Step 3: API REJECTION.`, envelope);
             return {
                 cjConnectionStatus: "FAILED",
-                message: envelope.message || "API Error"
+                message: envelope.error?.message || "API Auth Rejected"
             };
         }
     } catch (err) {
         console.error(`[CJ DEBUG] Step 2 FAIL: TRANSPORT FAULT.`, err.message);
+
+        sourcingService.log({
+            type: 'ERROR',
+            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
+            message: 'Transport fault during handshake.',
+            raw: err.message
+        });
+
         return {
             cjConnectionStatus: "FAILED",
             message: err.message
