@@ -114,6 +114,7 @@ app.post('/api/eprolo/detail', async (req, res) => {
 });
 
 // --- CJ DROPSHIPPING API (v2.0 - Unified Sourcing) ---
+const cjRouter = express.Router();
 
 const CJ_API_KEY = process.env.CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5fb00a4ecba7b';
 const CJ_GATEWAY = process.env.CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
@@ -127,14 +128,14 @@ const CJ_SESSION = {
 
 /**
  * 🛰️ BRIDGE HEALTH CHECK
- * GET /api/cj/ping
+ * GET /ping
  */
-app.get('/api/cj/ping', (req, res) => {
+cjRouter.get('/ping', (req, res) => {
     res.json({ 
-        status: "ONLINE", 
-        bridge: "ebay-dropship-ai-bridge/v2.2",
+        status: "OK", 
+        service: "CJ Bridge Active",
         instance_id: `BRIDGE_${Math.random().toString(36).substring(7).toUpperCase()}`,
-        signature: "CJ-PRO-BRIDGE-ALPHA",
+        signature: "CJ-PRO-BRIDGE-v2.6",
         timestamp: new Date().toISOString(),
         vaulted: !!CJ_SESSION.accessToken
     });
@@ -142,9 +143,9 @@ app.get('/api/cj/ping', (req, res) => {
 
 /**
  * 🎯 CJ AUTHENTICATION (CORS PROXY & VAULT)
- * POST /api/cj/auth
+ * POST /auth
  */
-app.post('/api/cj/auth', async (req, res) => {
+cjRouter.post('/auth', async (req, res) => {
     const { apiKey } = req.body;
     const targetApiKey = apiKey || CJ_API_KEY;
     const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
@@ -203,9 +204,9 @@ app.post('/api/cj/auth', async (req, res) => {
 
 /**
  * 🎯 CJ SEARCH
- * GET /api/cj/search?keyword=...
+ * GET /search?keyword=...
  */
-app.get('/api/cj/search', async (req, res) => {
+cjRouter.get('/search', async (req, res) => {
     try {
         const { keyword, page = 1, size = 20 } = req.query;
         if (!keyword) return res.status(400).json({ error: "Missing keyword" });
@@ -230,7 +231,7 @@ app.get('/api/cj/search', async (req, res) => {
 /**
  * 🎯 CJ PRODUCT DETAIL
  */
-app.get('/api/cj/detail', async (req, res) => {
+cjRouter.get('/detail', async (req, res) => {
     try {
         const { pid } = req.query;
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
@@ -254,7 +255,7 @@ app.get('/api/cj/detail', async (req, res) => {
 /**
  * 🎯 CJ FREIGHT CALCULATION
  */
-app.post('/api/cj/freight', async (req, res) => {
+cjRouter.post('/freight', async (req, res) => {
     try {
         const { startCountryCode = 'CN', endCountryCode = 'US', products } = req.body;
         
@@ -280,6 +281,9 @@ app.post('/api/cj/freight', async (req, res) => {
         res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
+
+// Mount Router
+app.use("/api/cj", cjRouter);
 
 // Legacy Sourcing Logic Purged
 
