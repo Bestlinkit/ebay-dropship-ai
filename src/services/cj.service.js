@@ -173,8 +173,9 @@ class CJService {
    */
   normalizeEbayProduct(title, categoryPath = "") {
     if (!title) return { keyword: "item", category: "General" };
+    const safeTitle = String(title);
     const noise = /\b(trending|luxury|premium|best|hot|new|top|official|boho|glam|party|holiday|XL|XXLarge|Small|Medium|Large|Gold|Silver|Trim|S-L|SKU|Series|2024|2025)\b/gi;
-    let clean = title.replace(noise, ' ')
+    let clean = safeTitle.replace(noise, ' ')
                      .replace(/[^a-zA-Z\s]/g, ' ')
                      .replace(/\s+/g, ' ')
                      .trim();
@@ -216,14 +217,17 @@ class CJService {
         const mergedMap = new Map();
         responses.forEach(res => {
           if (res.error) return;
-          const list = res.data?.data?.list || [];
-          list.forEach(item => { if (!mergedMap.has(item.pid)) mergedMap.set(item.pid, item); });
+          const content = res.data?.data?.content || [];
+          const list = content.length > 0 
+            ? content.flatMap(c => c.productList || []) 
+            : (res.data?.data?.list || []);
+            
+          list.forEach(item => { if (item?.pid && !mergedMap.has(item.pid)) mergedMap.set(item.pid, item); });
         });
 
         const dedupedList = Array.from(mergedMap.values());
         if (dedupedList.length === 0) return { status: "NO_RESULTS", diagnostics: responses.map(r => ({ keyword: r.keyword, status: r.status, error: r.error ? r.message : null })) };
 
-        const candidates = [];
         for (const item of dedupedList.slice(0, 10)) {
           try {
              const detailRes = await axios.get(this.CONFIG.DETAIL_ENDPOINT, { params: { pid: item.pid } });
@@ -377,12 +381,12 @@ class CJService {
 
   normalizeResult(raw) {
     return {
-      id: raw.pid,
-      title: raw.productNameEn || raw.productName,
-      price: parseFloat(raw.detail?.productVariants?.[0]?.variantSellPrice || 0),
-      image: raw.productImage,
+      id: raw.pid || raw.id,
+      title: raw.productNameEn || raw.productName || raw.nameEn,
+      price: parseFloat(raw.detail?.productVariants?.[0]?.variantSellPrice || raw.sellPrice || 0),
+      image: raw.productImage || raw.bigImage,
       source: 'CJ',
-      url: `https://cjdropshipping.com/product-detail.html?id=${raw.pid}`,
+      url: `https://cjdropshipping.com/product-detail.html?id=${raw.pid || raw.id}`,
       shipping: "7-15 Days",
       alignmentScore: raw.alignmentScore,
       matchReason: raw.matchReason

@@ -225,66 +225,6 @@ const SupplierSourcing = () => {
                 </div>
             </div>
 
-            {/* 🔥 CJ API CONNECTION STATUS BADGE ONLY */}
-            <div className={cn(
-                "p-12 rounded-[3.5rem] border-2 flex flex-col items-center justify-center gap-10 transition-all duration-500 shadow-3xl shadow-slate-100 bg-white",
-                authStatus === 'CHECKING' ? "border-slate-100" :
-                authStatus === 'CONNECTED' ? "border-emerald-500/20" :
-                "border-rose-500/20"
-            )}>
-                <div className="flex flex-col items-center gap-6">
-                    <div className={cn(
-                        "w-24 h-24 rounded-[2.5rem] flex items-center justify-center transition-all shadow-2xl",
-                        authStatus === 'CHECKING' ? "bg-slate-100 text-slate-400" :
-                        authStatus === 'CONNECTED' ? "bg-emerald-500 text-white" :
-                        "bg-rose-500 text-white"
-                    )}>
-                        {authStatus === 'CHECKING' ? <RefreshCw size={40} className="animate-spin" /> :
-                         authStatus === 'CONNECTED' ? <ShieldCheck size={48} /> :
-                         <ShieldAlert size={48} />}
-                    </div>
-                    
-                    <div className="text-center space-y-3">
-                        <span className={cn(
-                            "text-4xl font-black uppercase italic tracking-tighter leading-none flex items-center gap-4",
-                            authStatus === 'CHECKING' ? "text-slate-400" :
-                            authStatus === 'CONNECTED' ? "text-emerald-600" :
-                            "text-rose-600"
-                        )}>
-                            {authStatus === 'CHECKING' ? "🟡 CHECKING" :
-                             authStatus === 'CONNECTED' ? "🟢 CONNECTED" :
-                             "🔴 FAILED"}
-                        </span>
-                        {authStatus === 'FAILED' && (
-                            <div className="space-y-1">
-                                <p className="text-[12px] font-black text-rose-500 uppercase tracking-[0.2em]">
-                                    {authDetails?.message || "AUTHENTICATION FAULT"}
-                                </p>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    Raw Code: {authDetails?.code || "ERR"}
-                                </p>
-                            </div>
-                        )}
-                        {authStatus === 'CONNECTED' && (
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest animate-pulse">
-                                Secure Session Established
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                    {authStatus === 'FAILED' && (
-                        <button 
-                            onClick={checkCjConnection}
-                            className="px-10 py-5 bg-rose-500 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20"
-                        >
-                            Retry Connection
-                        </button>
-                    )}
-                </div>
-            </div>
-
             {/* PRODUCT MATCHING UI DISABLED IN THIS PHASE */}
             <div className="hidden">
                  <SourcingStatusHeader 
@@ -344,11 +284,13 @@ const SupplierSourcing = () => {
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
                                 {pipelineState.status === 'NO_RESULTS' ? "0 Results" : 
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
+                                 pipelineState.status === 'SUCCESS' ? "Data Match Failure" :
                                  "System Error"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
                                 {pipelineState.status === 'NO_RESULTS' ? "The CJ catalog has no matches for this specific query." : 
                                  pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
+                                 pipelineState.status === 'SUCCESS' ? "Matches were found during proxy search, but the secure CJ API tunnel was unable to successfully extract the detailed data structure for any result. Refresh to run diagnostics." :
                                  "The secure CJ API tunnel encountered an unexpected data structure. Technical diagnostics required."}
                             </p>
                         </div>

@@ -295,14 +295,14 @@ cjRouter.get('/search', async (req, res) => {
         const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
             params: { keyWord: keyword, page, size },
             headers: { 'CJ-Access-Token': activeToken },
-            timeout: 10000
+            timeout: 30000
         });
         
         console.log(`[CJ TRACE] SEARCH`, {
-            payload: { keyWord: keyword, page, size },
-            httpStatus: response.status,
-            rawResponse: response.data?.code, // truncated for cleanliness but proves real data
-            tokenUsed: `...${activeToken.slice(-4)}`,
+            keyword,
+            code: response.data?.code,
+            hasData: !!response.data?.data,
+            dataKeys: response.data?.data ? Object.keys(response.data.data) : null,
             latency: Date.now() - startTime
         });
 
@@ -322,22 +322,31 @@ cjRouter.get('/detail', async (req, res) => {
         const { pid } = req.query;
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
-        const activeToken = global.CJ_SESSION?.accessToken; // Middleware ensures this exists
+        const activeToken = global.CJ_SESSION?.accessToken; 
         const startTime = Date.now();
+        const targetUrl = `${CJ_GATEWAY}/product/query`;
         
-        const response = await axios.get(`${CJ_GATEWAY}/product/detail`, {
+        console.log(`[CJ PRE-FETCH] Target: ${targetUrl}, PID: ${pid}`);
+
+        const response = await axios.get(targetUrl, {
             params: { pid },
-            headers: { 'CJ-Access-Token': activeToken },
-            timeout: 10000
+            headers: { 
+                'CJ-Access-Token': activeToken
+            },
+            timeout: 30000
         });
 
         console.log(`[CJ TRACE] DETAIL`, {
-            payload: { pid },
-            httpStatus: response.status,
-            rawResponse: response.data?.code, // Truncate payload size in debug
-            tokenUsed: `...${activeToken.slice(-4)}`,
+            pid,
+            code: response.data?.code,
+            message: response.data?.message,
+            hasData: !!response.data?.data,
             latency: Date.now() - startTime
         });
+
+        if (response.data?.code !== 200) {
+            console.error("[CJ Detail Upstream Fail]:", JSON.stringify(response.data, null, 2));
+        }
 
         return res.json(response.data);
     } catch (error) {
