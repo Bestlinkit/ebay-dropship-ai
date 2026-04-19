@@ -136,9 +136,11 @@ cjRouter.get('/ping', async (req, res) => {
         
         if (!activeToken) {
              return res.json({
-                 cjConnected: true,
+                 cjConnected: false,
                  tokenValid: false,
-                 latency: "0ms"
+                 latency: 0,
+                 error: "Missing or expired CJ accessToken",
+                 realCJResponse: false
              });
         }
 
@@ -153,17 +155,26 @@ cjRouter.get('/ping', async (req, res) => {
         
         const isListValid = response.data?.code == 200 || response.data?.result === true;
         
+        console.log(`[CJ TRACE] PING`, {
+            payload: { page: 1, size: 1 },
+            httpStatus: response.status,
+            rawResponse: response.data,
+            tokenUsed: `...${activeToken.slice(-4)}`
+        });
+
         return res.status(200).json({ 
             cjConnected: true,
             tokenValid: isListValid,
-            latency: `${latency}ms`
+            latency: latency,
+            realCJResponse: true
         });
     } catch (e) {
         return res.status(200).json({
-            cjConnected: true,
+            cjConnected: false,
             tokenValid: false,
-            latency: null,
-            error: e.message
+            latency: 0,
+            realCJResponse: !!e.response,
+            error: e.response?.data || e.message
         });
     }
 });
@@ -240,6 +251,25 @@ cjRouter.post('/auth', async (req, res) => {
 });
 
 /**
+ * 🛡️ STRICT TOKEN VALIDATION MIDDLEWARE
+ * Must precede any core CJ actions (search, detail, freight).
+ */
+cjRouter.use((req, res, next) => {
+    if (req.path === '/auth' || req.path === '/ping') return next();
+
+    const activeToken = CJ_SESSION.accessToken;
+    if (!activeToken) {
+        console.warn(`[CJ SECURITY] Blocked request to ${req.path} - Missing Token`);
+        return res.status(401).json({
+            cjConnected: false,
+            tokenValid: false,
+            error: "Missing or expired CJ accessToken"
+        });
+    }
+    next();
+});
+
+/**
  * 🎯 CJ SEARCH
  * GET /search?keyword=...
  */
@@ -248,22 +278,30 @@ cjRouter.get('/search', async (req, res) => {
         const { keyword, page = 1, size = 20 } = req.query;
         if (!keyword) return res.status(400).json({ error: "Missing keyword" });
 
-        // 🚦 PROTOCOL CHECK: Use session token if available, fallback to key only if vault empty
-        const activeToken = CJ_SESSION.accessToken || CJ_API_KEY;
-
-        console.log(`[CJ-API] Searching: "${keyword}" (Token: ${CJ_SESSION.accessToken ? "VAULTED" : "KEY_FALLBACK"})`);
+        const activeToken = CJ_SESSION.accessToken;
+        const startTime = Date.now();
+        
         const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
             params: { keyWord: keyword, page, size },
             headers: { 'CJ-Access-Token': activeToken },
             timeout: 10000
         });
+        
+        console.log(`[CJ TRACE] SEARCH`, {
+            payload: { keyWord: keyword, page, size },
+            httpStatus: response.status,
+            rawResponse: response.data?.code, // truncated for cleanliness but proves real data
+            tokenUsed: `...${activeToken.slice(-4)}`,
+            latency: Date.now() - startTime
+        });
 
-        res.json(response.data);
+        return res.json(response.data);
     } catch (error) {
         console.error("[CJ Search] Error:", error.message);
-        res.status(500).json({ status: "API_ERROR", message: error.message });
+        return res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
+// Cleanup complete
 
 /**
  * 🎯 CJ PRODUCT DETAIL
@@ -273,19 +311,27 @@ cjRouter.get('/detail', async (req, res) => {
         const { pid } = req.query;
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
-        const activeToken = CJ_SESSION.accessToken || CJ_API_KEY;
-
-        console.log(`[CJ-API] Fetching Detail for: ${pid}`);
+        const activeToken = CJ_SESSION.accessToken; // Middleware ensures this exists
+        const startTime = Date.now();
+        
         const response = await axios.get(`${CJ_GATEWAY}/product/detail`, {
             params: { pid },
             headers: { 'CJ-Access-Token': activeToken },
             timeout: 10000
         });
 
-        res.json(response.data);
+        console.log(`[CJ TRACE] DETAIL`, {
+            payload: { pid },
+            httpStatus: response.status,
+            rawResponse: response.data?.code, // Truncate payload size in debug
+            tokenUsed: `...${activeToken.slice(-4)}`,
+            latency: Date.now() - startTime
+        });
+
+        return res.json(response.data);
     } catch (error) {
         console.error("[CJ Detail] Error:", error.message);
-        res.status(500).json({ status: "API_ERROR", message: error.message });
+        return res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
 
@@ -300,9 +346,9 @@ cjRouter.post('/freight', async (req, res) => {
             return res.status(400).json({ error: "Missing products array" });
         }
 
-        const activeToken = CJ_SESSION.accessToken || CJ_API_KEY;
+        const activeToken = CJ_SESSION.accessToken; // Middleware ensures this exists
+        const startTime = Date.now();
 
-        console.log(`[CJ-API] Calculating Freight: ${startCountryCode} -> ${endCountryCode}`);
         const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, {
             startCountryCode,
             endCountryCode,
@@ -312,7 +358,15 @@ cjRouter.post('/freight', async (req, res) => {
             timeout: 10000
         });
 
-        res.json(response.data);
+        console.log(`[CJ TRACE] FREIGHT`, {
+            payload: { startCountryCode, endCountryCode, productCount: products.length },
+            httpStatus: response.status,
+            rawResponse: response.data?.code,
+            tokenUsed: `...${activeToken.slice(-4)}`,
+            latency: Date.now() - startTime
+        });
+
+        return res.json(response.data);
     } catch (error) {
         console.error("[CJ Freight] Error:", error.message);
         res.status(500).json({ status: "API_ERROR", message: error.message });
