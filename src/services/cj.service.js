@@ -112,8 +112,6 @@ class CJService {
             });
         }
 
-        }
-
         const rawDeduped = Array.from(mergedMap.values());
         
         // 🧼 STRICT POST-SEARCH FILTERING (Constraint-based Matching)
