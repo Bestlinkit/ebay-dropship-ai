@@ -1,6 +1,7 @@
 import axios from 'axios';
 import sourcingService from './sourcing';
 import { normalizeToContract } from './cj.schema';
+import { deconstructTitle, validateMatch } from '../utils/productQueryEngine';
 
 // DETECT BRIDGE BASE
 const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -60,8 +61,15 @@ class CJService {
   async runIterativePipeline(context) {
     const { product } = context;
     const startTime = Date.now();
-    const normalizedQuery = this.normalizeEbayProduct(product.title, product.categoryPath);
-    const searchVariants = this.generateSearchVariants(normalizedQuery);
+    
+    // 🧠 QUERY INTELLIGENCE LAYER
+    const ebayIntel = deconstructTitle(product.title);
+    const searchVariants = [ebayIntel.clean_query]; // Use strict deconstructed query
+    
+    // Fallback if extraction failed
+    if (!ebayIntel.product_type) {
+        searchVariants.push(product.title.split(' ').slice(0, 3).join(' '));
+    }
 
     try {
         const fetchPromises = searchVariants.map(keyword => 
@@ -104,16 +112,24 @@ class CJService {
             });
         }
 
-        const dedupedList = Array.from(mergedMap.values());
+        }
+
+        const rawDeduped = Array.from(mergedMap.values());
+        
+        // 🧼 STRICT POST-SEARCH FILTERING (Constraint-based Matching)
+        const dedupedList = rawDeduped.filter(item => {
+            const cjIntel = deconstructTitle(item.title);
+            return validateMatch(ebayIntel, cjIntel);
+        });
         
         // DETERMINISTIC FAILURE CHECK
         if (dedupedList.length === 0) {
-            // If the API technically succeeded (returned 200/Success) but found 0 items
+            // If the API technically succeeded (returned 200/Success) but found 0 matches after strict filter
             if (technicallySuccessful) {
                 return {
                     status: "CJ_EMPTY_RESULT",
-                    reason: "NO_MATCHING_PRODUCTS",
-                    query: normalizedQuery.keyword,
+                    reason: "NO_MATCHING_PRODUCTS_AFTER_STRICT_FILTER",
+                    query: ebayIntel.clean_query,
                     telemetry
                 };
             }
@@ -138,7 +154,7 @@ class CJService {
                 const fullProduct = normalizeToContract({ ...baseProduct.raw_source, ...detailData });
                 
                 if (fullProduct) {
-                    const alignment = this.calculateAlignmentScore(product, fullProduct);
+                    const alignment = this.calculateAlignmentScore(product, fullProduct, ebayIntel);
                     enrichedCandidates.push({ ...fullProduct, ...alignment });
                 }
             } catch (e) {
@@ -181,25 +197,31 @@ class CJService {
     return Array.from(variants).slice(0, 2);
   }
 
-  calculateAlignmentScore(ebayProduct, normalizedCj) {
-    const ebayTitle = ebayProduct.title.toLowerCase();
-    const cjTitle = normalizedCj.title.toLowerCase();
-    const ebayWords = new Set(ebayTitle.split(' ').filter(w => w.length > 3));
-    const cjWords = new Set(cjTitle.split(' ').filter(w => w.length > 3));
+  calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel) {
+    const cjIntel = deconstructTitle(normalizedCj.title);
     
-    let intersection = 0;
-    ebayWords.forEach(w => { if (cjWords.has(w)) intersection++; });
-    
-    const keywordScore = ebayWords.size > 0 ? (intersection / ebayWords.size) * 60 : 0;
+    // 1. Product Type Match (50% Weight)
+    const typeMatch = (ebayIntel.product_type === cjIntel.product_type) ? 50 : 0;
+
+    // 2. Price Gap (30% Weight)
     const ebayPrice = Number(ebayProduct.price);
     const cjPrice = normalizedCj.price;
-    const priceGap = Math.abs(ebayPrice - cjPrice);
-    const priceScore = ebayPrice > 0 ? Math.max(0, 40 - (priceGap / ebayPrice) * 100) : 0;
+    const priceGapRatio = ebayPrice > 0 ? Math.abs(ebayPrice - cjPrice) / ebayPrice : 1;
+    const priceScore = Math.max(0, 30 - (priceGapRatio * 100 * 0.5)); // Scale gap penalty
+
+    // 3. Shipping Speed & Warehouse (20% Weight)
+    // Bonus for Local/US Warehouse
+    let shippingScore = 10; // Base baseline
+    const warehouse = normalizedCj.warehouse?.toLowerCase() || "";
+    if (warehouse.includes('us') || warehouse.includes('united states') || warehouse.includes('local')) {
+        shippingScore = 20;
+    }
     
-    const score = Math.round(keywordScore + priceScore);
+    const score = Math.round(typeMatch + priceScore + shippingScore);
+    
     return { 
         alignmentScore: score, 
-        matchReason: score > 75 ? "Direct Identity Match" : "Market Approximation" 
+        matchReason: score > 80 ? "High-Precision Match" : (score > 60 ? "Structured Approximation" : "Broad Match")
     };
   }
 
