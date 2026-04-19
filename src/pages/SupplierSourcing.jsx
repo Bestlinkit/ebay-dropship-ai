@@ -65,6 +65,7 @@ const SupplierSourcing = () => {
 
     // CJ Connection Auth Status
     const [authStatus, setAuthStatus] = useState('CHECKING'); // CHECKING, CONNECTED, FAILED
+    const [authDetails, setAuthDetails] = useState(null);
     const checkCjConnection = useCallback(async () => {
         setAuthStatus('CHECKING');
         const result = await cjService.testConnection();

@@ -7,6 +7,10 @@ async function testCJAPI() {
     console.log("--- STARTING CJ API VERIFICATION ---");
     
     try {
+        // Auth Step
+        console.log("[0/3] Authenticating...");
+        await axios.post(`${BASE_URL}/auth`, { apiKey: process.env.CJ_API_KEY });
+        
         // 1. Test Search
         const searchRes = await axios.get(`${BASE_URL}/search?keyword=iPhone Case`);
         console.log("Status:", searchRes.data?.code === 200 ? "SUCCESS ✅" : "FAILED ❌");
