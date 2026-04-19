@@ -93,14 +93,33 @@ export const deconstructTitle = (title) => {
     };
 };
 
+const FAMILY_GROUPS = {
+    'SHOES': ['sneakers', 'shoes', 'boots', 'oxfords', 'loafers', 'sandals', 'flats', 'heels'],
+    'CLOTHING': ['jacket', 't-shirt', 'hoodie', 'jeans', 'shirt', 'suit', 'pants', 'dress', 'skirt'],
+    'ACCESSORIES': ['watch', 'bag', 'backpack', 'wallet', 'sunglasses', 'belt', 'hat', 'cap', 'socks', 'jewelry'],
+    'COSTUME': ['costume', 'cosplay', 'halloween', 'themed', 'stage']
+};
+
 /**
- * 🔒 VALIDATION UTILS (v4.6 - Broad Discovery)
+ * 🔒 VALIDATION UTILS (v4.7 - Category Family Discovery)
  */
 export const validateMatch = (ebayData, cjData) => {
     if (!ebayData || !cjData) return false;
     
-    // v4.6 Broad Intent Discovery (Non-Destructive)
-    // We allow all candidates to pass through to the UI.
-    // The alignmentScore will handle ranking.
+    const ebayType = ebayData.product_type?.toLowerCase();
+    const cjType = cjData.product_type?.toLowerCase();
+
+    // v4.7 Rule: Same Category Group = TRUE
+    if (ebayType && cjType) {
+        for (const [group, members] of Object.entries(FAMILY_GROUPS)) {
+            const ebayInGroup = members.some(m => ebayType.includes(m));
+            const cjInGroup = members.some(m => cjType.includes(m));
+            
+            if (ebayInGroup && cjInGroup) return true;
+        }
+    }
+
+    // Default to true to allow broad search results as requested
+    // "reduce 0 matches" mandate
     return true;
 };

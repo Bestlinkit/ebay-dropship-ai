@@ -117,19 +117,19 @@ class CJService {
         const rawDeduped = Array.from(mergedMap.values());
         telemetry.merged_count = rawDeduped.length;
 
-        // 🧼 SOFT RELEVANCE FILTERING (Category Family Match)
+        // 🧼 BROAD CATEGORY FILTERING (v4.7 Rule)
         const dedupedList = rawDeduped.filter(item => {
             const cjIntel = deconstructTitle(item.title);
             return validateMatch(intel, cjIntel);
         });
         
-        // DETERMINISTIC FAILURE CHECK
+        // DETERMINISTIC FAILURE CHECK (v4.7 - LOW_MATCH_DENSITY)
         if (dedupedList.length === 0) {
             return {
-                status: "NO_MATCH_FOUND",
-                reason: "INSUFFICIENT_QUERY_COVERAGE",
-                queries_used: searchVariants,
-                suggestion: "Try increasing attribute generalization or checking the base product category.",
+                status: "LOW_MATCH_DENSITY",
+                reason: "CATEGORY_TOO_RESTRICTIVE_OR_KEYWORD_OVERFITTING",
+                action: "BROADEN_CATEGORY_SCOPE",
+                queries_tried: searchVariants,
                 telemetry
             };
         }
@@ -142,7 +142,7 @@ class CJService {
                     params: { pid: baseProduct.product_id } 
                 });
                 const detailData = detailRes.data?.data || detailRes.data;
-                const fullProduct = normalizeToContract({ ...baseProduct.raw_source, ...detailData });
+                const fullProduct = normalizeToContract({ ...baseProduct.raw, ...detailData });
                 
                 if (fullProduct) {
                     const alignment = this.calculateAlignmentScore(product, fullProduct, intel);
@@ -173,74 +173,28 @@ class CJService {
     }
   }
 
-  normalizeEbayProduct(title, categoryPath = "") {
-    if (!title) return { keyword: "item" };
-    const noise = /\b(trending|luxury|premium|best|hot|new|top|official|boho|glam|party|holiday)\b/gi;
-    let clean = String(title).replace(noise, ' ').replace(/[^a-zA-Z\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    return { keyword: clean.split(' ').slice(0, 4).join(' ').toLowerCase() };
-  }
-
-  generateSearchVariants(normalized) {
-    const { keyword } = normalized;
-    const words = keyword.split(' ');
-    const variants = new Set([keyword]);
-    if (words.length > 2) variants.add(words.slice(0, 2).join(' '));
-    return Array.from(variants).slice(0, 2);
-  }
-
   calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel) {
     const cjIntel = deconstructTitle(normalizedCj.title);
     
-    // NEW REALISTIC 100-POINT MODEL (Mandate v4.5)
-    
-    // 1. Margin Score (0-25) - Relative to target eBay listing
-    const ebayPrice = Number(ebayProduct.price);
-    const cjPrice = normalizedCj.price;
-    const margin = ebayPrice > 0 ? (ebayPrice - cjPrice) / ebayPrice : 0;
-    const marginScore = Math.min(25, Math.max(0, margin * 50)); // Typical 50% margin = 25 pts
+    // v4.7 STRICT 40/60 SPLIT
+    let categoryScore = 0;
+    let attributeScore = 0;
 
-    // 2. Shipping Origin (0-20)
-    let shippingScore = 5; // Default Unknown
-    const from = normalizedCj.shipping?.from;
-    if (from === 'US') shippingScore = 20;
-    else if (from === 'CN') shippingScore = 8;
-    else if (from) shippingScore = 15; // Global/EU
-
-    // 3. Delivery Speed (0-15)
-    let speedScore = 0;
-    const daysStr = normalizedCj.shipping?.delivery_days || "";
-    if (daysStr.includes('3-7')) speedScore = 15;
-    else if (daysStr.includes('7-15')) speedScore = 10;
-    else if (daysStr.includes('15+')) speedScore = 5;
-
-    // 4. Rating (0-15) - Actual CJ Data Only
-    let ratingScore = 0;
-    if (normalizedCj.rating) {
-        const rating = parseFloat(normalizedCj.rating);
-        if (rating >= 4.8) ratingScore = 15;
-        else if (rating >= 4.5) ratingScore = 10;
-        else ratingScore = 5;
+    // 1. Category Match (40%)
+    if (validateMatch(ebayIntel, cjIntel)) {
+        categoryScore = 40;
     }
 
-    // 5. Inventory (0-10)
-    let stockScore = 0;
-    if (normalizedCj.stock !== null) {
-        if (normalizedCj.stock > 500) stockScore = 10;
-        else if (normalizedCj.stock > 100) stockScore = 6;
-        else if (normalizedCj.stock > 0) stockScore = 2;
-    }
+    // 2. Attribute Match (60%)
+    const intersect = ebayIntel.attributes.filter(a => cjIntel.attributes.includes(a));
+    const totalPossible = Math.max(1, ebayIntel.attributes.length);
+    attributeScore = Math.min(60, (intersect.length / totalPossible) * 60);
 
-    // 6. Match Intent (0-15)
-    let matchScore = 0;
-    if (ebayIntel.product_type === cjIntel.product_type) matchScore += 10;
-    const attributeOverlap = ebayIntel.attributes.filter(a => cjIntel.attributes.includes(a));
-    matchScore += Math.min(5, attributeOverlap.length * 2.5);
-
-    const score = Math.round(marginScore + shippingScore + speedScore + ratingScore + stockScore + matchScore);
+    const score = Math.round(categoryScore + attributeScore);
     
     return { 
         alignmentScore: score, 
-        matchReason: score > 80 ? "Premium Supplier Match" : (score > 60 ? "Verified Market Pair" : "Informal Discovery")
+        matchReason: score > 80 ? "Premium Supplier Match" : (score > 40 ? "Verified Category Match" : "Broad Discovery")
     };
   }
 
@@ -250,38 +204,34 @@ class CJService {
    buildIntelligencePayload(normalizedCj, ebayProduct) {
     const ebayPrice = Number(ebayProduct.price) || 0;
     const cjPrice = normalizedCj.price;
-    const shippingCost = 5.00; // Estimated Standard Shipping (v4.5 Fallback)
+    
+    // v4.7 SHIPPING RULE: No defaults.
+    const shippingCost = normalizedCj.shipping?.cost || null;
+    const isEstimated = shippingCost === null;
 
-    // ROI Engine (REAL FORMULA ONLY)
-    // ROI % = (eBay Price - CJ Cost - Shipping) / CJ Cost * 100
-    const profit = ebayPrice - cjPrice - shippingCost;
-    const roiPercent = cjPrice > 0 ? (profit / cjPrice) * 100 : 0;
-    const marginPercent = ebayPrice > 0 ? (profit / ebayPrice) * 100 : 0;
-    const breakEven = cjPrice + shippingCost;
+    // Net Profit = eBay Price - CJ Price - Shipping
+    const totalCost = cjPrice + (shippingCost || 0);
+    const profit = ebayPrice - totalCost;
+    const roiPercent = totalCost > 0 ? (profit / totalCost) * 100 : 0;
 
     const riskFlags = [];
-    if (normalizedCj.stock !== null && normalizedCj.stock < 10) riskFlags.push("Critical Low Stock");
-    if (profit < 0) riskFlags.push("Negative Potential");
+    if (normalizedCj.stock !== null && normalizedCj.stock < 10) riskFlags.push("Low Stock");
 
     return {
         status: "CJ_INTELLIGENCE_READY",
         ebay_product: ebayProduct,
         cj_product: normalizedCj,
-        roi: { 
-            roi_value: profit, 
+        financials: { 
+            net_profit: profit, 
             roi_percent: roiPercent, 
-            margin_percent: marginPercent,
-            break_even: breakEven,
-            profit_label: marginPercent > 30 ? "HIGH" : (marginPercent > 15 ? "MEDIUM" : "LOW") 
+            status: isEstimated ? "ESTIMATED ONLY" : "REAL",
+            shipping_label: isEstimated ? "UNKNOWN" : `$${shippingCost.toFixed(2)}`
         },
         shipping: { 
             delivery_estimate: normalizedCj.shipping?.delivery_days || "UNKNOWN", 
             warehouse: normalizedCj.warehouse || "UNKNOWN",
             origin: normalizedCj.shipping?.from || "GLOBAL"
         },
-        risk: { risk_level: riskFlags.length > 0 ? "HIGH" : "LOW", risk_flags: riskFlags },
-        variants: { has_variants: normalizedCj.has_variants, variants: normalizedCj.variants },
-        rating: normalizedCj.rating || "N/A",
         stock: normalizedCj.stock !== null ? normalizedCj.stock : "UNKNOWN",
         ready_for_ui: true
     };

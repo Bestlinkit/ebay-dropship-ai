@@ -37,35 +37,64 @@ export const normalizeToContract = (raw) => {
 
         const price = parseFloat(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
         
-        // CJ CDN Base (v4.6 Fix)
+        // CJ CDN Base (v4.7 Fix)
         const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
 
-        // Handle images defensively (v4.6 - Protocol & CDN Security)
-        let images = [];
-        const rawImages = [raw.productImage, raw.bigImage, raw.image, ...(Array.isArray(raw.images) ? raw.images : [])];
+        // 1. IMAGE HANDLING (v4.7 - Split & Protocol Guard)
+        let allImages = [];
+        const imageSource = raw.image_urls || raw.productImages || raw.productImage || raw.bigImage || raw.image || "";
         
-        rawImages.forEach(img => {
-            if (typeof img === 'string' && img.length > 0) {
-                let safeUrl = img;
-                // Prepend CDN if it's a relative path
-                if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) {
-                    safeUrl = CJ_CDN + safeUrl;
-                }
-                // Fix missing protocol
-                if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
-                images.push(safeUrl);
-            }
-        });
-        
-        const uniqueImages = Array.from(new Set(images));
+        if (typeof imageSource === 'string' && imageSource.includes(';')) {
+            allImages = imageSource.split(';').filter(url => url.length > 5);
+        } else if (Array.isArray(imageSource)) {
+            allImages = imageSource;
+        } else if (imageSource) {
+            allImages = [imageSource];
+        }
 
+        // Add additional array sources if they exist
+        if (Array.isArray(raw.images)) {
+            allImages = [...allImages, ...raw.images];
+        }
+
+        const gallery = [];
+        allImages.forEach(img => {
+            if (typeof img !== 'string' || img.length < 5) return;
+            
+            let safeUrl = img.trim();
+            
+            // Prepend CDN if it's a relative path (e.g. 2024/.../img.png)
+            if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) {
+                safeUrl = CJ_CDN + safeUrl;
+            }
+            
+            // Fix missing protocol
+            if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
+            
+            // FINAL ENFORCEMENT: If still no https://, it's invalid per v4.7 rules
+            if (!safeUrl.startsWith('https://')) {
+                // If it starts with http://, we upgrade it.
+                if (safeUrl.startsWith('http://')) {
+                    safeUrl = safeUrl.replace('http://', 'https://');
+                } else {
+                    return; // DISCARD PER RULE: "Ensure ALL URLs start with https://"
+                }
+            }
+            
+            gallery.push(safeUrl);
+        });
+
+        const uniqueGallery = Array.from(new Set(gallery));
+        const mainImage = uniqueGallery[0] || "INVALID_IMAGE";
+
+        // 2. VARIANT SYNC
         const variants = Array.isArray(raw.productVariants || raw.variants) 
             ? (raw.productVariants || raw.variants).map(v => ({
                 sku_id: v.vid || v.variantId || v.variantSku || v.sku || id,
                 attributes: v.variantKey || v.variantName || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
                 stock: parseInt(v.variantInventory || v.inventory || 0),
-                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : images[0]
+                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : mainImage
             }))
             : [];
 
@@ -90,10 +119,12 @@ export const normalizeToContract = (raw) => {
                 from: raw.shippingFrom || (raw.warehouseName?.includes('US') ? 'US' : 'CN'),
                 delivery_days: raw.deliveryTime || "7-15"
             },
-            images: uniqueImages,
+            mainImage: mainImage,
+            gallery: uniqueGallery,
+            images: uniqueGallery, // Back-compat
             has_variants: variants.length > 0,
             variants: variants,
-            raw_source: raw
+            raw: raw // Explicitly store raw response as requested
         };
     } catch (e) {
         console.error("[CJ Contract] Normalization Fault:", e);
