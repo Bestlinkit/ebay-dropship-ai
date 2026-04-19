@@ -153,7 +153,7 @@ cjRouter.post('/auth', async (req, res) => {
     try {
         const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 20000 
+            timeout: 10000 
         });
 
         const raw = response.data;
@@ -176,13 +176,14 @@ cjRouter.post('/auth', async (req, res) => {
             api_key_sent: true, 
             endpoint: "authentication/getAccessToken" 
         });
-        console.log("[CJ DEBUG] AUTH RESPONSE", raw);
+        console.log("[CJ AUTH] Completed successfully");
 
         // Layer 2: API Response (Frontend Only)
-        res.status(isSuccessful ? 200 : 401).json({
+        return res.status(isSuccessful ? 200 : 401).json({
             status: isSuccessful ? "OK" : "FAILED",
             message: raw.message || "CJ API Response",
             service: "CJ Bridge Active",
+            data: raw,
             timestamp: new Date().toISOString()
         });
 
@@ -194,9 +195,10 @@ cjRouter.post('/auth', async (req, res) => {
             message: error.message
         });
 
-        res.status(500).json({ 
+        return res.status(500).json({ 
             status: "FAILED",
-            message: "Internal Server Error",
+            message: error.message,
+            raw: error.response?.data || null,
             service: "CJ Bridge Active",
             timestamp: new Date().toISOString()
         });
