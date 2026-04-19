@@ -131,13 +131,10 @@ const CJ_SESSION = {
  * GET /ping
  */
 cjRouter.get('/ping', (req, res) => {
-    res.json({ 
+    res.status(200).json({ 
         status: "OK", 
         service: "CJ Bridge Active",
-        instance_id: `BRIDGE_${Math.random().toString(36).substring(7).toUpperCase()}`,
-        signature: "CJ-PRO-BRIDGE-v2.6",
-        timestamp: new Date().toISOString(),
-        vaulted: !!CJ_SESSION.accessToken
+        timestamp: new Date().toISOString()
     });
 });
 

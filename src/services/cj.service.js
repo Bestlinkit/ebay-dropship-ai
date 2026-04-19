@@ -34,15 +34,12 @@ class CJService {
       const response = await axios.get(`${BRIDGE_BASE}/api/cj/ping`);
       const latency = Date.now() - startTime;
       
-      const status = response.data?.status === 'ONLINE';
-      
-      const serverIdentity = response.headers['x-bridge-identity'] || 'MISSING (Shadow Server detected)';
+      const status = response.data?.status === 'OK';
       
       sourcingService.log({
         type: status ? 'SUCCESS' : 'ERROR',
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
-        identity: serverIdentity,
-        message: status ? `Connected to ${serverIdentity}` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
+        message: status ? `Connected to CJ Bridge` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
         latency: `${latency}ms`,
         data: response.data
       });
@@ -101,15 +98,12 @@ class CJService {
         // 🧠 FORENSIC EXTRACTION (Matches Backend v2.2)
         const envelope = response.data;
         
-        const serverIdentity = response.headers['x-bridge-identity'] || 'MISSING (Shadow Server detected)';
-
         // 2. Diagnostics: Log Forensic Response
         sourcingService.log({
             type: envelope.parsed?.success ? 'RESPONSE' : 'ERROR',
             endpoint: `${BRIDGE_BASE}/api/cj/auth`,
-            identity: serverIdentity,
             http_status: 200,
-            message: envelope.parsed?.message || `Handshake Complete (${serverIdentity})`,
+            message: envelope.parsed?.message || `Handshake Complete`,
             raw: envelope.cj_response_raw
         });
         const raw = envelope.cj_response_raw;

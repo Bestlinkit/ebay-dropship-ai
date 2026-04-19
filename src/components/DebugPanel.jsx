@@ -49,13 +49,6 @@ const DebugPanel = () => {
                     <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
                         BRIDGE: {import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}
                     </span>
-                    <div className="h-4 w-[1px] bg-white/10" />
-                    <span className={cn(
-                        "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded",
-                        logs[0]?.identity?.includes('CJ-PRO-BRIDGE') ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400 animate-pulse"
-                    )}>
-                        IDENTITY: {logs[0]?.identity || "DISCOVERING..."}
-                    </span>
                 </div>
                 <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors">
                     <ChevronDown size={20} />
