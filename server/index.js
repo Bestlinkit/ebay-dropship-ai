@@ -119,12 +119,10 @@ const cjRouter = express.Router();
 const CJ_API_KEY = process.env.CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5fb00a4ecba7b';
 const CJ_GATEWAY = process.env.CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
 
-// 🔐 SESSION VAULT: Maintain token continuity without exposing to frontend
-const CJ_SESSION = {
-    accessToken: null,
-    expiry: null,
-    lastCheck: null
-};
+// 🔐 SESSION VAULT: Maintain token continuity across requests via global singleton
+if (!global.CJ_SESSION) {
+    global.CJ_SESSION = { accessToken: null, refreshToken: null, expiry: null };
+}
 
 /**
  * 🛰️ BRIDGE HEALTH CHECK (REAL UPSTREAM VERIFICATION)
@@ -132,7 +130,7 @@ const CJ_SESSION = {
  */
 cjRouter.get('/ping', async (req, res) => {
     try {
-        const activeToken = CJ_SESSION.accessToken;
+        const activeToken = global.CJ_SESSION?.accessToken;
         
         if (!activeToken) {
              return res.json({
@@ -210,10 +208,12 @@ cjRouter.post('/auth', async (req, res) => {
         // 🛡️ VAULTING PROTOCOL: Store token in secure backend memory
         const isSuccessful = (raw.code == 200 || raw.success === true);
         if (isSuccessful) {
-            CJ_SESSION.accessToken = raw.data?.accessToken;
-            CJ_SESSION.expiry = raw.data?.accessTokenExpiryDate;
-            CJ_SESSION.lastCheck = new Date().toISOString();
-            console.log(`[CJ-VAULT] Access Token Secured. Session active.`);
+            global.CJ_SESSION = {
+                accessToken: raw.data?.accessToken,
+                refreshToken: raw.data?.refreshToken,
+                expiry: raw.data?.accessTokenExpiryDate
+            };
+            console.log("CJ TOKEN SAVED:", !!global.CJ_SESSION.accessToken);
         }
 
         // 🧠 STRICT SEPARATION OF OUTPUT LAYERS
@@ -263,8 +263,13 @@ cjRouter.post('/auth', async (req, res) => {
 cjRouter.use((req, res, next) => {
     if (req.path === '/auth' || req.path === '/ping') return next();
 
-    const activeToken = CJ_SESSION.accessToken;
-    if (!activeToken) {
+    console.log("[CJ SESSION TRACE]", {
+        hasSession: !!global.CJ_SESSION,
+        tokenPreview: global.CJ_SESSION?.accessToken?.slice(-6),
+        expiry: global.CJ_SESSION?.expiry
+    });
+
+    if (!global.CJ_SESSION?.accessToken) {
         console.warn(`[CJ SECURITY] Blocked request to ${req.path} - Missing Token`);
         return res.status(401).json({
             cjConnected: false,
@@ -284,7 +289,7 @@ cjRouter.get('/search', async (req, res) => {
         const { keyword, page = 1, size = 20 } = req.query;
         if (!keyword) return res.status(400).json({ error: "Missing keyword" });
 
-        const activeToken = CJ_SESSION.accessToken;
+        const activeToken = global.CJ_SESSION?.accessToken;
         const startTime = Date.now();
         
         const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
@@ -317,7 +322,7 @@ cjRouter.get('/detail', async (req, res) => {
         const { pid } = req.query;
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
-        const activeToken = CJ_SESSION.accessToken; // Middleware ensures this exists
+        const activeToken = global.CJ_SESSION?.accessToken; // Middleware ensures this exists
         const startTime = Date.now();
         
         const response = await axios.get(`${CJ_GATEWAY}/product/detail`, {
@@ -352,7 +357,7 @@ cjRouter.post('/freight', async (req, res) => {
             return res.status(400).json({ error: "Missing products array" });
         }
 
-        const activeToken = CJ_SESSION.accessToken; // Middleware ensures this exists
+        const activeToken = global.CJ_SESSION?.accessToken; // Middleware ensures this exists
         const startTime = Date.now();
 
         const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, {
