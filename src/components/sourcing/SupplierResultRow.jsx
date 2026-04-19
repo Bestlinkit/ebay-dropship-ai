@@ -25,15 +25,13 @@ import { motion } from 'framer-motion';
  */
 const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     
-    // CJ Supplier Scores
-    const scores = product.scores || {
-        final: 0,
-        price_gap: 0,
-        shipping: 0,
-        warehouse: 0,
-        stability: "UNKNOWN",
-        location: "CN GLOBAL"
-    };
+    // Extract True CJ Intelligence outputs if parsed
+    const intel = product.intelligence;
+    const sellScoreNum = intel ? intel.sell_score.sell_score : (product.sellData?.resellScore || 50);
+    const profitMarginPercent = intel ? intel.roi.roi_percent : 0;
+    const riskLevel = intel ? intel.risk.risk_level : "UNKNOWN";
+    const shippingEstimate = intel ? intel.shipping.delivery_estimate : product.shipping;
+    const profitVal = intel ? intel.roi.roi_value : parseFloat(targetPrice - product.price);
 
     const sourceLabel = "CJ Dropshipping API";
 
@@ -53,9 +51,9 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
             {/* RANK & SCORE HEX */}
             <div className="flex flex-col items-center justify-center shrink-0 w-24 h-24 bg-slate-900 border border-white/10 rounded-[2rem] shadow-2xl group-hover:border-emerald-500/50 transition-colors">
-                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Match Score</span>
-                 <span className={cn("text-3xl font-black italic tracking-tighter mt-1", (product.alignmentScore || 0) >= 70 ? "text-emerald-400" : "text-amber-400")}>
-                    {product.alignmentScore || 0}%
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none text-center">Engine<br/>Score</span>
+                 <span className={cn("text-3xl font-black italic tracking-tighter mt-1", getScoreColor(sellScoreNum).split(' ')[0])}>
+                    {sellScoreNum}
                  </span>
             </div>
 
@@ -74,15 +72,17 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <span className="px-4 py-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[8px] font-black uppercase tracking-widest">
                         {sourceLabel}
                     </span>
-                    <span className={cn("px-4 py-1.5 border rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2", getScoreColor(scores.price_gap))}>
-                        Price Gap: {scores.price_gap}%
-                    </span>
-                    <span className={cn("px-4 py-1.5 border rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2", getScoreColor(scores.shipping))}>
-                        Shipping: {scores.shipping}%
+                    <span className={cn("px-4 py-1.5 border rounded-full text-[8px] font-black uppercase tracking-widest", getScoreColor(profitMarginPercent))}>
+                        Margin: {profitMarginPercent}%
                     </span>
                     <span className="px-4 py-1.5 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
-                        <Warehouse size={10} /> {scores.location}
+                        <Warehouse size={10} /> {intel ? intel.shipping.warehouse : "CN"}
                     </span>
+                    {intel && intel.variants.has_variants && (
+                       <span className="px-4 py-1.5 border border-white/10 bg-white/5 rounded-full text-[8px] font-black text-slate-300 uppercase tracking-widest">
+                          {intel.variants.variants.length} Variants
+                       </span>
+                    )}
                 </div>
 
                 <div className="space-y-2">
@@ -93,33 +93,33 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-4 border-t border-white/5">
                     <div className="flex flex-col gap-1">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">CJ Base Cost</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Lowest Cost</span>
                         <div className="text-2xl font-black text-white italic tracking-tighter">
                             ${parseFloat(product.price).toFixed(2)}
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Delivery Aging</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Delivery Est.</span>
                         <span className="text-[12px] font-black text-slate-300 uppercase tracking-tight flex items-center gap-2">
-                            <Clock size={12} className="text-amber-400" /> {product.shipping}
+                            <Clock size={12} className="text-amber-400" /> {shippingEstimate}
                         </span>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Stock Cluster</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Risk Factor</span>
                         <div className="flex items-center gap-2">
-                            <Box size={12} className={cn(scores.stability === 'HIGH' ? "text-emerald-500" : "text-amber-500")} />
+                            <ShieldAlert size={12} className={cn(riskLevel === 'LOW' ? "text-emerald-500" : (riskLevel === "MEDIUM" ? "text-amber-500" : "text-rose-500"))} />
                             <span className="text-[12px] font-black text-white uppercase tracking-widest">
-                                {scores.stability}
+                                {riskLevel}
                             </span>
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Profit Margin</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">ROI Potential</span>
                         <div className="text-2xl font-black text-emerald-400 italic tracking-tighter">
-                            +${(targetPrice - product.price).toFixed(2)}
+                            +${profitVal.toFixed(2)}
                         </div>
                     </div>
                 </div>
@@ -129,9 +129,9 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
             <div className="flex items-center gap-10 shrink-0 border-t xl:border-t-0 xl:border-l border-white/5 pt-8 xl:pt-0 xl:pl-10 w-full xl:w-auto justify-between xl:justify-end">
                 <div className="flex flex-col gap-6 text-right">
                     <div className="space-y-1">
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Warehouse Score</span>
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Identity Match</span>
                         <div className="text-4xl font-black text-white italic tracking-tighter leading-none">
-                            {scores.warehouse}%
+                            {product.alignmentScore}%
                         </div>
                     </div>
                 </div>

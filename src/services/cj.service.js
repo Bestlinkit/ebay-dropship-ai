@@ -260,41 +260,28 @@ class CJService {
    * 🧠 COMMERCE INTELLIGENCE ENGINE (POST-SELECTION ONLY)
    * Builds the structured response requested in the architectural spec.
    */
-  async buildIntelligencePayload(ebayContext) {
+  buildIntelligencePayload(cjProduct, ebayContext) {
     const { ebayProduct } = ebayContext;
     const ebayPrice = Number(ebayProduct.price) || 0;
-
-    // 1. STEP 1 - CJ PRODUCT FETCH
-    console.log("[CJ INTEL] Step 1: Base Fetching via Pipeline...");
-    const pipelineResult = await this.runIterativePipeline({ product: ebayProduct });
-    
-    if (pipelineResult.status !== "SUCCESS" || !pipelineResult.products?.length) {
-        throw new Error("CJ Match failed. Cannot build intelligence payload.");
-    }
-
-    const bestMatch = pipelineResult.products[0];
-    const cjDetail = bestMatch.detail;
+    const cjDetail = cjProduct.detail || {};
 
     // Price extraction logic: Use first variant if base price is zero/missing.
-    let cjPrice = parseFloat(cjDetail.sellPrice || 0);
+    let cjPrice = parseFloat(cjDetail.sellPrice || cjProduct.sellPrice || 0);
     const variantsList = cjDetail.productVariants || [];
     if (cjPrice === 0 && variantsList.length > 0) {
         cjPrice = parseFloat(variantsList[0].variantSellPrice || 0);
     }
 
     const cj_product = {
-        cj_product_id: bestMatch.pid,
-        title: bestMatch.productNameEn || bestMatch.productName,
+        cj_product_id: cjProduct.pid,
+        title: cjProduct.productNameEn || cjProduct.productName,
         price: cjPrice,
         currency: "USD",
-        rating: 4.8, // CJ does not return real rating reliably in open search, mocking default high
-        stock: cjDetail.productVariants?.reduce((acc, v) => acc + (v.variantKey ? 100 : 0) , 0) || 120, // Sum mock or use real invent if exists
+        rating: 4.8, // Mock default high as CJ open API doesn't expose realtime review blocks
+        stock: cjDetail.productVariants?.reduce((acc, v) => acc + (v.variantKey ? 100 : 0) , 0) || 120, 
         warehouse: "Global",
         shipping: { delivery_days: "7-15", ship_from: "CN" }
     };
-
-    // Replace shipping/stock via Freight API if needed (simulate logic given no reliable Freight without distinct variants)
-    // To strictly avoid locking up, we will parse static info from detail then calculate.
 
     // 2. STEP 2 - ROI ENGINE
     const roiVal = ebayPrice ? (ebayPrice - cjPrice) : 0;
@@ -346,7 +333,7 @@ class CJService {
         sku_id: v.vid || v.variantId || v.sku || "N/A",
         attributes: v.variantKey || "Standard",
         price: parseFloat(v.variantSellPrice || 0),
-        stock: 999 // CJ variants don't natively list stock per variant without deep inventory calls
+        stock: 999 
     }));
 
     const variants = {
@@ -355,7 +342,7 @@ class CJService {
     };
 
     // 6. STEP 6 - FINAL SELL SCORE
-    const roiWeight = Math.min(100, Math.max(0, roiMargin * 2)); // Normalizing margin to 0-100 scale for weighting
+    const roiWeight = Math.min(100, Math.max(0, roiMargin * 2)); // Normalizing margin
     const riskPenalty = riskLevel === "HIGH" ? 0 : (riskLevel === "MEDIUM" ? 50 : 100);
 
     const sellScoreNum = Math.round(
