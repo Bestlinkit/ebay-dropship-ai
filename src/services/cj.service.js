@@ -76,6 +76,10 @@ class CJService {
         const mergedMap = new Map();
         let currentQuery = manualQuery || ebayIntel.queries.strict;
 
+        if (manualQuery) {
+            telemetry.query_mode = "MANUAL_OVERRIDE";
+        }
+
         // Step 1: Direct Discovery (Exact Title or Manual Query)
         const directResults = await this.performPaginatedSearch(currentQuery, telemetry);
         directResults.forEach(item => mergedMap.set(item.product_id, item));

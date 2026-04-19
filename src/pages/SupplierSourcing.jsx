@@ -81,14 +81,27 @@ const SupplierSourcing = () => {
         checkCjConnection();
     }, [checkCjConnection]);
 
-    const performSourcing = useCallback(async (query = searchQuery) => {
-        if (!targetProduct?.id || !query?.trim()) return;
+    const performSourcing = useCallback(async (queryParam = searchQuery, isManual = false) => {
+        if (!targetProduct?.id || !queryParam?.trim()) return;
         
         setLoading(true);
         setPipelineState({ status: 'LOADING' });
+        
+        // v6.2 Clean Clear for Manual Refinement
+        if (isManual) {
+            console.log("[SEARCH MODE]: MANUAL_OVERRIDE", { query: queryParam });
+            setProducts([]);
+            setLastError(null);
+            setTelemetry({ cj: null });
+        }
 
         try {
-            const context = cjService.createContext ? cjService.createContext(query, targetProduct) : { query, product: targetProduct };
+            const context = { 
+                query: queryParam, 
+                manualQuery: isManual ? queryParam : null,
+                product: targetProduct 
+            };
+            
             const result = await cjService.runIterativePipeline(context);
 
             setPipelineState({ status: result.status });
@@ -97,27 +110,21 @@ const SupplierSourcing = () => {
 
              if (result.status === "SUCCESS") {
                 if ((result.products || []).length > 0) {
-                     toast.success(`Discovered ${result.products.length} products`);
+                     toast.success(isManual ? `Manual refresh found ${result.products.length} products` : `Discovered ${result.products.length} products`);
                      setLastError(null);
                 } else {
-                     setLastError(result.debug || { message: "No CJ matches found." });
+                     setLastError({ message: "No match found for this keyword." });
                      toast.error("No matches found in CJ catalog.");
                 }
             } else if (result.status === "NO_MATCH_FOUND") {
                 setLastError({ 
-                    message: "The CJ catalog was scanned across 5 discovery pages using the exact title, but zero high-fidelity candidates were found.",
+                    message: isManual ? "Manual search returned zero results." : "The CJ catalog was scanned across 5 discovery pages using the exact title, but zero candidates were found.",
                     query: result.query,
-                    suggestion: "Try refining keywords in the override bar above."
-                });
-            } else if (result.status === "CJ_PARSE_FAILED") {
-                setLastError({ 
-                    message: "The CJ API response was received but could not be mapped to the deterministic product contract.", 
-                    reason: result.reason,
-                    schemas: result.detected_schemas,
-                    raw_dump: result.raw_response 
+                    mode: isManual ? "MANUAL_OVERRIDE" : result.telemetry?.query_mode,
+                    suggestion: "Try refining keywords again or use broader terms."
                 });
             } else if (result.status === "ERROR") {
-                setLastError(result.debug || result.message);
+                setLastError(result.message);
                 toast.error(result.message || "CJ API Connection Failed");
             }
         } catch (e) {
@@ -240,12 +247,12 @@ const SupplierSourcing = () => {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && performSourcing(searchQuery)}
+                            onKeyDown={(e) => e.key === 'Enter' && performSourcing(searchQuery, true)}
                             placeholder="Override eBay Title Keywords..."
                             className="w-full pl-16 pr-32 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-950 focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all outline-none"
                         />
                         <button 
-                            onClick={() => performSourcing(searchQuery)}
+                            onClick={() => performSourcing(searchQuery, true)}
                             disabled={loading}
                             className="absolute right-3 top-3 bottom-3 px-6 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all"
                         >
@@ -269,9 +276,9 @@ const SupplierSourcing = () => {
                 <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
                     <CheckCircle2 size={10} /> CJ API Connected
                 </div>
-                {telemetry.pages_fetched > 0 && (
+                {telemetry.query_mode && (
                     <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
-                       <Layers size={10} /> {telemetry.pages_fetched} Deep Pages Scanned
+                       <Zap size={10} /> Mode: {telemetry.query_mode.replace('_', ' ')}
                     </div>
                 )}
                 <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
