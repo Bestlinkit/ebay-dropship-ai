@@ -205,12 +205,13 @@ class CJService {
     const ebayPrice = Number(ebayProduct.price) || 0;
     const cjPrice = normalizedCj.price;
     
-    // v4.7 SHIPPING RULE: No defaults.
-    const shippingCost = normalizedCj.shipping?.cost || null;
-    const isEstimated = shippingCost === null;
+    // v4.7.5 SHIPPING RULE: Truth-first with Baseline Fallback.
+    const rawShipping = normalizedCj.shipping?.cost;
+    const shippingCost = rawShipping !== null ? rawShipping : 5.00; // $5.00 Baseline Fallback
+    const isEstimated = rawShipping === null;
 
     // Net Profit = eBay Price - CJ Price - Shipping
-    const totalCost = cjPrice + (shippingCost || 0);
+    const totalCost = cjPrice + shippingCost;
     const profit = ebayPrice - totalCost;
     const roiPercent = totalCost > 0 ? (profit / totalCost) * 100 : 0;
 
@@ -225,10 +226,10 @@ class CJService {
             net_profit: profit, 
             roi_percent: roiPercent, 
             status: isEstimated ? "ESTIMATED ONLY" : "REAL",
-            shipping_label: isEstimated ? "UNKNOWN" : `$${shippingCost.toFixed(2)}`
+            shipping_label: isEstimated ? `EST. $${shippingCost.toFixed(2)}` : `$${shippingCost.toFixed(2)}`
         },
         shipping: { 
-            delivery_estimate: normalizedCj.shipping?.delivery_days || "UNKNOWN", 
+            delivery_estimate: normalizedCj.shipping?.delivery_days || "7-15 DAYS (EST)", 
             warehouse: normalizedCj.warehouse || "UNKNOWN",
             origin: normalizedCj.shipping?.from || "GLOBAL"
         },

@@ -41,8 +41,9 @@ const SupplierSourcing = () => {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // Core Sourcing Context
-    const { ebayProduct, targetPrice = 50, query } = location.state || {};
+    // Core Sourcing Context (v4.7.5 Price Sync)
+    const { ebayProduct, query } = location.state || {};
+    const targetPrice = Number(ebayProduct?.price || location.state?.targetPrice || 50);
     const batchContext = location.state?.batchContext || { avgPrice: targetPrice };
     const initialQuery = query || ebayProduct?.title || '';
     const targetProduct = ebayProduct;

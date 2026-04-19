@@ -319,6 +319,7 @@ const IntelligenceReview = () => {
                                 price: Number(product.price) || 0,
                                 image: product.image || product.thumbnail || product.image_url || null
                             },
+                            targetPrice: Number(product.price) || 0, // EXPLICIT HAND-OFF v4.7.5
                             batchContext 
                         } 
                     })}

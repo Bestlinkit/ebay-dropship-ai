@@ -86,15 +86,15 @@ const SupplierProductDetail = () => {
 
     if (!product) return <div className="p-20 text-center font-black uppercase tracking-widest text-slate-400">Enforcement Failure: Metadata Unreachable</div>;
 
-    // Financial Analysis (v4.7 Rule)
+    // Financial Analysis (v4.7.5 Rule)
     const financials = product.intelligence?.financials;
     const currentPrice = selectedVariant?.price || product.price;
-    const shippingCost = product.shipping?.cost || 0;
-    const isEst = financials?.status === 'ESTIMATED ONLY';
+    const shippingCost = product.shipping?.cost !== null ? product.shipping?.cost : 5.00; // v4.7.5 Sync
+    const isEst = product.shipping?.cost === null;
     
     // Net Profit = target - (cjPrice + shipping)
-    const profit = targetPrice - currentPrice - (shippingCost || 0);
-    const roi = currentPrice > 0 ? (profit / currentPrice) * 100 : 0;
+    const profit = targetPrice - currentPrice - shippingCost;
+    const roi = (currentPrice + shippingCost) > 0 ? (profit / (currentPrice + shippingCost)) * 100 : 0;
 
     const gallery = product.gallery || [];
 
