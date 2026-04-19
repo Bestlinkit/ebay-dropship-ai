@@ -8,7 +8,7 @@ import {
   DollarSign, 
   ChevronRight, 
   ShieldCheck, 
-  ShieldAlert, 
+  AlertTriangle, 
   Star,
   Zap,
   CheckCircle2,
@@ -277,10 +277,10 @@ const SupplierSourcing = () => {
                     <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
                         <div className={cn(
                             "w-24 h-24 border rounded-[3rem] flex items-center justify-center mx-auto shadow-inner",
-                            pipelineState.status === 'ERROR' ? "bg-red-50 text-red-300" : 
+                            pipelineState.status === 'ERROR' || pipelineState.status === 'CJ_PARSE_FAILED' ? "bg-red-50 text-red-500" : 
                             "bg-slate-50 text-slate-300"
                         )}>
-                            {pipelineState.status === 'ERROR' ? <AlertTriangle size={48} /> : 
+                            {pipelineState.status === 'ERROR' || pipelineState.status === 'CJ_PARSE_FAILED' ? <AlertTriangle size={48} /> : 
                              <Box size={48} />}
                         </div>
                         

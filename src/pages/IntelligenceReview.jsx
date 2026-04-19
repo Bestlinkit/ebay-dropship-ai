@@ -4,7 +4,7 @@ import {
   ArrowLeft, 
   Target, 
   ShieldCheck, 
-  ShieldAlert, 
+  AlertTriangle, 
   ShieldQuestion,
   ExternalLink,
   Zap,
@@ -27,7 +27,7 @@ const ConfidenceBadge = ({ level }) => {
       Medium: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30",
       Low: "bg-red-500/10 text-red-500 border-red-500/30"
     };
-    const Icon = level === 'High' ? ShieldCheck : (level === 'Medium' ? ShieldQuestion : ShieldAlert);
+    const Icon = level === 'High' ? ShieldCheck : (level === 'Medium' ? ShieldQuestion : AlertTriangle);
     
     return (
       <div className={cn("px-4 py-2 rounded-2xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-2", styles[level])}>
@@ -53,10 +53,13 @@ const IntelligenceReview = () => {
     return (
       <div className="h-[70vh] flex flex-col items-center justify-center gap-8 animate-in fade-in bg-[#0B1220]">
          <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-[2rem] flex items-center justify-center text-slate-700">
-            <ShieldAlert size={40} />
+            <AlertTriangle size={40} className="text-rose-500" />
+         </div>
+         <div className="error-banner px-6 py-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-500 text-[10px] font-black uppercase tracking-widest animate-pulse">
+            System Alert: CJ Bridge Issue Detected
          </div>
          <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Market Context Registry Empty</p>
-         <button onClick={() => navigate('/discovery')} className="p-4 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-all">
+         <button onClick={() => navigate('/discovery')} className="p-4 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-500 transition-all font-inter">
             Return to Market Research <ArrowRight size={14} />
          </button>
       </div>

@@ -109,7 +109,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <div className="flex flex-col gap-1">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Risk Factor</span>
                         <div className="flex items-center gap-2">
-                            <ShieldAlert size={12} className={cn(riskLevel === 'LOW' ? "text-emerald-500" : (riskLevel === "MEDIUM" ? "text-amber-500" : "text-rose-500"))} />
+                            <AlertTriangle size={12} className={cn(riskLevel === 'LOW' ? "text-emerald-500" : (riskLevel === "MEDIUM" ? "text-amber-500" : "text-rose-500"))} />
                             <span className="text-[12px] font-black text-white uppercase tracking-widest">
                                 {riskLevel}
                             </span>
