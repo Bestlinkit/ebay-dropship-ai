@@ -185,7 +185,13 @@ cjRouter.get('/ping', async (req, res) => {
  */
 cjRouter.post('/auth', async (req, res) => {
     const { apiKey } = req.body;
-    const targetApiKey = apiKey || CJ_API_KEY;
+    let targetApiKey = apiKey;
+    
+    // 🛡️ Filter out front-end Vite unparsed fallback artifacts
+    if (!targetApiKey || targetApiKey === "CJ_API_KEY_FROM_ENV" || targetApiKey === "undefined") {
+        targetApiKey = CJ_API_KEY;
+    }
+
     const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
 
     console.log("[CJ REQUEST] Endpoint hit");
