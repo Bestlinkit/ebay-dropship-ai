@@ -33,23 +33,25 @@ class CJService {
       const startTime = Date.now();
       const response = await axios.get(`${BRIDGE_BASE}/api/cj/ping`);
       const latency = Date.now() - startTime;
-      const isConnected = response.data?.cjConnected === true;
       
-      console.log(`[CJ DEBUG] Ping ${isConnected ? 'SUCCESS' : 'ERROR'}:`, {
+      const upstreamStatus = response.data?.cjConnected === true;
+      
+      console.log(`[CJ DEBUG] Local Bridge Reached, Upstream Status: ${upstreamStatus ? 'CONNECTED' : 'UNAUTHENTICATED'}`, {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
-        message: isConnected ? `Connected to CJ Bridge` : `Bridge Health: OFFLINE`,
+        message: `Local bridge responded. Upstream is ${upstreamStatus ? 'ACTIVE' : 'VAULT EMPTY'}`,
         latency: `${latency}ms`
       });
 
       sourcingService.log({
-        type: isConnected ? 'SUCCESS' : 'ERROR',
+        type: 'SUCCESS',
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
-        message: isConnected ? `Connected to CJ Bridge` : `Bridge Health: OFFLINE`,
+        message: 'Local Bridge is Online & Responsive',
         latency: `${latency}ms`,
         data: response.data
       });
 
-      return isConnected;
+      // The local proxy is alive. We must return true so the frontend can orchestrate the /auth handshake!
+      return true;
     } catch (error) {
       console.error('[CJ DEBUG] Ping ERROR:', {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
