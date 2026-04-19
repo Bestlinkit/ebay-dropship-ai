@@ -6,7 +6,7 @@
 class ProxyBridge {
     constructor() {
         // Fallback to a default GAS URL if one is provided in .env or config
-        this.gasUrl = import.meta.env.VITE_GAS_ALI_PROXY || null;
+        this.gasUrl = import.meta.env.VITE_GAS_CJ_PROXY || null;
     }
 
     async fetch(targetUrl) {

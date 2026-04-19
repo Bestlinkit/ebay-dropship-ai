@@ -161,7 +161,7 @@ class SourcingService {
   }
 
   /**
-   * Phase III: Pipeline Orchestration (AliExpress DS v2.0)
+   * Phase III: Pipeline Orchestration (CJ Unified)
    */
   createContext(query, targetProduct) {
     return {
@@ -179,54 +179,13 @@ class SourcingService {
   async runIterativePipeline(context) {
     return { 
       status: "ERROR", 
-      message: "Market discovery active in eBay-only local mode. CJ discovery active but requires sourcing logic integration.", 
+      message: "CJ discovery active but requires sourcing logic integration.", 
       products: [] 
     };
   }
 
-
-  _parseAliExpressHTML(html) {
-    // Forensic Regex to find product list in AliExpress window.runParams or __INITIAL_DATA__
-    try {
-        const regex = /window\.runParams\s*=\s*({.+?});/s;
-        const match = html.match(regex);
-        if (!match) return [];
-
-        const data = JSON.parse(match[1]);
-        const list = data?.mods?.itemList?.content || [];
-        
-        return list.map(item => ({
-            product_id: item.productId,
-            product_title: item.title?.displayTitle || item.title,
-            target_sale_price: item.price?.salePrice?.value || item.price?.value,
-            product_main_image_url: item.image?.imgUrl || `https:${item.image?.src}`,
-            product_detail_url: `https://www.aliexpress.com/item/${item.productId}.html`,
-            logistics_info: { shipping_fee: 0, delivery_time: "12-15 Days" }
-        }));
-    } catch (e) {
-        console.error("HTML_PARSING_FAULT:", e);
-        return [];
-    }
-  }
-
-  normalize(raw) {
-    return {
-      id: raw.product_id,
-      title: raw.product_title,
-      price: parseFloat(raw.target_sale_price || raw.sale_price || 0),
-      image: raw.product_main_image_url || raw.first_level_category_name,
-      thumbnail: raw.product_main_image_url,
-      url: raw.product_detail_url,
-      source: 'aliexpress',
-      shipping: raw.logistics_info?.delivery_time || "12-20 Days",
-      shipping_cost: parseFloat(raw.logistics_info?.shipping_fee || 0),
-      orders: raw.relevant_market_commission || 0,
-      rating: 4.5
-    };
-  }
-
   calculateOpportunityScore(product, targetPrice) {
-    const cost = product.price + product.shipping_cost;
+    const cost = product.price + (product.shipping_cost || 0);
     const margin = targetPrice - cost;
     const roi = (margin / cost) * 100;
 
@@ -245,10 +204,6 @@ class SourcingService {
     const margin = target - cost;
     const roip = (margin / cost) * 100;
     return { margin, roip };
-  }
-
-  async runAliExpressOfficial(payload) {
-    return { status: "ERROR", message: "AliExpress Bridge is currently locked." };
   }
 }
 

@@ -55,8 +55,7 @@ const SupplierSourcing = () => {
     const PAGE_SIZE = 8;
 
     const [pipelineState, setPipelineState] = useState({
-        status: 'IDLE',
-        sources: { aliexpress: 'PENDING' }
+        status: 'IDLE'
     });
 
     const [telemetry, setTelemetry] = useState({ cj: null });
@@ -86,13 +85,13 @@ const SupplierSourcing = () => {
         if (!targetProduct?.id || !query?.trim()) return;
         
         setLoading(true);
-        setPipelineState({ status: 'LOADING', sources: { aliexpress: 'PENDING' } });
+        setPipelineState({ status: 'LOADING' });
 
         try {
             const context = cjService.createContext ? cjService.createContext(query, targetProduct) : { query, product: targetProduct };
             const result = await cjService.runIterativePipeline(context);
 
-            setPipelineState({ status: result.status, sources: { cj: 'COMPLETED' } });
+            setPipelineState({ status: result.status });
             setProducts(result.products || []);
             setTelemetry(result.telemetry || { cj: null });
 
@@ -104,8 +103,13 @@ const SupplierSourcing = () => {
                      setLastError(result.debug || { message: "No CJ matches found." });
                      toast.error("No matches found in CJ catalog.");
                 }
-            } else if (result.status === "NO_RESULTS") {
-                setLastError({ message: "0 items were extracted from the CJ API payload. Review the raw proxy response below to determine if the query was excessively niche, or if the API returned an unrecognized schema.", rawDump: result.rawDump });
+            } else if (result.status === "CJ_PARSE_FAILED") {
+                setLastError({ 
+                    message: "The CJ API response was received but could not be mapped to the deterministic product contract.", 
+                    reason: result.reason,
+                    schemas: result.detected_schemas,
+                    raw_dump: result.raw_response 
+                });
             } else if (result.status === "ERROR") {
                 setLastError(result.debug || result.message);
                 toast.error(result.message || "CJ API Connection Failed");
@@ -139,20 +143,19 @@ const SupplierSourcing = () => {
             .map(raw => {
                 let intelligence = null;
                 try {
-                    intelligence = cjService.buildIntelligencePayload(raw, { ebayProduct: targetProduct });
+                    intelligence = cjService.buildIntelligencePayload(raw, targetProduct);
                 } catch (e) {
-                    console.error("Intelligence Parsing Error:", e);
-                    // Fallback stub to prevent UI crash
+                    console.error("Intelligence Processing Error:", e);
                     intelligence = {
-                        roi: { roi_value: 0, roi_percent: 0, profit_label: "UNKNOWN" },
-                        shipping: { delivery_estimate: "N/A", warehouse: "UNKNOWN" },
-                        risk: { risk_level: "UNKNOWN" },
+                        roi: { roi_value: 0, roi_percent: 0, profit_label: "N/A" },
+                        shipping: { delivery_estimate: "7-15 days", warehouse: "Global" },
+                        risk: { risk_level: "UNKNOWN", risk_flags: [] },
                         variants: { has_variants: false, variants: [] },
                         sell_score: { sell_score: 0, classification: "UNKNOWN" }
                     };
                 }
 
-                const res = cjService.normalizeResult ? cjService.normalizeResult(raw) : raw;
+                const res = cjService.normalizeResult(raw);
                 
                 // Override legacy variables with precise CJ Intelligence parameters
                 return { 
@@ -235,7 +238,6 @@ const SupplierSourcing = () => {
                     resultsCount={products.length} 
                     isGlobal={false} 
                     query={searchQuery}
-                    onAliTrigger={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })}
                     onRetry={() => performSourcing()}
                 />
             </div>
@@ -263,8 +265,8 @@ const SupplierSourcing = () => {
                         )}
                         <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Targeted Discovery Engine</p>
-                             <button onClick={() => navigate('/ali-sourcing', { state: { product: targetProduct, query: searchQuery } })} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
-                                 Perform Manual Keyword Search
+                             <button onClick={() => window.open(`https://cjdropshipping.com/product-list?keyword=${encodeURIComponent(searchQuery)}`, '_blank')} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">
+                                 Perform Manual CJ Catalog Search
                              </button>
                         </div>
                     </div>
@@ -284,19 +286,19 @@ const SupplierSourcing = () => {
                         
                         <div className="space-y-4">
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
-                                {pipelineState.status === 'NO_RESULTS' ? "0 Results" : 
+                                {pipelineState.status === 'CJ_PARSE_FAILED' ? "Extraction Fault" : 
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
                                  pipelineState.status === 'IDLE' ? "Ready to Source" :
                                  "System Error"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'NO_RESULTS' ? "The CJ catalog proxy executed successfully but produced zero usable products." : 
+                                {pipelineState.status === 'CJ_PARSE_FAILED' ? "The CJ catalog proxy connected, but the internal product contract was violated by the upstream response." : 
                                  pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
                                  pipelineState.status === 'IDLE' ? "Data structure loaded successfully. Click below to begin sourcing from CJ Dropshipping." :
-                                 pipelineState.status === 'SUCCESS' ? "Matches were found during proxy search, but the secure CJ API tunnel was unable to successfully extract the detailed data structure for any result. Refresh to run diagnostics." :
+                                 pipelineState.status === 'SUCCESS' ? "Sourcing completed but zero high-precision matches survived the alignment score filter." :
                                  "The secure CJ API tunnel encountered an unexpected data structure."}
                                  
-                                 {lastError && (pipelineState.status === 'NO_RESULTS' || pipelineState.status === 'SYSTEM_DOWN' || pipelineState.status === 'ERROR') && (
+                                 {lastError && (pipelineState.status === 'CJ_PARSE_FAILED' || pipelineState.status === 'SYSTEM_DOWN' || pipelineState.status === 'ERROR') && (
                                      <div className="mt-4 p-4 bg-slate-100 rounded-2xl text-left overflow-auto max-h-64 border border-slate-300">
                                          <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Technical Diagnosis</p>
                                          <code className="text-[10px] text-red-600 font-mono whitespace-pre-wrap">
