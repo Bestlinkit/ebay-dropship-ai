@@ -279,10 +279,23 @@ const SupplierSourcing = () => {
                 </div>
             </div>
 
+            {/* v6.1 Mode Indicator */}
+            {telemetry.query_mode === 'FALLBACK_EXPANSION' && (
+                <div className="mx-4 p-5 bg-indigo-50 border border-indigo-100 rounded-[2rem] flex items-center gap-4 animate-in slide-in-from-top duration-500">
+                    <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 shrink-0">
+                        <Info size={20} />
+                    </div>
+                    <div>
+                        <p className="text-[11px] font-black text-indigo-950 uppercase tracking-widest leading-none">Broadened Match Active</p>
+                        <p className="text-[10px] font-bold text-indigo-600 mt-1">Showing broader matches due to limited exact keyword results. You can refine search above.</p>
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-8">
                 {/* 1. LOADING */}
                 {loading && (
-                    <div className="space-y-6">
+                    <div className="space-y-6 px-4">
                         {Array(3).fill(0).map((_, i) => (
                            <div key={i} className="h-40 bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />
                         ))}
@@ -291,14 +304,16 @@ const SupplierSourcing = () => {
 
                 {/* 2. DISCOVERY RESULTS */}
                 {!loading && processedResults.length > 0 && (
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 gap-6 px-4">
                         {paginatedResults.map(res => (
                             <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} onContinue={handleContinue} />
                         ))}
                         {processedResults.length > paginatedResults.length && (
-                             <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm">
-                                 Show Next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} Matches
-                             </button>
+                             <div className="pb-10">
+                                <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm">
+                                    Show Next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} Matches
+                                </button>
+                             </div>
                         )}
                         <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Targeted Discovery Engine</p>
@@ -311,35 +326,23 @@ const SupplierSourcing = () => {
 
                 {/* 3. DETERMINISTIC FAILURE STATES */}
                 {!loading && products.length === 0 && (
-                    <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100">
+                    <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100 mx-4">
                         <div className={cn(
                             "w-24 h-24 border rounded-[3rem] flex items-center justify-center mx-auto shadow-inner",
-                            pipelineState.status === 'ERROR' || pipelineState.status === 'CJ_PARSE_FAILED' ? "bg-red-50 text-red-500" : 
-                            pipelineState.status === 'CJ_EMPTY_RESULT' ? "bg-amber-50 text-amber-500" :
-                            "bg-slate-50 text-slate-300"
+                            pipelineState.status === 'ERROR' ? "bg-red-50 text-red-500" : "bg-slate-50 text-slate-300"
                         )}>
-                            {pipelineState.status === 'ERROR' || pipelineState.status === 'CJ_PARSE_FAILED' ? <AlertTriangle size={48} /> : 
-                             pipelineState.status === 'CJ_EMPTY_RESULT' ? <Search size={48} /> :
-                             <Box size={48} />}
+                            {pipelineState.status === 'ERROR' ? <AlertTriangle size={48} /> : <Box size={48} />}
                         </div>
                         
                         <div className="space-y-4">
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
-                                {pipelineState.status === 'CJ_PARSE_FAILED' ? "Extraction Fault" : 
-                                 pipelineState.status === 'NO_MATCH_FOUND' ? "Discovery Failure" :
-                                 pipelineState.status === 'TIMEOUT' ? "Try Again" :
-                                 pipelineState.status === 'IDLE' ? "Ready to Source" :
-                                 "System Error"}
+                                {pipelineState.status === 'NO_MATCH_FOUND' ? "Discovery Failure" : "System Alert"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'CJ_PARSE_FAILED' ? "The CJ catalog proxy connected, but the internal product contract was violated by the upstream response." : 
-                                 pipelineState.status === 'NO_MATCH_FOUND' ? "The 5-page catalog scan synchronized successfully, but zero high-fidelity candidates matched the target eBay title. Try refining keywords." :
-                                 pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
-                                 pipelineState.status === 'IDLE' ? "Data structure loaded successfully. Use the override bar above or click below to begin sourcing." :
-                                 pipelineState.status === 'SUCCESS' ? "Sourcing completed but zero high-precision matches survived the alignment score filter." :
+                                {pipelineState.status === 'NO_MATCH_FOUND' ? "The 5-page catalog scan synchronized successfully, but zero high-fidelity candidates matched the target eBay title. Try refining keywords." :
                                  "The secure CJ API tunnel encountered an unexpected data structure."}
                                  
-                                 {lastError && (pipelineState.status === 'CJ_PARSE_FAILED' || pipelineState.status === 'SYSTEM_DOWN' || pipelineState.status === 'ERROR') && (
+                                 {lastError && (pipelineState.status === 'SYSTEM_DOWN' || pipelineState.status === 'ERROR') && (
                                      <div className="mt-4 p-4 bg-slate-100 rounded-2xl text-left overflow-auto max-h-64 border border-slate-300">
                                          <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Technical Diagnosis</p>
                                          <code className="text-[10px] text-red-600 font-mono whitespace-pre-wrap">

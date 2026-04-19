@@ -56,120 +56,156 @@ class CJService {
   }
 
   /**
-   * 🏗️ PIPELINE ORCHESTRATION (v5.0 - HIGH VOLUME DISCOVERY)
-   * Mandate: Fetch up to 5 pages, do not filter results, merge for ranking.
+   * 🏗️ PIPELINE ORCHESTRATION (v6.1 - DUMB SEARCH / SMART RANKING)
+   * Mandate: Broad retrieval, deterministic fallback, rank-not-filter.
    */
   async runIterativePipeline(context) {
     const { product, manualQuery } = context;
     const startTime = Date.now();
-    const targetKeyword = manualQuery || product.title;
+    const ebayIntel = deconstructTitle(product.title);
     
-    // Telemetry and Tracking
+    // Telemetry Init
     const telemetry = {
-        query_used: targetKeyword,
-        pages_fetched: 0,
-        raw_count: 0,
-        merged_count: 0
+        query_mode: "DIRECT_MATCH",
+        pages_scanned: 0,
+        results_merged: 0,
+        fallback_triggered: false
     };
 
     try {
         const mergedMap = new Map();
-        
-        // v5.0 - Multi-Page Discovery Loop
-        for (let pageNum = 1; pageNum <= 5; pageNum++) {
-            try {
-                const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
-                    params: { 
-                        keyword: targetKeyword,
-                        pageNum: pageNum,
-                        pageSize: 20
-                    } 
-                });
+        let currentQuery = manualQuery || ebayIntel.queries.strict;
 
-                const rawData = response.data?.data || response.data;
-                const products = rawData.productList || [];
-                
-                if (products.length === 0) break; // End of catalog reached
+        // Step 1: Direct Discovery (Exact Title or Manual Query)
+        const directResults = await this.performPaginatedSearch(currentQuery, telemetry);
+        directResults.forEach(item => mergedMap.set(item.product_id, item));
 
-                products.forEach(item => {
-                    const normalized = normalizeToContract(item);
-                    if (normalized && !mergedMap.has(normalized.product_id)) {
-                        mergedMap.set(normalized.product_id, normalized);
-                    }
-                });
+        // Step 2: Fallback Trigger Analysis
+        const scoredInitial = Array.from(mergedMap.values()).map(item => ({
+            ...item,
+            ...this.calculateAlignmentScore(product, item, ebayIntel)
+        }));
 
-                telemetry.pages_fetched = pageNum;
-                if (products.length < 20) break; // Last page reached
-            } catch (pageErr) {
-                console.error(`[CJ Pipeline] Page ${pageNum} Fetch Error:`, pageErr.message);
-                break;
-            }
+        const maxScore = scoredInitial.length > 0 ? Math.max(...scoredInitial.map(i => i.alignmentScore)) : 0;
+
+        // Trigger Fallback IF: No results OR All results below threshold
+        // (v6.1 Rule: maxScore < 50 triggers broader scan)
+        if (!manualQuery && (scoredInitial.length === 0 || maxScore < 50)) {
+            telemetry.fallback_triggered = true;
+            telemetry.query_mode = "FALLBACK_EXPANSION";
+            const fallbackQuery = ebayIntel.queries.fallback;
+            
+            const fallbackResults = await this.performPaginatedSearch(fallbackQuery, telemetry);
+            fallbackResults.forEach(item => {
+                if (!mergedMap.has(item.product_id)) {
+                    mergedMap.set(item.product_id, item);
+                }
+            });
         }
 
-        const allProducts = Array.from(mergedMap.values());
-        telemetry.merged_count = allProducts.length;
+        const allCandidates = Array.from(mergedMap.values());
+        telemetry.results_merged = allCandidates.length;
 
-        if (allProducts.length === 0) {
+        if (allCandidates.length === 0) {
             return {
                 status: "NO_MATCH_FOUND",
-                reason: "ZERO_CATALOG_HITS",
-                query: targetKeyword,
+                query: currentQuery,
                 telemetry
             };
         }
 
-        // Phase II: Global Ranking & Scoring (No Filtering)
-        const scoredCandidates = allProducts.map(fullProduct => {
-            const alignment = this.calculateAlignmentScore(product, fullProduct);
-            return { ...fullProduct, ...alignment };
+        // Step 3: Scientific Scoring (Post-Retrieval)
+        const scoredFinal = allCandidates.map(item => {
+            const alignment = this.calculateAlignmentScore(product, item, ebayIntel);
+            const intelligence = this.buildIntelligencePayload(item, product);
+            return { ...item, ...alignment, intelligence };
         });
 
-        // Sort by Score
-        const ranked = scoredCandidates.sort((a,b) => b.alignmentScore - a.alignmentScore);
-        
+        // Step 4: Multi-Key Ranking Prioritization (v6.1 Rule)
+        // 1. Type Match (Boolean anchor)
+        // 2. Net Profit (High to Low)
+        // 3. Stock Depth (High to Low)
+        const ranked = scoredFinal.sort((a,b) => {
+            // Anchor 1: Product Type Match (Score contains penalty already)
+            if (b.alignmentScore !== a.alignmentScore) return b.alignmentScore - a.alignmentScore;
+            
+            // Anchor 2: Net Profit
+            const profitA = typeof a.intelligence.financials.net_profit === 'number' ? a.intelligence.financials.net_profit : -999;
+            const profitB = typeof b.intelligence.financials.net_profit === 'number' ? b.intelligence.financials.net_profit : -999;
+            if (profitB !== profitA) return profitB - profitA;
+
+            // Anchor 3: Stock
+            const stockA = typeof a.stock === 'number' ? a.stock : 0;
+            const stockB = typeof b.stock === 'number' ? b.stock : 0;
+            return stockB - stockA;
+        });
+
         return { 
             status: "SUCCESS", 
             products: ranked, 
-            telemetry: { 
-                latency: Date.now() - startTime, 
-                ...telemetry 
-            } 
+            mode: telemetry.query_mode,
+            telemetry: { latency: Date.now() - startTime, ...telemetry } 
         };
     } catch (err) { 
-        return { 
-            status: "ERROR", 
-            reason: "PIPELINE_CRASH",
-            message: err.message 
-        }; 
+        console.error("[CJ v6.1 Fault]", err);
+        return { status: "ERROR", message: err.message }; 
     }
   }
 
-  calculateAlignmentScore(ebayProduct, normalizedCj) {
-    const ebayTitle = ebayProduct.title.toLowerCase();
+  async performPaginatedSearch(keyword, telemetry) {
+    const results = [];
+    for (let pageNum = 1; pageNum <= 5; pageNum++) {
+        try {
+            const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
+                params: { keyword, pageNum, pageSize: 20 } 
+            });
+            const data = response.data?.data?.productList || [];
+            if (data.length === 0) break;
+            data.forEach(item => results.push(normalizeToContract(item)));
+            telemetry.pages_scanned++;
+            if (data.length < 20) break;
+        } catch (e) { break; }
+    }
+    return results;
+  }
+
+  /**
+   * 🧼 SCIENTIFIC SCORING (v6.1 - TYPE ANCHORED)
+   */
+  calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel = null) {
+    const intel = ebayIntel || deconstructTitle(ebayProduct.title);
     const cjTitle = normalizedCj.title.toLowerCase();
     
-    // v5.0 Basic Overlap Detection (Ranking Only)
-    const ebayWords = ebayTitle.split(' ').filter(w => w.length > 2);
-    const intersect = ebayWords.filter(w => cjTitle.includes(w));
+    // v6.1 Relevance Anchor Logic
+    let baseScore = 40; // Base presence score
     
-    // 40% base for existing + up to 60% for keyword match
+    // 1. Keyword Overlap (Up to 60 points)
+    const ebayWords = ebayProduct.title.toLowerCase().split(' ').filter(w => w.length > 2);
+    const intersect = ebayWords.filter(w => cjTitle.includes(w));
     const overlapPercent = (intersect.length / Math.max(1, ebayWords.length));
-    const score = Math.round(40 + (overlapPercent * 60));
+    baseScore += Math.round(overlapPercent * 60);
+
+    // 2. CRITICAL ANCHOR: Product Type Match (v6.1 Protection)
+    // If "Jeans" searched but missing from CJ title, reduce score heavily.
+    if (intel.product_type && !cjTitle.includes(intel.product_type)) {
+        baseScore = Math.max(5, baseScore - 50); // Hard penalty pushes irrelevant items to bottom
+    }
+    
+    const finalScore = Math.min(100, baseScore);
     
     return { 
-        alignmentScore: score, 
-        matchReason: score > 80 ? "High Relevance" : (score > 60 ? "Moderate Match" : "Data Discovery")
+        alignmentScore: finalScore, 
+        matchReason: finalScore > 80 ? "High Relevance" : (finalScore > 50 ? "Category Match" : "Broad Retrieval")
     };
   }
 
   /**
-   * 🧠 COMMERCE INTELLIGENCE ENGINE (v5.0 - Hardened Analytics)
+   * 🧠 COMMERCE INTELLIGENCE ENGINE (v6.1 - HARDENED)
    */
    buildIntelligencePayload(normalizedCj, ebayProduct) {
     const ebayPrice = Number(ebayProduct.price);
     const cjPrice = Number(normalizedCj.price);
     
-    // v5.0 $NaN Protection Rule
     let profit = "UNKNOWN";
     let roiPercent = 0;
     
@@ -178,29 +214,21 @@ class CJService {
 
     if (!isNaN(ebayPrice) && !isNaN(cjPrice)) {
         profit = ebayPrice - cjPrice - shippingCost;
-        const totalInvestment = cjPrice + shippingCost;
-        roiPercent = totalInvestment > 0 ? (profit / totalInvestment) * 100 : 0;
+        const totalValue = cjPrice + shippingCost;
+        roiPercent = totalValue > 0 ? (profit / totalValue) * 100 : 0;
     }
 
     return {
-        status: "SUCCESS",
-        ebay_product: ebayProduct,
-        cj_product: normalizedCj,
         financials: { 
             net_profit: profit, 
             roi_percent: roiPercent, 
             status: isEstimated ? "ESTIMATED" : "CONFIRMED",
-            shipping_label: normalizedCj.shipping?.cost !== null 
-                ? `$${Number(normalizedCj.shipping.cost).toFixed(2)}` 
-                : "Not Provided by CJ"
+            shipping_label: normalizedCj.shipping?.cost !== null ? `$${Number(normalizedCj.shipping.cost).toFixed(2)}` : "Benchmark ($5.00)"
         },
         shipping: { 
             delivery_estimate: normalizedCj.shipping?.delivery_days || "Not Available", 
-            warehouse: normalizedCj.warehouse || "Not Available",
-            origin: normalizedCj.shipping?.from || "Not Available"
-        },
-        stock: normalizedCj.stock !== null ? normalizedCj.stock : "Not Available",
-        ready_for_ui: true
+            warehouse: normalizedCj.warehouse || "Not Available"
+        }
     };
   }
 
