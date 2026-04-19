@@ -127,15 +127,45 @@ const CJ_SESSION = {
 };
 
 /**
- * 🛰️ BRIDGE HEALTH CHECK
+ * 🛰️ BRIDGE HEALTH CHECK (REAL UPSTREAM VERIFICATION)
  * GET /ping
  */
-cjRouter.get('/ping', (req, res) => {
-    res.status(200).json({ 
-        status: "OK", 
-        service: "CJ Bridge Active",
-        timestamp: new Date().toISOString()
-    });
+cjRouter.get('/ping', async (req, res) => {
+    try {
+        const activeToken = CJ_SESSION.accessToken;
+        
+        if (!activeToken) {
+             return res.json({
+                 cjConnected: true,
+                 tokenValid: false,
+                 latency: "0ms"
+             });
+        }
+
+        const startTime = Date.now();
+        // Request lightweight catalog to verify token validity
+        const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
+            params: { page: 1, size: 1 },
+            headers: { 'CJ-Access-Token': activeToken },
+            timeout: 5000
+        });
+        const latency = Date.now() - startTime;
+        
+        const isListValid = response.data?.code == 200 || response.data?.result === true;
+        
+        return res.status(200).json({ 
+            cjConnected: true,
+            tokenValid: isListValid,
+            latency: `${latency}ms`
+        });
+    } catch (e) {
+        return res.status(200).json({
+            cjConnected: true,
+            tokenValid: false,
+            latency: null,
+            error: e.message
+        });
+    }
 });
 
 /**
@@ -179,13 +209,19 @@ cjRouter.post('/auth', async (req, res) => {
         console.log("[CJ AUTH] Completed successfully");
 
         // Layer 2: API Response (Frontend Only)
-        return res.status(isSuccessful ? 200 : 401).json({
-            status: isSuccessful ? "OK" : "FAILED",
-            message: raw.message || "CJ API Response",
-            service: "CJ Bridge Active",
-            data: raw,
-            timestamp: new Date().toISOString()
-        });
+        if (isSuccessful) {
+            return res.status(200).json({
+                status: "AUTH_SUCCESS",
+                cjLinked: true,
+                accessTokenExists: true
+            });
+        } else {
+            return res.status(401).json({
+                status: "AUTH_FAILED",
+                cjLinked: false,
+                error: raw
+            });
+        }
 
     } catch (error) {
         console.log("[CJ DEBUG] CRITICAL ERROR", {
@@ -196,11 +232,9 @@ cjRouter.post('/auth', async (req, res) => {
         });
 
         return res.status(500).json({ 
-            status: "FAILED",
-            message: error.message,
-            raw: error.response?.data || null,
-            service: "CJ Bridge Active",
-            timestamp: new Date().toISOString()
+            status: "AUTH_FAILED",
+            cjLinked: false,
+            error: error.response?.data || error.message
         });
     }
 });

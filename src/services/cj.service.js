@@ -33,24 +33,23 @@ class CJService {
       const startTime = Date.now();
       const response = await axios.get(`${BRIDGE_BASE}/api/cj/ping`);
       const latency = Date.now() - startTime;
+      const isConnected = response.data?.cjConnected === true;
       
-      const status = response.data?.status === 'OK';
-      
-      console.log(`[CJ DEBUG] Ping ${status ? 'SUCCESS' : 'ERROR'}:`, {
+      console.log(`[CJ DEBUG] Ping ${isConnected ? 'SUCCESS' : 'ERROR'}:`, {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
-        message: status ? `Connected to CJ Bridge` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
+        message: isConnected ? `Connected to CJ Bridge` : `Bridge Health: OFFLINE`,
         latency: `${latency}ms`
       });
 
       sourcingService.log({
-        type: status ? 'SUCCESS' : 'ERROR',
+        type: isConnected ? 'SUCCESS' : 'ERROR',
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
-        message: status ? `Connected to CJ Bridge` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
+        message: isConnected ? `Connected to CJ Bridge` : `Bridge Health: OFFLINE`,
         latency: `${latency}ms`,
         data: response.data
       });
 
-      return status;
+      return isConnected;
     } catch (error) {
       console.error('[CJ DEBUG] Ping ERROR:', {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
@@ -111,7 +110,7 @@ class CJService {
         }
 
         const envelope = response.data;
-        const isSuccessful = envelope.status === 'OK';
+        const isSuccessful = envelope.status === 'AUTH_SUCCESS';
         
         console.log("[CJ DEBUG] Forensic Response", envelope);
 
