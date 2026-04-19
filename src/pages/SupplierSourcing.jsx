@@ -8,7 +8,6 @@ import {
   DollarSign, 
   ChevronRight, 
   ShieldCheck, 
-  AlertTriangle, 
   Star,
   Zap,
   CheckCircle2,
