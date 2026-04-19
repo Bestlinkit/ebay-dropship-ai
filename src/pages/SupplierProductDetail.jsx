@@ -86,21 +86,25 @@ const SupplierProductDetail = () => {
 
     if (!product) return <div className="p-20 text-center font-black uppercase tracking-widest text-slate-400">Enforcement Failure: Metadata Unreachable</div>;
 
-    // Financial Analysis (v4.7.5 Rule)
+    // Financial Analysis (v5.0 Rule)
     const financials = product.intelligence?.financials;
-    const currentPrice = selectedVariant?.price || product.price;
-    const shippingCost = product.shipping?.cost !== null ? product.shipping?.cost : 5.00; // v4.7.5 Sync
-    const isEst = product.shipping?.cost === null;
+    const currentPrice = Number(selectedVariant?.price || product.price);
+    const shippingCost = product.shipping?.cost !== null ? Number(product.shipping?.cost) : 5.00;
     
-    // Net Profit = target - (cjPrice + shipping)
-    const profit = targetPrice - currentPrice - shippingCost;
-    const roi = (currentPrice + shippingCost) > 0 ? (profit / (currentPrice + shippingCost)) * 100 : 0;
+    // v5.0 $NaN Protection
+    let profit = "UNKNOWN";
+    let roi = 0;
+
+    if (!isNaN(targetPrice) && !isNaN(currentPrice)) {
+       profit = targetPrice - currentPrice - shippingCost;
+       roi = (currentPrice + shippingCost) > 0 ? (profit / (currentPrice + shippingCost)) * 100 : 0;
+    }
 
     const gallery = product.gallery || [];
-
-    const profitFormatted = profit < 0 
-        ? `-$${Math.abs(profit).toFixed(2)}` 
-        : `+$${profit.toFixed(2)}`;
+    const isEst = product.shipping?.cost === null;
+    const profitFormatted = typeof profit === 'number'
+        ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
+        : "UNKNOWN";
 
     return (
         <div className="max-w-[1400px] mx-auto px-6 pb-40 pt-10 animate-in fade-in duration-700">
@@ -111,7 +115,7 @@ const SupplierProductDetail = () => {
                 </button>
                 <div className="flex items-center gap-4">
                     <div className="px-6 py-3 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl">
-                        <ShieldCheck size={14} className="text-indigo-400" /> CJ System v4.7 Stable
+                        <ShieldCheck size={14} className="text-indigo-400" /> CJ v5.0 High Fidelity
                     </div>
                 </div>
             </div>
@@ -138,9 +142,10 @@ const SupplierProductDetail = () => {
                         </div>
                     </div>
 
+                    {/* v5.0 - UNLIMITED GALLERY LOOP */}
                     {gallery.length > 1 && (
                         <div className="grid grid-cols-6 gap-4">
-                            {gallery.slice(0, 12).map((img, i) => (
+                            {gallery.map((img, i) => (
                                 <button 
                                     key={i}
                                     onClick={() => {
@@ -193,7 +198,7 @@ const SupplierProductDetail = () => {
                                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Profit (Absolute)</p>
                                     <p className={cn(
                                         "text-4xl font-black italic tracking-tighter",
-                                        profit >= 0 ? "text-emerald-500" : "text-rose-500"
+                                        typeof profit === 'number' && profit >= 0 ? "text-emerald-500" : (typeof profit === 'number' ? "text-rose-500" : "text-slate-400")
                                     )}>
                                         {profitFormatted}
                                     </p>

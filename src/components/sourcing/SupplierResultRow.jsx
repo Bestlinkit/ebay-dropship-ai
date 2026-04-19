@@ -39,25 +39,26 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     const shippingLabel = financials?.shipping_label || "UNKNOWN";
     const profitStatus = financials?.status || "UNKNOWN";
 
-    const profit = financials?.net_profit || 0;
+    const profit = financials?.net_profit;
     const roiPercent = financials?.roi_percent || 0;
 
-    const profitFormatted = profit < 0 
-        ? `-$${Math.abs(profit).toFixed(2)}` 
-        : `+$${profit.toFixed(2)}`;
+    const profitFormatted = typeof profit === 'number'
+        ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
+        : "N/A";
 
-    // Score Color Mapping (v4.7 Mandate)
+    // Score Color Mapping (v5.0 Mandate)
     const getScoreColor = (val) => {
-        if (val >= 80) return "text-emerald-400 border-emerald-500/20 bg-emerald-500/10";
-        if (val >= 60) return "text-amber-400 border-amber-500/20 bg-amber-500/10";
-        if (val >= 40) return "text-orange-400 border-orange-500/20 bg-orange-500/10";
-        return "text-rose-400 border-rose-500/20 bg-rose-500/10";
+        if (val >= 80) return "text-emerald-400";
+        if (val >= 60) return "text-amber-400";
+        return "text-slate-400";
     };
 
     const getProfitColor = (val) => {
-        if (val > 0) return "text-emerald-400";
-        if (val < 0) return "text-rose-400";
-        return "text-slate-400";
+        if (typeof val !== 'number') return "text-slate-400";
+        if (val > 5) return "text-emerald-400";
+        if (val >= 1) return "text-amber-400";
+        if (val >= 0) return "text-orange-400";
+        return "text-rose-400";
     };
 
     return (
@@ -67,7 +68,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
         >
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-            {/* PRODUCT VISUAL (v4.7.5 Visual Logic) */}
+            {/* PRODUCT VISUAL (v5.0 Discovery-First) */}
             <div className="w-32 h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 bg-white rounded-[2rem] flex items-center justify-center overflow-hidden border-2 border-white/5 shrink-0 shadow-2xl relative group-hover:border-indigo-500/30 transition-all p-2">
                 {product.mainImage && product.mainImage !== 'INVALID_IMAGE' ? (
                     <img 
@@ -90,14 +91,14 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
             {/* DATA CORE */}
             <div className="flex-1 min-w-0 space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-[8px] font-black uppercase tracking-widest">
-                        MATCHING CATEGORY FAMILY
+                    <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                        <Globe size={10} /> ORIGIN: {shippingOrigin}
                     </span>
-                    <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                        <Globe size={10} /> {shippingOrigin}
+                    <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                         <Box size={10} /> STOCK: {stock}
                     </span>
-                    <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 uppercase">
-                         <Box size={10} /> {stock} STOCK
+                    <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                         <Warehouse size={10} /> {product.warehouse || 'GLOBAL'}
                     </span>
                 </div>
 
@@ -107,7 +108,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </h3>
                 </div>
 
-                {/* KPI SECTION (v4.7.5 HARDENED FLUID GRID) */}
+                {/* KPI SECTION (v5.0 Hardened Analytics) */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8 pt-5 border-t border-white/5">
                     <div className="flex flex-col gap-1 min-w-[100px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
@@ -119,7 +120,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
                     <div className="flex flex-col gap-1 min-w-[80px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">CJ Cost</span>
-                        <div className="text-xl md:text-2xl font-black text-white italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none">
+                        <div className="text-xl md:text-2xl font-black text-white italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none transition-all">
                             ${parseFloat(product.price).toFixed(2)}
                         </div>
                     </div>
@@ -143,11 +144,11 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
 
                     <div className="hidden lg:flex flex-col gap-1 min-w-[100px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Match Score</span>
-                        <div className={cn("text-xl md:text-2xl font-black italic tracking-tighter whitespace-nowrap leading-none", getScoreColor(finalScore).split(' ')[0])}>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Alignment Score</span>
+                        <div className={cn("text-xl md:text-2xl font-black italic tracking-tighter whitespace-nowrap leading-none", getScoreColor(finalScore))}>
                             {finalScore}%
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">{product.matchReason?.toUpperCase()}</span>
+                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">{product.matchReason?.toUpperCase() || 'DATA DISCOVERY'}</span>
                     </div>
                 </div>
             </div>

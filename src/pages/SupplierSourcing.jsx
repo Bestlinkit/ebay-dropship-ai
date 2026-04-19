@@ -223,12 +223,37 @@ const SupplierSourcing = () => {
                         <ArrowLeft size={24} />
                     </button>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">CJ Dropshipping Sourcing Hub</h1>
+                        <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">CJ Discovery Engine</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-indigo-500" /> Isolated Sourcing Module v2.0
+                             <Lock size={12} className="text-indigo-500" /> v5.0 High Fidelity Discovery
                         </p>
                     </div>
                 </div>
+
+                {/* MANUAL SEARCH OVERRIDE (v5.0) */}
+                <div className="flex-1 max-w-xl">
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                            <Search size={18} />
+                        </div>
+                        <input 
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && performSourcing(searchQuery)}
+                            placeholder="Override eBay Title Keywords..."
+                            className="w-full pl-16 pr-32 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-950 focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all outline-none"
+                        />
+                        <button 
+                            onClick={() => performSourcing(searchQuery)}
+                            disabled={loading}
+                            className="absolute right-3 top-3 bottom-3 px-6 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all"
+                        >
+                            {loading ? 'SYNCING...' : 'REFINE'}
+                        </button>
+                    </div>
+                </div>
+
                 <div className="bg-slate-50 border border-slate-200 p-6 rounded-[2rem] flex items-center gap-6">
                     <img src={targetProduct.image} alt="" className="w-16 h-16 rounded-xl border border-slate-200 object-cover shadow-lg" />
                     <div className="space-y-1">
@@ -238,16 +263,20 @@ const SupplierSourcing = () => {
                 </div>
             </div>
 
-            {/* PRODUCT MATCHING UI DISABLED IN THIS PHASE */}
-            <div className="hidden">
-                 <SourcingStatusHeader 
-                    state={loading ? 'searching' : 'results'} 
-                    loading={loading} 
-                    resultsCount={products.length} 
-                    isGlobal={false} 
-                    query={searchQuery}
-                    onRetry={() => performSourcing()}
-                />
+            {/* PIPELINE TELEMETRY */}
+            <div className="flex items-center gap-4 px-4 overflow-x-auto pb-2 scrollbar-hide">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-4">Network Status:</span>
+                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
+                    <CheckCircle2 size={10} /> CJ API Connected
+                </div>
+                {telemetry.pages_fetched > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-xl text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
+                       <Layers size={10} /> {telemetry.pages_fetched} Deep Pages Scanned
+                    </div>
+                )}
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[8px] font-black uppercase tracking-widest whitespace-nowrap">
+                    <Zap size={10} /> {telemetry.merged_count || 0} Assets Normalized
+                </div>
             </div>
 
             <div className="space-y-8">

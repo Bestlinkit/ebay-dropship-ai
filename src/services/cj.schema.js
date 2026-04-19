@@ -40,21 +40,19 @@ export const normalizeToContract = (raw) => {
         // CJ CDN Base (v4.7 Fix)
         const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
 
-        // 1. IMAGE HANDLING (v4.7 - Split & Protocol Guard)
+        // 1. IMAGE HANDLING (v5.0 - UNLIMITED GALLERY)
         let allImages = [];
         const imageSource = raw.image_urls || raw.productImages || raw.productImage || raw.bigImage || raw.image || "";
         
-        if (typeof imageSource === 'string' && imageSource.includes(';')) {
-            allImages = imageSource.split(';').filter(url => url.length > 5);
+        if (typeof imageSource === 'string') {
+            // Split by semicolon and clean each URL
+            allImages = imageSource.split(';')
+                .map(url => url.trim())
+                .filter(url => url.length > 5);
         } else if (Array.isArray(imageSource)) {
             allImages = imageSource;
         } else if (imageSource) {
             allImages = [imageSource];
-        }
-
-        // Add additional array sources if they exist
-        if (Array.isArray(raw.images)) {
-            allImages = [...allImages, ...raw.images];
         }
 
         const gallery = [];
@@ -63,25 +61,21 @@ export const normalizeToContract = (raw) => {
             
             let safeUrl = img.trim();
             
-            // Prepend CDN if it's a relative path (e.g. 2024/.../img.png)
+            // Prepend CDN if it's a relative path
             if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) {
                 safeUrl = CJ_CDN + safeUrl;
             }
             
-            // Fix missing protocol
             if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
             
-            // FINAL ENFORCEMENT: If still no https://, it's invalid per v4.7 rules
-            if (!safeUrl.startsWith('https://')) {
-                // If it starts with http://, we upgrade it.
-                if (safeUrl.startsWith('http://')) {
-                    safeUrl = safeUrl.replace('http://', 'https://');
-                } else {
-                    return; // DISCARD PER RULE: "Ensure ALL URLs start with https://"
-                }
+            // Upgrade to HTTPS
+            if (safeUrl.startsWith('http://')) {
+                safeUrl = safeUrl.replace('http://', 'https://');
             }
             
-            gallery.push(safeUrl);
+            if (safeUrl.startsWith('https://')) {
+                gallery.push(safeUrl);
+            }
         });
 
         const uniqueGallery = Array.from(new Set(gallery));

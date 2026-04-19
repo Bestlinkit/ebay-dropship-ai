@@ -56,184 +56,150 @@ class CJService {
   }
 
   /**
-   * 🏗️ PIPELINE ORCHESTRATION (CJ-ONLY)
+   * 🏗️ PIPELINE ORCHESTRATION (v5.0 - HIGH VOLUME DISCOVERY)
+   * Mandate: Fetch up to 5 pages, do not filter results, merge for ranking.
    */
   async runIterativePipeline(context) {
-    const { product } = context;
+    const { product, manualQuery } = context;
     const startTime = Date.now();
-    
-    // 🧠 QUERY INTELLIGENCE LAYER (v4.5 Parallel Expansion)
-    const intel = deconstructTitle(product.title);
-    const searchVariants = [intel.queries.strict, intel.queries.expanded, intel.queries.broad]; 
+    const targetKeyword = manualQuery || product.title;
     
     // Telemetry and Tracking
     const telemetry = {
-        queries_used: searchVariants,
-        technically_successful: false,
+        query_used: targetKeyword,
+        pages_fetched: 0,
+        raw_count: 0,
         merged_count: 0
     };
 
     try {
-        const fetchPromises = searchVariants.map(keyword => 
-          axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { params: { keyword } })
-            .catch(err => ({ error: true, message: err.message, keyword }))
-        );
-
-        const responses = await Promise.all(fetchPromises);
         const mergedMap = new Map();
-        let technicallySuccessful = false;
-        const telemetry = {
-            total_responses: responses.length,
-            errors: [],
-            schemas_detected: []
-        };
+        
+        // v5.0 - Multi-Page Discovery Loop
+        for (let pageNum = 1; pageNum <= 5; pageNum++) {
+            try {
+                const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
+                    params: { 
+                        keyword: targetKeyword,
+                        pageNum: pageNum,
+                        pageSize: 20
+                    } 
+                });
 
-        for (const res of responses) {
-            if (res.error) {
-                telemetry.errors.push(res.message);
-                continue;
-            }
+                const rawData = response.data?.data || response.data;
+                const products = rawData.productList || [];
+                
+                if (products.length === 0) break; // End of catalog reached
 
-            const rawData = res.data?.data || res.data;
-            if (this.isValidCJResponse(res.data)) {
-                technicallySuccessful = true;
-            }
-            const schema = this.detectSchema(rawData);
-            telemetry.schemas_detected.push(schema);
-
-            // Defensive Extraction
-            const allArrays = this.recursiveFindArrays(rawData);
-            allArrays.forEach(arr => {
-                arr.forEach(item => {
+                products.forEach(item => {
                     const normalized = normalizeToContract(item);
-                    if (normalized) {
-                        const id = normalized.product_id;
-                        if (!mergedMap.has(id)) mergedMap.set(id, normalized);
+                    if (normalized && !mergedMap.has(normalized.product_id)) {
+                        mergedMap.set(normalized.product_id, normalized);
                     }
                 });
-            });
+
+                telemetry.pages_fetched = pageNum;
+                if (products.length < 20) break; // Last page reached
+            } catch (pageErr) {
+                console.error(`[CJ Pipeline] Page ${pageNum} Fetch Error:`, pageErr.message);
+                break;
+            }
         }
 
-        const rawDeduped = Array.from(mergedMap.values());
-        telemetry.merged_count = rawDeduped.length;
+        const allProducts = Array.from(mergedMap.values());
+        telemetry.merged_count = allProducts.length;
 
-        // 🧼 BROAD CATEGORY FILTERING (v4.7 Rule)
-        const dedupedList = rawDeduped.filter(item => {
-            const cjIntel = deconstructTitle(item.title);
-            return validateMatch(intel, cjIntel);
-        });
-        
-        // DETERMINISTIC FAILURE CHECK (v4.7 - LOW_MATCH_DENSITY)
-        if (dedupedList.length === 0) {
+        if (allProducts.length === 0) {
             return {
-                status: "LOW_MATCH_DENSITY",
-                reason: "CATEGORY_TOO_RESTRICTIVE_OR_KEYWORD_OVERFITTING",
-                action: "BROADEN_CATEGORY_SCOPE",
-                queries_tried: searchVariants,
+                status: "NO_MATCH_FOUND",
+                reason: "ZERO_CATALOG_HITS",
+                query: targetKeyword,
                 telemetry
             };
         }
 
-        // Phase II: Detail Enrichment (Top 5 matches)
-        const enrichedCandidates = [];
-        for (const baseProduct of dedupedList.slice(0, 5)) {
-            try {
-                const detailRes = await axios.get(`${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`, { 
-                    params: { pid: baseProduct.product_id } 
-                });
-                const detailData = detailRes.data?.data || detailRes.data;
-                const fullProduct = normalizeToContract({ ...baseProduct.raw, ...detailData });
-                
-                if (fullProduct) {
-                    const alignment = this.calculateAlignmentScore(product, fullProduct, intel);
-                    enrichedCandidates.push({ ...fullProduct, ...alignment });
-                }
-            } catch (e) {
-                console.error(`[CJ Pipeline] Detail Fetch Error for ${baseProduct.product_id}:`, e.message);
-            }
-        }
+        // Phase II: Global Ranking & Scoring (No Filtering)
+        const scoredCandidates = allProducts.map(fullProduct => {
+            const alignment = this.calculateAlignmentScore(product, fullProduct);
+            return { ...fullProduct, ...alignment };
+        });
 
-        const ranked = enrichedCandidates.sort((a,b) => b.alignmentScore - a.alignmentScore).slice(0, 3);
+        // Sort by Score
+        const ranked = scoredCandidates.sort((a,b) => b.alignmentScore - a.alignmentScore);
         
         return { 
             status: "SUCCESS", 
             products: ranked, 
             telemetry: { 
                 latency: Date.now() - startTime, 
-                count: ranked.length,
                 ...telemetry 
             } 
         };
     } catch (err) { 
         return { 
-            status: "CJ_PARSE_FAILED", 
-            reason: "CRYITICAL_PIPELINE_FAULT",
+            status: "ERROR", 
+            reason: "PIPELINE_CRASH",
             message: err.message 
         }; 
     }
   }
 
-  calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel) {
-    const cjIntel = deconstructTitle(normalizedCj.title);
+  calculateAlignmentScore(ebayProduct, normalizedCj) {
+    const ebayTitle = ebayProduct.title.toLowerCase();
+    const cjTitle = normalizedCj.title.toLowerCase();
     
-    // v4.7 STRICT 40/60 SPLIT
-    let categoryScore = 0;
-    let attributeScore = 0;
-
-    // 1. Category Match (40%)
-    if (validateMatch(ebayIntel, cjIntel)) {
-        categoryScore = 40;
-    }
-
-    // 2. Attribute Match (60%)
-    const intersect = ebayIntel.attributes.filter(a => cjIntel.attributes.includes(a));
-    const totalPossible = Math.max(1, ebayIntel.attributes.length);
-    attributeScore = Math.min(60, (intersect.length / totalPossible) * 60);
-
-    const score = Math.round(categoryScore + attributeScore);
+    // v5.0 Basic Overlap Detection (Ranking Only)
+    const ebayWords = ebayTitle.split(' ').filter(w => w.length > 2);
+    const intersect = ebayWords.filter(w => cjTitle.includes(w));
+    
+    // 40% base for existing + up to 60% for keyword match
+    const overlapPercent = (intersect.length / Math.max(1, ebayWords.length));
+    const score = Math.round(40 + (overlapPercent * 60));
     
     return { 
         alignmentScore: score, 
-        matchReason: score > 80 ? "Premium Supplier Match" : (score > 40 ? "Verified Category Match" : "Broad Discovery")
+        matchReason: score > 80 ? "High Relevance" : (score > 60 ? "Moderate Match" : "Data Discovery")
     };
   }
 
   /**
-   * 🧠 COMMERCE INTELLIGENCE ENGINE (POST-NORMALIZATION)
+   * 🧠 COMMERCE INTELLIGENCE ENGINE (v5.0 - Hardened Analytics)
    */
    buildIntelligencePayload(normalizedCj, ebayProduct) {
-    const ebayPrice = Number(ebayProduct.price) || 0;
-    const cjPrice = normalizedCj.price;
+    const ebayPrice = Number(ebayProduct.price);
+    const cjPrice = Number(normalizedCj.price);
     
-    // v4.7.5 SHIPPING RULE: Truth-first with Baseline Fallback.
-    const rawShipping = normalizedCj.shipping?.cost;
-    const shippingCost = rawShipping !== null ? rawShipping : 5.00; // $5.00 Baseline Fallback
-    const isEstimated = rawShipping === null;
+    // v5.0 $NaN Protection Rule
+    let profit = "UNKNOWN";
+    let roiPercent = 0;
+    
+    const shippingCost = normalizedCj.shipping?.cost !== null ? Number(normalizedCj.shipping.cost) : 5.00;
+    const isEstimated = normalizedCj.shipping?.cost === null;
 
-    // Net Profit = eBay Price - CJ Price - Shipping
-    const totalCost = cjPrice + shippingCost;
-    const profit = ebayPrice - totalCost;
-    const roiPercent = totalCost > 0 ? (profit / totalCost) * 100 : 0;
-
-    const riskFlags = [];
-    if (normalizedCj.stock !== null && normalizedCj.stock < 10) riskFlags.push("Low Stock");
+    if (!isNaN(ebayPrice) && !isNaN(cjPrice)) {
+        profit = ebayPrice - cjPrice - shippingCost;
+        const totalInvestment = cjPrice + shippingCost;
+        roiPercent = totalInvestment > 0 ? (profit / totalInvestment) * 100 : 0;
+    }
 
     return {
-        status: "CJ_INTELLIGENCE_READY",
+        status: "SUCCESS",
         ebay_product: ebayProduct,
         cj_product: normalizedCj,
         financials: { 
             net_profit: profit, 
             roi_percent: roiPercent, 
-            status: isEstimated ? "ESTIMATED ONLY" : "REAL",
-            shipping_label: isEstimated ? `EST. $${shippingCost.toFixed(2)}` : `$${shippingCost.toFixed(2)}`
+            status: isEstimated ? "ESTIMATED" : "CONFIRMED",
+            shipping_label: normalizedCj.shipping?.cost !== null 
+                ? `$${Number(normalizedCj.shipping.cost).toFixed(2)}` 
+                : "Not Provided by CJ"
         },
         shipping: { 
-            delivery_estimate: normalizedCj.shipping?.delivery_days || "7-15 DAYS (EST)", 
-            warehouse: normalizedCj.warehouse || "UNKNOWN",
-            origin: normalizedCj.shipping?.from || "GLOBAL"
+            delivery_estimate: normalizedCj.shipping?.delivery_days || "Not Available", 
+            warehouse: normalizedCj.warehouse || "Not Available",
+            origin: normalizedCj.shipping?.from || "Not Available"
         },
-        stock: normalizedCj.stock !== null ? normalizedCj.stock : "UNKNOWN",
+        stock: normalizedCj.stock !== null ? normalizedCj.stock : "Not Available",
         ready_for_ui: true
     };
   }
