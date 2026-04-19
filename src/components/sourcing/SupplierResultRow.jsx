@@ -14,7 +14,8 @@ import {
   Package,
   Activity,
   Box,
-  Warehouse
+  Warehouse,
+  Globe
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
