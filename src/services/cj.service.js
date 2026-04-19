@@ -42,6 +42,14 @@ class CJService {
         latency: `${latency}ms`
       });
 
+      sourcingService.log({
+        type: status ? 'SUCCESS' : 'ERROR',
+        endpoint: `${BRIDGE_BASE}/api/cj/ping`,
+        message: status ? `Connected to CJ Bridge` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
+        latency: `${latency}ms`,
+        data: response.data
+      });
+
       return status;
     } catch (error) {
       console.error('[CJ DEBUG] Ping ERROR:', {
@@ -49,6 +57,14 @@ class CJService {
         message: 'Bridge Connection Failed. Target server unreachable or 404.',
         error: error.message
       });
+
+      sourcingService.log({
+        type: 'ERROR',
+        endpoint: `${BRIDGE_BASE}/api/cj/ping`,
+        message: 'Bridge Connection Failed. Target server unreachable or 404.',
+        error: error.message
+      });
+
       return false;
     }
   }
@@ -76,6 +92,13 @@ class CJService {
     try {
         // Layer 1: Logs (Debug only)
         console.log("[CJ DEBUG] Initiating handshake via", BRIDGE_BASE);
+        
+        sourcingService.log({
+            type: 'REQUEST',
+            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
+            message: `Initiating handshake via CJ Bridge`,
+            timestamp: new Date().toISOString()
+        });
 
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' },
@@ -91,6 +114,14 @@ class CJService {
         const isSuccessful = envelope.status === 'OK';
         
         console.log("[CJ DEBUG] Forensic Response", envelope);
+
+        sourcingService.log({
+            type: isSuccessful ? 'RESPONSE' : 'ERROR',
+            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
+            http_status: 200,
+            message: envelope.message || `Handshake Complete`,
+            raw: envelope
+        });
 
         if (isSuccessful) {
             console.log(`[CJ DEBUG] Step 3: SUCCESS. Handshake protocol compliant.`);
