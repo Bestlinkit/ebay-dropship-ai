@@ -260,8 +260,8 @@ class CJService {
    * 🧠 COMMERCE INTELLIGENCE ENGINE (POST-SELECTION ONLY)
    * Builds the structured response requested in the architectural spec.
    */
-  buildIntelligencePayload(cjProduct, ebayContext) {
-    const { ebayProduct } = ebayContext;
+  buildIntelligencePayload(cjProduct = {}, ebayContext = {}) {
+    const ebayProduct = ebayContext.ebayProduct || {};
     const ebayPrice = Number(ebayProduct.price) || 0;
     const cjDetail = cjProduct.detail || {};
 

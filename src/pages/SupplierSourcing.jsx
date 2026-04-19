@@ -135,7 +135,21 @@ const SupplierSourcing = () => {
         
         return products
             .map(raw => {
-                const intelligence = cjService.buildIntelligencePayload(raw, { ebayProduct: targetProduct });
+                let intelligence = null;
+                try {
+                    intelligence = cjService.buildIntelligencePayload(raw, { ebayProduct: targetProduct });
+                } catch (e) {
+                    console.error("Intelligence Parsing Error:", e);
+                    // Fallback stub to prevent UI crash
+                    intelligence = {
+                        roi: { roi_value: 0, roi_percent: 0, profit_label: "UNKNOWN" },
+                        shipping: { delivery_estimate: "N/A", warehouse: "UNKNOWN" },
+                        risk: { risk_level: "UNKNOWN" },
+                        variants: { has_variants: false, variants: [] },
+                        sell_score: { sell_score: 0, classification: "UNKNOWN" }
+                    };
+                }
+
                 const res = cjService.normalizeResult ? cjService.normalizeResult(raw) : raw;
                 
                 // Override legacy variables with precise CJ Intelligence parameters
