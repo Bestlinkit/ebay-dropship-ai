@@ -36,18 +36,15 @@ class CJService {
       
       const status = response.data?.status === 'OK';
       
-      sourcingService.log({
-        type: status ? 'SUCCESS' : 'ERROR',
+      console.log(`[CJ DEBUG] Ping ${status ? 'SUCCESS' : 'ERROR'}:`, {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
         message: status ? `Connected to CJ Bridge` : `Bridge Health: ${response.data?.status || 'OFFLINE'}`,
-        latency: `${latency}ms`,
-        data: response.data
+        latency: `${latency}ms`
       });
 
       return status;
     } catch (error) {
-      sourcingService.log({
-        type: 'ERROR',
+      console.error('[CJ DEBUG] Ping ERROR:', {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
         message: 'Bridge Connection Failed. Target server unreachable or 404.',
         error: error.message
@@ -76,76 +73,44 @@ class CJService {
     const payload = { apiKey };
     const timestamp = new Date().toISOString();
 
-    try {
-        // 1. Diagnostics: Log Handshake request
-        sourcingService.log({
-            type: 'REQUEST',
-            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
-            message: `Initiating handshake via ${BRIDGE_BASE}`,
-            timestamp: new Date().toISOString()
-        });
+        // Layer 1: Logs (Debug only)
+        console.log("[CJ DEBUG] Initiating handshake via", BRIDGE_BASE);
 
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' },
-            timeout: 20000 // Extended for diagnostic stability
+            timeout: 20000 
         });
 
-        // 🕵️ DETECTION: SPA Fallback (HTML returned instead of JSON)
+        // 🕵️ DETECTION: SPA Fallback
         if (typeof response.data === 'string' && response.data.includes('<!doctype html>')) {
-            throw new Error('BRIDGE_OFFLINE: Server returned index.html. Ensure local bridge (3001) is running and VITE_BACKEND_URL is correct.');
+            throw new Error('BRIDGE_OFFLINE: Server returned index.html.');
         }
 
-        // 🧠 FORENSIC EXTRACTION (Matches Backend v2.2)
         const envelope = response.data;
+        const isSuccessful = envelope.status === 'OK';
         
-        // 2. Diagnostics: Log Forensic Response
-        sourcingService.log({
-            type: envelope.parsed?.success ? 'RESPONSE' : 'ERROR',
-            endpoint: `${BRIDGE_BASE}/api/cj/auth`,
-            http_status: 200,
-            message: envelope.parsed?.message || `Handshake Complete`,
-            raw: envelope.cj_response_raw
-        });
-        const raw = envelope.cj_response_raw;
-        const isSuccessful = envelope.parsed?.success || (raw?.code == 200);
-
-        console.log(`[CJ_AUTH_PROBE] Step 2: Proxy Envelope Received.`, envelope);
+        console.log("[CJ DEBUG] Forensic Response", envelope);
 
         if (isSuccessful) {
-            console.log(`[CJ_AUTH_PROBE] Step 3: SUCCESS. Handshake protocol compliant.`);
+            console.log(`[CJ DEBUG] Step 3: SUCCESS. Handshake protocol compliant.`);
             
-            // Note: Tokens are now securely vaulted in the backend session.
-            this.SESSION = {
-                accessToken: raw.data?.accessToken,
-                refreshToken: raw.data?.refreshToken,
-                expiry: raw.data?.accessTokenExpiry,
-                openId: raw.data?.openId
-            };
-
             return {
                 cjConnectionStatus: "CONNECTED",
                 message: "Success",
-                openId: raw.data?.openId || "",
-                timestamp,
-                forensics: envelope // Pass the full envelope for UI display
+                timestamp
             };
         } else {
-            console.warn(`[CJ_AUTH_PROBE] Step 3: API REJECTION.`, raw);
+            console.warn(`[CJ DEBUG] Step 3: API REJECTION.`, envelope);
             return {
                 cjConnectionStatus: "FAILED",
-                code: raw?.code || "UNKNOWN",
-                message: raw?.message || "API Error",
-                requestId: raw?.requestId || "",
-                forensics: envelope
+                message: envelope.message || "API Error"
             };
         }
     } catch (err) {
-        console.error(`[CJ_AUTH_PROBE] Step 2 FAIL: TRANSPORT FAULT.`, err.message);
+        console.error(`[CJ DEBUG] Step 2 FAIL: TRANSPORT FAULT.`, err.message);
         return {
             cjConnectionStatus: "FAILED",
-            code: err.code || "TRANSPORT_ERROR",
-            message: err.message,
-            requestId: ""
+            message: err.message
         };
     }
   }

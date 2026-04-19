@@ -169,32 +169,36 @@ cjRouter.post('/auth', async (req, res) => {
             console.log(`[CJ-VAULT] Access Token Secured. Session active.`);
         }
 
-        // 🧠 REQUIRED FORENSIC BEHAVIOR (Matches User Request Step 1)
+        // 🧠 STRICT SEPARATION OF OUTPUT LAYERS
+        // Layer 1: Logs (Debug only)
+        console.log("[CJ DEBUG] AUTH REQUEST", { 
+            url: authUrl, 
+            api_key_sent: true, 
+            endpoint: "authentication/getAccessToken" 
+        });
+        console.log("[CJ DEBUG] AUTH RESPONSE", raw);
+
+        // Layer 2: API Response (Frontend Only)
         res.status(isSuccessful ? 200 : 401).json({
-            http_status: isSuccessful ? 200 : 401,
-            cj_response_raw: raw,
-            parsed: {
-                success: isSuccessful,
-                code: raw.code,
-                message: raw.message
-            },
-            request_debug: {
-                url: authUrl,
-                api_key_sent: true,
-                endpoint: "authentication/getAccessToken"
-            }
+            status: isSuccessful ? "OK" : "FAILED",
+            message: raw.message || "CJ API Response",
+            service: "CJ Bridge Active",
+            timestamp: new Date().toISOString()
         });
 
     } catch (error) {
-        console.error("[CJ Auth Proxy] CRITICAL ERROR:", error.message);
+        console.log("[CJ DEBUG] CRITICAL ERROR", {
+            api_key_sent: true,
+            endpoint: "authentication/getAccessToken",
+            error_type: "TRANSPORT_ERROR",
+            message: error.message
+        });
+
         res.status(500).json({ 
-            http_status: 500,
-            cj_response_raw: error.response?.data || { message: error.message },
-            debug: {
-                api_key_sent: true,
-                endpoint: "authentication/getAccessToken",
-                error_type: "TRANSPORT_ERROR"
-            }
+            status: "FAILED",
+            message: "Internal Server Error",
+            service: "CJ Bridge Active",
+            timestamp: new Date().toISOString()
         });
     }
 });
