@@ -222,7 +222,10 @@ class CJService {
             ? content.flatMap(c => c.productList || []) 
             : (res.data?.data?.list || []);
             
-          list.forEach(item => { if (item?.pid && !mergedMap.has(item.pid)) mergedMap.set(item.pid, item); });
+          list.forEach(item => { 
+              const itemId = item?.pid || item?.id;
+              if (itemId && !mergedMap.has(itemId)) mergedMap.set(itemId, item); 
+          });
         });
 
         const dedupedList = Array.from(mergedMap.values());
@@ -231,7 +234,8 @@ class CJService {
         const candidates = [];
         for (const item of dedupedList.slice(0, 10)) {
           try {
-             const detailRes = await axios.get(this.CONFIG.DETAIL_ENDPOINT, { params: { pid: item.pid } });
+             const itemId = item.pid || item.id;
+             const detailRes = await axios.get(this.CONFIG.DETAIL_ENDPOINT, { params: { pid: itemId } });
              const detail = detailRes.data?.data;
              if (!detail) continue;
              const alignment = this.calculateAlignmentScore(product, item, detail);
@@ -278,7 +282,7 @@ class CJService {
     }
 
     const cj_product = {
-        cj_product_id: cjProduct.pid,
+        cj_product_id: cjProduct.pid || cjProduct.id,
         title: cjProduct.productNameEn || cjProduct.productName,
         price: cjPrice,
         currency: "USD",
