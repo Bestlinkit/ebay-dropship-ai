@@ -80,11 +80,30 @@ class CJService {
             telemetry.query_mode = "MANUAL_OVERRIDE";
         }
 
-        // Step 1: Direct Discovery (Exact Title or Manual Query)
-        const directResults = await this.performPaginatedSearch(currentQuery, telemetry);
+        // Step 1: Direct Discovery (v6.3 Capture Raw)
+        const { items: directResults, raw: rawResponse } = await this.performPaginatedSearch(currentQuery, telemetry);
         directResults.forEach(item => mergedMap.set(item.product_id, item));
 
-        // Step 2: Fallback Trigger Analysis
+        // v6.3 DUMB PIPE OVERRIDE: If manual, return immediately with raw data
+        if (manualQuery) {
+            console.log("CJ RAW RESPONSE:", rawResponse);
+            const dumbResults = Array.from(mergedMap.values()).map(item => ({
+                ...item,
+                alignmentScore: 100, // Manual intent is 100% by default
+                matchReason: "Manual Query",
+                intelligence: this.buildIntelligencePayload(item, product)
+            }));
+
+            return {
+                status: "SUCCESS",
+                products: dumbResults,
+                mode: "MANUAL_OVERRIDE",
+                raw: rawResponse, // Return raw for frontend diagnostics
+                telemetry: { ...telemetry, latency: Date.now() - startTime }
+            };
+        }
+
+        // Step 2: Fallback Trigger Analysis (Only for Auto-Mode)
         const scoredInitial = Array.from(mergedMap.values()).map(item => ({
             ...item,
             ...this.calculateAlignmentScore(product, item, ebayIntel)
@@ -92,14 +111,12 @@ class CJService {
 
         const maxScore = scoredInitial.length > 0 ? Math.max(...scoredInitial.map(i => i.alignmentScore)) : 0;
 
-        // Trigger Fallback IF: No results OR All results below threshold
-        // (v6.1 Rule: maxScore < 50 triggers broader scan)
-        if (!manualQuery && (scoredInitial.length === 0 || maxScore < 50)) {
+        if (scoredInitial.length === 0 || maxScore < 50) {
             telemetry.fallback_triggered = true;
             telemetry.query_mode = "FALLBACK_EXPANSION";
             const fallbackQuery = ebayIntel.queries.fallback;
             
-            const fallbackResults = await this.performPaginatedSearch(fallbackQuery, telemetry);
+            const { items: fallbackResults } = await this.performPaginatedSearch(fallbackQuery, telemetry);
             fallbackResults.forEach(item => {
                 if (!mergedMap.has(item.product_id)) {
                     mergedMap.set(item.product_id, item);
@@ -125,23 +142,13 @@ class CJService {
             return { ...item, ...alignment, intelligence };
         });
 
-        // Step 4: Multi-Key Ranking Prioritization (v6.1 Rule)
-        // 1. Type Match (Boolean anchor)
-        // 2. Net Profit (High to Low)
-        // 3. Stock Depth (High to Low)
+        // Step 4: Multi-Key Ranking Prioritization
         const ranked = scoredFinal.sort((a,b) => {
-            // Anchor 1: Product Type Match (Score contains penalty already)
             if (b.alignmentScore !== a.alignmentScore) return b.alignmentScore - a.alignmentScore;
-            
-            // Anchor 2: Net Profit
             const profitA = typeof a.intelligence.financials.net_profit === 'number' ? a.intelligence.financials.net_profit : -999;
             const profitB = typeof b.intelligence.financials.net_profit === 'number' ? b.intelligence.financials.net_profit : -999;
             if (profitB !== profitA) return profitB - profitA;
-
-            // Anchor 3: Stock
-            const stockA = typeof a.stock === 'number' ? a.stock : 0;
-            const stockB = typeof b.stock === 'number' ? b.stock : 0;
-            return stockB - stockA;
+            return (b.stock || 0) - (a.stock || 0);
         });
 
         return { 
@@ -151,26 +158,40 @@ class CJService {
             telemetry: { latency: Date.now() - startTime, ...telemetry } 
         };
     } catch (err) { 
-        console.error("[CJ v6.1 Fault]", err);
+        console.error("[CJ v6.3 Fault]", err);
         return { status: "ERROR", message: err.message }; 
     }
   }
 
   async performPaginatedSearch(keyword, telemetry) {
-    const results = [];
+    const items = [];
+    let lastRaw = null;
+
     for (let pageNum = 1; pageNum <= 5; pageNum++) {
         try {
             const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
                 params: { keyword, pageNum, pageSize: 20 } 
             });
-            const data = response.data?.data?.productList || [];
-            if (data.length === 0) break;
-            data.forEach(item => results.push(normalizeToContract(item)));
+            
+            lastRaw = response.data;
+            // v6.3 Hard Status Check
+            if (!lastRaw || lastRaw.code !== 200) {
+                console.warn(`[CJ API] Non-200 Response on Page ${pageNum}:`, lastRaw);
+                break;
+            }
+
+            const pageItems = lastRaw?.data?.productList || [];
+            if (pageItems.length === 0) break;
+
+            pageItems.forEach(item => items.push(normalizeToContract(item)));
             telemetry.pages_scanned++;
-            if (data.length < 20) break;
-        } catch (e) { break; }
+            if (pageItems.length < 20) break;
+        } catch (e) { 
+            console.error(`[CJ API] Page ${pageNum} Crash:`, e.message);
+            break; 
+        }
     }
-    return results;
+    return { items, raw: lastRaw };
   }
 
   /**

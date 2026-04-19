@@ -111,9 +111,9 @@ const SupplierSourcing = () => {
              if (result.status === "SUCCESS") {
                 if ((result.products || []).length > 0) {
                      toast.success(isManual ? `Manual refresh found ${result.products.length} products` : `Discovered ${result.products.length} products`);
-                     setLastError(null);
+                     setLastError(isManual ? { message: "Manual search success", raw_response: result.raw } : null);
                 } else {
-                     setLastError({ message: "No match found for this keyword." });
+                     setLastError(isManual ? { message: "CJ returned zero products for this keyword.", raw_response: result.raw } : { message: "No match found for this keyword." });
                      toast.error("No matches found in CJ catalog.");
                 }
             } else if (result.status === "NO_MATCH_FOUND") {
@@ -121,6 +121,7 @@ const SupplierSourcing = () => {
                     message: isManual ? "Manual search returned zero results." : "The CJ catalog was scanned across 5 discovery pages using the exact title, but zero candidates were found.",
                     query: result.query,
                     mode: isManual ? "MANUAL_OVERRIDE" : result.telemetry?.query_mode,
+                    raw_response: result.raw,
                     suggestion: "Try refining keywords again or use broader terms."
                 });
             } else if (result.status === "ERROR") {
