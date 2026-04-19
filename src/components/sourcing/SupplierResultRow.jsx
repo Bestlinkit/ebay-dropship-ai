@@ -24,6 +24,8 @@ import { motion } from 'framer-motion';
  * Supplier Discovery Row - CJ Dropshipping Edition (v11.0)
  * High-fidelity ranking display with unified scoring engine output.
  */
+const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
+    
     // Extract Normalized CJ Intelligence (v4.7 Data Truth)
     const intel = product.intelligence;
     const financials = intel?.financials;
