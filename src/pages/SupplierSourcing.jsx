@@ -152,11 +152,12 @@ const SupplierSourcing = () => {
                 } catch (e) {
                     console.error("Intelligence Processing Error:", e);
                     intelligence = {
-                        roi: { roi_value: 0, roi_percent: 0, profit_label: "N/A" },
-                        shipping: { delivery_estimate: "7-15 days", warehouse: "Global" },
+                        roi: { roi_value: 0, roi_percent: 0, margin_percent: 0, profit_label: "N/A" },
+                        shipping: { delivery_estimate: "UNKNOWN", warehouse: "UNKNOWN", origin: "GLOBAL" },
                         risk: { risk_level: "UNKNOWN", risk_flags: [] },
                         variants: { has_variants: false, variants: [] },
-                        sell_score: { sell_score: 0, classification: "UNKNOWN" }
+                        rating: "N/A",
+                        stock: "UNKNOWN"
                     };
                 }
 
@@ -166,8 +167,8 @@ const SupplierSourcing = () => {
                 return { 
                     ...res, 
                     sellData: { 
-                        resellScore: intelligence.sell_score.sell_score, 
-                        grade: intelligence.sell_score.classification 
+                        resellScore: raw.alignmentScore || 0, 
+                        grade: raw.matchReason || "REVIEW"
                     },
                     roiData: { 
                         roi: intelligence.roi.roi_value, 
