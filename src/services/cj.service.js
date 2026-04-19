@@ -215,18 +215,31 @@ class CJService {
 
         const responses = await Promise.all(fetchPromises);
         const mergedMap = new Map();
+        
+        let allErrors = true;
         responses.forEach(res => {
           if (res.error) return;
-          const content = res.data?.data?.content || [];
-          const list = content.length > 0 
-            ? (content[0]?.productList ? content.flatMap(c => c.productList || []) : content)
-            : (res.data?.data?.list || []);
+          allErrors = false;
+          
+          let list = [];
+          if (res.data?.data?.list) list = list.concat(res.data.data.list);
+          
+          if (Array.isArray(res.data?.data?.content)) {
+              res.data.data.content.forEach(c => {
+                  if (c && Array.isArray(c.productList)) list = list.concat(c.productList);
+                  else if (c && (c.id || c.pid)) list.push(c);
+              });
+          }
             
           list.forEach(item => { 
               const itemId = item?.pid || item?.id;
               if (itemId && !mergedMap.has(itemId)) mergedMap.set(itemId, item); 
           });
         });
+
+        if (allErrors) {
+            return { status: "ERROR", message: "All CJ search proxies failed. Target API may be unreachable.", debug: responses.map(r => r.message) };
+        }
 
         const dedupedList = Array.from(mergedMap.values());
         if (dedupedList.length === 0) return { status: "NO_RESULTS", diagnostics: responses.map(r => ({ keyword: r.keyword, status: r.status, error: r.error ? r.message : null })) };
