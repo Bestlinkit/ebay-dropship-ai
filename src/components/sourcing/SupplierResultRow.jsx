@@ -40,7 +40,6 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     const profitStatus = financials?.status || "UNKNOWN";
 
     const profit = financials?.net_profit;
-    const roiPercent = financials?.roi_percent || 0;
 
     const profitFormatted = typeof profit === 'number'
         ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
@@ -55,10 +54,21 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
     const getProfitColor = (val) => {
         if (typeof val !== 'number') return "text-slate-400";
-        if (val > 5) return "text-emerald-400";
-        if (val >= 1) return "text-amber-400";
-        if (val >= 0) return "text-orange-400";
+        if (val > 10) return "text-emerald-400";
+        if (val > 0) return "text-emerald-500/80";
         return "text-rose-400";
+    };
+
+    const [imgError, setImgError] = React.useState(false);
+    const [retryCount, setRetryCount] = React.useState(0);
+
+    const handleImgError = () => {
+        if (retryCount < 1) {
+            setRetryCount(prev => prev + 1);
+            // Simulating a retry by refreshing src or just letting it render again
+        } else {
+            setImgError(true);
+        }
     };
 
     return (
@@ -70,17 +80,18 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
             {/* PRODUCT VISUAL (v5.0 Discovery-First) */}
             <div className="w-32 h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 bg-white rounded-[2rem] flex items-center justify-center overflow-hidden border-2 border-white/5 shrink-0 shadow-2xl relative group-hover:border-indigo-500/30 transition-all p-2">
-                {product.mainImage && product.mainImage !== 'INVALID_IMAGE' ? (
+                {!imgError && product.mainImage ? (
                     <img 
                         src={product.mainImage} 
                         alt={product.title} 
+                        onError={handleImgError}
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700"
                         loading="lazy"
                     />
                 ) : (
-                    <div className="flex flex-col items-center gap-2 opacity-20">
-                        <Box size={32} className="text-slate-900" />
-                        <span className="text-[7px] font-black uppercase tracking-widest text-slate-900">ASSET PENDING</span>
+                    <div className="flex flex-col items-center gap-2 opacity-20 text-slate-900">
+                        <Box size={32} />
+                        <span className="text-[7px] font-black uppercase tracking-widest">ASSET PENDING</span>
                     </div>
                 )}
                 <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 rounded-lg shadow-lg border border-white/5">
@@ -111,7 +122,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                 {/* KPI SECTION (v5.0 Hardened Analytics) */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8 pt-5 border-t border-white/5">
                     <div className="flex flex-col gap-1 min-w-[100px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Estimated Net Profit</span>
                         <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none", getProfitColor(profit))}>
                             {profitFormatted}
                         </div>
@@ -144,7 +155,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
 
                     <div className="hidden lg:flex flex-col gap-1 min-w-[100px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Alignment Score</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Relevance Score (Sorting Only)</span>
                         <div className={cn("text-xl md:text-2xl font-black italic tracking-tighter whitespace-nowrap leading-none", getScoreColor(finalScore))}>
                             {finalScore}%
                         </div>
@@ -155,12 +166,6 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
             {/* ACTION ZONE */}
             <div className="flex items-center gap-10 shrink-0 border-t xl:border-t-0 xl:border-l border-white/5 pt-8 xl:pt-0 xl:pl-10 w-full xl:w-auto justify-between xl:justify-end">
-                <div className="flex flex-col gap-1 text-right">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">ROI (Est.)</span>
-                    <div className="text-2xl font-black text-white italic tracking-tighter leading-none">
-                        {roiPercent.toFixed(1)}%
-                    </div>
-                </div>
 
                 <button 
                     onClick={() => onContinue(product)}

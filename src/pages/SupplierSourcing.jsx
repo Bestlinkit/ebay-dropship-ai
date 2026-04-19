@@ -51,14 +51,14 @@ const SupplierSourcing = () => {
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
-    const [page, setPage] = useState(1);
-    const PAGE_SIZE = 8;
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
     const [pipelineState, setPipelineState] = useState({
         status: 'IDLE'
     });
 
-    const [telemetry, setTelemetry] = useState({ cj: null });
+    const [telemetry, setTelemetry] = useState({ cj: null, merged_count: 0 });
     const [lastError, setLastError] = useState(null);
     const [showLog, setShowLog] = useState(false);
 
@@ -81,70 +81,78 @@ const SupplierSourcing = () => {
         checkCjConnection();
     }, [checkCjConnection]);
 
-    const performSourcing = useCallback(async (queryParam = searchQuery, isManual = false) => {
+    const performSourcing = useCallback(async (queryParam = searchQuery, isManual = false, pageNum = 1) => {
         if (!targetProduct?.id || !queryParam?.trim()) return;
         
         setLoading(true);
         setPipelineState({ status: 'LOADING' });
         
-        // v6.2 Clean Clear for Manual Refinement
-        if (isManual) {
-            console.log("[SEARCH MODE]: MANUAL_OVERRIDE", { query: queryParam });
+        // If it's a new search (manual or first page), reset state
+        if (isManual || pageNum === 1) {
+            console.log("[SEARCH MODE]: NEW_SESSION", { query: queryParam });
             setProducts([]);
             setLastError(null);
-            setTelemetry({ cj: null });
+            setCurrentPage(1);
         }
 
         try {
             const context = { 
                 query: queryParam, 
                 manualQuery: isManual ? queryParam : null,
-                product: targetProduct 
+                product: targetProduct,
+                pageNum
             };
             
             const result = await cjService.runIterativePipeline(context);
 
-            setPipelineState({ status: result.status });
-            setProducts(result.products || []);
-            setTelemetry(result.telemetry || { cj: null });
+            if (result.status === "SUCCESS") {
+                const newProducts = result.products || [];
+                
+                setProducts(prev => {
+                    // Deduplicate by product_id
+                    const existingIds = new Set(prev.map(p => p.product_id));
+                    const filteredNew = newProducts.filter(p => !existingIds.has(p.product_id));
+                    return [...prev, ...filteredNew];
+                });
 
-             if (result.status === "SUCCESS") {
-                if ((result.products || []).length > 0) {
-                     toast.success(isManual ? `Manual refresh found ${result.products.length} products` : `Discovered ${result.products.length} products`);
-                     setLastError(isManual ? { message: "Manual search success", raw_response: result.raw } : null);
-                } else {
-                     setLastError(isManual ? { message: "CJ returned zero products for this keyword.", raw_response: result.raw } : { message: "No match found for this keyword." });
-                     toast.error("No matches found in CJ catalog.");
+                setHasMore(newProducts.length === 20); // CJ pageSize is 20
+                setPipelineState({ status: 'SUCCESS' });
+                setTelemetry(result.telemetry || { cj: null });
+                
+                if (pageNum === 1) {
+                    toast.success(`Discovered ${newProducts.length} products`);
                 }
             } else if (result.status === "NO_MATCH_FOUND") {
-                setLastError({ 
-                    message: isManual ? "Manual search returned zero results." : "The CJ catalog was scanned across 5 discovery pages using the exact title, but zero candidates were found.",
-                    query: result.query,
-                    mode: isManual ? "MANUAL_OVERRIDE" : result.telemetry?.query_mode,
-                    raw_response: result.raw,
-                    suggestion: "Try refining keywords again or use broader terms."
-                });
-            } else if (result.status === "ERROR") {
+                if (pageNum === 1) {
+                    setPipelineState({ status: 'NO_MATCH_FOUND' });
+                    setLastError({ 
+                        message: "The CJ catalog returns zero results for this keyword.",
+                        query: queryParam,
+                        suggestion: "Try broader keywords or remove brand names."
+                    });
+                } else {
+                    setHasMore(false);
+                    toast.info("No more products found.");
+                }
+            } else {
+                setPipelineState({ status: 'ERROR' });
                 setLastError(result.message);
                 toast.error(result.message || "CJ API Connection Failed");
             }
         } catch (e) {
             console.error("Discovery Pipeline Crash:", e);
-            const crashLog = {
-                message: e.message,
-                status: e.response?.status,
-                statusText: e.response?.statusText,
-                url: e.config?.url,
-                stack: e.stack,
-                context: "Discovery_Pipeline_Crash"
-            };
-            setLastError(crashLog);
-            setPipelineState(s => ({ ...s, status: 'SYSTEM_DOWN' }));
+            setPipelineState({ status: 'SYSTEM_DOWN' });
             toast.error(`CJ API Connection Failed.`);
         } finally {
             setLoading(false);
         }
-    }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
+    }, [targetProduct?.id, searchQuery, targetProduct]);
+
+    const loadMore = () => {
+        const nextPage = currentPage + 1;
+        setCurrentPage(nextPage);
+        performSourcing(searchQuery, false, nextPage);
+    };
 
     useEffect(() => { 
         if (searchQuery?.trim()) performSourcing(); 
@@ -153,42 +161,24 @@ const SupplierSourcing = () => {
     const processedResults = useMemo(() => {
         if (!targetProduct || products.length === 0) return [];
         
-        return products
-            .map(raw => {
-                let intelligence = null;
-                try {
-                    intelligence = cjService.buildIntelligencePayload(raw, targetProduct);
-                } catch (e) {
-                    console.error("Intelligence Processing Error:", e);
-                    intelligence = {
-                        financials: { net_profit: 0, roi_percent: 0, status: "ERROR", shipping_label: "UNKNOWN" },
-                        shipping: { delivery_estimate: "UNKNOWN", warehouse: "UNKNOWN", origin: "GLOBAL" },
-                        variants: { has_variants: false, variants: [] },
-                        stock: "UNKNOWN"
-                    };
+        return products.map(res => {
+            // Already normalized in cj.service.js
+            return { 
+                ...res, 
+                sellData: { 
+                    resellScore: res.alignmentScore || 0, 
+                    grade: res.matchReason || "REVIEW"
+                },
+                roiData: { 
+                    roi: res.intelligence.financials.net_profit, 
+                    margin: 0,
+                    profitStatus: res.intelligence.financials.status
                 }
+            };
+        });
+    }, [products, targetProduct]);
 
-                const res = cjService.normalizeResult(raw);
-                
-                // Override legacy variables with precise CJ Intelligence parameters (v4.7 Sync)
-                return { 
-                    ...res, 
-                    sellData: { 
-                        resellScore: raw.alignmentScore || 0, 
-                        grade: raw.matchReason || "REVIEW"
-                    },
-                    roiData: { 
-                        roi: intelligence.financials.net_profit, 
-                        margin: intelligence.financials.roi_percent,
-                        profitStatus: intelligence.financials.status
-                    },
-                    intelligence // Save full payload for UI inspection
-                };
-            })
-            .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
-    }, [products, targetProduct, targetPrice, batchContext]);
-
-    const paginatedResults = useMemo(() => processedResults.slice(0, page * PAGE_SIZE), [processedResults, page]);
+    const paginatedResults = processedResults; // Local pagination is removed in favor of real API flow
 
     const handleContinue = (product) => {
         navigate(`/supplier-detail/${product.source}/${product.id}`, { 
@@ -248,16 +238,16 @@ const SupplierSourcing = () => {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && performSourcing(searchQuery, true)}
-                            placeholder="Override eBay Title Keywords..."
+                            onKeyDown={(e) => e.key === 'Enter' && performSourcing(searchQuery, true, 1)}
+                            placeholder={targetProduct.title}
                             className="w-full pl-16 pr-32 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-950 focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all outline-none"
                         />
                         <button 
-                            onClick={() => performSourcing(searchQuery, true)}
+                            onClick={() => performSourcing(searchQuery, true, 1)}
                             disabled={loading}
                             className="absolute right-3 top-3 bottom-3 px-6 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all"
                         >
-                            {loading ? 'SYNCING...' : 'REFINE'}
+                            {loading ? 'SEARCHING...' : 'SEARCH'}
                         </button>
                     </div>
                 </div>
@@ -313,13 +303,17 @@ const SupplierSourcing = () => {
                 {/* 2. DISCOVERY RESULTS */}
                 {!loading && processedResults.length > 0 && (
                     <div className="grid grid-cols-1 gap-6 px-4">
-                        {paginatedResults.map(res => (
+                        {processedResults.map(res => (
                             <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} onContinue={handleContinue} />
                         ))}
-                        {processedResults.length > paginatedResults.length && (
+                        {hasMore && processedResults.length > 0 && (
                              <div className="pb-10">
-                                <button onClick={() => setPage(p => p + 1)} className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm">
-                                    Show Next {Math.min(PAGE_SIZE, processedResults.length - paginatedResults.length)} Matches
+                                <button 
+                                    onClick={loadMore} 
+                                    disabled={loading}
+                                    className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm disabled:opacity-50"
+                                >
+                                    {loading ? 'Fetching more from CJ...' : 'Load More Results'}
                                 </button>
                              </div>
                         )}

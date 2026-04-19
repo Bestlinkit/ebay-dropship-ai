@@ -60,7 +60,7 @@ class CJService {
    * Mandate: Broad retrieval, deterministic fallback, rank-not-filter.
    */
   async runIterativePipeline(context) {
-    const { product, manualQuery } = context;
+    const { product, manualQuery, pageNum = 1 } = context;
     const startTime = Date.now();
     const ebayIntel = deconstructTitle(product.title);
     
@@ -80,70 +80,19 @@ class CJService {
             telemetry.query_mode = "MANUAL_OVERRIDE";
         }
 
-        // Step 1: Direct Discovery (v6.3 Capture Raw)
-        const { items: directResults, raw: rawResponse } = await this.performPaginatedSearch(currentQuery, telemetry);
-        directResults.forEach(item => mergedMap.set(item.product_id, item));
-
-        // v6.3 DUMB PIPE OVERRIDE: If manual, return immediately with raw data
-        if (manualQuery) {
-            console.log("CJ RAW RESPONSE:", rawResponse);
-            const dumbResults = Array.from(mergedMap.values()).map(item => ({
-                ...item,
-                alignmentScore: 100, // Manual intent is 100% by default
-                matchReason: "Manual Query",
-                intelligence: this.buildIntelligencePayload(item, product)
-            }));
-
-            return {
-                status: "SUCCESS",
-                products: dumbResults,
-                mode: "MANUAL_OVERRIDE",
-                raw: rawResponse, // Return raw for frontend diagnostics
-                telemetry: { ...telemetry, latency: Date.now() - startTime }
-            };
-        }
-
-        // Step 2: Fallback Trigger Analysis (Only for Auto-Mode)
-        const scoredInitial = Array.from(mergedMap.values()).map(item => ({
-            ...item,
-            ...this.calculateAlignmentScore(product, item, ebayIntel)
-        }));
-
-        const maxScore = scoredInitial.length > 0 ? Math.max(...scoredInitial.map(i => i.alignmentScore)) : 0;
-
-        if (scoredInitial.length === 0 || maxScore < 50) {
-            telemetry.fallback_triggered = true;
-            telemetry.query_mode = "FALLBACK_EXPANSION";
-            const fallbackQuery = ebayIntel.queries.fallback;
-            
-            const { items: fallbackResults } = await this.performPaginatedSearch(fallbackQuery, telemetry);
-            fallbackResults.forEach(item => {
-                if (!mergedMap.has(item.product_id)) {
-                    mergedMap.set(item.product_id, item);
-                }
-            });
-        }
-
-        const allCandidates = Array.from(mergedMap.values());
-        telemetry.results_merged = allCandidates.length;
-
-        if (allCandidates.length === 0) {
-            return {
-                status: "NO_MATCH_FOUND",
-                query: currentQuery,
-                telemetry
-            };
-        }
-
-        // Step 3: Scientific Scoring (Post-Retrieval)
-        const scoredFinal = allCandidates.map(item => {
+        // Step 1: Paginated Search (Broad retrieval)
+        // Note: We always fetch 20 items per page.
+        const { items: results, raw: rawResponse } = await this.performPaginatedSearch(currentQuery, telemetry, pageNum);
+        
+        // Step 2: Scoring (Ranking ONLY)
+        const scored = results.map(item => {
             const alignment = this.calculateAlignmentScore(product, item, ebayIntel);
             const intelligence = this.buildIntelligencePayload(item, product);
             return { ...item, ...alignment, intelligence };
         });
 
-        // Step 4: Multi-Key Ranking Prioritization
-        const ranked = scoredFinal.sort((a,b) => {
+        // Step 3: Multi-Key Ranking Prioritization
+        const ranked = scored.sort((a,b) => {
             if (b.alignmentScore !== a.alignmentScore) return b.alignmentScore - a.alignmentScore;
             const profitA = typeof a.intelligence.financials.net_profit === 'number' ? a.intelligence.financials.net_profit : -999;
             const profitB = typeof b.intelligence.financials.net_profit === 'number' ? b.intelligence.financials.net_profit : -999;
@@ -152,45 +101,41 @@ class CJService {
         });
 
         return { 
-            status: "SUCCESS", 
+            status: ranked.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
             products: ranked, 
             mode: telemetry.query_mode,
-            telemetry: { latency: Date.now() - startTime, ...telemetry } 
+            raw: rawResponse,
+            telemetry: { latency: Date.now() - startTime, ...telemetry, merged_count: ranked.length } 
         };
     } catch (err) { 
-        console.error("[CJ v6.3 Fault]", err);
+        console.error("[CJ v6.4 Fault]", err);
         return { status: "ERROR", message: err.message }; 
     }
   }
 
-  async performPaginatedSearch(keyword, telemetry) {
+  async performPaginatedSearch(keyword, telemetry, pageNum = 1) {
     const items = [];
     let lastRaw = null;
 
-    for (let pageNum = 1; pageNum <= 5; pageNum++) {
-        try {
-            const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
-                params: { keyword, pageNum, pageSize: 20 } 
-            });
-            
-            lastRaw = response.data;
-            // v6.3 Hard Status Check
-            if (!lastRaw || lastRaw.code !== 200) {
-                console.warn(`[CJ API] Non-200 Response on Page ${pageNum}:`, lastRaw);
-                break;
-            }
-
-            const pageItems = lastRaw?.data?.productList || [];
-            if (pageItems.length === 0) break;
-
-            pageItems.forEach(item => items.push(normalizeToContract(item)));
-            telemetry.pages_scanned++;
-            if (pageItems.length < 20) break;
-        } catch (e) { 
-            console.error(`[CJ API] Page ${pageNum} Crash:`, e.message);
-            break; 
+    try {
+        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
+            params: { keyword, pageNum, pageSize: 20 } 
+        });
+        
+        lastRaw = response.data;
+        if (!lastRaw || lastRaw.code !== 200) {
+            console.warn(`[CJ API] Non-200 Response on Page ${pageNum}:`, lastRaw);
+            return { items, raw: lastRaw };
         }
+
+        const pageItems = lastRaw?.data?.productList || [];
+        pageItems.forEach(item => items.push(normalizeToContract(item)));
+        
+        telemetry.pages_scanned++;
+    } catch (e) { 
+        console.error(`[CJ API] Page ${pageNum} Crash:`, e.message);
     }
+    
     return { items, raw: lastRaw };
   }
 
@@ -201,26 +146,30 @@ class CJService {
     const intel = ebayIntel || deconstructTitle(ebayProduct.title);
     const cjTitle = normalizedCj.title.toLowerCase();
     
-    // v6.1 Relevance Anchor Logic
-    let baseScore = 40; // Base presence score
+    // v6.4 Relevance Anchor Logic (Ranking ONLY, no filtering)
+    let baseScore = 20; // Lower base for more granular ranking
     
-    // 1. Keyword Overlap (Up to 60 points)
-    const ebayWords = ebayProduct.title.toLowerCase().split(' ').filter(w => w.length > 2);
+    // 1. Keyword Overlap (Up to 80 points)
+    const ebayWords = ebayProduct.title.toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2);
+    
     const intersect = ebayWords.filter(w => cjTitle.includes(w));
     const overlapPercent = (intersect.length / Math.max(1, ebayWords.length));
-    baseScore += Math.round(overlapPercent * 60);
+    baseScore += Math.round(overlapPercent * 80);
 
-    // 2. CRITICAL ANCHOR: Product Type Match (v6.1 Protection)
-    // If "Jeans" searched but missing from CJ title, reduce score heavily.
-    if (intel.product_type && !cjTitle.includes(intel.product_type)) {
-        baseScore = Math.max(5, baseScore - 50); // Hard penalty pushes irrelevant items to bottom
+    // 2. SOFT ANCHOR: Product Type Match
+    // Priority: If product type matches, boost score (ranking preference)
+    if (intel.product_type && cjTitle.includes(intel.product_type)) {
+        baseScore += 20;
     }
     
     const finalScore = Math.min(100, baseScore);
     
     return { 
         alignmentScore: finalScore, 
-        matchReason: finalScore > 80 ? "High Relevance" : (finalScore > 50 ? "Category Match" : "Broad Retrieval")
+        matchReason: finalScore > 80 ? "High Relevance" : (finalScore > 50 ? "Keyword Match" : "Broad Retrieval")
     };
   }
 
@@ -231,28 +180,26 @@ class CJService {
     const ebayPrice = Number(ebayProduct.price);
     const cjPrice = Number(normalizedCj.price);
     
-    let profit = "UNKNOWN";
-    let roiPercent = 0;
+    // Default estimated shipping is $5.00
+    const EST_SHIPPING = 5.00;
     
-    const shippingCost = normalizedCj.shipping?.cost !== null ? Number(normalizedCj.shipping.cost) : 5.00;
-    const isEstimated = normalizedCj.shipping?.cost === null;
-
+    let netProfit = "NAN_ERROR";
+    
     if (!isNaN(ebayPrice) && !isNaN(cjPrice)) {
-        profit = ebayPrice - cjPrice - shippingCost;
-        const totalValue = cjPrice + shippingCost;
-        roiPercent = totalValue > 0 ? (profit / totalValue) * 100 : 0;
+        // v6.4 Formula: eBay Price - CJ Cost - $5 Shipping
+        netProfit = ebayPrice - cjPrice - EST_SHIPPING;
     }
 
     return {
         financials: { 
-            net_profit: profit, 
-            roi_percent: roiPercent, 
-            status: isEstimated ? "ESTIMATED" : "CONFIRMED",
-            shipping_label: normalizedCj.shipping?.cost !== null ? `$${Number(normalizedCj.shipping.cost).toFixed(2)}` : "Benchmark ($5.00)"
+            net_profit: netProfit,
+            roi_percent: 0, // Removed per request
+            status: "ESTIMATED",
+            shipping_label: `Benchmark ($${EST_SHIPPING.toFixed(2)})`
         },
         shipping: { 
-            delivery_estimate: normalizedCj.shipping?.delivery_days || "Not Available", 
-            warehouse: normalizedCj.warehouse || "Not Available"
+            delivery_estimate: normalizedCj.shipping?.delivery_days || "7-15 Days (Est.)", 
+            warehouse: normalizedCj.warehouse || "CN (default)"
         }
     };
   }

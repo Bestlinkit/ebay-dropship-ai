@@ -37,14 +37,15 @@ export const normalizeToContract = (raw) => {
 
         const price = parseFloat(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
         
-        // CJ CDN Base (v4.7 Fix)
+        // CJ CDN Base
         const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
 
-        // 1. IMAGE HANDLING (v5.0 - UNLIMITED GALLERY)
+        // 1. IMAGE HANDLING (v6.4 - FORCE DISPLAY)
         let allImages = [];
-        const imageSource = raw.image_urls || raw.productImages || raw.productImage || raw.bigImage || raw.image || "";
+        // Priority: bigImage -> image_urls -> productImages -> productImage -> image
+        const imageSource = raw.bigImage || raw.image_urls || raw.productImages || raw.productImage || raw.image || "";
         
-        if (typeof imageSource === 'string') {
+        if (typeof imageSource === 'string' && imageSource.length > 5) {
             // Split by semicolon and clean each URL
             allImages = imageSource.split(';')
                 .map(url => url.trim())
@@ -68,7 +69,7 @@ export const normalizeToContract = (raw) => {
             
             if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
             
-            // Upgrade to HTTPS
+            // Force HTTPS
             if (safeUrl.startsWith('http://')) {
                 safeUrl = safeUrl.replace('http://', 'https://');
             }
@@ -78,8 +79,12 @@ export const normalizeToContract = (raw) => {
             }
         });
 
+        // Dedup gallery
         const uniqueGallery = Array.from(new Set(gallery));
-        const mainImage = uniqueGallery[0] || "INVALID_IMAGE";
+        
+        // Fallback placeholder if zero images
+        const PLACEHOLDER = "https://images.unsplash.com/photo-1594732806283-bc9a9af95a70?q=80&w=1000&auto=format&fit=crop";
+        const mainImage = uniqueGallery[0] || PLACEHOLDER;
 
         // 2. VARIANT SYNC
         const variants = Array.isArray(raw.productVariants || raw.variants) 
@@ -94,10 +99,19 @@ export const normalizeToContract = (raw) => {
 
         // TRUTH EXTRACTION
         const realStock = raw.warehouseInventoryNum !== undefined ? parseInt(raw.warehouseInventoryNum) : 
-                         (variants.length > 0 ? variants.reduce((acc, v) => acc + v.stock, 0) : null);
+                         (variants.length > 0 ? variants.reduce((acc, v) => acc + v.stock, 0) : 0);
         
         const realRating = raw.productRating || raw.rating || null;
         const description = raw.productDesc || raw.description || raw.remark || "";
+
+        // 3. WAREHOUSE / ORIGIN (v6.4 Rule)
+        let warehouseName = raw.warehouseName || raw.warehouse || "Global";
+        let origin = raw.shippingFrom || (warehouseName.toUpperCase().includes('US') ? 'US' : 'CN');
+        
+        // Final fallback for Origin logic
+        if (!origin || origin === 'UNKNOWN') {
+            origin = 'CN (default)';
+        }
 
         return {
             ...CJ_PRODUCT_CONTRACT,
@@ -108,17 +122,17 @@ export const normalizeToContract = (raw) => {
             stock: realStock,
             rating: realRating,
             description: description,
-            warehouse: raw.warehouseName || raw.warehouse || "Global",
+            warehouse: warehouseName,
             shipping: {
-                from: raw.shippingFrom || (raw.warehouseName?.includes('US') ? 'US' : 'CN'),
+                from: origin,
                 delivery_days: raw.deliveryTime || "7-15"
             },
             mainImage: mainImage,
-            gallery: uniqueGallery,
-            images: uniqueGallery, // Back-compat
+            gallery: uniqueGallery.length > 0 ? uniqueGallery : [PLACEHOLDER],
+            images: uniqueGallery.length > 0 ? uniqueGallery : [PLACEHOLDER],
             has_variants: variants.length > 0,
             variants: variants,
-            raw: raw // Explicitly store raw response as requested
+            raw: raw
         };
     } catch (e) {
         console.error("[CJ Contract] Normalization Fault:", e);

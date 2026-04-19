@@ -86,25 +86,21 @@ const SupplierProductDetail = () => {
 
     if (!product) return <div className="p-20 text-center font-black uppercase tracking-widest text-slate-400">Enforcement Failure: Metadata Unreachable</div>;
 
-    // Financial Analysis (v5.0 Rule)
-    const financials = product.intelligence?.financials;
+    // Financial Analysis (v6.4 Rule)
     const currentPrice = Number(selectedVariant?.price || product.price);
-    const shippingCost = product.shipping?.cost !== null ? Number(product.shipping?.cost) : 5.00;
+    const EST_SHIPPING = 5.00;
     
-    // v5.0 $NaN Protection
-    let profit = "UNKNOWN";
-    let roi = 0;
+    // v6.4 Net Profit formula
+    let profit = "NAN_ERROR";
 
     if (!isNaN(targetPrice) && !isNaN(currentPrice)) {
-       profit = targetPrice - currentPrice - shippingCost;
-       roi = (currentPrice + shippingCost) > 0 ? (profit / (currentPrice + shippingCost)) * 100 : 0;
+       profit = targetPrice - currentPrice - EST_SHIPPING;
     }
 
     const gallery = product.gallery || [];
-    const isEst = product.shipping?.cost === null;
     const profitFormatted = typeof profit === 'number'
         ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
-        : "UNKNOWN";
+        : "N/A";
 
     return (
         <div className="max-w-[1400px] mx-auto px-6 pb-40 pt-10 animate-in fade-in duration-700">
@@ -195,23 +191,17 @@ const SupplierProductDetail = () => {
                         <div className="relative z-10 space-y-6">
                             <div className="flex justify-between items-end">
                                 <div className="space-y-1">
-                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Profit (Absolute)</p>
+                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Estimated Net Profit</p>
                                     <p className={cn(
                                         "text-4xl font-black italic tracking-tighter",
                                         typeof profit === 'number' && profit >= 0 ? "text-emerald-500" : (typeof profit === 'number' ? "text-rose-500" : "text-slate-400")
                                     )}>
                                         {profitFormatted}
                                     </p>
-                                    {isEst && (
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                            <AlertTriangle size={10} className="text-amber-500" />
-                                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">ESTIMATED ONLY</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="text-right space-y-1">
-                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Est. ROI</p>
-                                    <p className="text-2xl font-black text-slate-900 italic tracking-tighter">{roi.toFixed(1)}%</p>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <Info size={10} className="text-indigo-400" />
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Incl. $5.00 Est. Shipping</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -228,9 +218,9 @@ const SupplierProductDetail = () => {
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div className="flex items-center gap-2"><Truck size={14} /> {product.shipping?.delivery_days || "UNKNOWN"} DAYS</div>
-                                <div className="flex items-center gap-2"><Activity size={14} /> RELIABILITY: {product.alignmentScore}%</div>
+                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                <div className="flex items-center gap-2"><Truck size={14} /> {product.shipping?.delivery_days || "7-15"} DAYS</div>
+                                <div className="flex items-center gap-2"><Activity size={14} /> RELEVANCE: {product.alignmentScore}%</div>
                             </div>
                         </div>
                     </div>
@@ -269,7 +259,7 @@ const SupplierProductDetail = () => {
                             <Zap size={20} className="group-hover:animate-pulse" /> Finalize Selection
                         </button>
                         <p className="text-center mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {product.alignmentScore}% RELIABILITY RATING CAPTURED
+                            {product.alignmentScore}% RELEVANCE SCORE APPLIED
                         </p>
                     </div>
                 </div>
