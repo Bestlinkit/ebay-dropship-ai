@@ -21,6 +21,13 @@ class CJService {
   /**
    * 🛡️ DEFENSIVE PARSING CORE
    */
+  isValidCJResponse(data) {
+    if (!data) return false;
+    // Support both direct responses and {data: ...} wrapped responses
+    const root = data.data || data;
+    return root.code === 200 || root.success === true || root.result === true || Array.isArray(root.productList);
+  }
+
   recursiveFindArrays(obj, seen = new Set()) {
     if (!obj || typeof obj !== 'object' || seen.has(obj)) return [];
     seen.add(obj);
@@ -64,6 +71,7 @@ class CJService {
 
         const responses = await Promise.all(fetchPromises);
         const mergedMap = new Map();
+        let technicallySuccessful = false;
         const telemetry = {
             total_responses: responses.length,
             errors: [],
@@ -77,6 +85,9 @@ class CJService {
             }
 
             const rawData = res.data?.data || res.data;
+            if (this.isValidCJResponse(res.data)) {
+                technicallySuccessful = true;
+            }
             const schema = this.detectSchema(rawData);
             telemetry.schemas_detected.push(schema);
 
@@ -97,6 +108,16 @@ class CJService {
         
         // DETERMINISTIC FAILURE CHECK
         if (dedupedList.length === 0) {
+            // If the API technically succeeded (returned 200/Success) but found 0 items
+            if (technicallySuccessful) {
+                return {
+                    status: "CJ_EMPTY_RESULT",
+                    reason: "NO_MATCHING_PRODUCTS",
+                    query: normalizedQuery.keyword,
+                    telemetry
+                };
+            }
+
             return { 
                 status: "CJ_PARSE_FAILED", 
                 raw_response: responses.map(r => r.data),
