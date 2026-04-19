@@ -55,7 +55,7 @@ const SupplierSourcing = () => {
     const PAGE_SIZE = 8;
 
     const [pipelineState, setPipelineState] = useState({
-        status: sourcingService.Status.LOADING,
+        status: 'IDLE',
         sources: { aliexpress: 'PENDING' }
     });
 
@@ -127,8 +127,7 @@ const SupplierSourcing = () => {
     }, [targetProduct?.id, searchQuery, targetProduct, targetPrice]);
 
     useEffect(() => { 
-        // Automatic search pipeline disabled for Connection Test Phase
-        // if (searchQuery?.trim()) performSourcing(); 
+        if (searchQuery?.trim()) performSourcing(); 
     }, [targetProduct?.id]);
 
     const processedResults = useMemo(() => {
@@ -285,12 +284,13 @@ const SupplierSourcing = () => {
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
                                 {pipelineState.status === 'NO_RESULTS' ? "0 Results" : 
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
-                                 pipelineState.status === 'SUCCESS' ? "Data Match Failure" :
+                                 pipelineState.status === 'IDLE' ? "Ready to Source" :
                                  "System Error"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
                                 {pipelineState.status === 'NO_RESULTS' ? "The CJ catalog has no matches for this specific query." : 
                                  pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
+                                 pipelineState.status === 'IDLE' ? "Data structure loaded successfully. Click below to begin sourcing from CJ Dropshipping." :
                                  pipelineState.status === 'SUCCESS' ? "Matches were found during proxy search, but the secure CJ API tunnel was unable to successfully extract the detailed data structure for any result. Refresh to run diagnostics." :
                                  <>
                                     The secure CJ API tunnel encountered an unexpected data structure.
