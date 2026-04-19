@@ -50,8 +50,8 @@ class CJService {
         data: response.data
       });
 
-      // The local proxy is alive. We must return true so the frontend can orchestrate the /auth handshake!
-      return true;
+      // The local proxy is alive. Return the full payload so testConnection can check vault status!
+      return { alive: true, data: response.data };
     } catch (error) {
       console.error('[CJ DEBUG] Ping ERROR:', {
         endpoint: `${BRIDGE_BASE}/api/cj/ping`,
@@ -66,7 +66,7 @@ class CJService {
         error: error.message
       });
 
-      return false;
+      return { alive: false, data: null };
     }
   }
 
@@ -75,13 +75,24 @@ class CJService {
    * Strictly isolated from eBay discovery/scoring.
    */
   async testConnection() {
-    const isBridgeAlive = await this.pingBridge();
+    const { alive: isBridgeAlive, data: pingData } = await this.pingBridge();
+    
     if (!isBridgeAlive) {
         return {
             cjConnectionStatus: "FAILED",
             code: "BRIDGE_OFFLINE",
             message: "Local server (port 3001) is not responding. Start the backend first.",
             requestId: ""
+        };
+    }
+
+    // 🏆 VAULT CHECK: Skip full auth protocol if backend already holds a valid token!
+    if (pingData?.cjConnected && pingData?.tokenValid) {
+        console.log("[CJ DEBUG] Token already active in secure Vault. Bypassing /auth handshake.");
+        return {
+            cjConnectionStatus: "CONNECTED",
+            message: "Success",
+            timestamp: new Date().toISOString()
         };
     }
 
