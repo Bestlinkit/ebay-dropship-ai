@@ -8,12 +8,12 @@ export const CJ_PRODUCT_CONTRACT = {
   title: "",
   price: 0,
   currency: "USD",
-  rating: 4.8, // Fallback if not in API
-  stock: 0,
-  warehouse: "Global",
+  rating: null, // TRUTH: Null if not in CJ data
+  stock: null,  // TRUTH: Null if not in CJ data
+  warehouse: null,
   shipping: {
-    from: "CN",
-    delivery_days: "7-15"
+    from: null,
+    delivery_days: null
   },
   images: [],
   has_variants: false,
@@ -36,34 +36,51 @@ export const normalizeToContract = (raw) => {
 
         const price = parseFloat(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
         
-        // Handle images defensively
+        // Handle images defensively (v4.5 - Protocol Security)
         let images = [];
-        if (raw.productImage) images.push(raw.productImage);
-        if (raw.bigImage) images.push(raw.bigImage);
-        if (Array.isArray(raw.images)) images = [...images, ...raw.images];
-        if (raw.image && typeof raw.image === 'string') images.push(raw.image);
+        const rawImages = [raw.productImage, raw.bigImage, raw.image, ...(Array.isArray(raw.images) ? raw.images : [])];
         
-        const uniqueImages = Array.from(new Set(images.filter(img => typeof img === 'string' && img.length > 0)));
+        rawImages.forEach(img => {
+            if (typeof img === 'string' && img.length > 0) {
+                // Fix missing protocol
+                let safeUrl = img;
+                if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
+                images.push(safeUrl);
+            }
+        });
+        
+        const uniqueImages = Array.from(new Set(images));
 
         const variants = Array.isArray(raw.productVariants || raw.variants) 
             ? (raw.productVariants || raw.variants).map(v => ({
                 sku_id: v.vid || v.variantId || v.sku || id,
                 attributes: v.variantKey || v.variantName || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
-                stock: parseInt(v.variantInventory || v.inventory || 100)
+                stock: parseInt(v.variantInventory || v.inventory || 0)
             }))
             : [];
+
+        // TRUTH EXTRACTION
+        const realStock = raw.warehouseInventoryNum !== undefined ? parseInt(raw.warehouseInventoryNum) : 
+                         (variants.length > 0 ? variants.reduce((acc, v) => acc + v.stock, 0) : null);
+        
+        const realRating = raw.productRating || raw.rating || null;
 
         return {
             ...CJ_PRODUCT_CONTRACT,
             product_id: id,
             title: title,
             price: price,
-            stock: variants.reduce((acc, v) => acc + v.stock, 0) || parseInt(raw.warehouseInventoryNum || 100),
+            stock: realStock,
+            rating: realRating,
+            warehouse: raw.warehouseName || raw.warehouse || "Global",
+            shipping: {
+                from: raw.shippingFrom || (raw.warehouseName?.includes('US') ? 'US' : 'CN'),
+                delivery_days: raw.deliveryTime || "7-15"
+            },
             images: uniqueImages,
             has_variants: variants.length > 0,
             variants: variants,
-            // Enhanced attributes for scoring
             raw_source: raw
         };
     } catch (e) {

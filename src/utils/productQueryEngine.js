@@ -26,7 +26,12 @@ const DICTIONARIES = {
 };
 
 export const deconstructTitle = (title) => {
-    if (!title) return { gender: null, product_type: null, attributes: [], clean_query: "" };
+    if (!title) return { 
+        gender: "unisex", 
+        product_type: null, 
+        attributes: [], 
+        queries: { strict: "", expanded: "", broad: "" } 
+    };
 
     let processed = title.toLowerCase().trim();
 
@@ -38,8 +43,8 @@ export const deconstructTitle = (title) => {
         }
     }
 
-    // 2. GENDER EXTRACTION
-    let gender = null;
+    // 2. GENDER EXTRACTION (Default: Unisex)
+    let gender = "unisex";
     for (const g of DICTIONARIES.GENDER) {
         if (processed.includes(g)) {
             gender = g;
@@ -47,7 +52,7 @@ export const deconstructTitle = (title) => {
         }
     }
 
-    // 3. PRODUCT TYPE EXTRACTION (Strict Dictionary Match)
+    // 3. PRODUCT TYPE EXTRACTION
     let productType = null;
     for (const type of DICTIONARIES.PRODUCT_TYPES) {
         if (processed.includes(type)) {
@@ -56,48 +61,61 @@ export const deconstructTitle = (title) => {
         }
     }
 
-    // 4. ATTRIBUTE EXTRACTION (Optional)
+    // 4. ATTRIBUTE EXTRACTION
     const attributes = [];
     for (const attr of DICTIONARIES.ATTRIBUTES) {
         if (processed.includes(attr)) {
             attributes.push(attr);
-            if (attributes.length >= 2) break;
+            if (attributes.length >= 3) break;
         }
     }
 
-    // 5. CLEAN QUERY GENERATION
-    // Rule: Gender + Product Type + 1-2 Attributes Max
-    const queryParts = [];
-    if (gender) queryParts.push(gender);
-    if (productType) queryParts.push(productType);
-    attributes.slice(0, 2).forEach(attr => queryParts.push(attr));
+    // 5. QUERY EXPANSION LAYER (v4.5)
+    const queries = {
+        strict: `${gender === 'unisex' ? '' : gender} ${productType || ''}`.trim(),
+        expanded: `${gender === 'unisex' ? '' : gender} ${attributes[0] || ''} ${productType || ''}`.trim(),
+        broad: `${attributes.slice(0, 2).join(' ')} ${productType || ''}`.trim()
+    };
+
+    // Fallback if type extraction failed
+    if (!productType) {
+        const words = processed.split(' ').slice(0, 3);
+        queries.strict = words.join(' ');
+        queries.expanded = words.join(' ');
+        queries.broad = words.join(' ');
+    }
 
     return {
         gender,
         product_type: productType,
         attributes,
-        clean_query: queryParts.join(' ').trim() || processed.split(' ').slice(0, 3).join(' ')
+        queries
     };
 };
 
 /**
- * 🔒 VALIDATION UTILS
+ * 🔒 VALIDATION UTILS (v4.5 - Soft Filtering)
  */
 export const validateMatch = (ebayData, cjData) => {
-    // 🔒 HARD RULES (Deterministic Matching)
-    // Both must have a detected product_type for high-precision validation
-    if (!ebayData.product_type || !cjData.product_type) return false;
+    if (!ebayData || !cjData) return false;
 
-    // RULE: Category mismatch is a FATAL rejection
-    if (ebayData.product_type !== cjData.product_type) return false;
-
-    // RULE: Gender mismatch (unless unisex) is a FATAL rejection
-    if (ebayData.gender && cjData.gender) {
-        if (ebayData.gender !== cjData.gender && 
-            ebayData.gender !== 'unisex' && 
-            cjData.gender !== 'unisex') {
-            return false;
+    // RULE: Category family mismatch is a rejection (Soft)
+    // Only reject if both have types and they are fundamentally different
+    if (ebayData.product_type && cjData.product_type) {
+        if (ebayData.product_type !== cjData.product_type) {
+            // Check for sibling types (e.g., shoes vs sneakers is allowed)
+            const shoeTypes = ['sneakers', 'shoes', 'boots', 'oxfords', 'loafers', 'sandals', 'flats', 'heels'];
+            const isEbayShoe = shoeTypes.includes(ebayData.product_type);
+            const isCjShoe = shoeTypes.includes(cjData.product_type);
+            
+            if (isEbayShoe && isCjShoe) return true; // Allow shoe-family matches
+            return false; 
         }
+    }
+
+    // RULE: Gender mismatch (unless unisex)
+    if (ebayData.gender !== 'unisex' && cjData.gender !== 'unisex') {
+        if (ebayData.gender !== cjData.gender) return false;
     }
 
     return true;

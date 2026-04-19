@@ -102,11 +102,11 @@ const SupplierSourcing = () => {
                      setLastError(result.debug || { message: "No CJ matches found." });
                      toast.error("No matches found in CJ catalog.");
                 }
-            } else if (result.status === "CJ_EMPTY_RESULT") {
+            } else if (result.status === "NO_MATCH_FOUND") {
                 setLastError({ 
-                    message: "The CJ catalog proxy connected successfully, but no high-precision matches were found for the optimized search queries.",
-                    query: result.query,
-                    action: "Try a more general search term"
+                    message: "The CJ catalog was searched using a 3-layer expansion strategy (Strict, Expanded, Broad), but no actionable matches were found.",
+                    queries: result.queries_used,
+                    suggestion: result.suggestion || "Try a more general search term"
                 });
             } else if (result.status === "CJ_PARSE_FAILED") {
                 setLastError({ 
@@ -294,14 +294,14 @@ const SupplierSourcing = () => {
                         <div className="space-y-4">
                             <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
                                 {pipelineState.status === 'CJ_PARSE_FAILED' ? "Extraction Fault" : 
-                                 pipelineState.status === 'CJ_EMPTY_RESULT' ? "0 Results" :
+                                 pipelineState.status === 'NO_MATCH_FOUND' ? "Expansion Failure" :
                                  pipelineState.status === 'TIMEOUT' ? "Try Again" :
                                  pipelineState.status === 'IDLE' ? "Ready to Source" :
                                  "System Error"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
                                 {pipelineState.status === 'CJ_PARSE_FAILED' ? "The CJ catalog proxy connected, but the internal product contract was violated by the upstream response." : 
-                                 pipelineState.status === 'CJ_EMPTY_RESULT' ? "The CJ catalog proxy successfully synchronized, but zero high-precision variants matched the target eBay listing." :
+                                 pipelineState.status === 'NO_MATCH_FOUND' ? "The 3-layer search expansion synchronized successfully, but zero high-fidelity candidates matched the target eBay listing constraints." :
                                  pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
                                  pipelineState.status === 'IDLE' ? "Data structure loaded successfully. Click below to begin sourcing from CJ Dropshipping." :
                                  pipelineState.status === 'SUCCESS' ? "Sourcing completed but zero high-precision matches survived the alignment score filter." :
