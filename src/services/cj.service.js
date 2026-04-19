@@ -228,6 +228,7 @@ class CJService {
         const dedupedList = Array.from(mergedMap.values());
         if (dedupedList.length === 0) return { status: "NO_RESULTS", diagnostics: responses.map(r => ({ keyword: r.keyword, status: r.status, error: r.error ? r.message : null })) };
 
+        const candidates = [];
         for (const item of dedupedList.slice(0, 10)) {
           try {
              const detailRes = await axios.get(this.CONFIG.DETAIL_ENDPOINT, { params: { pid: item.pid } });

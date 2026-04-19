@@ -291,7 +291,17 @@ const SupplierSourcing = () => {
                                 {pipelineState.status === 'NO_RESULTS' ? "The CJ catalog has no matches for this specific query." : 
                                  pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
                                  pipelineState.status === 'SUCCESS' ? "Matches were found during proxy search, but the secure CJ API tunnel was unable to successfully extract the detailed data structure for any result. Refresh to run diagnostics." :
-                                 "The secure CJ API tunnel encountered an unexpected data structure. Technical diagnostics required."}
+                                 <>
+                                    The secure CJ API tunnel encountered an unexpected data structure.
+                                    {lastError && (
+                                        <div className="mt-4 p-4 bg-slate-100 rounded-2xl text-left overflow-auto max-h-40">
+                                            <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Technical Diagnosis</p>
+                                            <code className="text-[11px] text-red-600 font-mono whitespace-pre-wrap">
+                                                {typeof lastError === 'string' ? lastError : (lastError.message || JSON.stringify(lastError, null, 2))}
+                                            </code>
+                                        </div>
+                                    )}
+                                 </>}
                             </p>
                         </div>
 
