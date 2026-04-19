@@ -242,7 +242,7 @@ class CJService {
         }
 
         const dedupedList = Array.from(mergedMap.values());
-        if (dedupedList.length === 0) return { status: "NO_RESULTS", diagnostics: responses.map(r => ({ keyword: r.keyword, status: r.status, error: r.error ? r.message : null })) };
+        if (dedupedList.length === 0) return { status: "NO_RESULTS", rawDump: responses.map(r => r.data?.data) };
 
         const candidates = [];
         for (const item of dedupedList.slice(0, 10)) {

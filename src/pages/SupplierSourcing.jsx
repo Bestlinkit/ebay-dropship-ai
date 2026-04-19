@@ -98,12 +98,14 @@ const SupplierSourcing = () => {
 
              if (result.status === "SUCCESS") {
                 if ((result.products || []).length > 0) {
-                    toast.success(`Discovered ${result.products.length} products`);
-                    setLastError(null);
+                     toast.success(`Discovered ${result.products.length} products`);
+                     setLastError(null);
                 } else {
-                    setLastError(result.debug || { message: "No CJ matches found." });
-                    toast.error("No matches found in CJ catalog.");
+                     setLastError(result.debug || { message: "No CJ matches found." });
+                     toast.error("No matches found in CJ catalog.");
                 }
+            } else if (result.status === "NO_RESULTS") {
+                setLastError({ message: "0 items were extracted from the CJ API payload. Review the raw proxy response below to determine if the query was excessively niche, or if the API returned an unrecognized schema.", rawDump: result.rawDump });
             } else if (result.status === "ERROR") {
                 setLastError(result.debug || result.message);
                 toast.error(result.message || "CJ API Connection Failed");
@@ -288,19 +290,20 @@ const SupplierSourcing = () => {
                                  "System Error"}
                             </h3>
                             <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                {pipelineState.status === 'NO_RESULTS' ? "The CJ catalog has no matches for this specific query." : 
+                                {pipelineState.status === 'NO_RESULTS' ? "The CJ catalog proxy executed successfully but produced zero usable products." : 
                                  pipelineState.status === 'TIMEOUT' ? "The request to CJ took too long." :
                                  pipelineState.status === 'IDLE' ? "Data structure loaded successfully. Click below to begin sourcing from CJ Dropshipping." :
                                  pipelineState.status === 'SUCCESS' ? "Matches were found during proxy search, but the secure CJ API tunnel was unable to successfully extract the detailed data structure for any result. Refresh to run diagnostics." :
-                                 <>
-                                    The secure CJ API tunnel encountered an unexpected data structure.
-                                    <div className="mt-4 p-4 bg-slate-100 rounded-2xl text-left overflow-auto max-h-40">
-                                        <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Technical Diagnosis</p>
-                                        <code className="text-[11px] text-red-600 font-mono whitespace-pre-wrap">
-                                            {lastError ? (typeof lastError === 'string' ? lastError : (lastError.message || JSON.stringify(lastError, null, 2))) : `SYSTEM HALT. Pipeline status: ${pipelineState.status}`}
-                                        </code>
-                                    </div>
-                                 </>}
+                                 "The secure CJ API tunnel encountered an unexpected data structure."}
+                                 
+                                 {lastError && (pipelineState.status === 'NO_RESULTS' || pipelineState.status === 'SYSTEM_DOWN' || pipelineState.status === 'ERROR') && (
+                                     <div className="mt-4 p-4 bg-slate-100 rounded-2xl text-left overflow-auto max-h-64 border border-slate-300">
+                                         <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Technical Diagnosis</p>
+                                         <code className="text-[10px] text-red-600 font-mono whitespace-pre-wrap">
+                                             {typeof lastError === 'string' ? lastError : JSON.stringify(lastError, null, 2)}
+                                         </code>
+                                     </div>
+                                 )}
                             </p>
                         </div>
 
