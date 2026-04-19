@@ -83,6 +83,7 @@ export const deconstructTitle = (title) => {
 /**
  * 🔒 VALIDATION UTILS
  */
+export const validateMatch = (ebayData, cjData) => {
     // 🔒 HARD RULES (Deterministic Matching)
     // Both must have a detected product_type for high-precision validation
     if (!ebayData.product_type || !cjData.product_type) return false;
@@ -100,3 +101,4 @@ export const deconstructTitle = (title) => {
     }
 
     return true;
+};
