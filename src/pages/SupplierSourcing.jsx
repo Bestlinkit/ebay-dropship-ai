@@ -152,18 +152,16 @@ const SupplierSourcing = () => {
                 } catch (e) {
                     console.error("Intelligence Processing Error:", e);
                     intelligence = {
-                        roi: { roi_value: 0, roi_percent: 0, margin_percent: 0, profit_label: "N/A" },
+                        financials: { net_profit: 0, roi_percent: 0, status: "ERROR", shipping_label: "UNKNOWN" },
                         shipping: { delivery_estimate: "UNKNOWN", warehouse: "UNKNOWN", origin: "GLOBAL" },
-                        risk: { risk_level: "UNKNOWN", risk_flags: [] },
                         variants: { has_variants: false, variants: [] },
-                        rating: "N/A",
                         stock: "UNKNOWN"
                     };
                 }
 
                 const res = cjService.normalizeResult(raw);
                 
-                // Override legacy variables with precise CJ Intelligence parameters
+                // Override legacy variables with precise CJ Intelligence parameters (v4.7 Sync)
                 return { 
                     ...res, 
                     sellData: { 
@@ -171,11 +169,11 @@ const SupplierSourcing = () => {
                         grade: raw.matchReason || "REVIEW"
                     },
                     roiData: { 
-                        roi: intelligence.roi.roi_value, 
-                        margin: intelligence.roi.roi_percent,
-                        profitLabel: intelligence.roi.profit_label
+                        roi: intelligence.financials.net_profit, 
+                        margin: intelligence.financials.roi_percent,
+                        profitStatus: intelligence.financials.status
                     },
-                    intelligence // Save full payload for UI inspection if needed
+                    intelligence // Save full payload for UI inspection
                 };
             })
             .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
