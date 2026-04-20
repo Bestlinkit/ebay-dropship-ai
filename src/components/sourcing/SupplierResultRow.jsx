@@ -46,6 +46,8 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
         ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
         : "N/A";
 
+    const colors = Array.from(new Set((product.variants || []).map(v => v.color))).filter(c => c && c !== 'Standard');
+
     // Score Color Mapping (v5.0 Mandate)
     const getScoreColor = (val) => {
         if (val >= 80) return "text-emerald-400";
@@ -152,11 +154,24 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter line-clamp-1 leading-none group-hover:text-indigo-400 transition-colors italic pr-12">
                         {product.title}
                     </h3>
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2">
                         {product.variants?.length > 0 ? (
-                            <span className="px-2 py-0.5 bg-indigo-900/40 text-indigo-400 rounded-md text-[7px] font-black uppercase tracking-widest">
-                                {product.variants.length} Variants Available
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-indigo-900/40 text-indigo-400 rounded-md text-[7px] font-black uppercase tracking-widest">
+                                    {product.variants.length} Variants
+                                </span>
+                                {colors.length > 0 && (
+                                    <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                                        <span className="text-[6px] font-black text-slate-500 uppercase mr-1">Colors:</span>
+                                        {colors.slice(0, 4).map(c => (
+                                            <span key={c} className="text-[7px] font-bold text-slate-300 lowercase px-1.5 py-0.5 bg-slate-800 rounded">
+                                                {c}
+                                            </span>
+                                        ))}
+                                        {colors.length > 4 && <span className="text-[7px] font-bold text-slate-500">+{colors.length - 4}</span>}
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <span className="px-2 py-0.5 bg-slate-800 text-slate-500 rounded-md text-[7px] font-black uppercase tracking-widest">
                                 Standard Variant
@@ -171,48 +186,56 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                 </div>
 
                 {/* KPI SECTION (v7.0 Strict Market Decision Engine) */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8 pt-5 border-t border-white/5">
-                    <div className="flex flex-col gap-1 min-w-[120px]">
+                <div className="flex flex-wrap items-start gap-y-6 gap-x-12 pt-6 border-t border-white/5">
+                    <div className="flex flex-col gap-1 min-w-[100px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
-                        <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none", getProfitColor(profit))}>
+                        <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1", getProfitColor(profit))}>
                             {profitFormatted}
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap flex items-center gap-1.5">
-                            <Zap size={10} className={cn(profit > 0 ? "text-emerald-500" : "text-slate-500")} /> {marginSignal.toUpperCase()}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                            <Zap size={10} className={cn(profit > 0 ? "text-emerald-500" : "text-slate-500")} />
+                            <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">
+                                {marginSignal.toUpperCase()}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 min-w-[80px]">
+                    <div className="flex flex-col gap-1">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">CJ Cost</span>
-                        <div className="text-xl md:text-2xl font-black text-white italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none transition-all">
+                        <div className="text-xl md:text-2xl font-black text-white italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1">
                             ${parseFloat(product.price).toFixed(2)}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 min-w-[80px]">
+                    <div className="flex flex-col gap-1">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">eBay Price</span>
-                        <div className="text-xl md:text-2xl font-black text-slate-400 italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none">
+                        <div className="text-xl md:text-2xl font-black text-slate-400 italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1">
                             ${parseFloat(targetPrice).toFixed(2)}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1 min-w-[110px]">
+                    <div className="flex flex-col gap-1 min-w-[130px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Target Logistics</span>
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 py-0.5">
                             <Truck size={12} className="text-indigo-400 shrink-0" />
-                            <span className="text-[10px] font-black text-slate-200 uppercase tracking-tight whitespace-nowrap leading-none">{deliveryTime}</span>
+                            <span className="text-[10px] font-black text-slate-200 uppercase tracking-tight whitespace-nowrap">{deliveryTime}</span>
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap flex items-center gap-1.5">
-                           SHIP: {shippingLabel} <span className={cn("px-1 rounded", intel.shipping?.isReal ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500")}>{intel.shipping?.isReal ? 'REAL' : 'FALLBACK'}</span>
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">SHIP: {shippingLabel}</span>
+                            <span className={cn("px-1 py-0.5 rounded text-[6px] font-black", intel.shipping?.isReal ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500")}>
+                                {intel.shipping?.isReal ? 'REAL' : 'FALLBACK'}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="hidden lg:flex flex-col gap-1 min-w-[100px]">
+                    <div className="hidden lg:flex flex-col gap-1 min-w-[120px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Warehouse Source</span>
-                        <div className="text-xl md:text-2xl font-black text-indigo-400 italic tracking-tighter whitespace-nowrap leading-none flex items-center gap-2">
+                        <div className="text-xl md:text-2xl font-black text-indigo-400 italic tracking-tighter whitespace-nowrap leading-none flex items-center gap-2 py-0.5">
                             <Warehouse size={16} /> {shippingOrigin}
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">{product.warehouse || 'GLOBAL'}</span>
+                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap opacity-80 mt-0.5">
+                            {product.warehouse || 'GLOBAL ARCHIVE'}
+                        </span>
                     </div>
                 </div>
             </div>

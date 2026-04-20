@@ -108,13 +108,13 @@ export const normalizeToContract = (raw, isDetail = false) => {
                 color: v.variantKey || v.variantName || v.nameEn || "Standard",
                 size: v.variantStandard || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
-                inventory: parseInt(v.variantInventory || v.inventory || 0),
+                inventory: parseInt(v.variantInventory || v.inventory || v.num || v.quantity || v.variantNum || 0),
                 image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0]
             }));
 
         // v13.0: Inventory Summation Rule
         const totalStock = variants.reduce((acc, v) => acc + (v.inventory || 0), 0);
-        const realStock = totalStock > 0 ? totalStock : (parseInt(raw.warehouseInventoryNum) || 0);
+        const realStock = totalStock > 0 ? totalStock : (parseInt(raw.warehouseInventoryNum || raw.num || raw.inventory || raw.quantity || 0));
 
         return {
             ...CJ_PRODUCT_CONTRACT,
@@ -123,7 +123,7 @@ export const normalizeToContract = (raw, isDetail = false) => {
             title: title,
             price: price,
             stock: realStock,
-            rating: raw.productRating || raw.rating || null,
+            rating: raw.productRating || raw.rating || raw.score || raw.star || null,
             description: raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
             warehouse: warehouseName,
             shipping: {
@@ -137,7 +137,7 @@ export const normalizeToContract = (raw, isDetail = false) => {
             has_variants: variants.length > 0,
             variants: variants,
             sellabilityScore: raw.sellabilityScore || null,
-            rating: raw.productRating || raw.rating || null,
+            rating: raw.productRating || raw.rating || raw.score || raw.star || null,
             cj_url: `https://cjdropshipping.com/product/${id}.html`,
             isEnriched: isDetail,
             raw: raw
