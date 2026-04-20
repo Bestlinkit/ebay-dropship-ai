@@ -64,34 +64,62 @@ class CJService {
     const startTime = Date.now();
     const ebayIntel = deconstructTitle(product.title);
     
-    // Telemetry Init
     const telemetry = {
         query_mode: "DIRECT_MATCH",
         pages_scanned: 0,
         results_merged: 0,
-        fallback_triggered: false
+        fallback_triggered: false,
+        final_query: null
     };
 
     try {
-        const mergedMap = new Map();
-        let currentQuery = manualQuery || ebayIntel.queries.strict;
-
-        if (manualQuery) {
-            telemetry.query_mode = "MANUAL_OVERRIDE";
+        let currentQuery = manualQuery || ebayIntel.queries.fallback;
+        
+        // v2 RULE: keyword must contain at least 2 meaningful words, else fallback to original
+        const words = currentQuery.split(/\s+/).filter(w => w.length >= 2);
+        if (!manualQuery && words.length < 2) {
+            currentQuery = product.title;
         }
 
-        // Step 1: Paginated Search (Broad retrieval)
-        // Note: We always fetch 20 items per page.
-        const { items: results, raw: rawResponse } = await this.performPaginatedSearch(currentQuery, telemetry, pageNum);
-        
-        // Step 2: Scoring (Ranking ONLY)
+        if (manualQuery) telemetry.query_mode = "MANUAL_OVERRIDE";
+
+        // --- STAGE 1: PRIMARY ATTEMPT ---
+        let { items: results, raw: rawResponse } = await this.performPaginatedSearch(currentQuery, telemetry, pageNum);
+        telemetry.final_query = currentQuery;
+
+        // --- STAGE 2: ORIGINAL TITLE FALLBACK (Automatic) ---
+        if (results.length === 0 && !manualQuery) {
+            telemetry.fallback_triggered = true;
+            telemetry.query_mode = "ORIGINAL_TITLE_FALLBACK";
+            const originalQuery = product.title;
+            const fallbackResult = await this.performPaginatedSearch(originalQuery, telemetry, pageNum);
+            results = fallbackResult.items;
+            rawResponse = fallbackResult.raw;
+            telemetry.final_query = originalQuery;
+        }
+
+        // --- STAGE 3: SINGLE KEYWORD FALLBACK ---
+        if (results.length === 0 && !manualQuery) {
+            telemetry.query_mode = "SINGLE_KEYWORD_FALLBACK";
+            // Take the last word which is often the most descriptive (jeans, sneakers, etc)
+            const words = product.title.split(/\s+/).filter(w => w.length >= 3);
+            const singleKeyword = words[words.length - 1] || words[0];
+            
+            if (singleKeyword) {
+                const singleResult = await this.performPaginatedSearch(singleKeyword, telemetry, pageNum);
+                results = singleResult.items;
+                rawResponse = singleResult.raw;
+                telemetry.final_query = singleKeyword;
+            }
+        }
+
+        // --- SCORING & RANKING ---
         const scored = results.map(item => {
             const alignment = this.calculateAlignmentScore(product, item, ebayIntel);
             const intelligence = this.buildIntelligencePayload(item, product);
             return { ...item, ...alignment, intelligence };
         });
 
-        // Step 3: Multi-Key Ranking Prioritization
         const ranked = scored.sort((a,b) => {
             if (b.alignmentScore !== a.alignmentScore) return b.alignmentScore - a.alignmentScore;
             const profitA = typeof a.intelligence.financials.net_profit === 'number' ? a.intelligence.financials.net_profit : -999;
@@ -100,11 +128,21 @@ class CJService {
             return (b.stock || 0) - (a.stock || 0);
         });
 
+        // --- DEBUG RESPONSE (v2 Rule) ---
+        const contentBlocks = rawResponse?.data?.content?.length || 0;
+        
         return { 
             status: ranked.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
             products: ranked, 
             mode: telemetry.query_mode,
             raw: rawResponse,
+            debug: {
+                queryUsed: currentQuery,
+                contentBlocks: contentBlocks,
+                productsFound: ranked.length,
+                fallbackTriggered: telemetry.fallback_triggered,
+                finalQuery: telemetry.final_query
+            },
             telemetry: { latency: Date.now() - startTime, ...telemetry, merged_count: ranked.length } 
         };
     } catch (err) { 
@@ -128,9 +166,18 @@ class CJService {
             return { items, raw: lastRaw };
         }
 
-        const pageItems = lastRaw?.data?.productList || [];
-        pageItems.forEach(item => items.push(normalizeToContract(item)));
+        // v2 PATH FIX: data -> content[] -> productList[]
+        const rawContent = lastRaw?.data?.content;
+        let pageItems = [];
         
+        if (Array.isArray(rawContent)) {
+            pageItems = rawContent.flatMap(block => block.productList || []);
+        } else {
+            // Back-compat / Fallback for different API versions
+            pageItems = lastRaw?.data?.productList || [];
+        }
+
+        pageItems.forEach(item => items.push(normalizeToContract(item)));
         telemetry.pages_scanned++;
     } catch (e) { 
         console.error(`[CJ API] Page ${pageNum} Crash:`, e.message);

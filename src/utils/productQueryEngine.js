@@ -13,24 +13,19 @@ const DICTIONARIES = {
 export const extractCoreKeywords = (title) => {
     if (!title) return "";
     
-    // 1. CLEANING: Remove symbols and numbers, keep words and spaces
-    let clean = title.toLowerCase().replace(/[^\w\s]/g, ' '); // Replace symbols with space
-    clean = clean.replace(/\d+/g, ' '); // Replace numbers with space
+    // 1. CLEANING (v2 Rule): lowercase, remove apostrophes and symbols
+    // Replace symbols and apostrophes with space to prevent word merging
+    let clean = title.toLowerCase().replace(/[^\w\s]/g, ' '); 
     
-    const words = clean.split(/\s+/).filter(w => w.length > 1);
+    // Split and filter out empty strings and single characters (except maybe 'a' if common, but 2+ is safer)
+    const words = clean.split(/\s+/).filter(word => word.length >= 2);
     
-    // 2. BRAND STRIPPING (Rule v6.4 - CJ Broad)
-    const filteredWords = words.filter(word => {
-        // Remove if in Brand list
-        if (DICTIONARIES.BRANDS.includes(word)) return false;
-        return true;
-    });
-
-    // Final fallback: Use everything if we stripped too much
-    const result = filteredWords.join(' ').trim();
+    // 2. BREADTH Mandate: Keep ALL core words. 
+    // Do not aggressively prune categories or brands here; let fallback handling handle depth.
+    const result = words.join(' ').trim();
     
-    // Mandate: DO NOT over-shorten queries
-    return result || title.toLowerCase();
+    // Final check: Never return empty if title exists
+    return result || title.toLowerCase().trim();
 };
 
 export const deconstructTitle = (title) => {

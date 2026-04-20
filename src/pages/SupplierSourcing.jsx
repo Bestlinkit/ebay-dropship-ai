@@ -125,10 +125,12 @@ const SupplierSourcing = () => {
             } else if (result.status === "NO_MATCH_FOUND") {
                 if (pageNum === 1) {
                     setPipelineState({ status: 'NO_MATCH_FOUND' });
+                    // v2 Rule: capture debug object for UI transparency
                     setLastError({ 
-                        message: "The CJ catalog returns zero results for this keyword.",
-                        query: queryParam,
-                        suggestion: "Try broader keywords or remove brand names."
+                        message: "The CJ catalog returns zero results for this item.",
+                        queryAttempted: queryParam,
+                        debug: result.debug,
+                        suggestion: "Try broader keywords or manually search above."
                     });
                 } else {
                     setHasMore(false);
