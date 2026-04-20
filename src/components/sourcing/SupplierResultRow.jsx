@@ -35,9 +35,9 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     const rating = product.rating || "N/A";
     const stock = product.stock !== null ? product.stock : "UNKNOWN";
     const shippingOrigin = intel?.shipping?.origin || "GLOBAL";
-    const deliveryTime = intel?.shipping?.delivery_estimate || "7-15 Days (Est.)";
-    const shippingLabel = financials?.shipping_label || "$5.00 (Benchmark)";
-    const profitStatus = financials?.status || (financials?.net_profit > 0 ? "PROFITABLE" : "LOSS");
+    const deliveryTime = intel?.shipping?.delivery_estimate || "NO API DATA";
+    const shippingLabel = financials?.shipping_label || "UNAVAILABLE";
+    const profitStatus = financials?.status || "PENDING";
     const marginSignal = financials?.margin_signal || "Low Profit";
 
     const profit = financials?.net_profit;
@@ -138,16 +138,6 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
                          <Box size={10} /> STOCK: {stock}
                     </span>
-                    {product.sellabilityScore && (
-                        <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/10 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
-                             <TrendingUp size={10} /> SELLABILITY: {product.sellabilityScore}
-                        </span>
-                    )}
-                    {product.rating && product.rating !== "N/A" && (
-                        <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/10 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
-                             <Star size={10} /> {product.rating}
-                        </span>
-                    )}
                 </div>
 
                 <div className="space-y-1">
@@ -190,12 +180,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <div className="flex flex-col gap-1 min-w-[100px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
                         <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1", getProfitColor(profit))}>
-                            {profitFormatted}
+                            {profit === null ? "UNAVAILABLE" : profitFormatted}
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <Zap size={10} className={cn(profit > 0 ? "text-emerald-500" : "text-slate-500")} />
+                            <Zap size={10} className={cn(profit !== null && profit > 0 ? "text-emerald-500" : "text-slate-500")} />
                             <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">
-                                {marginSignal.toUpperCase()}
+                                {profit === null ? "PENDING SHIPPING" : marginSignal.toUpperCase()}
                             </span>
                         </div>
                     </div>
@@ -229,12 +219,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
 
                     <div className="hidden lg:flex flex-col gap-1 min-w-[120px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Warehouse Source</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Shipping From</span>
                         <div className="text-xl md:text-2xl font-black text-indigo-400 italic tracking-tighter whitespace-nowrap leading-none flex items-center gap-2 py-0.5">
                             <Warehouse size={16} /> {shippingOrigin}
                         </div>
                         <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap opacity-80 mt-0.5">
-                            {product.warehouse || 'GLOBAL ARCHIVE'}
+                            {product.warehouse || 'GLOBAL API DATA'}
                         </span>
                     </div>
                 </div>

@@ -110,14 +110,16 @@ const SupplierProductDetail = () => {
     const logistics = product.intelligence?.shipping;
     const currentPrice = Number(selectedVariant?.price || product.price);
     
-    // v13.0 Shipping Cost Logic
-    const shippingCost = selectedShipping ? selectedShipping.cost : (financials?.shipping_cost || 5.00);
+    // v14.0 Shipping Cost Logic (Strict Pure API)
+    const exactShippingData = selectedShipping?.cost !== undefined || financials?.shipping_cost !== null;
+    const shippingCost = selectedShipping ? selectedShipping.cost : (financials?.shipping_cost || null);
     
-    // v13.0 Profit Engine (Dynamic)
-    // profit = sellPrice - (cost + shipping)
-    const netProfit = targetPrice - (currentPrice + shippingCost);
-    const profitFormatted = netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`;
-    const marginSignal = netProfit > 10 ? "High Profit" : (netProfit >= 3 ? "Medium Profit" : "Low Profit");
+    // v14.0 Profit Engine (Dynamic & Honest)
+    const netProfit = (targetPrice > 0 && currentPrice > 0 && shippingCost !== null) 
+        ? targetPrice - (currentPrice + shippingCost) 
+        : null;
+    const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`) : "N/A";
+    const marginSignal = netProfit !== null ? (netProfit > 10 ? "High Profit" : (netProfit >= 3 ? "Medium Profit" : "Low Profit")) : "UNVERIFIED";
 
     const gallery = product.gallery || [];
 
@@ -183,14 +185,41 @@ const SupplierProductDetail = () => {
                         </div>
                     )}
 
-                    <div className="p-10 bg-slate-50 border border-slate-200 rounded-[3rem] space-y-6">
-                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                            <Info size={14} /> Production Description
-                        </h4>
-                        <div 
-                            className="text-sm font-medium text-slate-600 leading-relaxed max-h-96 overflow-y-auto pr-4 custom-scrollbar supplier-description-preview"
-                            dangerouslySetInnerHTML={{ __html: product.description || "No description provided." }}
-                        />
+                    <div className="p-10 bg-slate-50 border border-slate-200 rounded-[3rem] space-y-10">
+                        <section className="space-y-6">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                <Info size={14} /> Production Description
+                            </h4>
+                            <div 
+                                className="text-sm font-medium text-slate-600 leading-relaxed max-h-96 overflow-y-auto pr-4 custom-scrollbar supplier-description-preview"
+                                dangerouslySetInnerHTML={{ __html: product.description || "No description provided." }}
+                            />
+                        </section>
+
+                        {/* v14.0 Technical Specifications (Pure API) */}
+                        <section className="space-y-6 pt-6 border-t border-slate-200">
+                             <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                <Layers size={14} /> Technical Specifications
+                            </h4>
+                            <div className="grid grid-cols-2 gap-y-6 gap-x-12">
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Net Weight</p>
+                                    <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.weight || "N/A")}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dimensions</p>
+                                    <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.dimensions || "N/A")}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Material</p>
+                                    <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.material || "N/A")}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Packing List</p>
+                                    <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.packing_list || "N/A")}</p>
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 </div>
 
@@ -203,7 +232,7 @@ const SupplierProductDetail = () => {
                         <div className="flex items-center gap-6">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID: {product.product_id}</span>
                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">|</span>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Warehouse: {product.warehouse}</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Shipping From: {product.warehouse || "PENDING"}</span>
                         </div>
                     </div>
 
@@ -218,13 +247,15 @@ const SupplierProductDetail = () => {
                                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Profit ($)</p>
                                     <p className={cn(
                                         "text-4xl font-black italic tracking-tighter",
-                                        netProfit >= 0 ? "text-emerald-500" : "text-rose-500"
+                                        (netProfit !== null && netProfit >= 0) ? "text-emerald-500" : (netProfit === null ? "text-slate-300" : "text-rose-500")
                                     )}>
-                                        {profitFormatted}
+                                        {netProfit === null ? "PENDING DATA" : profitFormatted}
                                     </p>
                                     <div className="flex items-center gap-1.5 mt-1">
-                                        <Zap size={10} className="text-indigo-400" />
-                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{marginSignal.toUpperCase()}</span>
+                                        <Zap size={10} className={cn(netProfit !== null ? "text-indigo-400" : "text-slate-200")} />
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                            {netProfit === null ? "AWAITING LOGISTICS" : marginSignal.toUpperCase()}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -243,7 +274,7 @@ const SupplierProductDetail = () => {
                             </div>
 
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div className="flex items-center gap-2"><Truck size={14} /> {selectedShipping?.deliveryTime || logistics?.delivery_estimate || "7-15 DAYS"}</div>
+                                <div className="flex items-center gap-2"><Truck size={14} /> {selectedShipping?.deliveryTime || logistics?.delivery_estimate || "AWAITING API DATA"}</div>
                                 <div className="flex items-center gap-2">
                                     <Activity size={14} /> 
                                     TOTAL STOCK: {product.stock || 0} 

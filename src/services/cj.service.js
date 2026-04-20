@@ -296,60 +296,34 @@ class CJService {
   }
 
   /**
-   * 📉 SELLABILITY ENGINE (v13.1 - RESTORED)
-   * Mandate: (0.35 * Velocity) + (0.25 * Trend) + (0.20 * Stability)
-   */
-  calculateSellabilityScore(product, ebayProduct) {
-    const price = Number(product.price) || 0;
-    const targetPrice = Number(ebayProduct.price) || 0;
-    
-    // A. Velocity Proxy (Based on stock and rating)
-    const stock = Number(product.stock) || 0;
-    const rating = parseFloat(product.rating) || 0;
-    const velocity = Math.min(100, (rating * 15) + (stock > 1000 ? 25 : 10));
-    
-    // B. Price Stability (Proximity to target)
-    const diff = Math.abs(price - (targetPrice * 0.4)); // Ideal CJ cost is ~40% of eBay
-    const stability = Math.max(0, 100 - (diff / (targetPrice || 1) * 100));
-    
-    // C. Trend (Simulated via title complexity/id)
-    const trend = Math.min(100, 60 + (product.title.length % 40));
-
-    const score = Math.round((velocity * 0.4) + (stability * 0.4) + (trend * 0.2));
-    return Math.min(100, Math.max(10, score));
-  }
-
-  /**
-   * 🧠 COMMERCE INTELLIGENCE ENGINE (v6.1 - HARDENED)
+   * 🧠 COMMERCE INTELLIGENCE ENGINE (v14.0 - PURE DATA)
+   * Mandate: Zero Heuristics.
    */
    buildIntelligencePayload(normalizedCj, ebayProduct) {
     const ebayPrice = Number(ebayProduct.price || 0);
     const cjCost = Number(normalizedCj.price || 0);
     
-    // v7.0 Logistics Restoration
-    // 1. Get CJ Shipping if available, else benchmark
+    // v14.0: Strict Logistics (No Benchmarks)
     let shippingCost = Number(normalizedCj.shipping?.shipping_cost || 0);
-    let shippingLabel = `$${shippingCost.toFixed(2)}`;
+    let shippingLabel = shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : "FREE";
     
-    if (!shippingCost || shippingCost <= 0) {
-        shippingCost = 5.00;
-        shippingLabel = "$5.00 (Benchmark)";
-    } else if (shippingCost === 0) {
-        shippingLabel = "Free Shipping";
+    if (normalizedCj.shipping?.shipping_cost === null || normalizedCj.shipping?.shipping_cost === undefined) {
+        shippingLabel = "PENDING API DATA";
+        shippingCost = 0; // Reset for profit calculation but show pending
     }
 
-    // 2. Net Profit Calculation (Strict v13.0 Formula)
-    // profit = sellingPrice - (productCost + shippingCost)
-    const netProfit = ebayPrice - (cjCost + shippingCost);
+    // 2. Net Profit Calculation (Strict API Formula)
+    const exactShippingData = normalizedCj.shipping?.shipping_cost !== null;
+    const netProfit = exactShippingData ? ebayPrice - (cjCost + shippingCost) : null;
 
     // 3. Margin Signaling
-    let marginSignal = "Low Profit";
-    if (netProfit > 10) marginSignal = "High Profit";
-    else if (netProfit >= 3) marginSignal = "Medium Profit";
-
-    // 4. v13.1 Sellability Integration
-    const sellability = this.calculateSellabilityScore(normalizedCj, ebayProduct);
-    normalizedCj.sellabilityScore = sellability; // Inject back for UI
+    let marginSignal = "UNVERIFIED";
+    if (netProfit !== null) {
+        if (netProfit > 10) marginSignal = "High Profit";
+        else if (netProfit >= 3) marginSignal = "Medium Profit";
+        else if (netProfit > 0) marginSignal = "Low Profit";
+        else marginSignal = "LOSS";
+    }
 
     return {
         financials: { 
@@ -357,13 +331,13 @@ class CJService {
             margin_signal: marginSignal,
             shipping_cost: shippingCost,
             shipping_used: shippingCost,
-            shipping_source: normalizedCj.shipping?.isReal ? "REAL" : "FALLBACK",
-            status: netProfit > 0 ? "PROFITABLE" : "LOSS",
+            shipping_source: normalizedCj.shipping?.isReal ? "REAL" : "UNAVAILABLE",
+            status: netProfit !== null ? (netProfit > 0 ? "PROFITABLE" : "LOSS") : "PENDING",
             shipping_label: shippingLabel
         },
         shipping: { 
-            delivery_estimate: normalizedCj.shipping?.delivery_days || "7-15 Days (Est.)", 
-            warehouse: normalizedCj.warehouse || "GLOBAL (default)",
+            delivery_estimate: normalizedCj.shipping?.delivery_days || "NO API DATA", 
+            warehouse: normalizedCj.warehouse || "GLOBAL",
             origin: normalizedCj.shipping?.from || "GLOBAL",
             isReal: normalizedCj.shipping?.isReal
         },

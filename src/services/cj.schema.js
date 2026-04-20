@@ -14,12 +14,16 @@ export const CJ_PRODUCT_CONTRACT = {
   shipping: {
     from: null,
     delivery_days: null,
-    options: [] // v13.0
+    options: []
   },
   images: [],
   has_variants: false,
-  variants: [], // Array of { sku, color, size, price, inventory, image }
-  sellabilityScore: null,
+  variants: [], 
+  weight: null,
+  package_weight: null,
+  dimensions: null,
+  material: null,
+  packing_list: null,
   rating: null
 };
 
@@ -92,12 +96,9 @@ export const normalizeToContract = (raw, isDetail = false) => {
             }
         }
 
-        // 2. LOGISTICS INFERENCE (v13.0 ShipFrom)
-        let warehouseName = raw.warehouseName || raw.warehouse || "Global";
-        let shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
-        let origin = "GLOBAL";
-        if (shipFrom.toUpperCase().includes('CN')) origin = "CN";
-        else if (shipFrom.toUpperCase().includes('US')) origin = "US";
+        // 2. LOGISTICS INFERENCE (v14.0 Pure API)
+        const warehouseName = raw.warehouseName || raw.warehouse || "GLOBAL";
+        const shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
 
         // 3. VARIANT FLATTENING (v13.0)
         const variantSource = raw.productVariants || raw.variants || [];
@@ -127,8 +128,8 @@ export const normalizeToContract = (raw, isDetail = false) => {
             description: raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
             warehouse: warehouseName,
             shipping: {
-                from: origin,
-                delivery_days: raw.deliveryTime || raw.shippingTime || "7-15 Days (Est.)",
+                from: shipFrom,
+                delivery_days: raw.deliveryTime || raw.shippingTime || null,
                 shipping_cost: raw.shippingFee || raw.shippingCost || null,
                 isReal: isDetail && (raw.shippingFee !== undefined || raw.shippingCost !== undefined)
             },
@@ -136,7 +137,12 @@ export const normalizeToContract = (raw, isDetail = false) => {
             gallery: finalGallery,
             has_variants: variants.length > 0,
             variants: variants,
-            sellabilityScore: raw.sellabilityScore || null,
+            variants: variants,
+            weight: raw.productWeight || raw.weight || null,
+            package_weight: raw.packageWeight || null,
+            dimensions: raw.productSizeEn || raw.packingSize || null,
+            material: raw.material || null,
+            packing_list: raw.packingList || null,
             rating: raw.productRating || raw.rating || raw.score || raw.star || null,
             cj_url: `https://cjdropshipping.com/product/${id}.html`,
             isEnriched: isDetail,
