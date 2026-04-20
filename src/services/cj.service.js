@@ -211,12 +211,17 @@ class CJService {
   }
 
   /**
-   * 🚢 FETCH SHIPPING OPTIONS (v13.0)
+   * 🚢 FETCH SHIPPING OPTIONS (v14.6 - Warehouse Precision)
    */
-  async getShippingOptions(pid, countryCode = 'US') {
+  async getShippingOptions(pid, countryCode = 'US', warehouseId = null, quantity = 1) {
     try {
         const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, {
-            params: { pid, countryCode }
+            params: { 
+                pid, 
+                countryCode,
+                warehouseId,
+                quantity
+            }
         });
         
         if (response.data && response.data.code === 200) {
@@ -224,13 +229,14 @@ class CJService {
             return list.map(opt => ({
                 name: opt.logisticName || "Standard Shipping",
                 cost: parseFloat(opt.amount || 0),
-                deliveryTime: opt.logisticTime || "7-15 Days"
+                deliveryTime: opt.logisticTime || "7-15 Days",
+                warehouse: warehouseId
             }));
         }
     } catch (e) {
-        console.error(`[CJ SHIPPING] Failed for ${pid}:`, e.message);
+        console.error(`[CJ SHIPPING] Failed for ${pid} (WH: ${warehouseId}):`, e.message);
     }
-    return []; // v14.1: Return empty for Pure API Truth (no fallbacks)
+    return [];
   }
 
   /**

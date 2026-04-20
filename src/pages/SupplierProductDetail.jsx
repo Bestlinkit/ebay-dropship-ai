@@ -69,9 +69,14 @@ const SupplierProductDetail = () => {
                     }
                 }
 
-                // 3. LOGISTICS SYNC (Pure API)
+                // 3. LOGISTICS SYNC (Pure API - Warehouse Driven)
                 setShippingLoading(true);
-                const options = await cjService.getShippingOptions(id);
+                const options = await cjService.getShippingOptions(
+                    id, 
+                    'US', 
+                    enriched?.warehouseId || initialProduct?.warehouseId, 
+                    1
+                );
                 setShippingOptions(options);
                 if (options.length > 0) setSelectedShipping(options[0]);
                 setShippingLoading(false);

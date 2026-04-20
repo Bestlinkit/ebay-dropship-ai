@@ -130,11 +130,12 @@ export const normalizeToContract = (raw, isDetail = false) => {
             rating: raw.productRating || raw.rating || raw.score || raw.star || null,
             description: raw.descriptionHtml || raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
             warehouse: warehouseName,
+            warehouseId: raw.warehouseId || raw.warehouseId || null,
             lists: parseInt(raw.listedNum || raw.lists || 0),
             stock_cj: stock_cj,
             stock_factory: stock_factory,
             shipping: {
-                from: shipFrom === 'China' ? 'CN' : (shipFrom === 'USA' ? 'US' : shipFrom),
+                from: (shipFrom === 'China' || shipFrom === 'CN') ? 'CN' : (shipFrom === 'USA' || shipFrom === 'US') ? 'US' : shipFrom,
                 delivery_days: raw.deliveryTime || raw.shippingTime || null,
                 shipping_cost: raw.shippingFee || raw.shippingCost || null,
                 isReal: isDetail && (raw.shippingFee !== undefined || raw.shippingCost !== undefined)
