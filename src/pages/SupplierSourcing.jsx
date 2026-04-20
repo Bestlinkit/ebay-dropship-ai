@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Search, 
@@ -61,6 +60,9 @@ const SupplierSourcing = () => {
     const [telemetry, setTelemetry] = useState({ cj: null, merged_count: 0 });
     const [lastError, setLastError] = useState(null);
     const [showLog, setShowLog] = useState(false);
+    
+    // v13.0 Scroll Observer
+    const observerTarget = React.useRef(null);
 
     // v12.1 Performance-Safe Enrichment State
     const [enrichedProducts, setEnrichedProducts] = useState({}); // { pid: enrichedObject }
@@ -159,10 +161,34 @@ const SupplierSourcing = () => {
         }
     }, [targetProduct?.id, searchQuery, targetProduct]);
 
-    const loadMore = () => {
-        const nextPage = currentPage + 1;
-        setCurrentPage(nextPage);
-        performSourcing(searchQuery, false, nextPage);
+    // v13.0 INFINITE SCROLL OBSERVER
+    useEffect(() => {
+        if (!hasMore || loading) return;
+
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting) {
+                    console.log("[INFINITE_SCROLL]: TRIGGER_FETCH", { page: currentPage + 1 });
+                    performSourcing(searchQuery, false, currentPage + 1);
+                    setCurrentPage(prev => prev + 1);
+                }
+            },
+            { threshold: 1.0 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => {
+            if (observerTarget.current) observer.unobserve(observerTarget.current);
+        };
+    }, [hasMore, loading, currentPage, performSourcing, searchQuery]);
+
+    const handleManualSearch = (e) => {
+        e.preventDefault();
+        setCurrentPage(1);
+        performSourcing(searchQuery, true, 1);
     };
 
     useEffect(() => { 
@@ -191,8 +217,6 @@ const SupplierSourcing = () => {
             };
         });
     }, [products, targetProduct, enrichedProducts]);
-
-    const paginatedResults = processedResults; // Local pagination is removed in favor of real API flow
 
     const handleContinue = (product) => {
         navigate(`/supplier-detail/${product.source}/${product.id}`, { 
@@ -252,12 +276,12 @@ const SupplierSourcing = () => {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && performSourcing(searchQuery, true, 1)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleManualSearch(e)}
                             placeholder={targetProduct.title}
                             className="w-full pl-16 pr-32 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-950 focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all outline-none"
                         />
                         <button 
-                            onClick={() => performSourcing(searchQuery, true, 1)}
+                            onClick={handleManualSearch}
                             disabled={loading}
                             className="absolute right-3 top-3 bottom-3 px-6 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all"
                         >
@@ -306,7 +330,7 @@ const SupplierSourcing = () => {
 
             <div className="space-y-8">
                 {/* 1. LOADING */}
-                {loading && (
+                {loading && products.length === 0 && (
                     <div className="space-y-6 px-4">
                         {Array(3).fill(0).map((_, i) => (
                            <div key={i} className="h-40 bg-white rounded-[2.5rem] animate-pulse border border-slate-100" />
@@ -315,22 +339,35 @@ const SupplierSourcing = () => {
                 )}
 
                 {/* 2. DISCOVERY RESULTS */}
-                {!loading && processedResults.length > 0 && (
+                {processedResults.length > 0 && (
                     <div className="grid grid-cols-1 gap-6 px-4">
-                        {processedResults.map(res => (
-                            <SupplierResultRow key={res.id} product={res} targetPrice={targetPrice} onContinue={handleContinue} />
-                        ))}
-                        {hasMore && processedResults.length > 0 && (
-                             <div className="pb-10">
-                                <button 
-                                    onClick={loadMore} 
-                                    disabled={loading}
-                                    className="w-full py-8 bg-white border border-slate-200 text-slate-950 rounded-[2.5rem] text-[11px] font-black uppercase tracking-widest hover:border-slate-400 transition-all shadow-sm disabled:opacity-50"
-                                >
-                                    {loading ? 'Fetching more from CJ...' : 'Load More Results'}
-                                </button>
-                             </div>
-                        )}
+                        <div className="space-y-6">
+                            {processedResults.map((product, idx) => (
+                                <SupplierResultRow 
+                                    key={`${product.product_id}-${idx}`}
+                                    product={product} 
+                                    targetProduct={targetProduct}
+                                    targetPrice={targetPrice}
+                                    onContinue={handleContinue}
+                                />
+                            ))}
+                            
+                            {/* THE OBSERVER TARGET */}
+                            <div ref={observerTarget} className="h-20 flex items-center justify-center">
+                                {loading && (
+                                    <div className="flex items-center gap-3 px-6 py-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md">
+                                        <RefreshCw size={14} className="animate-spin text-indigo-400" />
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Hydrating Catalog...</span>
+                                    </div>
+                                )}
+                                {!hasMore && processedResults.length > 0 && (
+                                    <div className="px-6 py-3 bg-white/5 rounded-2xl border border-slate-100 border-dashed">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Terminal Reach: End of Archive</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
                         <div className="mt-10 p-10 bg-slate-50 border border-slate-200 rounded-[3rem] text-center space-y-4 shadow-sm">
                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Targeted Discovery Engine</p>
                              <button onClick={() => window.open(`https://cjdropshipping.com/product-list?keyword=${encodeURIComponent(searchQuery)}`, '_blank')} className="text-[11px] font-black text-white px-8 py-4 bg-slate-950 hover:bg-emerald-600 rounded-xl transition-all uppercase tracking-widest">

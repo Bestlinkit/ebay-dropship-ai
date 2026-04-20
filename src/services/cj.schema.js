@@ -13,11 +13,14 @@ export const CJ_PRODUCT_CONTRACT = {
   warehouse: null,
   shipping: {
     from: null,
-    delivery_days: null
+    delivery_days: null,
+    options: [] // v13.0
   },
   images: [],
   has_variants: false,
-  variants: [] // Array of { sku_id, attributes, price, stock }
+  variants: [], // Array of { sku, color, size, price, inventory, image }
+  sellabilityScore: null,
+  rating: null
 };
 
 /**
@@ -67,40 +70,51 @@ export const normalizeToContract = (raw, isDetail = false) => {
         });
 
         // Dedup and fulfill min-3 rule
-        const uniqueGallery = Array.from(new Set(imageGallery));
+        let uniqueGallery = Array.from(new Set(imageGallery));
+        
+        // v13.0: Merge variant images into gallery
+        const variantImages = (raw.productVariants || raw.variants || [])
+            .map(v => v.variantImage)
+            .filter(img => typeof img === 'string' && img.length > 5)
+            .map(img => img.startsWith('http') ? img : CJ_CDN + img);
+        
+        uniqueGallery = Array.from(new Set([...uniqueGallery, ...variantImages]));
+        
         const finalGallery = [...uniqueGallery];
         const PLACEHOLDER = "https://images.unsplash.com/photo-1594732806283-bc9a9af95a70?q=80&w=1000&auto=format&fit=crop";
         
         if (finalGallery.length === 0) {
             for (let i = 0; i < 3; i++) finalGallery.push(PLACEHOLDER);
         } else {
+            // Keep actual images preferentially, only repeat if < 3
             while (finalGallery.length < 3) {
                 finalGallery.push(finalGallery[0]);
             }
         }
 
-        // 2. LOGISTICS INFERENCE
+        // 2. LOGISTICS INFERENCE (v13.0 ShipFrom)
         let warehouseName = raw.warehouseName || raw.warehouse || "Global";
-        let origin = "GLOBAL (default)";
-        if (warehouseName.toUpperCase().includes('CN')) origin = "CN";
-        else if (warehouseName.toUpperCase().includes('US')) origin = "US";
-        else if (raw.shippingFrom?.toUpperCase() === 'CN') origin = "CN";
-        else if (raw.shippingFrom?.toUpperCase() === 'US') origin = "US";
+        let shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
+        let origin = "GLOBAL";
+        if (shipFrom.toUpperCase().includes('CN')) origin = "CN";
+        else if (shipFrom.toUpperCase().includes('US')) origin = "US";
 
-        // 3. VARIANT FLATTENING (v12.1)
+        // 3. VARIANT FLATTENING (v13.0)
         const variantSource = raw.productVariants || raw.variants || [];
         const variants = (Array.isArray(variantSource) ? variantSource : [])
             .map(v => ({
-                sku_id: v.vid || v.variantId || v.variantSku || v.sku || id,
+                id: v.vid || v.variantId || v.variantSku || v.sku || id,
                 sku: v.variantSku || v.sku || id,
-                attributes: v.variantKey || v.variantName || v.nameEn || "Standard",
+                color: v.variantKey || v.variantName || v.nameEn || "Standard",
+                size: v.variantStandard || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
-                stock: parseInt(v.variantInventory || v.inventory || 0),
+                inventory: parseInt(v.variantInventory || v.inventory || 0),
                 image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0]
             }));
 
-        const realStock = raw.warehouseInventoryNum !== undefined ? parseInt(raw.warehouseInventoryNum) : 
-                         (variants.length > 0 ? variants.reduce((acc, v) => acc + v.stock, 0) : 0);
+        // v13.0: Inventory Summation Rule
+        const totalStock = variants.reduce((acc, v) => acc + (v.inventory || 0), 0);
+        const realStock = totalStock > 0 ? totalStock : (parseInt(raw.warehouseInventoryNum) || 0);
 
         return {
             ...CJ_PRODUCT_CONTRACT,
@@ -120,10 +134,11 @@ export const normalizeToContract = (raw, isDetail = false) => {
             },
             mainImage: finalGallery[0],
             gallery: finalGallery,
-            images: finalGallery,
             has_variants: variants.length > 0,
             variants: variants,
-            cj_url: sku && sku !== id ? `https://cjdropshipping.com/product/${sku}.html` : `https://cjdropshipping.com/product-detail.html?id=${id}`,
+            sellabilityScore: raw.sellabilityScore || null,
+            rating: raw.productRating || raw.rating || null,
+            cj_url: `https://cjdropshipping.com/product/${id}.html`,
             isEnriched: isDetail,
             raw: raw
         };

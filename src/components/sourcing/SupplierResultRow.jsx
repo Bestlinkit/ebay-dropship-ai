@@ -136,9 +136,16 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
                          <Box size={10} /> STOCK: {stock}
                     </span>
-                    <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
-                         <Warehouse size={10} /> {product.warehouse || 'GLOBAL'}
-                    </span>
+                    {product.sellabilityScore && (
+                        <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/10 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                             <TrendingUp size={10} /> SELLABILITY: {product.sellabilityScore}
+                        </span>
+                    )}
+                    {product.rating && product.rating !== "N/A" && (
+                        <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/10 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
+                             <Star size={10} /> {product.rating}
+                        </span>
+                    )}
                 </div>
 
                 <div className="space-y-1">

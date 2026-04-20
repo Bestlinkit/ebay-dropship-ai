@@ -211,6 +211,29 @@ class CJService {
   }
 
   /**
+   * 🚢 FETCH SHIPPING OPTIONS (v13.0)
+   */
+  async getShippingOptions(pid, countryCode = 'US') {
+    try {
+        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, {
+            params: { pid, countryCode }
+        });
+        
+        if (response.data && response.data.code === 200) {
+            const list = response.data.data || [];
+            return list.map(opt => ({
+                name: opt.logisticName || "Standard Shipping",
+                cost: parseFloat(opt.amount || 0),
+                deliveryTime: opt.logisticTime || "7-15 Days"
+            }));
+        }
+    } catch (e) {
+        console.error(`[CJ SHIPPING] Failed for ${pid}:`, e.message);
+    }
+    return [{ name: "Standard (Fallback)", cost: 5.00, deliveryTime: "7-15 Days" }];
+  }
+
+  /**
    * 🚀 BATCH ENRICHMENT WORKER (v12.1)
    * Fetches details for products in batches to maintain performance.
    */
@@ -291,8 +314,9 @@ class CJService {
         shippingLabel = "Free Shipping";
     }
 
-    // 2. Net Profit Calculation (Strict v7.0 Formula)
-    const netProfit = ebayPrice - cjCost - shippingCost;
+    // 2. Net Profit Calculation (Strict v13.0 Formula)
+    // profit = sellingPrice - (productCost + shippingCost)
+    const netProfit = ebayPrice - (cjCost + shippingCost);
 
     // 3. Margin Signaling
     let marginSignal = "Low Profit";
@@ -304,13 +328,16 @@ class CJService {
             net_profit: netProfit,
             margin_signal: marginSignal,
             shipping_cost: shippingCost,
+            shipping_used: shippingCost,
+            shipping_source: normalizedCj.shipping?.isReal ? "REAL" : "FALLBACK",
             status: netProfit > 0 ? "PROFITABLE" : "LOSS",
             shipping_label: shippingLabel
         },
         shipping: { 
             delivery_estimate: normalizedCj.shipping?.delivery_days || "7-15 Days (Est.)", 
             warehouse: normalizedCj.warehouse || "GLOBAL (default)",
-            origin: normalizedCj.shipping?.from || "GLOBAL"
+            origin: normalizedCj.shipping?.from || "GLOBAL",
+            isReal: normalizedCj.shipping?.isReal
         },
         metadata: {
             sku: normalizedCj.sku,

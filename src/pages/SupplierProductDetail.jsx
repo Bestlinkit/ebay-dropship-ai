@@ -37,6 +37,11 @@ const SupplierProductDetail = () => {
     const [product, setProduct] = useState(null);
     const [selectedVariant, setSelectedVariant] = useState(null);
     const [activeImage, setActiveImage] = useState(0);
+    
+    // v13.0 Shipping Options State
+    const [shippingOptions, setShippingOptions] = useState([]);
+    const [selectedShipping, setSelectedShipping] = useState(null);
+    const [shippingLoading, setShippingLoading] = useState(false);
 
     useEffect(() => {
         const fetchDeepDetails = async () => {
@@ -60,6 +65,13 @@ const SupplierProductDetail = () => {
                     if (match) {
                         setProduct(match);
                         if (match.variants?.length > 0) setSelectedVariant(match.variants[0]);
+                        
+                        // v13.0 Fetch Shipping Options
+                        setShippingLoading(true);
+                        const options = await cjService.getShippingOptions(id);
+                        setShippingOptions(options);
+                        if (options.length > 0) setSelectedShipping(options[0]);
+                        setShippingLoading(false);
                     }
                 }
             } catch (error) {
@@ -71,6 +83,14 @@ const SupplierProductDetail = () => {
 
         fetchDeepDetails();
     }, [source, id, location.state, targetProduct]);
+
+    // v13.0 Gallery Sync Effect
+    useEffect(() => {
+        if (selectedVariant?.image && product?.gallery) {
+            const index = product.gallery.indexOf(selectedVariant.image);
+            if (index !== -1) setActiveImage(index);
+        }
+    }, [selectedVariant, product?.gallery]);
 
     if (loading) {
         return (
@@ -89,12 +109,15 @@ const SupplierProductDetail = () => {
     const financials = product.intelligence?.financials;
     const logistics = product.intelligence?.shipping;
     const currentPrice = Number(selectedVariant?.price || product.price);
-    const shippingCost = financials?.shipping_cost || 5.00;
     
-    // v7.0 Profit Engine
-    const netProfit = financials?.net_profit || (targetPrice - currentPrice - shippingCost);
+    // v13.0 Shipping Cost Logic
+    const shippingCost = selectedShipping ? selectedShipping.cost : (financials?.shipping_cost || 5.00);
+    
+    // v13.0 Profit Engine (Dynamic)
+    // profit = sellPrice - (cost + shipping)
+    const netProfit = targetPrice - (currentPrice + shippingCost);
     const profitFormatted = netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`;
-    const marginSignal = financials?.margin_signal || (netProfit > 10 ? "High Profit" : (netProfit >= 3 ? "Medium Profit" : "Low Profit"));
+    const marginSignal = netProfit > 10 ? "High Profit" : (netProfit >= 3 ? "Medium Profit" : "Low Profit");
 
     const gallery = product.gallery || [];
 
@@ -220,9 +243,53 @@ const SupplierProductDetail = () => {
                             </div>
 
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div className="flex items-center gap-2"><Truck size={14} /> {logistics?.delivery_estimate || "7-15 DAYS"}</div>
-                                <div className="flex items-center gap-2"><Activity size={14} /> STOCK: {product.stock || 0}</div>
+                                <div className="flex items-center gap-2"><Truck size={14} /> {selectedShipping?.deliveryTime || logistics?.delivery_estimate || "7-15 DAYS"}</div>
+                                <div className="flex items-center gap-2">
+                                    <Activity size={14} /> 
+                                    TOTAL STOCK: {product.stock || 0} 
+                                    {selectedVariant && <span className="text-indigo-400"> (SELECTED: {selectedVariant.inventory})</span>}
+                                </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* v13.0 Shipping Option Selector */}
+                    <div className="space-y-6">
+                        <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center justify-between">
+                            Available Shipping Methods
+                            {shippingLoading && <RefreshCw size={10} className="animate-spin" />}
+                        </h4>
+                        <div className="space-y-3 bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm">
+                            {shippingOptions.length > 0 ? (
+                                shippingOptions.map((opt, i) => (
+                                    <label 
+                                        key={`${opt.name}-${i}`}
+                                        className={cn(
+                                            "flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all hover:bg-slate-50",
+                                            selectedShipping?.name === opt.name ? "border-slate-950 bg-slate-50" : "border-slate-50 bg-white"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <input 
+                                                type="radio" 
+                                                name="shipping"
+                                                checked={selectedShipping?.name === opt.name}
+                                                onChange={() => setSelectedShipping(opt)}
+                                                className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-600" 
+                                            />
+                                            <div className="space-y-0.5">
+                                                <p className="text-[10px] font-black text-slate-950 uppercase">{opt.name}</p>
+                                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{opt.deliveryTime}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-[11px] font-black text-indigo-600">${opt.cost.toFixed(2)}</span>
+                                    </label>
+                                ))
+                            ) : (
+                                <div className="text-center py-4 opacity-50 text-[10px] font-bold uppercase tracking-widest italic">
+                                    {shippingLoading ? "Fetching Logistics Data..." : "No shipping methods detected."}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -243,10 +310,10 @@ const SupplierProductDetail = () => {
                                         )}
                                     >
                                         <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[80px]">{v.attributes}</span>
+                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[80px]">{v.color} {v.size !== "Standard" ? `(${v.size})` : ""}</span>
                                             <span className="text-[10px] font-black text-slate-950">${v.price.toFixed(2)}</span>
                                         </div>
-                                        <p className="text-[9px] font-bold text-slate-600 truncate">SKU: {v.sku || v.sku_id}</p>
+                                        <p className="text-[9px] font-bold text-slate-600 truncate">SKU: {v.sku}</p>
                                     </button>
                                 ))}
                             </div>
