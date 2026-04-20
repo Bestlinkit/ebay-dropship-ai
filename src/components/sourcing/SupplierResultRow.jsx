@@ -138,6 +138,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
                          <Box size={10} /> STOCK: {stock}
                     </span>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                        <Activity size={10} className="text-emerald-500" />
+                        <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">
+                            Sellability: {intel?.financials?.sellability_score || 0}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="space-y-1">
@@ -146,19 +152,20 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </h3>
                     <div className="flex flex-wrap gap-2 mt-2">
                         {product.variants?.length > 0 ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                                 <span className="px-2 py-0.5 bg-indigo-900/40 text-indigo-400 rounded-md text-[7px] font-black uppercase tracking-widest">
                                     {product.variants.length} Variants
                                 </span>
                                 {colors.length > 0 && (
-                                    <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-                                        <span className="text-[6px] font-black text-slate-500 uppercase mr-1">Colors:</span>
-                                        {colors.slice(0, 4).map(c => (
-                                            <span key={c} className="text-[7px] font-bold text-slate-300 lowercase px-1.5 py-0.5 bg-slate-800 rounded">
-                                                {c}
-                                            </span>
+                                    <div className="flex items-center gap-1.5">
+                                        {colors.slice(0, 6).map(c => (
+                                            <div 
+                                                key={c} 
+                                                title={c}
+                                                className="w-3 h-3 rounded-full border border-white/20 bg-slate-700 shadow-sm transition-transform hover:scale-125"
+                                            />
                                         ))}
-                                        {colors.length > 4 && <span className="text-[7px] font-bold text-slate-500">+{colors.length - 4}</span>}
+                                        {colors.length > 6 && <span className="text-[7px] font-black text-slate-500">+{colors.length - 6}</span>}
                                     </div>
                                 )}
                             </div>

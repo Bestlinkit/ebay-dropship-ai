@@ -114,8 +114,11 @@ export const normalizeToContract = (raw, isDetail = false) => {
             }));
 
         // v14.1: Inventory Summation Rule (CJ + Factory)
-        const totalStock = variants.reduce((acc, v) => acc + (v.inventory || 0), 0);
-        const realStock = totalStock > 0 ? totalStock : (parseInt(raw.warehouseInventoryNum || raw.num || raw.inventory || raw.quantity || raw.factoryInventory || raw.factoryNum || 0));
+        const stock_cj = parseInt(raw.warehouseInventoryNum || raw.num || 0);
+        const stock_factory = parseInt(raw.factoryInventory || raw.factoryNum || 0);
+        
+        const totalStock = variants.reduce((acc, v) => acc + (v.inventory || 0), 0) || (stock_cj + stock_factory);
+        const realStock = totalStock > 0 ? totalStock : (parseInt(raw.num || raw.inventory || raw.quantity || 0));
 
         return {
             ...CJ_PRODUCT_CONTRACT,
@@ -127,8 +130,11 @@ export const normalizeToContract = (raw, isDetail = false) => {
             rating: raw.productRating || raw.rating || raw.score || raw.star || null,
             description: raw.descriptionHtml || raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
             warehouse: warehouseName,
+            lists: parseInt(raw.listedNum || raw.lists || 0),
+            stock_cj: stock_cj,
+            stock_factory: stock_factory,
             shipping: {
-                from: shipFrom,
+                from: shipFrom === 'China' ? 'CN' : (shipFrom === 'USA' ? 'US' : shipFrom),
                 delivery_days: raw.deliveryTime || raw.shippingTime || null,
                 shipping_cost: raw.shippingFee || raw.shippingCost || null,
                 isReal: isDetail && (raw.shippingFee !== undefined || raw.shippingCost !== undefined)

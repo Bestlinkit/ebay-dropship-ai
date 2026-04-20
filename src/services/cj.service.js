@@ -277,13 +277,26 @@ class CJService {
    * 🧼 SCIENTIFIC SCORING (v6.1 - TYPE ANCHORED)
    */
   calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel = null) {
+  /**
+   * 📊 PURE API SELLABILITY (v14.5)
+   * Derived 100% from Lists (Popularity) and Stock (Availability).
+   */
+  calculatePureSellability(cjProduct) {
+    const listFactor = Math.min(50, (cjProduct.lists || 0) / 20); // 1000 lists = 50 pts
+    const stockFactor = Math.min(50, (cjProduct.stock || 0) / 100); // 5000 stock = 50 pts
+    
+    return Math.round(listFactor + stockFactor);
+  }
+
+  /**
+   * 🧼 SCIENTIFIC SCORING (v6.1 - TYPE ANCHORED)
+   */
+  calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel = null) {
     const intel = ebayIntel || deconstructTitle(ebayProduct.title);
     const cjTitle = normalizedCj.title.toLowerCase();
     
-    // v6.4 Relevance Anchor Logic (Ranking ONLY, no filtering)
-    let baseScore = 20; // Lower base for more granular ranking
+    let baseScore = 20; 
     
-    // 1. Keyword Overlap (Up to 80 points)
     const ebayWords = ebayProduct.title.toLowerCase()
         .replace(/[^\w\s]/g, ' ')
         .split(/\s+/)
@@ -293,8 +306,6 @@ class CJService {
     const overlapPercent = (intersect.length / Math.max(1, ebayWords.length));
     baseScore += Math.round(overlapPercent * 80);
 
-    // 2. SOFT ANCHOR: Product Type Match
-    // Priority: If product type matches, boost score (ranking preference)
     if (intel.product_type && cjTitle.includes(intel.product_type)) {
         baseScore += 20;
     }
@@ -308,8 +319,8 @@ class CJService {
   }
 
   /**
-   * 🧠 COMMERCE INTELLIGENCE ENGINE (v14.0 - PURE DATA)
-   * Mandate: Zero Heuristics.
+   * 🧠 COMMERCE INTELLIGENCE ENGINE (v14.5 - PRECISION FORMULA)
+   * Mandate: Profit = eBay Price - (CJ Cost + Shipping)
    */
    buildIntelligencePayload(normalizedCj, ebayProduct) {
     const ebayPrice = Number(ebayProduct.price || 0);
@@ -324,11 +335,13 @@ class CJService {
         shippingCost = 0; // Reset for profit calculation but show pending
     }
 
-    // 2. Net Profit Calculation (Strict API Formula)
+    // 2. Net Profit Calculation (PRECISION V14.5)
+    // Formula: eBay Price - (CJ Cost + Shipping Fee)
     const exactShippingData = normalizedCj.shipping?.shipping_cost !== null;
     const netProfit = exactShippingData ? ebayPrice - (cjCost + shippingCost) : null;
 
-    // 3. Margin Signaling
+    // 3. Margin Signaling & Sellability
+    const sellability = this.calculatePureSellability(normalizedCj);
     let marginSignal = "UNVERIFIED";
     if (netProfit !== null) {
         if (netProfit > 10) marginSignal = "High Profit";
@@ -341,6 +354,7 @@ class CJService {
         financials: { 
             net_profit: netProfit,
             margin_signal: marginSignal,
+            sellability_score: sellability,
             shipping_cost: shippingCost,
             shipping_used: shippingCost,
             shipping_source: normalizedCj.shipping?.isReal ? "REAL" : "UNAVAILABLE",
@@ -355,7 +369,8 @@ class CJService {
         },
         metadata: {
             sku: normalizedCj.sku,
-            cj_url: normalizedCj.cj_url
+            cj_url: normalizedCj.cj_url,
+            lists: normalizedCj.lists || 0
         }
     };
   }

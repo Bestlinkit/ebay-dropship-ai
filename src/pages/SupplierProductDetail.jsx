@@ -60,28 +60,12 @@ const SupplierProductDetail = () => {
                 }
 
                 // 2. MANDATORY DEEP SYNC (v14.2 - Recovery of Variants/Desc)
-                const detailRaw = await cjService.getProductDetail(id);
-                if (detailRaw) {
-                    const enriched = cjService.normalizeResult(detailRaw); // Use normalizeToContract via service wrapper if needed
-                    // Use a more direct normalization to ensure full contract
-                    const fullEnriched = await cjService.getProductDetail(id).then(d => {
-                        // We use the service's internal normalization logic
-                        // Actually, cjService has enrichProductList, but here we want a single product
-                        return detailRaw; 
-                    });
-
-                    // Direct normalization call (Refetching detail returns raw object)
-                    // We need the normalizeToContract function from cj.schema
-                    // It's already imported in cjService, but we need it here or use a service method.
-                    // cjService.getProductDetail returns raw data.
-                    
-                    // We'll call a re-normalization on the raw detail
-                    const finalEnriched = await cjService.enrichSingleProduct(id);
-                    if (finalEnriched) {
-                        setProduct(finalEnriched);
-                        if (finalEnriched.variants?.length > 0 && !selectedVariant) {
-                             setSelectedVariant(finalEnriched.variants[0]);
-                        }
+                const enriched = await cjService.enrichSingleProduct(id);
+                if (enriched) {
+                    setProduct(enriched);
+                    // Update variant if none selected or if matching search result
+                    if (enriched.variants?.length > 0 && (!selectedVariant || enriched.variants.length > (initialProduct?.variants?.length || 0))) {
+                        setSelectedVariant(enriched.variants[0]);
                     }
                 }
 
@@ -233,6 +217,14 @@ const SupplierProductDetail = () => {
                                     <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.material || "N/A")}</p>
                                 </div>
                                 <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">CJ Direct Stock</p>
+                                    <p className="text-[11px] font-bold text-emerald-600 uppercase">{(product.stock_cj || 0)} Units</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Factory Stock</p>
+                                    <p className="text-[11px] font-bold text-indigo-600 uppercase">{(product.stock_factory || 0)} Units</p>
+                                </div>
+                                <div className="space-y-1">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Packing List</p>
                                     <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.packing_list || "N/A")}</p>
                                 </div>
@@ -244,13 +236,27 @@ const SupplierProductDetail = () => {
                 {/* Data */}
                 <div className="lg:col-span-5 space-y-8">
                     <div className="space-y-4">
+                        <div className="flex flex-wrap gap-4 mb-4">
+                            <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-xl shadow-sm">
+                                <Star size={12} className="text-amber-400 fill-amber-400" />
+                                <span className="text-[10px] font-black text-slate-900 uppercase">{product.rating || "No Ratings"}</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-xl shadow-sm">
+                                <Layers size={12} className="text-indigo-600" />
+                                <span className="text-[10px] font-black text-indigo-600 uppercase">{product.lists || 0} Lists</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm">
+                                <Activity size={12} className="text-emerald-600" />
+                                <span className="text-[10px] font-black text-emerald-600 uppercase">Score: {product.intelligence?.financials?.sellability_score || 0}</span>
+                            </div>
+                        </div>
                         <h1 className="text-4xl font-black text-slate-950 italic tracking-tighter leading-none uppercase">
                             {product.title}
                         </h1>
                         <div className="flex items-center gap-6">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID: {product.product_id}</span>
                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">|</span>
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Shipping From: {product.warehouse || "PENDING"}</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap text-indigo-600">Shipping From: {product.shipping?.from || product.warehouse || "PENDING"}</span>
                         </div>
                     </div>
 
