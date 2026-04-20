@@ -86,21 +86,17 @@ const SupplierProductDetail = () => {
 
     if (!product) return <div className="p-20 text-center font-black uppercase tracking-widest text-slate-400">Enforcement Failure: Metadata Unreachable</div>;
 
-    // Financial Analysis (v6.4 Rule)
+    const financials = product.intelligence?.financials;
+    const logistics = product.intelligence?.shipping;
     const currentPrice = Number(selectedVariant?.price || product.price);
-    const EST_SHIPPING = 5.00;
+    const shippingCost = financials?.shipping_cost || 5.00;
     
-    // v6.4 Net Profit formula
-    let profit = "NAN_ERROR";
-
-    if (!isNaN(targetPrice) && !isNaN(currentPrice)) {
-       profit = targetPrice - currentPrice - EST_SHIPPING;
-    }
+    // v7.0 Profit Engine
+    const netProfit = financials?.net_profit || (targetPrice - currentPrice - shippingCost);
+    const profitFormatted = netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`;
+    const marginSignal = financials?.margin_signal || (netProfit > 10 ? "High Profit" : (netProfit >= 3 ? "Medium Profit" : "Low Profit"));
 
     const gallery = product.gallery || [];
-    const profitFormatted = typeof profit === 'number'
-        ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
-        : "N/A";
 
     return (
         <div className="max-w-[1400px] mx-auto px-6 pb-40 pt-10 animate-in fade-in duration-700">
@@ -110,9 +106,14 @@ const SupplierProductDetail = () => {
                     <ArrowLeft size={16} /> Return to Sourcing Grid
                 </button>
                 <div className="flex items-center gap-4">
-                    <div className="px-6 py-3 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl">
-                        <ShieldCheck size={14} className="text-indigo-400" /> CJ v5.0 High Fidelity
-                    </div>
+                    <a 
+                        href={product.cj_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="px-6 py-3 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl hover:bg-indigo-600 transition-colors"
+                    >
+                        <ExternalLink size={14} /> View on CJ
+                    </a>
                 </div>
             </div>
 
@@ -191,16 +192,16 @@ const SupplierProductDetail = () => {
                         <div className="relative z-10 space-y-6">
                             <div className="flex justify-between items-end">
                                 <div className="space-y-1">
-                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Estimated Net Profit</p>
+                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Profit ($)</p>
                                     <p className={cn(
                                         "text-4xl font-black italic tracking-tighter",
-                                        typeof profit === 'number' && profit >= 0 ? "text-emerald-500" : (typeof profit === 'number' ? "text-rose-500" : "text-slate-400")
+                                        netProfit >= 0 ? "text-emerald-500" : "text-rose-500"
                                     )}>
                                         {profitFormatted}
                                     </p>
                                     <div className="flex items-center gap-1.5 mt-1">
-                                        <Info size={10} className="text-indigo-400" />
-                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Incl. $5.00 Est. Shipping</span>
+                                        <Zap size={10} className="text-indigo-400" />
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{marginSignal.toUpperCase()}</span>
                                     </div>
                                 </div>
                             </div>
@@ -219,8 +220,8 @@ const SupplierProductDetail = () => {
                             </div>
 
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div className="flex items-center gap-2"><Truck size={14} /> {product.shipping?.delivery_days || "7-15"} DAYS</div>
-                                <div className="flex items-center gap-2"><Activity size={14} /> RELEVANCE: {product.alignmentScore}%</div>
+                                <div className="flex items-center gap-2"><Truck size={14} /> {logistics?.delivery_estimate || "7-15 DAYS"}</div>
+                                <div className="flex items-center gap-2"><Activity size={14} /> STOCK: {product.stock || 0}</div>
                             </div>
                         </div>
                     </div>
@@ -259,7 +260,7 @@ const SupplierProductDetail = () => {
                             <Zap size={20} className="group-hover:animate-pulse" /> Finalize Selection
                         </button>
                         <p className="text-center mt-4 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {product.alignmentScore}% RELEVANCE SCORE APPLIED
+                            RATING: {product.rating || "No rating yet"}
                         </p>
                     </div>
                 </div>

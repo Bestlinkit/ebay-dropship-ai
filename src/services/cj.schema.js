@@ -40,78 +40,62 @@ export const normalizeToContract = (raw) => {
         // CJ CDN Base
         const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
 
-        // 1. IMAGE HANDLING (v6.4 - FORCE DISPLAY)
+        // 1. IMAGE SYSTEM (v7.0 - MULTI-IMAGE GALLERY)
         let allImages = [];
-        // Priority: bigImage -> image_urls -> productImages -> productImage -> image
-        const imageSource = raw.bigImage || raw.image_urls || raw.productImages || raw.productImage || raw.image || "";
+        const imageKeys = ['bigImage', 'image_urls', 'productImages', 'productImage', 'image'];
         
-        if (typeof imageSource === 'string' && imageSource.length > 5) {
-            // Split by semicolon and clean each URL
-            allImages = imageSource.split(';')
-                .map(url => url.trim())
-                .filter(url => url.length > 5);
-        } else if (Array.isArray(imageSource)) {
-            allImages = imageSource;
-        } else if (imageSource) {
-            allImages = [imageSource];
-        }
-
-        const gallery = [];
-        allImages.forEach(img => {
-            if (typeof img !== 'string' || img.length < 5) return;
-            
-            let safeUrl = img.trim();
-            
-            // Prepend CDN if it's a relative path
-            if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) {
-                safeUrl = CJ_CDN + safeUrl;
-            }
-            
-            if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
-            
-            // Force HTTPS
-            if (safeUrl.startsWith('http://')) {
-                safeUrl = safeUrl.replace('http://', 'https://');
-            }
-            
-            if (safeUrl.startsWith('https://')) {
-                gallery.push(safeUrl);
+        imageKeys.forEach(key => {
+            const val = raw[key];
+            if (typeof val === 'string' && val.length > 5) {
+                val.split(';').forEach(url => allImages.push(url.trim()));
+            } else if (Array.isArray(val)) {
+                allImages = [...allImages, ...val];
             }
         });
 
-        // Dedup gallery
-        const uniqueGallery = Array.from(new Set(gallery));
-        
-        // Fallback placeholder if zero images
-        const PLACEHOLDER = "https://images.unsplash.com/photo-1594732806283-bc9a9af95a70?q=80&w=1000&auto=format&fit=crop";
-        const mainImage = uniqueGallery[0] || PLACEHOLDER;
+        const imageGallery = [];
+        allImages.forEach(img => {
+            if (typeof img !== 'string' || img.length < 5) return;
+            let safeUrl = img.trim();
+            if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) safeUrl = CJ_CDN + safeUrl;
+            if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
+            if (safeUrl.startsWith('http://')) safeUrl = safeUrl.replace('http://', 'https://');
+            if (safeUrl.startsWith('https://')) imageGallery.push(safeUrl);
+        });
 
-        // 2. VARIANT SYNC
-        const variants = Array.isArray(raw.productVariants || raw.variants) 
-            ? (raw.productVariants || raw.variants).map(v => ({
+        // Dedup and fulfill min-3 rule
+        const uniqueGallery = Array.from(new Set(imageGallery));
+        const finalGallery = [...uniqueGallery];
+        const PLACEHOLDER = "https://images.unsplash.com/photo-1594732806283-bc9a9af95a70?q=80&w=1000&auto=format&fit=crop";
+        
+        if (finalGallery.length === 0) {
+            for (let i = 0; i < 3; i++) finalGallery.push(PLACEHOLDER);
+        } else {
+            while (finalGallery.length < 3) {
+                finalGallery.push(finalGallery[0]);
+            }
+        }
+
+        // 2. LOGISTICS INFERENCE
+        let warehouseName = raw.warehouseName || raw.warehouse || "Global";
+        let origin = "GLOBAL (default)";
+        if (warehouseName.toUpperCase().includes('CN')) origin = "CN";
+        else if (warehouseName.toUpperCase().includes('US')) origin = "US";
+        else if (raw.shippingFrom?.toUpperCase() === 'CN') origin = "CN";
+        else if (raw.shippingFrom?.toUpperCase() === 'US') origin = "US";
+
+        // 3. VARIANT FLATTENING (v7.0)
+        const variants = (Array.isArray(raw.productVariants || raw.variants) ? (raw.productVariants || raw.variants) : [])
+            .map(v => ({
                 sku_id: v.vid || v.variantId || v.variantSku || v.sku || id,
-                attributes: v.variantKey || v.variantName || "Standard",
+                attributes: v.variantKey || v.variantName || v.nameEn || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
                 stock: parseInt(v.variantInventory || v.inventory || 0),
-                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : mainImage
-            }))
-            : [];
+                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0]
+            }));
 
-        // TRUTH EXTRACTION
         const realStock = raw.warehouseInventoryNum !== undefined ? parseInt(raw.warehouseInventoryNum) : 
                          (variants.length > 0 ? variants.reduce((acc, v) => acc + v.stock, 0) : 0);
-        
-        const realRating = raw.productRating || raw.rating || null;
-        const description = raw.productDesc || raw.description || raw.remark || "";
-
-        // 3. WAREHOUSE / ORIGIN (v6.4 Rule)
-        let warehouseName = raw.warehouseName || raw.warehouse || "Global";
-        let origin = raw.shippingFrom || (warehouseName.toUpperCase().includes('US') ? 'US' : 'CN');
-        
-        // Final fallback for Origin logic
-        if (!origin || origin === 'UNKNOWN') {
-            origin = 'CN (default)';
-        }
 
         return {
             ...CJ_PRODUCT_CONTRACT,
@@ -120,22 +104,24 @@ export const normalizeToContract = (raw) => {
             title: title,
             price: price,
             stock: realStock,
-            rating: realRating,
-            description: description,
+            rating: raw.productRating || raw.rating || null,
+            description: raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
             warehouse: warehouseName,
             shipping: {
                 from: origin,
-                delivery_days: raw.deliveryTime || "7-15"
+                delivery_days: raw.deliveryTime || "7-15 Days (Est.)",
+                shipping_cost: raw.shippingFee || raw.shippingCost || null
             },
-            mainImage: mainImage,
-            gallery: uniqueGallery.length > 0 ? uniqueGallery : [PLACEHOLDER],
-            images: uniqueGallery.length > 0 ? uniqueGallery : [PLACEHOLDER],
+            mainImage: finalGallery[0],
+            gallery: finalGallery,
+            images: finalGallery,
             has_variants: variants.length > 0,
             variants: variants,
+            cj_url: `https://cjdropshipping.com/product/${id}`,
             raw: raw
         };
     } catch (e) {
-        console.error("[CJ Contract] Normalization Fault:", e);
+        console.error("[CJ v7.0] Normalization Vault Failure:", e);
         return null;
     }
 };

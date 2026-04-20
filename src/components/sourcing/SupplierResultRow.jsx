@@ -34,10 +34,11 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     // Truth Metrics
     const rating = product.rating || "N/A";
     const stock = product.stock !== null ? product.stock : "UNKNOWN";
-    const shippingOrigin = product.shipping?.origin || "GLOBAL";
-    const deliveryTime = product.shipping?.delivery_estimate || "UNKNOWN";
-    const shippingLabel = financials?.shipping_label || "UNKNOWN";
-    const profitStatus = financials?.status || "UNKNOWN";
+    const shippingOrigin = intel?.shipping?.origin || "GLOBAL";
+    const deliveryTime = intel?.shipping?.delivery_estimate || "7-15 Days (Est.)";
+    const shippingLabel = financials?.shipping_label || "$5.00 (Benchmark)";
+    const profitStatus = financials?.status || (financials?.net_profit > 0 ? "PROFITABLE" : "LOSS");
+    const marginSignal = financials?.margin_signal || "Low Profit";
 
     const profit = financials?.net_profit;
 
@@ -94,7 +95,13 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         <span className="text-[7px] font-black uppercase tracking-widest">ASSET PENDING</span>
                     </div>
                 )}
-                <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 rounded-lg shadow-lg border border-white/5">
+                {product.gallery?.length > 1 && (
+                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-indigo-600 rounded-lg shadow-lg border border-white/10 flex items-center gap-1.5 animate-pulse">
+                        <Zap size={10} className="text-white fill-white" />
+                        <span className="text-[8px] font-black text-white uppercase tracking-widest">{product.gallery.length} IMAGES</span>
+                    </div>
+                )}
+                <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 rounded-lg shadow-lg border border-white/5 font-mono">
                     <span className="text-[7px] font-black text-white/50 uppercase tracking-[0.2em]">{product.product_id}</span>
                 </div>
             </div>
@@ -119,14 +126,16 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </h3>
                 </div>
 
-                {/* KPI SECTION (v5.0 Hardened Analytics) */}
+                {/* KPI SECTION (v7.0 Strict Market Decision Engine) */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8 pt-5 border-t border-white/5">
-                    <div className="flex flex-col gap-1 min-w-[100px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Estimated Net Profit</span>
+                    <div className="flex flex-col gap-1 min-w-[120px]">
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
                         <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none", getProfitColor(profit))}>
                             {profitFormatted}
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">{profitStatus}</span>
+                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap flex items-center gap-1.5">
+                            <Zap size={10} className={cn(profit > 0 ? "text-emerald-500" : "text-slate-500")} /> {marginSignal.toUpperCase()}
+                        </span>
                     </div>
 
                     <div className="flex flex-col gap-1 min-w-[80px]">
@@ -137,14 +146,14 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
 
                     <div className="flex flex-col gap-1 min-w-[80px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">eBay Target</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">eBay Price</span>
                         <div className="text-xl md:text-2xl font-black text-slate-400 italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none">
                             ${parseFloat(targetPrice).toFixed(2)}
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1 min-w-[110px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Logistics</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Target Logistics</span>
                         <div className="flex items-center gap-2 mb-0.5">
                             <Truck size={12} className="text-indigo-400 shrink-0" />
                             <span className="text-[10px] font-black text-slate-200 uppercase tracking-tight whitespace-nowrap leading-none">{deliveryTime}</span>
@@ -155,17 +164,26 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
 
                     <div className="hidden lg:flex flex-col gap-1 min-w-[100px]">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Relevance Score (Sorting Only)</span>
-                        <div className={cn("text-xl md:text-2xl font-black italic tracking-tighter whitespace-nowrap leading-none", getScoreColor(finalScore))}>
-                            {finalScore}%
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Warehouse Source</span>
+                        <div className="text-xl md:text-2xl font-black text-indigo-400 italic tracking-tighter whitespace-nowrap leading-none flex items-center gap-2">
+                            <Warehouse size={16} /> {shippingOrigin}
                         </div>
-                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">{product.matchReason?.toUpperCase() || 'DATA DISCOVERY'}</span>
+                        <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">{product.warehouse || 'GLOBAL'}</span>
                     </div>
                 </div>
             </div>
 
             {/* ACTION ZONE */}
-            <div className="flex items-center gap-10 shrink-0 border-t xl:border-t-0 xl:border-l border-white/5 pt-8 xl:pt-0 xl:pl-10 w-full xl:w-auto justify-between xl:justify-end">
+            <div className="flex items-center gap-6 shrink-0 border-t xl:border-t-0 xl:border-l border-white/5 pt-8 xl:pt-0 xl:pl-10 w-full xl:w-auto justify-between xl:justify-end">
+                <a 
+                    href={product.cj_url || `https://cjdropshipping.com/product-detail.html?id=${product.product_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1 text-slate-400 hover:text-white transition-colors"
+                >
+                    <ExternalLink size={20} />
+                    <span className="text-[8px] font-black uppercase tracking-widest">View on CJ</span>
+                </a>
 
                 <button 
                     onClick={() => onContinue(product)}

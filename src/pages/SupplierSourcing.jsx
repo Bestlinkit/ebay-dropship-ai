@@ -164,17 +164,12 @@ const SupplierSourcing = () => {
         if (!targetProduct || products.length === 0) return [];
         
         return products.map(res => {
-            // Already normalized in cj.service.js
+            // Data is already fully normalized and sorted by Profit in cj.service.js
             return { 
                 ...res, 
-                sellData: { 
-                    resellScore: res.alignmentScore || 0, 
-                    grade: res.matchReason || "REVIEW"
-                },
-                roiData: { 
-                    roi: res.intelligence.financials.net_profit, 
-                    margin: 0,
-                    profitStatus: res.intelligence.financials.status
+                analytics: { 
+                    profit: res.intelligence.financials.net_profit,
+                    margin_signal: res.intelligence.financials.margin_signal
                 }
             };
         });

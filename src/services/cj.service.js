@@ -120,10 +120,11 @@ class CJService {
             return { ...item, ...alignment, intelligence };
         });
 
+        // Step 3: Profit-First Ranking (v7.0)
         const ranked = scored.sort((a,b) => {
-            if (b.alignmentScore !== a.alignmentScore) return b.alignmentScore - a.alignmentScore;
-            const profitA = typeof a.intelligence.financials.net_profit === 'number' ? a.intelligence.financials.net_profit : -999;
-            const profitB = typeof b.intelligence.financials.net_profit === 'number' ? b.intelligence.financials.net_profit : -999;
+            const profitA = typeof a.intelligence.financials.net_profit === 'number' ? a.intelligence.financials.net_profit : -9999;
+            const profitB = typeof b.intelligence.financials.net_profit === 'number' ? b.intelligence.financials.net_profit : -9999;
+            
             if (profitB !== profitA) return profitB - profitA;
             return (b.stock || 0) - (a.stock || 0);
         });
@@ -224,29 +225,45 @@ class CJService {
    * 🧠 COMMERCE INTELLIGENCE ENGINE (v6.1 - HARDENED)
    */
    buildIntelligencePayload(normalizedCj, ebayProduct) {
-    const ebayPrice = Number(ebayProduct.price);
-    const cjPrice = Number(normalizedCj.price);
+    const ebayPrice = Number(ebayProduct.price || 0);
+    const cjCost = Number(normalizedCj.price || 0);
     
-    // Default estimated shipping is $5.00
-    const EST_SHIPPING = 5.00;
+    // v7.0 Logistics Restoration
+    // 1. Get CJ Shipping if available, else benchmark
+    let shippingCost = Number(normalizedCj.shipping?.shipping_cost || 0);
+    let shippingLabel = `$${shippingCost.toFixed(2)}`;
     
-    let netProfit = "NAN_ERROR";
-    
-    if (!isNaN(ebayPrice) && !isNaN(cjPrice)) {
-        // v6.4 Formula: eBay Price - CJ Cost - $5 Shipping
-        netProfit = ebayPrice - cjPrice - EST_SHIPPING;
+    if (!shippingCost || shippingCost <= 0) {
+        shippingCost = 5.00;
+        shippingLabel = "$5.00 (Benchmark)";
+    } else if (shippingCost === 0) {
+        shippingLabel = "Free Shipping";
     }
+
+    // 2. Net Profit Calculation (Strict v7.0 Formula)
+    const netProfit = ebayPrice - cjCost - shippingCost;
+
+    // 3. Margin Signaling
+    let marginSignal = "Low Profit";
+    if (netProfit > 10) marginSignal = "High Profit";
+    else if (netProfit >= 3) marginSignal = "Medium Profit";
 
     return {
         financials: { 
             net_profit: netProfit,
-            roi_percent: 0, // Removed per request
-            status: "ESTIMATED",
-            shipping_label: `Benchmark ($${EST_SHIPPING.toFixed(2)})`
+            margin_signal: marginSignal,
+            shipping_cost: shippingCost,
+            status: netProfit > 0 ? "PROFITABLE" : "LOSS",
+            shipping_label: shippingLabel
         },
         shipping: { 
             delivery_estimate: normalizedCj.shipping?.delivery_days || "7-15 Days (Est.)", 
-            warehouse: normalizedCj.warehouse || "CN (default)"
+            warehouse: normalizedCj.warehouse || "GLOBAL (default)",
+            origin: normalizedCj.shipping?.from || "GLOBAL"
+        },
+        metadata: {
+            sku: normalizedCj.sku,
+            cj_url: normalizedCj.cj_url
         }
     };
   }
