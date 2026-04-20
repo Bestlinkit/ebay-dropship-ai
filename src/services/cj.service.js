@@ -274,10 +274,6 @@ class CJService {
   }
 
   /**
-   * 🧼 SCIENTIFIC SCORING (v6.1 - TYPE ANCHORED)
-   */
-  calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel = null) {
-  /**
    * 📊 PURE API SELLABILITY (v14.5)
    * Derived 100% from Lists (Popularity) and Stock (Availability).
    */
