@@ -137,7 +137,6 @@ export const normalizeToContract = (raw, isDetail = false) => {
             gallery: finalGallery,
             has_variants: variants.length > 0,
             variants: variants,
-            variants: variants,
             weight: raw.productWeight || raw.weight || null,
             package_weight: raw.packageWeight || null,
             dimensions: raw.productSizeEn || raw.packingSize || null,
