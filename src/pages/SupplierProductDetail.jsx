@@ -134,7 +134,7 @@ const SupplierProductDetail = () => {
                         )}
                         <div className="absolute top-10 left-10">
                             <span className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-xl bg-slate-900 border border-white/20">
-                                SKU: {selectedVariant?.sku_id || product.sku}
+                                SKU: {selectedVariant?.sku || product.sku}
                             </span>
                         </div>
                     </div>
@@ -246,7 +246,7 @@ const SupplierProductDetail = () => {
                                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest truncate max-w-[80px]">{v.attributes}</span>
                                             <span className="text-[10px] font-black text-slate-950">${v.price.toFixed(2)}</span>
                                         </div>
-                                        <p className="text-[9px] font-bold text-slate-600 truncate">SKU: {v.sku_id}</p>
+                                        <p className="text-[9px] font-bold text-slate-600 truncate">SKU: {v.sku || v.sku_id}</p>
                                     </button>
                                 ))}
                             </div>

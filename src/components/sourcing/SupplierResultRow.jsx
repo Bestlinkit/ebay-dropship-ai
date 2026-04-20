@@ -62,6 +62,9 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
     const [imgError, setImgError] = React.useState(false);
     const [retryCount, setRetryCount] = React.useState(0);
+    const [currentImgIndex, setCurrentImgIndex] = React.useState(0);
+
+    const images = product.gallery || [product.mainImage];
 
     const handleImgError = () => {
         if (retryCount < 1) {
@@ -79,11 +82,11 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
         >
             <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
-            {/* PRODUCT VISUAL (v5.0 Discovery-First) */}
-            <div className="w-32 h-32 md:w-36 md:h-36 lg:w-40 lg:h-40 bg-white rounded-[2rem] flex items-center justify-center overflow-hidden border-2 border-white/5 shrink-0 shadow-2xl relative group-hover:border-indigo-500/30 transition-all p-2">
-                {!imgError && product.mainImage ? (
+            {/* PRODUCT VISUAL (v12.1 Discovery-First + Carousel) */}
+            <div className="w-40 h-40 md:w-44 md:h-44 lg:w-48 lg:h-48 bg-white rounded-[2rem] flex items-center justify-center overflow-hidden border-2 border-white/5 shrink-0 shadow-2xl relative group-hover:border-indigo-500/30 transition-all p-2">
+                {!imgError && images[currentImgIndex] ? (
                     <img 
-                        src={product.mainImage} 
+                        src={images[currentImgIndex]} 
                         alt={product.title} 
                         onError={handleImgError}
                         className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700"
@@ -95,12 +98,30 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         <span className="text-[7px] font-black uppercase tracking-widest">ASSET PENDING</span>
                     </div>
                 )}
-                {product.gallery?.length > 1 && (
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-indigo-600 rounded-lg shadow-lg border border-white/10 flex items-center gap-1.5 animate-pulse">
-                        <Zap size={10} className="text-white fill-white" />
-                        <span className="text-[8px] font-black text-white uppercase tracking-widest">{product.gallery.length} IMAGES</span>
+                
+                {images.length > 1 && (
+                    <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev === 0 ? images.length - 1 : prev - 1)); }}
+                            className="w-8 h-8 rounded-full bg-slate-950/80 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors"
+                        >
+                            <ChevronRight size={14} className="rotate-180" />
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev === images.length - 1 ? 0 : prev + 1)); }}
+                            className="w-8 h-8 rounded-full bg-slate-950/80 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors"
+                        >
+                            <ChevronRight size={14} />
+                        </button>
                     </div>
                 )}
+
+                {images.length > 0 && (
+                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-indigo-600 rounded-lg shadow-lg border border-white/10 flex items-center gap-1.5">
+                        <span className="text-[8px] font-black text-white uppercase tracking-widest">{currentImgIndex + 1}/{images.length}</span>
+                    </div>
+                )}
+                
                 <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 rounded-lg shadow-lg border border-white/5 font-mono">
                     <span className="text-[7px] font-black text-white/50 uppercase tracking-[0.2em]">{product.product_id}</span>
                 </div>
@@ -124,6 +145,22 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter line-clamp-1 leading-none group-hover:text-indigo-400 transition-colors italic pr-12">
                         {product.title}
                     </h3>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {product.variants?.length > 0 ? (
+                            <span className="px-2 py-0.5 bg-indigo-900/40 text-indigo-400 rounded-md text-[7px] font-black uppercase tracking-widest">
+                                {product.variants.length} Variants Available
+                            </span>
+                        ) : (
+                            <span className="px-2 py-0.5 bg-slate-800 text-slate-500 rounded-md text-[7px] font-black uppercase tracking-widest">
+                                Standard Variant
+                            </span>
+                        )}
+                        {product.isEnriched && (
+                            <span className="px-2 py-0.5 bg-emerald-900/40 text-emerald-400 rounded-md text-[7px] font-black uppercase tracking-widest flex items-center gap-1">
+                                <ShieldCheck size={8} /> Detail Verified
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* KPI SECTION (v7.0 Strict Market Decision Engine) */}
@@ -159,7 +196,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                             <span className="text-[10px] font-black text-slate-200 uppercase tracking-tight whitespace-nowrap leading-none">{deliveryTime}</span>
                         </div>
                         <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap flex items-center gap-1.5">
-                           SHIP: {shippingLabel} 
+                           SHIP: {shippingLabel} <span className={cn("px-1 rounded", intel.shipping?.isReal ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500")}>{intel.shipping?.isReal ? 'REAL' : 'FALLBACK'}</span>
                         </span>
                     </div>
 

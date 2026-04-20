@@ -62,6 +62,9 @@ const SupplierSourcing = () => {
     const [lastError, setLastError] = useState(null);
     const [showLog, setShowLog] = useState(false);
 
+    // v12.1 Performance-Safe Enrichment State
+    const [enrichedProducts, setEnrichedProducts] = useState({}); // { pid: enrichedObject }
+
     // CJ Connection Auth Status
     const [authStatus, setAuthStatus] = useState('CHECKING'); // CHECKING, CONNECTED, FAILED
     const [authDetails, setAuthDetails] = useState(null);
@@ -116,12 +119,18 @@ const SupplierSourcing = () => {
                 });
 
                 setHasMore(newProducts.length === 20); // CJ pageSize is 20
+                setLoading(false); // v12.1: SET LOADING FALSE IMMEDIATELY AFTER SEARCH
                 setPipelineState({ status: 'SUCCESS' });
                 setTelemetry(result.telemetry || { cj: null });
                 
                 if (pageNum === 1) {
                     toast.success(`Discovered ${newProducts.length} products`);
                 }
+
+                // v12.1: START BACKGROUND ENRICHMENT
+                cjService.enrichProductList(newProducts, (pid, enriched) => {
+                    setEnrichedProducts(prev => ({ ...prev, [pid]: enriched }));
+                });
             } else if (result.status === "NO_MATCH_FOUND") {
                 if (pageNum === 1) {
                     setPipelineState({ status: 'NO_MATCH_FOUND' });
@@ -164,16 +173,24 @@ const SupplierSourcing = () => {
         if (!targetProduct || products.length === 0) return [];
         
         return products.map(res => {
-            // Data is already fully normalized and sorted by Profit in cj.service.js
+            const enriched = enrichedProducts[res.product_id];
+            const finalProduct = enriched ? { ...res, ...enriched } : res;
+            
+            // Intelligence recalculation if enriched
+            const intelligence = enriched 
+                ? cjService.buildIntelligencePayload(finalProduct, targetProduct)
+                : res.intelligence;
+
             return { 
-                ...res, 
+                ...finalProduct, 
+                intelligence,
                 analytics: { 
-                    profit: res.intelligence.financials.net_profit,
-                    margin_signal: res.intelligence.financials.margin_signal
+                    profit: intelligence.financials.net_profit,
+                    margin_signal: intelligence.financials.margin_signal
                 }
             };
         });
-    }, [products, targetProduct]);
+    }, [products, targetProduct, enrichedProducts]);
 
     const paginatedResults = processedResults; // Local pagination is removed in favor of real API flow
 

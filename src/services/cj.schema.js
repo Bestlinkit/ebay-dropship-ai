@@ -23,9 +23,10 @@ export const CJ_PRODUCT_CONTRACT = {
 /**
  * Normalizes a candidate object into the strict CJ_PRODUCT_CONTRACT.
  * @param {Object} raw 
+ * @param {Boolean} isDetail - If true, treats the source as the absolute Source of Truth (CJ Detail API).
  * @returns {Object} Normalized product or null if critical fields are missing.
  */
-export const normalizeToContract = (raw) => {
+export const normalizeToContract = (raw, isDetail = false) => {
     if (!raw) return null;
 
     try {
@@ -40,22 +41,24 @@ export const normalizeToContract = (raw) => {
         // CJ CDN Base
         const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
 
-        // 1. IMAGE SYSTEM (v7.0 - MULTI-IMAGE GALLERY)
+        // 1. IMAGE SYSTEM (v12.1 - DETAIL PRIORITY)
         let allImages = [];
-        const imageKeys = ['bigImage', 'image_urls', 'productImages', 'productImage', 'image'];
+        const imageKeys = isDetail 
+            ? ['productImages', 'imageUrls', 'variantImages', 'bigImage', 'image_urls'] 
+            : ['bigImage', 'image_urls', 'productImages'];
         
         imageKeys.forEach(key => {
             const val = raw[key];
             if (typeof val === 'string' && val.length > 5) {
                 val.split(';').forEach(url => allImages.push(url.trim()));
             } else if (Array.isArray(val)) {
-                allImages = [...allImages, ...val];
+                allImages = [...allImages, ...val.map(v => typeof v === 'string' ? v : (v.variantImage || v.image))];
             }
         });
 
         const imageGallery = [];
         allImages.forEach(img => {
-            if (typeof img !== 'string' || img.length < 5) return;
+            if (!img || typeof img !== 'string' || img.length < 5) return;
             let safeUrl = img.trim();
             if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) safeUrl = CJ_CDN + safeUrl;
             if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
@@ -84,10 +87,12 @@ export const normalizeToContract = (raw) => {
         else if (raw.shippingFrom?.toUpperCase() === 'CN') origin = "CN";
         else if (raw.shippingFrom?.toUpperCase() === 'US') origin = "US";
 
-        // 3. VARIANT FLATTENING (v7.0)
-        const variants = (Array.isArray(raw.productVariants || raw.variants) ? (raw.productVariants || raw.variants) : [])
+        // 3. VARIANT FLATTENING (v12.1)
+        const variantSource = raw.productVariants || raw.variants || [];
+        const variants = (Array.isArray(variantSource) ? variantSource : [])
             .map(v => ({
                 sku_id: v.vid || v.variantId || v.variantSku || v.sku || id,
+                sku: v.variantSku || v.sku || id,
                 attributes: v.variantKey || v.variantName || v.nameEn || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
                 stock: parseInt(v.variantInventory || v.inventory || 0),
@@ -109,15 +114,17 @@ export const normalizeToContract = (raw) => {
             warehouse: warehouseName,
             shipping: {
                 from: origin,
-                delivery_days: raw.deliveryTime || "7-15 Days (Est.)",
-                shipping_cost: raw.shippingFee || raw.shippingCost || null
+                delivery_days: raw.deliveryTime || raw.shippingTime || "7-15 Days (Est.)",
+                shipping_cost: raw.shippingFee || raw.shippingCost || null,
+                isReal: isDetail && (raw.shippingFee !== undefined || raw.shippingCost !== undefined)
             },
             mainImage: finalGallery[0],
             gallery: finalGallery,
             images: finalGallery,
             has_variants: variants.length > 0,
             variants: variants,
-            cj_url: `https://cjdropshipping.com/product/${id}`,
+            cj_url: sku && sku !== id ? `https://cjdropshipping.com/product/${sku}.html` : `https://cjdropshipping.com/product-detail.html?id=${id}`,
+            isEnriched: isDetail,
             raw: raw
         };
     } catch (e) {

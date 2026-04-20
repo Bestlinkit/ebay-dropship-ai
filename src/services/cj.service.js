@@ -17,6 +17,7 @@ class CJService {
       FREIGHT_ENDPOINT: '/api/cj/freight',
       AUTH_ENDPOINT: `${BRIDGE_BASE}/api/cj/auth`
     };
+    this.cache = new Map();
   }
 
   /**
@@ -185,6 +186,56 @@ class CJService {
     }
     
     return { items, raw: lastRaw };
+  }
+
+  /**
+   * 🔍 FETCH PRODUCT DETAIL (v12.1)
+   */
+  async getProductDetail(pid) {
+    if (this.cache.has(pid)) return this.cache.get(pid);
+
+    try {
+        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`, { 
+            params: { pid } 
+        });
+        
+        if (response.data?.code === 200) {
+            const detail = response.data.data;
+            this.cache.set(pid, detail);
+            return detail;
+        }
+    } catch (e) {
+        console.error(`[CJ DETAIL] Failed for ${pid}:`, e.message);
+    }
+    return null;
+  }
+
+  /**
+   * 🚀 BATCH ENRICHMENT WORKER (v12.1)
+   * Fetches details for products in batches to maintain performance.
+   */
+  async enrichProductList(products, onEnriched, concurrency = 5) {
+    const results = [...products];
+    const queue = [...products];
+    
+    const worker = async () => {
+        while (queue.length > 0) {
+            const product = queue.shift();
+            if (!product) continue;
+
+            const detail = await this.getProductDetail(product.product_id);
+            if (detail) {
+                const refreshed = normalizeToContract(detail, true); // true = IS_DETAIL
+                if (refreshed) {
+                    onEnriched(product.product_id, refreshed);
+                }
+            }
+        }
+    };
+
+    // Run parallel workers
+    const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(worker);
+    await Promise.all(workers);
   }
 
   /**
