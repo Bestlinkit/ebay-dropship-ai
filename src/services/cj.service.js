@@ -230,7 +230,7 @@ class CJService {
     } catch (e) {
         console.error(`[CJ SHIPPING] Failed for ${pid}:`, e.message);
     }
-    return [{ name: "Standard (Fallback)", cost: 5.00, deliveryTime: "7-15 Days" }];
+    return []; // v14.1: Return empty for Pure API Truth (no fallbacks)
   }
 
   /**
