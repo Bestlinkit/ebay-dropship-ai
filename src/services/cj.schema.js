@@ -100,14 +100,14 @@ export const normalizeToContract = (raw, isDetail = false) => {
         const warehouseName = raw.warehouseName || raw.warehouse || "GLOBAL";
         const shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
 
-        // 3. VARIANT FLATTENING (v13.0)
-        const variantSource = raw.productVariants || raw.variants || [];
+        // 3. VARIANT FLATTENING (v14.2 Robust Mapping)
+        const variantSource = raw.productVariants || raw.variants || raw.variantList || raw.variantSkuList || [];
         const variants = (Array.isArray(variantSource) ? variantSource : [])
             .map(v => ({
                 id: v.vid || v.variantId || v.variantSku || v.sku || id,
                 sku: v.variantSku || v.sku || id,
-                color: v.variantKey || v.variantName || v.nameEn || "Standard",
-                size: v.variantStandard || "Standard",
+                color: v.variantKey || v.variantName || v.nameEn || v.variantNameEn || "Standard",
+                size: v.variantStandard || v.variantSize || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
                 inventory: parseInt(v.variantInventory || v.inventory || v.num || v.quantity || v.variantNum || v.factoryInventory || v.variantFactoryInventory || v.factoryNum || 0),
                 image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0]
@@ -125,7 +125,7 @@ export const normalizeToContract = (raw, isDetail = false) => {
             price: price,
             stock: realStock,
             rating: raw.productRating || raw.rating || raw.score || raw.star || null,
-            description: raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
+            description: raw.descriptionHtml || raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
             warehouse: warehouseName,
             shipping: {
                 from: shipFrom,

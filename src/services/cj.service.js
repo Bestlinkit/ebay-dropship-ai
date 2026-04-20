@@ -262,6 +262,18 @@ class CJService {
   }
 
   /**
+   * 🛒 ENRICH SINGLE PRODUCT (v14.2)
+   * Fetches and normalizes a single product ID with depth.
+   */
+  async enrichSingleProduct(pid) {
+    const detail = await this.getProductDetail(pid);
+    if (detail) {
+        return normalizeToContract(detail, true);
+    }
+    return null;
+  }
+
+  /**
    * 🧼 SCIENTIFIC SCORING (v6.1 - TYPE ANCHORED)
    */
   calculateAlignmentScore(ebayProduct, normalizedCj, ebayIntel = null) {

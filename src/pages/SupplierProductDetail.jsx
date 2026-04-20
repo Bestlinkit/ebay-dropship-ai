@@ -46,35 +46,52 @@ const SupplierProductDetail = () => {
 
     useEffect(() => {
         const fetchDeepDetails = async () => {
-            // v4.7 - High Fidelity State Consumption
-            if (location.state?.preFetchedProduct) {
-                const data = location.state.preFetchedProduct;
-                setProduct(data);
-                if (data.variants && data.variants.length > 0) {
-                    setSelectedVariant(data.variants[0]);
-                }
-                setLoading(false);
-                return;
-            }
-
             setLoading(true);
             try {
-                // If we don't have prefetched state, we use the pipeline to ensure v4.7 normalization
-                const result = await cjService.runIterativePipeline({ product: targetProduct });
-                if (result.status === 'SUCCESS') {
-                    const match = result.products.find(p => p.product_id === id);
-                    if (match) {
-                        setProduct(match);
-                        if (match.variants?.length > 0) setSelectedVariant(match.variants[0]);
-                        
-                        // v13.0 Fetch Shipping Options
-                        setShippingLoading(true);
-                        const options = await cjService.getShippingOptions(id);
-                        setShippingOptions(options);
-                        if (options.length > 0) setSelectedShipping(options[0]);
-                        setShippingLoading(false);
+                // 1. Initial State Consumption (Search results)
+                let initialProduct = location.state?.preFetchedProduct;
+                if (!initialProduct && targetProduct) {
+                    initialProduct = targetProduct;
+                }
+                
+                if (initialProduct) {
+                    setProduct(initialProduct);
+                    if (initialProduct.variants?.length > 0) setSelectedVariant(initialProduct.variants[0]);
+                }
+
+                // 2. MANDATORY DEEP SYNC (v14.2 - Recovery of Variants/Desc)
+                const detailRaw = await cjService.getProductDetail(id);
+                if (detailRaw) {
+                    const enriched = cjService.normalizeResult(detailRaw); // Use normalizeToContract via service wrapper if needed
+                    // Use a more direct normalization to ensure full contract
+                    const fullEnriched = await cjService.getProductDetail(id).then(d => {
+                        // We use the service's internal normalization logic
+                        // Actually, cjService has enrichProductList, but here we want a single product
+                        return detailRaw; 
+                    });
+
+                    // Direct normalization call (Refetching detail returns raw object)
+                    // We need the normalizeToContract function from cj.schema
+                    // It's already imported in cjService, but we need it here or use a service method.
+                    // cjService.getProductDetail returns raw data.
+                    
+                    // We'll call a re-normalization on the raw detail
+                    const finalEnriched = await cjService.enrichSingleProduct(id);
+                    if (finalEnriched) {
+                        setProduct(finalEnriched);
+                        if (finalEnriched.variants?.length > 0 && !selectedVariant) {
+                             setSelectedVariant(finalEnriched.variants[0]);
+                        }
                     }
                 }
+
+                // 3. LOGISTICS SYNC (Pure API)
+                setShippingLoading(true);
+                const options = await cjService.getShippingOptions(id);
+                setShippingOptions(options);
+                if (options.length > 0) setSelectedShipping(options[0]);
+                setShippingLoading(false);
+
             } catch (error) {
                 console.error("Deep Enrichment Fault:", error);
             } finally {
@@ -83,7 +100,7 @@ const SupplierProductDetail = () => {
         };
 
         fetchDeepDetails();
-    }, [source, id, location.state, targetProduct]);
+    }, [id]); // Only re-run when ID changes
 
     // v13.0 Gallery Sync Effect
     useEffect(() => {
