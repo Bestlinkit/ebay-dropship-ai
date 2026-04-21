@@ -110,7 +110,9 @@ export const normalizeToContract = (raw, isDetail = false) => {
                 size: v.variantStandard || v.variantSize || "Standard",
                 price: parseFloat(v.variantSellPrice || v.sellPrice || price),
                 inventory: parseInt(v.variantInventory || v.inventory || v.num || v.quantity || v.variantNum || v.factoryInventory || v.variantFactoryInventory || v.factoryNum || 0),
-                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0]
+                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0],
+                warehouseId: v.warehouseId || v.warehouseCode || null,
+                warehouseName: v.warehouseName || v.warehouse || null
             }));
 
         // v14.1: Inventory Summation Rule (CJ + Factory)

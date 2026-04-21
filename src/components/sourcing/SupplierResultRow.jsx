@@ -34,7 +34,16 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     // Truth Metrics
     const rating = product.rating || "N/A";
     const stock = product.stock !== null ? product.stock : "UNKNOWN";
-    const shippingOrigin = intel?.shipping?.origin || "GLOBAL";
+
+    // 🧠 v14.15: VARIANT-FIRST DATA SOURCE
+    const activeVariant = product.variants?.[0] || null;
+    const price = activeVariant?.price || product.price;
+    const sku = activeVariant?.sku || product.product_id;
+    
+    // Origin Logic: Strict mapping (US substring -> United States, else China)
+    const rawOrigin = (activeVariant?.warehouseId || activeVariant?.warehouseName || "").toString().toUpperCase();
+    const shippingOrigin = rawOrigin.includes('US') ? "UNITED STATES" : "CHINA";
+    
     const deliveryTime = intel?.shipping?.delivery_estimate || "NO API DATA";
     const shippingLabel = financials?.shipping_label || "UNAVAILABLE";
     const profitStatus = financials?.status || "PENDING";
@@ -66,7 +75,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     const [retryCount, setRetryCount] = React.useState(0);
     const [currentImgIndex, setCurrentImgIndex] = React.useState(0);
 
-    const images = product.gallery || [product.mainImage];
+    const images = activeVariant?.image ? [activeVariant.image] : (product.gallery || [product.mainImage]);
 
     const handleImgError = () => {
         if (retryCount < 1) {
@@ -125,7 +134,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                 )}
                 
                 <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-950/90 rounded-lg shadow-lg border border-white/5 font-mono">
-                    <span className="text-[7px] font-black text-white/50 uppercase tracking-[0.2em]">{product.product_id}</span>
+                    <span className="text-[7px] font-black text-white/50 uppercase tracking-[0.2em]">{sku}</span>
                 </div>
             </div>
 
@@ -198,15 +207,19 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">CJ Cost</span>
-                        <div className="text-xl md:text-2xl font-black text-white italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1">
-                            ${parseFloat(product.price).toFixed(2)}
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">CJ Unit Cost</span>
+                        <div className="text-2xl md:text-3xl font-black text-white italic tracking-tighter tabular-nums font-mono leading-none py-1">
+                            ${parseFloat(price).toFixed(2)}
+                        </div>
+                        <div className="flex items-center gap-1.5 opacity-50">
+                            <Box size={10} className="text-slate-400" />
+                            <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.15em] whitespace-nowrap">Unit Price</span>
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">eBay Price</span>
-                        <div className="text-xl md:text-2xl font-black text-slate-400 italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1">
+                        <div className="text-2xl md:text-3xl font-black text-slate-400 italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1">
                             ${parseFloat(targetPrice).toFixed(2)}
                         </div>
                     </div>
