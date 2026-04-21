@@ -343,6 +343,7 @@ class CJService {
     console.log("SELLABILITY INPUT", { sku: normalizedCj.sku, ...details });
     console.log("SELLABILITY OUTPUT", score);
 
+    console.log("STEP 7: SELLABILITY", score);
     return Math.min(100, score);
   }
 

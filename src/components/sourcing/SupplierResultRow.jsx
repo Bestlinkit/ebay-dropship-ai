@@ -41,6 +41,8 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     const price = activeVariant?.price || product.price;
     const sku = activeVariant?.sku || product.product_id;
     
+    console.log("STEP 3: VARIANT SELECTED", activeVariant);
+    
     // Origin Logic: Strict mapping (US substring -> United States, else China)
     const rawOrigin = (activeVariant?.warehouseId || activeVariant?.warehouseName || "").toString().toUpperCase();
     const shippingOrigin = rawOrigin.includes('US') ? "UNITED STATES" : "CHINA";
@@ -61,7 +63,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
         const fetchLocalShipping = async () => {
             if (!sku) return;
             
-            console.log("[TRACER-4] GRID SHIPPING TRIGGER", { sku, warehouseId: activeVariant?.warehouseId });
+            console.log("STEP 4: CALL SHIPPING", sku);
             setLocalLoading(true);
             setLocalStatus("fetching");
 
@@ -69,17 +71,17 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                 const warehouseId = activeVariant?.warehouseId || "CN";
                 const { methods, status } = await cjService.getShippingOptions(sku, 'US', warehouseId, 1);
                 
-                console.log("[TRACER-5] SHIPPING RESPONSE", { sku, methods_found: methods?.length, first_method: methods?.[0] });
+                console.log("STEP 5: SHIPPING RESPONSE", { methods, status });
 
                 if (methods && methods.length > 0) {
+                    console.log("STEP 8: SET STATE");
                     setLocalShipping(methods[0]);
                     setLocalStatus("resolved");
-                    console.log("[TRACER-6] STATE UPDATE - SHIPPING STORED", methods[0]);
                 } else {
                     setLocalStatus("no_methods");
                 }
             } catch (err) {
-                console.error(`[GRID SHIPPING] Error for ${sku}:`, err);
+                console.error("PIPELINE ERROR", err);
                 setLocalStatus("error");
             } finally {
                 setLocalLoading(false);
@@ -89,6 +91,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
         fetchLocalShipping();
     }, [sku, activeVariant?.warehouseId]);
 
+    useEffect(() => {
+        if (localShipping) {
+            console.log("STEP 9: UI UPDATED");
+        }
+    }, [localShipping]);
+
     // Data Extraction (Local Preference)
     const activeShippingCost = localShipping?.cost ?? 0;
     const activeDeliveryTime = localShipping?.deliveryTime || deliveryTime;
@@ -97,6 +105,10 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
     const localProfit = (localStatus === "resolved") 
         ? targetPrice - (price + activeShippingCost)
         : null;
+
+    if (localStatus === "resolved") {
+        console.log("STEP 6: PROFIT", localProfit);
+    }
 
     const profitFormatted = typeof localProfit === 'number'
         ? (localProfit < 0 ? `-$${Math.abs(localProfit).toFixed(2)}` : `+$${localProfit.toFixed(2)}`)

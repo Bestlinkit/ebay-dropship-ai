@@ -188,10 +188,8 @@ export const normalizeToContract = (raw, isDetail = false) => {
             raw: raw
         };
 
-        console.log("[TRACER-8] SELLABILITY INPUT", { sku: normalized.sku });
-        console.log("[TRACER-8] SELLABILITY OUTPUT", normalized.price);
-        console.log("[TRACER-1] RAW INPUT (ID:", id, "):", raw);
-        console.log("[TRACER-2] NORMALIZED OBJECT:", normalized);
+        console.log("STEP 1: PRODUCT RECEIVED", id);
+        console.log("STEP 2: NORMALIZED", normalized);
         
         return normalized;
     } catch (e) {
