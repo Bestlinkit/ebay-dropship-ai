@@ -368,9 +368,9 @@ cjRouter.post('/freight', async (req, res) => {
         const startTime = Date.now();
 
         const payload = {
-            startCountryCode: warehouseId === 'US' ? 'US' : 'CN',
-            endCountryCode: countryCode,
-            products: [{ sku, quantity }]
+            startCountryCode: (warehouseId === 'US' || warehouseId === 'United States') ? 'US' : 'CN',
+            endCountryCode: countryCode || 'US',
+            products: [{ skuCode: sku, quantity }]
         };
 
         const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, payload, {
