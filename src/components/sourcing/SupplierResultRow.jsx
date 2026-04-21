@@ -61,7 +61,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
         const fetchLocalShipping = async () => {
             if (!sku) return;
             
-            console.log("GRID SHIPPING CALL", sku);
+            console.log("[TRACER-4] GRID SHIPPING TRIGGER", { sku, warehouseId: activeVariant?.warehouseId });
             setLocalLoading(true);
             setLocalStatus("fetching");
 
@@ -69,9 +69,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                 const warehouseId = activeVariant?.warehouseId || "CN";
                 const { methods, status } = await cjService.getShippingOptions(sku, 'US', warehouseId, 1);
                 
+                console.log("[TRACER-5] SHIPPING RESPONSE", { sku, methods_found: methods?.length, first_method: methods?.[0] });
+
                 if (methods && methods.length > 0) {
                     setLocalShipping(methods[0]);
                     setLocalStatus("resolved");
+                    console.log("[TRACER-6] STATE UPDATE - SHIPPING STORED", methods[0]);
                 } else {
                     setLocalStatus("no_methods");
                 }

@@ -100,6 +100,13 @@ export const normalizeToContract = (raw, isDetail = false) => {
         const warehouseName = raw.warehouseName || raw.warehouse || "China";
         const shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
 
+        // 🧠 v14.15: VARIANT-FIRST DATA SOURCE
+        const activeVariant = raw.variants?.[0] || null;
+        const price_v = activeVariant?.price || price;
+        const sku_v = activeVariant?.sku || sku;
+        
+        console.log("[TRACER-3] VARIANT SELECTION (SKU:", sku_v, "):", activeVariant);
+
         // 3. VARIANT FLATTENING (v14.17 Robust Mapping)
         const variantSource = raw.productVariants || raw.variants || raw.variantList || raw.variantSkuList || [];
         let variants = (Array.isArray(variantSource) ? variantSource : [])
@@ -145,7 +152,7 @@ export const normalizeToContract = (raw, isDetail = false) => {
         const totalStock = variants.reduce((acc, v) => acc + (v.inventory || 0), 0) || (stock_cj + stock_factory);
         const realStock = totalStock > 0 ? totalStock : (parseInt(raw.num || raw.inventory || raw.quantity || 0));
 
-        return {
+        const normalized = {
             ...CJ_PRODUCT_CONTRACT,
             product_id: id,
             sku: sku,
@@ -180,6 +187,13 @@ export const normalizeToContract = (raw, isDetail = false) => {
             isEnriched: isDetail,
             raw: raw
         };
+
+        console.log("[TRACER-8] SELLABILITY INPUT", { sku: normalized.sku });
+        console.log("[TRACER-8] SELLABILITY OUTPUT", normalized.price);
+        console.log("[TRACER-1] RAW INPUT (ID:", id, "):", raw);
+        console.log("[TRACER-2] NORMALIZED OBJECT:", normalized);
+        
+        return normalized;
     } catch (e) {
         console.error("[CJ v7.0] Normalization Vault Failure:", e);
         return null;
