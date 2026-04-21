@@ -303,14 +303,47 @@ class CJService {
   }
 
   /**
-   * 📊 PURE API SELLABILITY (v14.5)
-   * Derived 100% from Lists (Popularity) and Stock (Availability).
+   * 📊 STRATEGIC SELLABILITY ENGINE (v14.18)
+   * High-authority scoring based on margins, logistics, and supply stability.
    */
-  calculatePureSellability(cjProduct) {
-    const listFactor = Math.min(50, (cjProduct.lists || 0) / 20); // 1000 lists = 50 pts
-    const stockFactor = Math.min(50, (cjProduct.stock || 0) / 100); // 5000 stock = 50 pts
+  calculateStrategicSellability(normalizedCj, ebayProduct) {
+    let score = 0;
+    const details = {};
+
+    // 1. Price Gap Vector (40 pts)
+    const ebayPrice = parseFloat(ebayProduct.price || 0);
+    const cjPrice = parseFloat(normalizedCj.price || 0);
+    const gap = ebayPrice - cjPrice;
     
-    return Math.round(listFactor + stockFactor);
+    if (gap > 20) score += 40;
+    else if (gap > 10) score += 25;
+    else if (gap > 0) score += 10;
+    details.priceGap = gap;
+
+    // 2. Logistics Availability (20 pts)
+    const hasRealShipping = normalizedCj.shipping?.isReal || (normalizedCj.shipping?.options?.length > 0);
+    if (hasRealShipping) score += 20;
+    details.hasShipping = hasRealShipping;
+
+    // 3. Delivery Velocity (20 pts)
+    const deliveryDays = parseInt(normalizedCj.shipping?.delivery_days || 15);
+    if (deliveryDays <= 7) score += 20;
+    else if (deliveryDays <= 12) score += 10;
+    details.deliveryDays = deliveryDays;
+
+    // 4. Supply Stability (20 pts)
+    const stock = normalizedCj.stock || 0;
+    const lists = normalizedCj.lists || 0;
+    
+    if (stock > 500 && lists > 50) score += 20;
+    else if (stock > 100) score += 10;
+    details.stock = stock;
+    details.lists = lists;
+
+    console.log("SELLABILITY INPUT", { sku: normalizedCj.sku, ...details });
+    console.log("SELLABILITY OUTPUT", score);
+
+    return Math.min(100, score);
   }
 
   /**
@@ -353,9 +386,10 @@ class CJService {
     const demand = ebayProduct.demand || 50; 
     const competition = ebayProduct.competition || "Medium";
     const momentum = ebayProduct.momentum || "Stable";
-    const baseSellability = ebayProduct.sellability_score || 50;
-
     const cjCost = Number(normalizedCj.price || 0);
+    
+    // 🧠 v14.18: STRATEGIC SCORING (NO MORE HARDCODED 50)
+    const sellabilityScore = this.calculateStrategicSellability(normalizedCj, ebayProduct);
     
     // v14.7: Shipping Logic (Stabilized)
     const shippingCost = Number(normalizedCj.shipping?.shipping_cost || 0);
@@ -399,7 +433,7 @@ class CJService {
         financials: { 
             net_profit: netProfit,
             margin_signal: marginSignal,
-            sellability_score: baseSellability, // LOCK
+            sellability_score: sellabilityScore, // DYNAMIC
             shipping_cost: shippingCost,
             shipping_source: normalizedCj.shipping?.isReal ? "REAL" : "UNAVAILABLE",
             status: profitStatus,
