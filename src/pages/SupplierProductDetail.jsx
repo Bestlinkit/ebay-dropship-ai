@@ -16,7 +16,8 @@ import {
   Target,
   DollarSign,
   Activity,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import cjService from '../services/cj.service';
