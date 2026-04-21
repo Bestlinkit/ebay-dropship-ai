@@ -48,6 +48,8 @@ const SupplierSourcing = () => {
     const initialQuery = query || ebayProduct?.title || '';
     const targetProduct = ebayProduct;
 
+    console.log("GRID RENDER ACTIVE");
+
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);

@@ -215,6 +215,7 @@ class CJService {
    * PART 1 & 2: Force correct flat payload and include warehouse.
    */
   async getShippingOptions(sku, countryCode = 'US', warehouseId = null, quantity = 1) {
+    console.log("SHIPPING FUNCTION ACTIVE");
     if (!sku) return { methods: [], status: "no_sku" };
     
     // 🧠 STEP 3 — HARD DEBUG LOG (MANDATORY)
@@ -291,6 +292,7 @@ class CJService {
    * Fetches and normalizes a single product ID with depth, while preserving intelligence context.
    */
   async enrichSingleProduct(pid, ebayProduct = null) {
+    console.log("ENRICH FUNCTION ACTIVE");
     const detail = await this.getProductDetail(pid);
     if (detail) {
         const normalized = normalizeToContract(detail, true);
