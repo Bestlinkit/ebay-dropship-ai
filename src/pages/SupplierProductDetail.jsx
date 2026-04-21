@@ -255,9 +255,55 @@ const SupplierProductDetail = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Packing List</p>
-                                    <p className="text-[11px] font-bold text-slate-900 uppercase">{(product.packing_list || "N/A")}</p>
+                                    <p className="text-11px font-bold text-slate-900 uppercase">{(product.packing_list || "N/A")}</p>
                                 </div>
                             </div>
+                        </section>
+
+                        {/* v14.14 Strategic Intelligence Brief */}
+                        <section className="space-y-6 pt-10 border-t border-slate-200">
+                             <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                 <ShieldCheck size={14} className="text-indigo-600" /> Strategic Intelligence Brief
+                             </h4>
+                             
+                             <div className="bg-slate-950 rounded-[2rem] p-8 text-white space-y-6 shadow-2xl relative overflow-hidden group">
+                                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                     <Globe size={80} />
+                                 </div>
+                                 
+                                 <div className="grid grid-cols-2 gap-8 relative z-10">
+                                     <div className="space-y-2">
+                                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Market Integrity</p>
+                                         <div className="flex items-center gap-2 text-xs font-black italic uppercase">
+                                             <div className={cn(
+                                                 "w-2 h-2 rounded-full animate-pulse",
+                                                 product.intelligence?.strategic?.market_integrity === "HIGH-AUTHORITY" ? "bg-emerald-400" : "bg-amber-400"
+                                             )} />
+                                             {product.intelligence?.strategic?.market_integrity || "VERIFYING"}
+                                         </div>
+                                     </div>
+                                     <div className="space-y-2 text-right">
+                                         <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Momentum Intensity</p>
+                                         <div className="text-xs font-black italic text-indigo-400 uppercase">
+                                             {product.intelligence?.strategic?.momentum_intensity || "STABLE"}
+                                         </div>
+                                     </div>
+                                 </div>
+
+                                 <div className="h-[1px] bg-white/10 w-full" />
+
+                                 <div className="space-y-3 relative z-10">
+                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Strategic Advantage</p>
+                                     <p className="text-sm font-black italic tracking-tight leading-snug uppercase">
+                                         {product.intelligence?.strategic?.strategic_advantage || "Analyzing market vectors..."}
+                                     </p>
+                                     <div className="pt-2">
+                                         <span className="px-3 py-1 bg-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-300">
+                                             Signal Verified
+                                         </span>
+                                     </div>
+                                 </div>
+                             </div>
                         </section>
                     </div>
                 </div>
@@ -279,9 +325,19 @@ const SupplierProductDetail = () => {
                                 <span className="text-[10px] font-black text-emerald-600 uppercase">Score: {product.intelligence?.financials?.sellability_score || 0}</span>
                             </div>
                         </div>
-                        <h1 className="text-4xl font-black text-slate-950 italic tracking-tighter leading-none uppercase">
-                            {product.title}
-                        </h1>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-4xl font-black text-slate-950 italic tracking-tighter leading-none uppercase">
+                                {product.title}
+                            </h1>
+                            {product.intelligence?.strategic?.momentum_intensity && (
+                                <div className={cn(
+                                    "px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest text-white shadow-lg shrink-0",
+                                    product.intelligence?.strategic?.momentum_intensity === "HIGH" ? "bg-rose-500 animate-pulse" : "bg-indigo-500"
+                                )}>
+                                    {product.intelligence?.strategic?.momentum_intensity} MOMENTUM
+                                </div>
+                            )}
+                        </div>
                         <div className="flex items-center gap-6">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID: {product.product_id}</span>
                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">|</span>

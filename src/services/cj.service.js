@@ -377,6 +377,24 @@ class CJService {
         else marginSignal = "LOSS";
     }
 
+    // 4. Strategic Justification Engine (v14.14)
+    const lists = normalizedCj.lists || 0;
+    const rating = parseFloat(normalizedCj.rating || 0);
+    
+    let marketIntegrity = "VARIABLE";
+    if (rating >= 4.5 && lists > 50) marketIntegrity = "HIGH-AUTHORITY";
+    else if (rating >= 4.0 || lists > 10) marketIntegrity = "STABLE";
+
+    let strategicAdvantage = "Opportunity Identified";
+    if (netProfit > 10 && demand > 70) strategicAdvantage = "High Velocity / High Margin";
+    else if (netProfit > 5 && competition === "Low") strategicAdvantage = "Blue Ocean Entry";
+    else if (lists > 100) strategicAdvantage = "Proven Market Winner";
+    else if (demand > 80) strategicAdvantage = "Unmet Demand Capture";
+
+    let intensity = "MODERATE";
+    if (demand > 80 || lists > 200) intensity = "HIGH";
+    else if (demand < 30) intensity = "LOW";
+
     return {
         financials: { 
             net_profit: netProfit,
@@ -401,10 +419,15 @@ class CJService {
             isReal: normalizedCj.shipping?.isReal,
             methods: normalizedCj.shipping?.options || []
         },
+        strategic: {
+            market_integrity: marketIntegrity,
+            strategic_advantage: strategicAdvantage,
+            momentum_intensity: intensity
+        },
         metadata: {
             sku: normalizedCj.sku,
             cj_url: normalizedCj.cj_url,
-            lists: normalizedCj.lists || 0
+            lists: lists
         }
     };
   }
