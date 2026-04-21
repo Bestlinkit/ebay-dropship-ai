@@ -211,30 +211,43 @@ class CJService {
   }
 
   /**
-   * 🚢 FETCH SHIPPING OPTIONS (v14.6 - Warehouse Precision)
+   * 🚢 FETCH SHIPPING OPTIONS (v14.7 - Corrected SKU-based POST)
+   * Required params: product SKU, quantity, destination country
    */
-  async getShippingOptions(pid, countryCode = 'US', warehouseId = null, quantity = 1) {
+  async getShippingOptions(skuCode, countryCode = 'US', warehouseId = null, quantity = 1) {
+    if (!skuCode) return [];
+    
+    // FORENSIC LOGGING (Part 7)
+    console.log(`[CJ LOGISTICS REQUEST]`, { sku_used: skuCode, warehouseId, countryCode, quantity });
+
     try {
-        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, {
-            params: { 
-                pid, 
-                countryCode,
-                warehouseId,
-                quantity
-            }
-        });
+        const payload = {
+            startCountryCode: warehouseId === 'US' ? 'US' : 'CN', // Dynamic origin derivation
+            endCountryCode: countryCode,
+            products: [{ sku: skuCode, quantity }]
+        };
+
+        const response = await axios.post(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, payload);
         
+        // FORENSIC RESPONSE LOGGING
+        console.log(`[CJ LOGISTICS RESPONSE]`, { 
+            sku: skuCode, 
+            status: response.data?.code, 
+            methods_found: response.data?.data?.length || 0 
+        });
+
         if (response.data && response.data.code === 200) {
             const list = response.data.data || [];
             return list.map(opt => ({
                 name: opt.logisticName || "Standard Shipping",
                 cost: parseFloat(opt.amount || 0),
                 deliveryTime: opt.logisticTime || "7-15 Days",
-                warehouse: warehouseId
+                warehouse: warehouseId,
+                origin: warehouseId === 'US' ? 'US' : 'CN'
             }));
         }
     } catch (e) {
-        console.error(`[CJ SHIPPING] Failed for ${pid} (WH: ${warehouseId}):`, e.message);
+        console.error(`[CJ SHIPPING] Failed for SKU ${skuCode} (WH: ${warehouseId}):`, e.message);
     }
     return [];
   }
@@ -325,29 +338,31 @@ class CJService {
   }
 
   /**
-   * 🧠 COMMERCE INTELLIGENCE ENGINE (v14.5 - PRECISION FORMULA)
-   * Mandate: Profit = eBay Price - (CJ Cost + Shipping)
+   * 🧠 COMMERCE INTELLIGENCE ENGINE (v14.7 - PROTECTION LAYER)
+   * PART 1: Intelligence Engine must NEVER be overwritten by CJ enrichment.
    */
    buildIntelligencePayload(normalizedCj, ebayProduct) {
+    // 🔒 LOCK FIELDS (Part 1 - Mandatory)
     const ebayPrice = Number(ebayProduct.price || 0);
+    const demand = ebayProduct.demand || 50; 
+    const competition = ebayProduct.competition || "Medium";
+    const momentum = ebayProduct.momentum || "Stable";
+    const baseSellability = ebayProduct.sellability_score || 50;
+
     const cjCost = Number(normalizedCj.price || 0);
     
-    // v14.0: Strict Logistics (No Benchmarks)
-    let shippingCost = Number(normalizedCj.shipping?.shipping_cost || 0);
-    let shippingLabel = shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : "FREE";
+    // v14.7: Shipping Logic (Stabilized)
+    const shippingCost = Number(normalizedCj.shipping?.shipping_cost || 0);
+    const hasShipping = normalizedCj.shipping?.shipping_cost !== null && normalizedCj.shipping?.shipping_cost !== undefined;
     
-    if (normalizedCj.shipping?.shipping_cost === null || normalizedCj.shipping?.shipping_cost === undefined) {
-        shippingLabel = "PENDING API DATA";
-        shippingCost = 0; // Reset for profit calculation but show pending
-    }
-
-    // 2. Net Profit Calculation (PRECISION V14.5)
+    let shippingLabel = hasShipping ? `$${shippingCost.toFixed(2)}` : "Fetching shipping...";
+    
+    // 2. Net Profit Calculation (PRECISION V14.7)
     // Formula: eBay Price - (CJ Cost + Shipping Fee)
-    const exactShippingData = normalizedCj.shipping?.shipping_cost !== null;
-    const netProfit = exactShippingData ? ebayPrice - (cjCost + shippingCost) : null;
+    const netProfit = hasShipping ? (ebayPrice - (cjCost + shippingCost)) : (ebayPrice - cjCost);
+    const profitStatus = hasShipping ? (netProfit > 0 ? "PROFITABLE" : "LOSS") : "estimated (excluding shipping)";
 
-    // 3. Margin Signaling & Sellability
-    const sellability = this.calculatePureSellability(normalizedCj);
+    // 3. Margin Signaling 
     let marginSignal = "UNVERIFIED";
     if (netProfit !== null) {
         if (netProfit > 10) marginSignal = "High Profit";
@@ -360,18 +375,25 @@ class CJService {
         financials: { 
             net_profit: netProfit,
             margin_signal: marginSignal,
-            sellability_score: sellability,
+            sellability_score: baseSellability, // LOCK
             shipping_cost: shippingCost,
-            shipping_used: shippingCost,
             shipping_source: normalizedCj.shipping?.isReal ? "REAL" : "UNAVAILABLE",
-            status: netProfit !== null ? (netProfit > 0 ? "PROFITABLE" : "LOSS") : "PENDING",
-            shipping_label: shippingLabel
+            status: profitStatus,
+            shipping_label: shippingLabel,
+            locked: {
+                ebay_price: ebayPrice,
+                demand,
+                competition,
+                momentum
+            }
         },
         shipping: { 
-            delivery_estimate: normalizedCj.shipping?.delivery_days || "NO API DATA", 
-            warehouse: normalizedCj.warehouse || "GLOBAL",
-            origin: normalizedCj.shipping?.from || "GLOBAL",
-            isReal: normalizedCj.shipping?.isReal
+            resolved: hasShipping,
+            delivery_estimate: normalizedCj.shipping?.delivery_days || "Fetching...", 
+            warehouse: normalizedCj.warehouse || "China",
+            origin: normalizedCj.shipping?.from || "China",
+            isReal: normalizedCj.shipping?.isReal,
+            methods: normalizedCj.shipping?.options || []
         },
         metadata: {
             sku: normalizedCj.sku,

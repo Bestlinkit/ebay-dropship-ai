@@ -69,18 +69,6 @@ const SupplierProductDetail = () => {
                     }
                 }
 
-                // 3. LOGISTICS SYNC (Pure API - Warehouse Driven)
-                setShippingLoading(true);
-                const options = await cjService.getShippingOptions(
-                    id, 
-                    'US', 
-                    enriched?.warehouseId || initialProduct?.warehouseId, 
-                    1
-                );
-                setShippingOptions(options);
-                if (options.length > 0) setSelectedShipping(options[0]);
-                setShippingLoading(false);
-
             } catch (error) {
                 console.error("Deep Enrichment Fault:", error);
             } finally {
@@ -90,6 +78,36 @@ const SupplierProductDetail = () => {
 
         fetchDeepDetails();
     }, [id]); // Only re-run when ID changes
+
+    /**
+     * v14.7 VARIANT-LEVEL LOGISTICS ENGINE
+     * Triggers whenever SKU or Warehouse changes.
+     */
+    useEffect(() => {
+        const fetchLogistics = async () => {
+            const currentSku = selectedVariant?.sku || product?.sku;
+            if (!currentSku) return;
+
+            setShippingLoading(true);
+            try {
+                const options = await cjService.getShippingOptions(
+                    currentSku, 
+                    'US', 
+                    selectedVariant?.warehouseId || product?.warehouseId || 'CN', 
+                    1
+                );
+                setShippingOptions(options);
+                if (options.length > 0) setSelectedShipping(options[0]);
+                else setSelectedShipping(null);
+            } catch (err) {
+                console.error("Logistics Failure:", err);
+            } finally {
+                setShippingLoading(false);
+            }
+        };
+
+        if (product) fetchLogistics();
+    }, [selectedVariant?.sku, product?.product_id]);
 
     // v13.0 Gallery Sync Effect
     useEffect(() => {
@@ -117,16 +135,17 @@ const SupplierProductDetail = () => {
     const logistics = product.intelligence?.shipping;
     const currentPrice = Number(selectedVariant?.price || product.price);
     
-    // v14.0 Shipping Cost Logic (Strict Pure API)
-    const exactShippingData = selectedShipping?.cost !== undefined || financials?.shipping_cost !== null;
-    const shippingCost = selectedShipping ? selectedShipping.cost : (financials?.shipping_cost || null);
+    // v14.7 Profit Engine (Stabilized)
+    const hasShipping = selectedShipping?.cost !== undefined;
+    const shippingCost = hasShipping ? selectedShipping.cost : 0;
     
-    // v14.0 Profit Engine (Dynamic & Honest)
-    const netProfit = (targetPrice > 0 && currentPrice > 0 && shippingCost !== null) 
+    const netProfit = (targetPrice > 0 && currentPrice > 0) 
         ? targetPrice - (currentPrice + shippingCost) 
         : null;
+
     const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`) : "N/A";
     const marginSignal = netProfit !== null ? (netProfit > 10 ? "High Profit" : (netProfit >= 3 ? "Medium Profit" : "Low Profit")) : "UNVERIFIED";
+    const profitStatusLabel = hasShipping ? "" : " (est. before shipping)";
 
     const gallery = product.gallery || [];
 
@@ -278,12 +297,12 @@ const SupplierProductDetail = () => {
                                         "text-4xl font-black italic tracking-tighter",
                                         (netProfit !== null && netProfit >= 0) ? "text-emerald-500" : (netProfit === null ? "text-slate-300" : "text-rose-500")
                                     )}>
-                                        {netProfit === null ? "PENDING DATA" : profitFormatted}
+                                        {netProfit === null ? "PENDING DATA" : `${profitFormatted}${profitStatusLabel}`}
                                     </p>
                                     <div className="flex items-center gap-1.5 mt-1">
                                         <Zap size={10} className={cn(netProfit !== null ? "text-indigo-400" : "text-slate-200")} />
                                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                                            {netProfit === null ? "AWAITING LOGISTICS" : marginSignal.toUpperCase()}
+                                            {shippingLoading ? "Fetching shipping..." : (selectedShipping ? marginSignal.toUpperCase() : "Awaiting shipping data")}
                                         </span>
                                     </div>
                                 </div>

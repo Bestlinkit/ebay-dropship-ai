@@ -97,7 +97,7 @@ export const normalizeToContract = (raw, isDetail = false) => {
         }
 
         // 2. LOGISTICS INFERENCE (v14.0 Pure API)
-        const warehouseName = raw.warehouseName || raw.warehouse || "GLOBAL";
+        const warehouseName = raw.warehouseName || raw.warehouse || "China";
         const shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
 
         // 3. VARIANT FLATTENING (v14.2 Robust Mapping)
@@ -135,7 +135,7 @@ export const normalizeToContract = (raw, isDetail = false) => {
             stock_cj: stock_cj,
             stock_factory: stock_factory,
             shipping: {
-                from: (shipFrom === 'China' || shipFrom === 'CN') ? 'China' : (shipFrom === 'USA' || shipFrom === 'US') ? 'USA' : shipFrom,
+                from: (shipFrom === 'China' || shipFrom === 'CN') ? 'China' : (shipFrom === 'USA' || shipFrom === 'US') ? 'United States' : shipFrom,
                 fromCode: (shipFrom === 'China' || shipFrom === 'CN') ? 'CN' : (shipFrom === 'USA' || shipFrom === 'US') ? 'US' : shipFrom,
                 delivery_days: raw.deliveryTime || raw.shippingTime || null,
                 shipping_cost: raw.shippingFee || raw.shippingCost || null,
