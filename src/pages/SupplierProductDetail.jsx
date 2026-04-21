@@ -93,11 +93,13 @@ const SupplierProductDetail = () => {
                 const { methods, status } = await cjService.getShippingOptions(
                     currentSku, 
                     'US', 
-                    selectedVariant?.warehouseId || product?.warehouseId || 'CN', 
+                    selectedVariant?.warehouseId || product?.warehouseId, 
                     1
                 );
                 setShippingOptions(methods);
-                if (status === "resolved" && methods.length > 0) {
+                
+                // 🧠 v14.13: Explicit status handling for zero-cost routing
+                if (methods.length > 0) {
                     setSelectedShipping(methods[0]);
                 } else {
                     setSelectedShipping(null);
@@ -305,7 +307,7 @@ const SupplierProductDetail = () => {
                                     <div className="flex items-center gap-1.5 mt-1">
                                         <Zap size={10} className={cn(netProfit !== null ? "text-indigo-400" : "text-slate-200")} />
                                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                                            {shippingLoading ? "Fetching shipping..." : (selectedShipping ? marginSignal.toUpperCase() : "Awaiting shipping data")}
+                                            {shippingLoading ? "Fetching..." : (selectedShipping ? marginSignal.toUpperCase() : "Awaiting selection")}
                                         </span>
                                     </div>
                                 </div>
@@ -325,11 +327,21 @@ const SupplierProductDetail = () => {
                             </div>
 
                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div className="flex items-center gap-2"><Truck size={14} /> {selectedShipping?.deliveryTime || logistics?.delivery_estimate || "AWAITING API DATA"}</div>
+                                <div className="flex items-center gap-2">
+                                    <Truck size={14} /> 
+                                    {shippingLoading ? "Determining route..." : (selectedShipping?.deliveryTime || "ROUTE UNAVAILABLE")}
+                                    <span className="text-slate-300 mx-1">|</span>
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded-md text-[8px]",
+                                        (selectedVariant?.warehouseId || "").toString().toUpperCase().includes('US') ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
+                                    )}>
+                                        FROM: {(selectedVariant?.warehouseId || "").toString().toUpperCase().includes('US') ? "UNITED STATES" : "CHINA"}
+                                    </span>
+                                </div>
                                 <div className="flex items-center gap-2">
                                     <Activity size={14} /> 
-                                    TOTAL STOCK: {product.stock || 0} 
-                                    {selectedVariant && <span className="text-indigo-400"> (SELECTED: {selectedVariant.inventory})</span>}
+                                    STOCK: {product.stock || 0} 
+                                    {selectedVariant && <span className="text-indigo-400"> ({selectedVariant.inventory})</span>}
                                 </div>
                             </div>
                         </div>
@@ -364,12 +376,14 @@ const SupplierProductDetail = () => {
                                                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{opt.deliveryTime}</p>
                                             </div>
                                         </div>
-                                        <span className="text-[11px] font-black text-indigo-600">${opt.cost.toFixed(2)}</span>
+                                        <span className="text-[11px] font-black text-indigo-600">
+                                            {opt.cost === 0 ? "FREE SHIPPING" : `$${opt.cost.toFixed(2)}`}
+                                        </span>
                                     </label>
                                 ))
                             ) : (
                                 <div className="text-center py-4 opacity-50 text-[10px] font-bold uppercase tracking-widest italic">
-                                    {shippingLoading ? "Fetching shipping..." : "No shipping available to destination"}
+                                    {shippingLoading ? "Fetching..." : "No shipping routes available"}
                                 </div>
                             )}
                         </div>

@@ -358,7 +358,7 @@ cjRouter.get('/detail', async (req, res) => {
 // 🚢 CJ FREIGHT CALCULATION (v14.8 - Flat Payload Resolution)
 cjRouter.post('/freight', async (req, res) => {
     try {
-        const { sku, quantity = 1, countryCode = 'US', warehouseId = 'CN' } = req.body;
+        const { sku, quantity = 1, countryCode = 'US', warehouseId } = req.body;
         
         if (!sku) {
             return res.status(400).json({ error: "Missing SKU in payload" });
@@ -367,8 +367,12 @@ cjRouter.post('/freight', async (req, res) => {
         const activeToken = global.CJ_SESSION?.accessToken;
         const startTime = Date.now();
 
+        // 🧠 v14.13: Refined Warehouse Mapping
+        const isUS = warehouseId && (warehouseId.toString().toUpperCase().includes('US') || warehouseId.toString().toUpperCase().includes('UNITED STATES'));
+        const startCountryCode = isUS ? 'US' : 'CN';
+
         const payload = {
-            startCountryCode: (warehouseId === 'US' || warehouseId === 'United States') ? 'US' : 'CN',
+            startCountryCode,
             endCountryCode: countryCode || 'US',
             products: [{ variantSku: sku, quantity }]
         };

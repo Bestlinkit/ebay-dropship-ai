@@ -235,22 +235,23 @@ class CJService {
 
         const response = await axios.post(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, payload);
         
-        // 🧠 STEP 3 — HARD DEBUG LOG (MANDATORY)
-        console.log("CJ SHIPPING RESPONSE", response.data);
+        // 🧠 v14.13: RAW DEBUG LOG (BEFORE MAPPING)
+        console.log("CJ RAW METHODS:", response.data?.data);
 
         if (response.data && response.data.code === 200) {
             const list = response.data.data || [];
             if (list.length > 0) {
                 const methods = list.map(opt => ({
                     name: opt.logisticName || "Standard Shipping",
-                    cost: parseFloat(opt.amount || 0),
+                    cost: parseFloat(opt.amount ?? 0), // Use nullish coalescing to preserve 0
                     deliveryTime: opt.logisticTime || "7-15 Days",
-                    warehouse: warehouseId
+                    warehouse: warehouseId || (opt.logisticName?.toUpperCase().includes('US') ? 'US' : 'CN')
                 }));
                 return { methods, status: "resolved" };
             }
+            return { methods: [], status: "resolved" }; // Resolved but empty
         }
-        return { methods: [], status: "no_methods" };
+        return { methods: [], status: "error" };
     } catch (e) {
         console.error(`[CJ SHIPPING] Fault for SKU ${sku}:`, e.message);
         return { methods: [], status: "error" };
