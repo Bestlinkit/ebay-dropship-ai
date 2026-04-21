@@ -100,20 +100,43 @@ export const normalizeToContract = (raw, isDetail = false) => {
         const warehouseName = raw.warehouseName || raw.warehouse || "China";
         const shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
 
-        // 3. VARIANT FLATTENING (v14.2 Robust Mapping)
+        // 3. VARIANT FLATTENING (v14.17 Robust Mapping)
         const variantSource = raw.productVariants || raw.variants || raw.variantList || raw.variantSkuList || [];
-        const variants = (Array.isArray(variantSource) ? variantSource : [])
-            .map(v => ({
-                id: v.vid || v.variantId || v.variantSku || v.sku || id,
-                sku: v.variantSku || v.sku || id,
-                color: v.variantKey || v.variantName || v.nameEn || v.variantNameEn || "Standard",
-                size: v.variantStandard || v.variantSize || "Standard",
-                price: parseFloat(v.variantSellPrice || v.sellPrice || price),
-                inventory: parseInt(v.variantInventory || v.inventory || v.num || v.quantity || v.variantNum || v.factoryInventory || v.variantFactoryInventory || v.factoryNum || 0),
-                image: v.variantImage ? (v.variantImage.startsWith('http') ? v.variantImage : CJ_CDN + v.variantImage) : finalGallery[0],
-                warehouseId: v.warehouseId || v.warehouseCode || null,
-                warehouseName: v.warehouseName || v.warehouse || null
-            }));
+        let variants = (Array.isArray(variantSource) ? variantSource : [])
+            .map(v => {
+                const vSku = v.skuCode || v.variantSku || v.sku || id;
+                const vImage = v.image || v.variantImage || finalGallery[0];
+                
+                if (!vSku) console.warn(`[CJ SCHEMA] Variant missing SKU for product ${id}`);
+                if (!vImage) console.warn(`[CJ SCHEMA] Variant missing image for product ${id}`);
+
+                return {
+                    id: v.vid || v.variantId || vSku,
+                    sku: vSku,
+                    color: v.variantKey || v.variantName || v.nameEn || v.variantNameEn || "Standard",
+                    size: v.variantStandard || v.variantSize || "Standard",
+                    price: parseFloat(v.variantSellPrice || v.sellPrice || price),
+                    inventory: parseInt(v.variantInventory || v.inventory || v.num || v.quantity || v.variantNum || v.factoryInventory || v.variantFactoryInventory || v.factoryNum || 0),
+                    image: vImage.startsWith('http') ? vImage : CJ_CDN + vImage,
+                    warehouseId: v.warehouseId || v.warehouseCode || raw.warehouseId || null,
+                    warehouseName: v.warehouseName || v.warehouse || raw.warehouseName || null
+                };
+            });
+
+        // v14.17: Default Synthesis Rule
+        if (variants.length === 0) {
+            variants.push({
+                id: id,
+                sku: sku,
+                color: "Standard",
+                size: "Standard",
+                price: price,
+                inventory: parseInt(raw.num || 0),
+                image: finalGallery[0],
+                warehouseId: raw.warehouseId || null,
+                warehouseName: raw.warehouseName || null
+            });
+        }
 
         // v14.1: Inventory Summation Rule (CJ + Factory)
         const stock_cj = parseInt(raw.warehouseInventoryNum || raw.num || 0);
