@@ -59,8 +59,8 @@ const SupplierProductDetail = () => {
                     if (initialProduct.variants?.length > 0) setSelectedVariant(initialProduct.variants[0]);
                 }
 
-                // 2. MANDATORY DEEP SYNC (v14.2 - Recovery of Variants/Desc)
-                const enriched = await cjService.enrichSingleProduct(id);
+                // 2. MANDATORY DEEP SYNC (v14.7 - Intelligence Preservation)
+                const enriched = await cjService.enrichSingleProduct(id, targetProduct);
                 if (enriched) {
                     setProduct(enriched);
                     // Update variant if none selected or if matching search result

@@ -135,7 +135,8 @@ export const normalizeToContract = (raw, isDetail = false) => {
             stock_cj: stock_cj,
             stock_factory: stock_factory,
             shipping: {
-                from: (shipFrom === 'China' || shipFrom === 'CN') ? 'CN' : (shipFrom === 'USA' || shipFrom === 'US') ? 'US' : shipFrom,
+                from: (shipFrom === 'China' || shipFrom === 'CN') ? 'China' : (shipFrom === 'USA' || shipFrom === 'US') ? 'USA' : shipFrom,
+                fromCode: (shipFrom === 'China' || shipFrom === 'CN') ? 'CN' : (shipFrom === 'USA' || shipFrom === 'US') ? 'US' : shipFrom,
                 delivery_days: raw.deliveryTime || raw.shippingTime || null,
                 shipping_cost: raw.shippingFee || raw.shippingCost || null,
                 isReal: isDetail && (raw.shippingFee !== undefined || raw.shippingCost !== undefined)

@@ -268,13 +268,17 @@ class CJService {
   }
 
   /**
-   * 🛒 ENRICH SINGLE PRODUCT (v14.2)
-   * Fetches and normalizes a single product ID with depth.
+   * 🛒 ENRICH SINGLE PRODUCT (v14.7 - Intelligence Preservation)
+   * Fetches and normalizes a single product ID with depth, while preserving intelligence context.
    */
-  async enrichSingleProduct(pid) {
+  async enrichSingleProduct(pid, ebayProduct = null) {
     const detail = await this.getProductDetail(pid);
     if (detail) {
-        return normalizeToContract(detail, true);
+        const normalized = normalizeToContract(detail, true);
+        if (ebayProduct) {
+            normalized.intelligence = this.buildIntelligencePayload(normalized, ebayProduct);
+        }
+        return normalized;
     }
     return null;
   }
