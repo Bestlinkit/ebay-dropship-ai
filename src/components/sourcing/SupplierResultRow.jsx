@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import cjService from '../../services/cj.service';
 import { 
   Star, 
   AlertTriangle, 
@@ -51,9 +52,52 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
     const profit = financials?.net_profit;
 
-    const profitFormatted = typeof profit === 'number'
-        ? (profit < 0 ? `-$${Math.abs(profit).toFixed(2)}` : `+$${profit.toFixed(2)}`)
-        : "N/A";
+    // 🧠 v14.16: INDEPENDENT SHIPPING ENGINE
+    const [localShipping, setLocalShipping] = useState(null);
+    const [localLoading, setLocalLoading] = useState(false);
+    const [localStatus, setLocalStatus] = useState("pending");
+
+    useEffect(() => {
+        const fetchLocalShipping = async () => {
+            if (!sku) return;
+            
+            console.log("GRID SHIPPING CALL", sku);
+            setLocalLoading(true);
+            setLocalStatus("fetching");
+
+            try {
+                const warehouseId = activeVariant?.warehouseId || "CN";
+                const { methods, status } = await cjService.getShippingOptions(sku, 'US', warehouseId, 1);
+                
+                if (methods && methods.length > 0) {
+                    setLocalShipping(methods[0]);
+                    setLocalStatus("resolved");
+                } else {
+                    setLocalStatus("no_methods");
+                }
+            } catch (err) {
+                console.error(`[GRID SHIPPING] Error for ${sku}:`, err);
+                setLocalStatus("error");
+            } finally {
+                setLocalLoading(false);
+            }
+        };
+
+        fetchLocalShipping();
+    }, [sku, activeVariant?.warehouseId]);
+
+    // Data Extraction (Local Preference)
+    const activeShippingCost = localShipping?.cost ?? 0;
+    const activeDeliveryTime = localShipping?.deliveryTime || deliveryTime;
+
+    // 2. Net Profit Re-Calculation (Local v14.16)
+    const localProfit = (localStatus === "resolved") 
+        ? targetPrice - (price + activeShippingCost)
+        : null;
+
+    const profitFormatted = typeof localProfit === 'number'
+        ? (localProfit < 0 ? `-$${Math.abs(localProfit).toFixed(2)}` : `+$${localProfit.toFixed(2)}`)
+        : "PENDING";
 
     const colors = Array.from(new Set((product.variants || []).map(v => v.color))).filter(c => c && c !== 'Standard');
 
@@ -145,7 +189,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         <Globe size={10} /> ORIGIN: {shippingOrigin}
                     </span>
                     <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-white/5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap">
-                         <Box size={10} /> STOCK: {stock}
+                        <Truck size={10} /> {localLoading ? "FETCHING..." : activeDeliveryTime}
                     </span>
                     <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                         <Activity size={10} className="text-emerald-500" />
@@ -193,15 +237,15 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
                 {/* KPI SECTION (v7.0 Strict Market Decision Engine) */}
                 <div className="flex flex-wrap items-start gap-y-6 gap-x-12 pt-6 border-t border-white/5">
-                    <div className="flex flex-col gap-1 min-w-[100px]">
+                     <div className="flex flex-col gap-1 min-w-[100px]">
                         <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic whitespace-nowrap">Net Profit ($)</span>
-                        <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1", getProfitColor(profit))}>
-                            {profit === null ? "UNAVAILABLE" : profitFormatted}
+                        <div className={cn("text-2xl md:text-3xl font-black italic tracking-tighter whitespace-nowrap tabular-nums font-mono leading-none py-1", getProfitColor(localProfit))}>
+                            {localStatus === "resolved" ? profitFormatted : "FETCHING..."}
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <Zap size={10} className={cn(profit !== null && profit > 0 ? "text-emerald-500" : "text-slate-500")} />
+                            <Zap size={10} className={cn(localProfit !== null && localProfit > 0 ? "text-emerald-500" : "text-slate-500")} />
                             <span className="text-[7px] font-black text-slate-600 uppercase tracking-[0.15em] whitespace-nowrap">
-                                {profit === null ? "PENDING SHIPPING" : marginSignal.toUpperCase()}
+                                {localLoading ? "CALCULATING..." : (localStatus === "resolved" ? marginSignal.toUpperCase() : "AWAITING DATA")}
                             </span>
                         </div>
                     </div>
