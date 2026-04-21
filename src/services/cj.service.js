@@ -211,45 +211,50 @@ class CJService {
   }
 
   /**
-   * 🚢 FETCH SHIPPING OPTIONS (v14.7 - Corrected SKU-based POST)
-   * Required params: product SKU, quantity, destination country
+   * 🚢 FETCH SHIPPING OPTIONS (v14.8 - Shipping Fix Only)
+   * PART 1 & 2: Force correct flat payload and include warehouse.
    */
-  async getShippingOptions(skuCode, countryCode = 'US', warehouseId = null, quantity = 1) {
-    if (!skuCode) return [];
+  async getShippingOptions(sku, countryCode = 'US', warehouseId = null, quantity = 1) {
+    if (!sku) return { methods: [], status: "no_sku" };
     
-    // FORENSIC LOGGING (Part 7)
-    console.log(`[CJ LOGISTICS REQUEST]`, { sku_used: skuCode, warehouseId, countryCode, quantity });
+    // 🧠 STEP 3 — HARD DEBUG LOG (MANDATORY)
+    console.log("CJ SHIPPING REQUEST", {
+        sku,
+        quantity: 1,
+        countryCode,
+        warehouseId
+    });
 
     try {
         const payload = {
-            startCountryCode: warehouseId === 'US' ? 'US' : 'CN', // Dynamic origin derivation
-            endCountryCode: countryCode,
-            products: [{ sku: skuCode, quantity }]
+            sku,
+            quantity: 1,
+            countryCode,
+            warehouseId
         };
 
         const response = await axios.post(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, payload);
         
-        // FORENSIC RESPONSE LOGGING
-        console.log(`[CJ LOGISTICS RESPONSE]`, { 
-            sku: skuCode, 
-            status: response.data?.code, 
-            methods_found: response.data?.data?.length || 0 
-        });
+        // 🧠 STEP 3 — HARD DEBUG LOG (MANDATORY)
+        console.log("CJ SHIPPING RESPONSE", response.data);
 
         if (response.data && response.data.code === 200) {
             const list = response.data.data || [];
-            return list.map(opt => ({
-                name: opt.logisticName || "Standard Shipping",
-                cost: parseFloat(opt.amount || 0),
-                deliveryTime: opt.logisticTime || "7-15 Days",
-                warehouse: warehouseId,
-                origin: warehouseId === 'US' ? 'US' : 'CN'
-            }));
+            if (list.length > 0) {
+                const methods = list.map(opt => ({
+                    name: opt.logisticName || "Standard Shipping",
+                    cost: parseFloat(opt.amount || 0),
+                    deliveryTime: opt.logisticTime || "7-15 Days",
+                    warehouse: warehouseId
+                }));
+                return { methods, status: "resolved" };
+            }
         }
+        return { methods: [], status: "no_methods" };
     } catch (e) {
-        console.error(`[CJ SHIPPING] Failed for SKU ${skuCode} (WH: ${warehouseId}):`, e.message);
+        console.error(`[CJ SHIPPING] Fault for SKU ${sku}:`, e.message);
+        return { methods: [], status: "error" };
     }
-    return [];
   }
 
   /**

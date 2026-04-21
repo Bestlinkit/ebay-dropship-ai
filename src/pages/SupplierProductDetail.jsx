@@ -90,15 +90,18 @@ const SupplierProductDetail = () => {
 
             setShippingLoading(true);
             try {
-                const options = await cjService.getShippingOptions(
+                const { methods, status } = await cjService.getShippingOptions(
                     currentSku, 
                     'US', 
                     selectedVariant?.warehouseId || product?.warehouseId || 'CN', 
                     1
                 );
-                setShippingOptions(options);
-                if (options.length > 0) setSelectedShipping(options[0]);
-                else setSelectedShipping(null);
+                setShippingOptions(methods);
+                if (status === "resolved" && methods.length > 0) {
+                    setSelectedShipping(methods[0]);
+                } else {
+                    setSelectedShipping(null);
+                }
             } catch (err) {
                 console.error("Logistics Failure:", err);
             } finally {
@@ -366,7 +369,7 @@ const SupplierProductDetail = () => {
                                 ))
                             ) : (
                                 <div className="text-center py-4 opacity-50 text-[10px] font-bold uppercase tracking-widest italic">
-                                    {shippingLoading ? "Fetching Logistics Data..." : "No shipping methods detected."}
+                                    {shippingLoading ? "Fetching shipping..." : "No shipping available to destination"}
                                 </div>
                             )}
                         </div>

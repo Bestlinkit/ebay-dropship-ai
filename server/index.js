@@ -355,40 +355,38 @@ cjRouter.get('/detail', async (req, res) => {
     }
 });
 
-/**
- * 🎯 CJ FREIGHT CALCULATION
- */
+// 🚢 CJ FREIGHT CALCULATION (v14.8 - Flat Payload Resolution)
 cjRouter.post('/freight', async (req, res) => {
     try {
-        const { startCountryCode = 'CN', endCountryCode = 'US', products } = req.body;
+        const { sku, quantity = 1, countryCode = 'US', warehouseId = 'CN' } = req.body;
         
-        if (!products || !Array.isArray(products)) {
-            return res.status(400).json({ error: "Missing products array" });
+        if (!sku) {
+            return res.status(400).json({ error: "Missing SKU in payload" });
         }
 
-        const activeToken = global.CJ_SESSION?.accessToken; // Middleware ensures this exists
+        const activeToken = global.CJ_SESSION?.accessToken;
         const startTime = Date.now();
 
-        const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, {
-            startCountryCode,
-            endCountryCode,
-            products
-        }, {
+        const payload = {
+            startCountryCode: warehouseId === 'US' ? 'US' : 'CN',
+            endCountryCode: countryCode,
+            products: [{ sku, quantity }]
+        };
+
+        const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, payload, {
             headers: { 'CJ-Access-Token': activeToken, 'Content-Type': 'application/json' },
             timeout: 10000
         });
 
-        console.log(`[CJ TRACE] FREIGHT`, {
-            payload: { startCountryCode, endCountryCode, productCount: products.length },
-            httpStatus: response.status,
-            rawResponse: response.data?.code,
-            tokenUsed: `...${activeToken.slice(-4)}`,
+        console.log(`[CJ TRACE] FREIGHT v14.8`, {
+            sku,
+            code: response.data?.code,
             latency: Date.now() - startTime
         });
 
         return res.json(response.data);
     } catch (error) {
-        console.error("[CJ Freight] Error:", error.message);
+        console.error("[CJ Freight Proxy] Error:", error.message);
         res.status(500).json({ status: "API_ERROR", message: error.message });
     }
 });
