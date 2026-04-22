@@ -172,7 +172,7 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="flex items-center justify-between">
          <div className="space-y-1">
-            <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Performance Hub.</h1>
+            <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none"><span>Performance Hub.</span></h1>
             <p className="text-[11px] font-black text-text-muted uppercase tracking-[0.4em] flex items-center gap-2">
                <Layers size={14} className="text-primary-500" /> Distributed Control Hub
             </p>
@@ -227,7 +227,7 @@ const Dashboard = () => {
         </div>
 
         <div className="2xl:col-span-3 bg-slate-900 p-10 rounded-[3rem] border border-slate-800 shadow-2xl h-[500px] overflow-hidden flex flex-col relative">
-            <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-8 leading-none">Performance Feed</h3>
+            <h3 className="text-xl font-black text-white italic tracking-tighter uppercase mb-8 leading-none"><span>Performance Feed</span></h3>
             <div className="space-y-6 overflow-y-auto pr-3 scrollbar-hide flex-1">
                 {stats.recentOrders?.length > 0 ? stats.recentOrders.slice(0, 6).map((order, i) => (
                     <div key={i} className="flex items-center gap-5 p-5 bg-slate-950 border border-slate-800/50 rounded-3xl hover:border-primary/30 transition-all cursor-pointer group">
