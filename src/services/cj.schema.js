@@ -41,7 +41,10 @@ export const normalizeToContract = (raw, isDetail = false) => {
         const title = raw.productNameEn || raw.productName || raw.nameEn || raw.title;
         const sku = raw.productSku || raw.sku || id;
         
-        if (!id || !title) return null;
+        if (!id || !title) {
+            console.warn("[CJ SCHEMA] Missing critical fields (ID or Title)", { id, title, raw });
+            return null;
+        }
 
         const price = parseFloat(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
         

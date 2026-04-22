@@ -1,4 +1,5 @@
 import axios from 'axios';
+import cjService from './cj.service';
 
 /**
  * Deterministic Sourcing & Debug Intelligence (v30.0 - System Override)
@@ -131,6 +132,40 @@ class SourcingService {
   }
 
   /**
+   * 📊 PRICING INTELLIGENCE ENGINE (v1.0)
+   */
+  getPricingIntelligence(product, supplierCost) {
+    const cost = parseFloat(supplierCost);
+    const ebayPrice = parseFloat(product.price || 0);
+    
+    // eBay Fee Logic (Approx 13.25% + $0.30 fixed)
+    const ebayFeePercent = 0.1325;
+    const ebayFixedFee = 0.30;
+    const ebayFee = (ebayPrice * ebayFeePercent) + ebayFixedFee;
+    
+    const netProfit = ebayPrice - (cost + ebayFee);
+    const margin = ebayPrice > 0 ? ((netProfit / ebayPrice) * 100).toFixed(1) : "0";
+    
+    const marketAvg = product.priceRange?.avg || ebayPrice;
+    const marketDiff = marketAvg > 0 ? (((ebayPrice - marketAvg) / marketAvg) * 100).toFixed(1) : "0";
+    
+    return {
+      suggestedPrice: ebayPrice.toFixed(2),
+      breakdown: {
+        margin: margin,
+        netProfit: netProfit.toFixed(2),
+        cost: cost.toFixed(2),
+        ebayFee: ebayFee.toFixed(2)
+      },
+      marketDiff: marketDiff,
+      positioning: { 
+        label: parseFloat(marketDiff) <= 0 ? 'Competitive' : 'Premium' 
+      },
+      probability: parseFloat(margin) > 20 ? 'High' : (parseFloat(margin) > 10 ? 'Medium' : 'Low')
+    };
+  }
+
+  /**
    * Mandatory Validation & Filtering
    */
   validateAndFilter(products) {
@@ -177,11 +212,8 @@ class SourcingService {
    */
   _sanitizeQuery(query) { return query?.trim() || ""; }
   async runIterativePipeline(context) {
-    return { 
-      status: "ERROR", 
-      message: "CJ discovery active but requires sourcing logic integration.", 
-      products: [] 
-    };
+    console.log("[SOURCING] Delegating to CJ Engine...");
+    return cjService.runIterativePipeline(context);
   }
 
   calculateOpportunityScore(product, targetPrice) {

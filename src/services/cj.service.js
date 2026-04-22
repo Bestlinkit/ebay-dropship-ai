@@ -1,5 +1,4 @@
 import axios from 'axios';
-import sourcingService from './sourcing';
 import { normalizeToContract } from './cj.schema';
 import { deconstructTitle, validateMatch } from '../utils/productQueryEngine';
 
@@ -118,7 +117,15 @@ class CJService {
         const scored = results.map(item => {
             const alignment = this.calculateAlignmentScore(product, item, ebayIntel);
             const intelligence = this.buildIntelligencePayload(item, product);
-            return { ...item, ...alignment, intelligence };
+            return { 
+                ...item, 
+                ...alignment, 
+                intelligence,
+                scores: {
+                    final: alignment.alignmentScore,
+                    stability: (item.stock || 0) > 100 ? "HIGH" : ((item.stock || 0) > 0 ? "STABLE" : "LOW")
+                }
+            };
         });
 
         // Step 3: Profit-First Ranking (v7.0)
@@ -179,7 +186,10 @@ class CJService {
             pageItems = lastRaw?.data?.productList || [];
         }
 
-        pageItems.forEach(item => items.push(normalizeToContract(item)));
+        pageItems.forEach(item => {
+            const normalized = normalizeToContract(item);
+            if (normalized) items.push(normalized);
+        });
         telemetry.pages_scanned++;
     } catch (e) { 
         console.error(`[CJ API] Page ${pageNum} Crash:`, e.message);
@@ -215,17 +225,10 @@ class CJService {
    * PART 1 & 2: Force correct flat payload and include warehouse.
    */
   async getShippingOptions(sku, countryCode = 'US', warehouseId = null, quantity = 1) {
-    console.log("SHIPPING FUNCTION ACTIVE");
+    console.log("SHIPPING FUNCTION TRIGGERED");
+    console.log("SKU SENT:", sku);
     if (!sku) return { methods: [], status: "no_sku" };
     
-    // 🧠 STEP 3 — HARD DEBUG LOG (MANDATORY)
-    console.log("CJ SHIPPING REQUEST", {
-        sku,
-        quantity: 1,
-        countryCode,
-        warehouseId
-    });
-
     try {
         const payload = {
             sku,
@@ -234,7 +237,9 @@ class CJService {
             warehouseId
         };
 
+        console.log("SHIPPING REQUEST PAYLOAD:", payload);
         const response = await axios.post(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, payload);
+        console.log("SHIPPING RESPONSE RAW:", response);
         
         // 🧠 v14.13: RAW DEBUG LOG (BEFORE MAPPING)
         console.log("CJ RAW METHODS:", response.data?.data);
