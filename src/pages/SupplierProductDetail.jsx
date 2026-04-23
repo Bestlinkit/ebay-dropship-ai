@@ -74,7 +74,7 @@ const SupplierProductDetail = () => {
                 </button>
                 <div className="flex items-center gap-4">
                     <a 
-                        href={`https://cjdropshipping.com/product-detail.html?id=${product?.id}`} 
+                        href={`https://cjdropshipping.com/product-detail.html?id=${cj.id}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="px-8 py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-xl hover:bg-indigo-600 transition-colors"
