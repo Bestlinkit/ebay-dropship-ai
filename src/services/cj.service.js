@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ STABLE SEARCH PIPELINE (v7.0 - Fault Tolerant)
+   * 🏗️ STABLE SEARCH PIPELINE
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -37,17 +37,15 @@ class CJService {
                 productList = response.data?.data?.productList || [];
             }
 
-            // Normalization with Per-Product Try/Catch (Step 7)
             const products = productList
                 .map(item => {
                     try {
                         return normalizeProduct(item, {});
                     } catch (e) {
-                        console.error("[Normalization Error] Skipping product:", e);
                         return null;
                     }
                 })
-                .filter(p => p !== null); // Only filter out complete failures
+                .filter(p => p !== null);
             
             return { 
                 status: products.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
@@ -62,7 +60,7 @@ class CJService {
   }
 
   /**
-   * 🧩 PHASE 6 — HYDRATION (RECOVERY MODE)
+   * 🧩 PHASE 7 — HYDRATION RULE (DO NOT OVERWRITE)
    */
   async enrichSingleProduct(product) {
     try {
@@ -79,7 +77,18 @@ class CJService {
             }
         }
 
-        return normalizeProduct(product, cjData || {});
+        // Rule 7: Hydration MUST NOT overwrite valid data
+        const enriched = normalizeProduct(product, cjData || {});
+        
+        return {
+            ...product,
+            ...enriched,
+            // Ensure specific fields follow the "prefer existing" rule if valid
+            title: product.title || enriched.title,
+            images: (product.images?.length ? product.images : enriched.images),
+            variants: (product.variants?.length ? product.variants : enriched.variants),
+            price: product.price ?? enriched.price
+        };
     } catch (e) {
         console.error("Enrichment Failure:", e);
         return product;
