@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ ISOLATED SEARCH PIPELINE (Step 4)
+   * 🏗️ API INTEGRITY VERIFICATION (Step 1-4)
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -27,61 +27,90 @@ class CJService {
             params: { keyword: query, pageNum, pageSize: 20 } 
         });
 
-        if (response.data?.code === 200) {
-            const rawContent = response.data?.data?.content;
-            let productList = [];
-            
-            if (Array.isArray(rawContent)) {
-                productList = rawContent.flatMap(block => block.productList || []);
-            } else {
-                productList = response.data?.data?.productList || [];
+        // STEP 1: LOG RAW CJ RESPONSE
+        console.log("CJ API RESPONSE:", response);
+
+        // STEP 2: VALIDATE RESPONSE STRUCTURE
+        if (!response || !response.data || response.data.code !== 200) {
+            console.error("CJ API FAILED:", response?.data);
+            throw new Error("CJ DATA INVALID - STOP PIPELINE");
+        }
+
+        const rawContent = response.data?.data?.content;
+        let productList = [];
+        
+        if (Array.isArray(rawContent)) {
+            productList = rawContent.flatMap(block => block.productList || []);
+        } else {
+            productList = response.data?.data?.productList || [];
+        }
+
+        if (!productList || productList.length === 0) {
+             console.error("CJ EMPTY RESULT");
+             throw new Error("CJ DATA INVALID - STOP PIPELINE");
+        }
+
+        // STEP 3: ASSERT REQUIRED FIELDS
+        productList.forEach(p => {
+            const hasId = p.id || p.productId || p.pid;
+            const hasName = p.productName || p.productNameEn || p.name;
+            const hasImage = p.productImage || p.image;
+            const hasVariants = p.skuList || p.variantList || p.variants || p.productVariants;
+
+            if (!hasId || !hasName || !hasImage || !hasVariants) {
+                console.error("CJ INVALID PRODUCT STRUCTURE:", p);
+                // STEP 4: HARD FAIL
+                throw new Error("CJ DATA INVALID - STOP PIPELINE");
             }
 
-            // Namespaced Normalization ONLY
-            const products = productList
-                .map(item => normalizeProduct(item, {}));
-            
-            return { 
-                status: products.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
-                products,
-                telemetry: { merged_count: products.length }
-            };
-        }
+            console.log("CJ VALID PRODUCT:", p);
+        });
+
+        // If integrity check passes, proceed with namespaced normalization
+        const products = productList.map(item => normalizeProduct(item, {}));
+        
+        return { 
+            status: "SUCCESS", 
+            products,
+            telemetry: { merged_count: products.length }
+        };
     } catch (err) {
-        console.error("Search Pipeline Fault:", err);
+        console.error("Integrity Fault:", err.message);
+        return { status: "ERROR", products: [], error: err.message };
     }
-    return { status: "ERROR", products: [] };
   }
 
   /**
-   * 🧩 PHASE 4 — DISABLE HYDRATION (CJ ONLY)
+   * 🧩 DETAIL INTEGRITY (Scoped)
    */
   async enrichSingleProduct(product) {
     try {
         const pid = product.cj?.id || product.id || product.product_id;
-        let cjData = this.cache.get(pid);
+        
+        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`, { 
+            params: { pid } 
+        });
 
-        if (!cjData) {
-            const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`, { 
-                params: { pid } 
-            });
-            if (response.data?.code === 200) {
-                cjData = response.data.data;
-                this.cache.set(pid, cjData);
-            }
+        console.log("CJ DETAIL RESPONSE:", response);
+
+        if (!response.data || response.data.code !== 200 || !response.data.data) {
+             throw new Error("CJ DETAIL INVALID");
         }
 
-        // Return ONLY namespaced data. NO mutation of original.
-        return normalizeProduct(product, cjData || {});
+        const cjData = response.data.data;
+        
+        // Assert Detail Fields
+        if (!cjData.productNameEn && !cjData.productName) {
+             throw new Error("CJ DETAIL NAME MISSING");
+        }
+
+        return normalizeProduct(product, cjData);
     } catch (e) {
-        console.error("Enrichment Failure:", e);
+        console.error("Detail Integrity Failure:", e.message);
         return product;
     }
   }
 
-  /**
-   * 🚀 BATCH ENRICHMENT WORKER
-   */
   async enrichProductList(products, onEnriched) {
     const queue = [...products];
     const worker = async () => {
