@@ -285,31 +285,54 @@ cjRouter.use((req, res, next) => {
  * GET /search?keyword=...
  */
 cjRouter.get('/search', async (req, res) => {
+    const { keyword, page = 1, size = 20 } = req.query;
+    const activeToken = global.CJ_SESSION?.accessToken;
+    const payload = { keyWord: keyword, page, size };
+
     try {
-        const { keyword, page = 1, size = 20 } = req.query;
         if (!keyword) return res.status(400).json({ error: "Missing keyword" });
 
-        const activeToken = global.CJ_SESSION?.accessToken;
-        const startTime = Date.now();
-        
+        // STEP 1: ADD BACKEND LOGGING (MANDATORY)
+        console.log("CJ REQUEST PAYLOAD:", payload);
+
         const response = await axios.get(`${CJ_GATEWAY}/product/listV2`, {
-            params: { keyWord: keyword, page, size },
+            params: payload,
             headers: { 'CJ-Access-Token': activeToken },
             timeout: 30000
         });
-        
-        console.log(`[CJ TRACE] SEARCH`, {
-            keyword,
-            code: response.data?.code,
-            hasData: !!response.data?.data,
-            dataKeys: response.data?.data ? Object.keys(response.data.data) : null,
-            latency: Date.now() - startTime
-        });
+
+        // STEP 1: LOG RAW RESPONSE
+        console.log("CJ RAW RESPONSE:", response.data);
+
+        // STEP 4: HANDLE EMPTY RESPONSE
+        const rawContent = response.data?.data?.content;
+        let productList = [];
+        if (Array.isArray(rawContent)) {
+            productList = rawContent.flatMap(block => block.productList || []);
+        } else {
+            productList = response.data?.data?.productList || [];
+        }
+
+        if (productList.length === 0) {
+            console.warn("CJ returned empty product list");
+        }
 
         return res.json(response.data);
     } catch (error) {
-        console.error("[CJ Search] Error:", error.message);
-        return res.status(500).json({ status: "API_ERROR", message: error.message });
+        // STEP 1: LOG ERROR
+        console.error("CJ ERROR:", error.message);
+
+        // STEP 2: RETURN DEBUG TO FRONTEND
+        return res.status(500).json({ 
+            success: false,
+            status: "API_ERROR", 
+            message: error.message,
+            debug: {
+                payload,
+                response: error.response?.data || null,
+                error: error.message
+            }
+        });
     }
 });
 // Cleanup complete
@@ -318,40 +341,41 @@ cjRouter.get('/search', async (req, res) => {
  * 🎯 CJ PRODUCT DETAIL
  */
 cjRouter.get('/detail', async (req, res) => {
+    const { pid } = req.query;
+    const activeToken = global.CJ_SESSION?.accessToken;
+    const payload = { pid };
+
     try {
-        const { pid } = req.query;
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
-        const activeToken = global.CJ_SESSION?.accessToken; 
-        const startTime = Date.now();
-        const targetUrl = `${CJ_GATEWAY}/product/query`;
-        
-        console.log(`[CJ PRE-FETCH] Target: ${targetUrl}, PID: ${pid}`);
+        // STEP 1: ADD BACKEND LOGGING
+        console.log("CJ REQUEST PAYLOAD:", payload);
 
-        const response = await axios.get(targetUrl, {
-            params: { pid },
-            headers: { 
-                'CJ-Access-Token': activeToken
-            },
+        const response = await axios.get(`${CJ_GATEWAY}/product/query`, {
+            params: payload,
+            headers: { 'CJ-Access-Token': activeToken },
             timeout: 30000
         });
 
-        console.log(`[CJ TRACE] DETAIL`, {
-            pid,
-            code: response.data?.code,
-            message: response.data?.message,
-            hasData: !!response.data?.data,
-            latency: Date.now() - startTime
-        });
-
-        if (response.data?.code !== 200) {
-            console.error("[CJ Detail Upstream Fail]:", JSON.stringify(response.data, null, 2));
-        }
+        // STEP 1: LOG RAW RESPONSE
+        console.log("CJ RAW RESPONSE:", response.data);
 
         return res.json(response.data);
     } catch (error) {
-        console.error("[CJ Detail] Error:", error.message);
-        return res.status(500).json({ status: "API_ERROR", message: error.message });
+        // STEP 1: LOG ERROR
+        console.error("CJ ERROR:", error.message);
+
+        // STEP 2: RETURN DEBUG TO FRONTEND
+        return res.status(500).json({ 
+            success: false,
+            status: "API_ERROR", 
+            message: error.message,
+            debug: {
+                payload,
+                response: error.response?.data || null,
+                error: error.message
+            }
+        });
     }
 });
 
