@@ -54,6 +54,9 @@ const SupplierSourcing = () => {
     const [lastError, setLastError] = useState(null);
     const [showLog, setShowLog] = useState(false);
     
+    // v12.1 Performance-Safe Enrichment State
+    const [enrichedProducts, setEnrichedProducts] = useState({}); // { pid: enrichedObject }
+    
     const observerTarget = React.useRef(null);
 
     const performSourcing = useCallback(async (queryParam = searchQuery, isManual = false, pageNum = 1) => {
@@ -95,6 +98,11 @@ const SupplierSourcing = () => {
                 if (pageNum === 1) {
                     toast.success(`Discovered ${newProducts.length} products`);
                 }
+
+                // v12.1: START BACKGROUND ENRICHMENT
+                cjService.enrichProductList(newProducts, (pid, enriched) => {
+                    setEnrichedProducts(prev => ({ ...prev, [pid]: enriched }));
+                });
             } else if (result.status === "NO_MATCH_FOUND") {
                 if (pageNum === 1) {
                     setPipelineState({ status: 'NO_MATCH_FOUND' });
@@ -141,6 +149,14 @@ const SupplierSourcing = () => {
         e.preventDefault();
         performSourcing(searchQuery, true, 1);
     };
+
+    const processedResults = useMemo(() => {
+        return products.map(res => {
+            const pid = res.id || res.product_id;
+            const enriched = enrichedProducts[pid];
+            return enriched ? { ...res, ...enriched } : res;
+        });
+    }, [products, enrichedProducts]);
 
     useEffect(() => { 
         if (initialQuery) performSourcing(initialQuery, false, 1); 
@@ -220,7 +236,7 @@ const SupplierSourcing = () => {
             <div className="space-y-8">
                 {products.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6 px-4">
-                        {products.map((product, idx) => (
+                        {processedResults.map((product, idx) => (
                             <SupplierResultRow 
                                 key={`${product.id || product.product_id}-${idx}`}
                                 product={product} 

@@ -290,11 +290,12 @@ class CJService {
             const product = queue.shift();
             if (!product) continue;
 
-            const detail = await this.getProductDetail(product.product_id);
+            const detail = await this.getProductDetail(product.product_id || product.id);
             if (detail) {
-                const refreshed = normalizeToContract(detail, true); // true = IS_DETAIL
+                // CORRECT: Pass current product as 'existing' to preserve eBay context
+                const refreshed = normalizeToContract(detail, product); 
                 if (refreshed) {
-                    onEnriched(product.product_id, refreshed);
+                    onEnriched(product.product_id || product.id, refreshed);
                 }
             }
         }
@@ -396,8 +397,8 @@ class CJService {
     const sellabilityScore = this.calculateStrategicSellability(normalizedCj, ebayProduct);
     
     // v14.7: Shipping Logic (Stabilized)
-    const shippingCost = Number(normalizedCj.shipping?.shipping_cost || 0);
-    const hasShipping = normalizedCj.shipping?.shipping_cost !== null && normalizedCj.shipping?.shipping_cost !== undefined;
+    const shippingCost = Number(normalizedCj.shipping?.cost || 0);
+    const hasShipping = normalizedCj.shipping?.status === "resolved";
     
     let shippingLabel = hasShipping ? `$${shippingCost.toFixed(2)}` : "Fetching shipping...";
     
@@ -451,11 +452,11 @@ class CJService {
         },
         shipping: { 
             resolved: hasShipping,
-            delivery_estimate: normalizedCj.shipping?.delivery_days || "Fetching...", 
+            delivery_estimate: normalizedCj.shipping?.deliveryTime || "Fetching...", 
             warehouse: normalizedCj.warehouse || "China",
-            origin: normalizedCj.shipping?.from || "China",
-            isReal: normalizedCj.shipping?.isReal,
-            methods: normalizedCj.shipping?.options || []
+            origin: normalizedCj.origin || "China",
+            isReal: hasShipping,
+            methods: normalizedCj.shipping?.method ? [normalizedCj.shipping.method] : []
         },
         strategic: {
             market_integrity: marketIntegrity,
