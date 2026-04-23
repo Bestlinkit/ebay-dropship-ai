@@ -1,6 +1,6 @@
 /**
- * CJ Unified Data Contract (v14.0 - ULTRA HARDENED)
- * Mandate: Universal URL Prefixing. Exhaustive Variant Counting. Zero Failures.
+ * CJ Unified Data Contract (v15.0 - PRODUCTION HARDENED)
+ * Mandate: Fix Shipping Fees. Fix Underscore Fields. Ensure Gallery Sync.
  */
 
 /**
@@ -16,19 +16,22 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     let clean = url.trim();
     if (!clean) return null;
     
+    // Handle double-slash and protocol-less
     if (clean.startsWith('http')) return clean;
     if (clean.startsWith('//')) return `https:${clean}`;
+    if (clean.includes('.') && !clean.startsWith('http')) return `https://${clean}`;
     
-    // If it looks like a path or domain but has no protocol
-    return `https://${clean}`;
+    return clean;
   };
 
-  // --- ✅ FIX IMAGE MAPPING (CRITICAL) ---
+  // --- ✅ FIX IMAGE MAPPING (EXHAUSTIVE) ---
   const rawImage =
     p.productImage ||
+    p.product_image ||
     (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
     p.image ||
     p.mainImage ||
+    p.main_image ||
     null;
 
   const image = sanitizeUrl(rawImage) || "https://via.placeholder.com/600x600?text=No+Image+Available";
@@ -36,14 +39,13 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   // --- ✅ FIX VARIANT EXTRACTION (EXHAUSTIVE) ---
   const variants = p.skuList || p.variantList || p.variants || [];
   
-  // CJ Search Results often have variants count in these fields
   const possibleCounts = [
     Array.isArray(variants) ? variants.length : 0,
     parseInt(p.variantCount),
     parseInt(p.variantsNum),
     parseInt(p.variant_count),
     parseInt(p.skuCount),
-    parseInt(p.productUnit) // Sometimes used as count in some CJ sub-APIs
+    parseInt(p.productUnit)
   ];
   
   const variantCount = possibleCounts.find(c => !isNaN(c) && c > 0) || 0;
@@ -59,7 +61,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   // Create isolated CJ namespace
   const cjMapped = {
     cj: {
-        id: p.id || p.productId || p.pid || "UNKNOWN",
+        id: p.id || p.productId || p.pid || p.product_id || "UNKNOWN",
         name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || "Unnamed Product",
         image: image,
         images: Array.isArray(p.productImageList) && p.productImageList.length > 0 
@@ -80,15 +82,38 @@ export function normalizeProduct(raw = {}, cjData = {}) {
 }
 
 /**
- * 🚢 SHIPPING RESOLVER (Isolated)
+ * 🚢 SHIPPING RESOLVER (Aggressive Fallbacks)
  */
 export function resolveShipping(data) {
-  const method = data?.logistics?.[0] || data?.shipping_options?.[0];
+  // Search through all possible shipping locations in the payload
+  const method = 
+    data?.logistics?.[0] || 
+    data?.shipping_options?.[0] || 
+    data?.freight?.[0] ||
+    data?.shipping_method;
+
+  const fee = 
+    data?.shippingFee || 
+    data?.shipping_fee || 
+    data?.logisticFee || 
+    data?.freightFee ||
+    method?.price || 
+    method?.amount || 
+    method?.fee ||
+    0;
   
+  const delivery = 
+    data?.deliveryTime || 
+    data?.logisticTime || 
+    data?.shippingTime ||
+    method?.deliveryTime || 
+    method?.logisticTime || 
+    "7-15 Days";
+
   return {
-    cost: parseFloat(data?.shippingFee || method?.price || method?.amount || 0),
-    delivery: data?.deliveryTime || method?.deliveryTime || method?.logisticTime || "7-15 Days",
-    name: data?.logisticName || method?.logisticsName || "Standard Shipping"
+    cost: parseFloat(fee),
+    delivery: String(delivery),
+    name: data?.logisticName || method?.logisticsName || method?.name || "Standard Shipping"
   };
 }
 

@@ -83,20 +83,26 @@ const SupplierProductDetail = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
                 {/* 2. MEDIA & DESCRIPTION (Phase 3 & 5) */}
                 <div className="lg:col-span-7 space-y-10">
-                    <div className="bg-white border border-slate-200 rounded-[3.5rem] overflow-hidden shadow-sm relative group">
-                        <img 
-                            src={image} 
-                            alt="" 
-                            className="w-full aspect-square object-contain p-12 bg-white group-hover:scale-105 transition-transform duration-700"
-                        />
-                        
+                    <div className="flex flex-col gap-8">
+                        <div className="bg-white border border-slate-200 rounded-[3.5rem] overflow-hidden shadow-sm relative group">
+                            <img 
+                                src={image} 
+                                alt="" 
+                                className="w-full aspect-square object-contain p-12 bg-white group-hover:scale-105 transition-transform duration-700"
+                            />
+                        </div>
+
+                        {/* HIGH-END GALLERY SYSTEM */}
                         {cj.images?.length > 1 && (
-                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-3 px-6 py-3 bg-black/40 backdrop-blur-xl rounded-full border border-white/10">
-                                {cj.images.slice(0, 6).map((img, i) => (
+                            <div className="grid grid-cols-5 gap-4">
+                                {cj.images.map((img, i) => (
                                     <button 
                                         key={i}
                                         onClick={() => setProduct(prev => ({ ...prev, cj: { ...prev.cj, image: img } }))}
-                                        className="w-12 h-12 rounded-xl border border-white/20 overflow-hidden hover:scale-110 transition-all"
+                                        className={cn(
+                                            "aspect-square rounded-2xl border-2 overflow-hidden transition-all hover:scale-105",
+                                            image === img ? "border-slate-950 shadow-lg scale-105" : "border-slate-100 opacity-60 hover:opacity-100"
+                                        )}
                                     >
                                         <img src={img} className="w-full h-full object-cover" alt="" />
                                     </button>
@@ -186,28 +192,32 @@ const SupplierProductDetail = () => {
                             {cj.variants?.length > 0 ? cj.variants.map((v, i) => (
                                 <button 
                                     key={i}
-                                    onClick={() => setSelectedVariant(v)}
+                                    onClick={() => {
+                                        setSelectedVariant(v);
+                                        if (v.variantImage) {
+                                            setProduct(prev => ({ ...prev, cj: { ...prev.cj, image: v.variantImage } }));
+                                        }
+                                    }}
                                     className={cn(
-                                        "p-5 rounded-3xl border-2 text-left transition-all duration-300 relative group/v",
-                                        selectedVariant === v ? "border-slate-950 bg-slate-50 shadow-xl" : "border-slate-100 hover:border-slate-300 bg-white"
+                                        "p-6 rounded-3xl border-2 text-left transition-all duration-300 relative group/v",
+                                        selectedVariant === v ? "border-slate-950 bg-slate-50 shadow-xl scale-[1.02] z-10" : "border-slate-100 hover:border-slate-300 bg-white"
                                     )}
                                 >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
+                                    <div className="flex flex-col gap-4">
+                                        <div className="w-full aspect-square rounded-2xl bg-slate-100 overflow-hidden border border-slate-200">
                                             {(v.variantImage || cj.image) && (
-                                                <img src={v.variantImage || cj.image} className="w-full h-full object-cover" alt="" />
+                                                <img src={v.variantImage || cj.image} className="w-full h-full object-cover group-hover/v:scale-110 transition-transform duration-500" alt="" />
                                             )}
                                         </div>
-                                        <span className="text-xs font-black text-slate-950">${parseFloat(v.price ?? v.variantSellPrice ?? v.sellPrice ?? 0).toFixed(2)}</span>
-                                    </div>
-                                    <p className="text-[10px] font-black text-slate-900 uppercase truncate mb-1">{v.variantKey || v.color || v.size || "STANDARD"}</p>
-                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter truncate">SKU: {v.sku || v.variantSku || "N/A"}</p>
-                                    
-                                    {selectedVariant === v && (
-                                        <div className="absolute top-2 right-2">
-                                            <CheckCircle2 size={14} className="text-indigo-500" />
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[14px] font-black text-slate-950">${parseFloat(v.price ?? v.variantSellPrice ?? v.sellPrice ?? 0).toFixed(2)}</span>
+                                                {selectedVariant === v && <CheckCircle2 size={16} className="text-indigo-500" />}
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-900 uppercase truncate">{v.variantKey || v.color || v.size || "STANDARD"}</p>
+                                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter truncate opacity-60">SKU: {v.sku || v.variantSku || "N/A"}</p>
                                         </div>
-                                    )}
+                                    </div>
                                 </button>
                             )) : (
                                 <div className="col-span-2 py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">

@@ -86,8 +86,8 @@ const SupplierSourcing = () => {
                 const newProducts = result.products || [];
                 
                 setProducts(prev => {
-                    const existingIds = new Set(prev.map(p => p.product_id || p.id));
-                    const filteredNew = newProducts.filter(p => !existingIds.has(p.product_id || p.id));
+                    const existingIds = new Set(prev.map(p => p.cj?.id));
+                    const filteredNew = newProducts.filter(p => p.cj?.id && !existingIds.has(p.cj?.id));
                     return [...prev, ...filteredNew];
                 });
 

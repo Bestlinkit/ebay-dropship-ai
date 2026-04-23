@@ -105,7 +105,7 @@ class CJService {
             if (!product) continue;
             const enriched = await this.enrichSingleProduct(product);
             if (enriched) {
-                onEnriched(product.id || enriched.cj?.id, enriched);
+                onEnriched(product.cj?.id || enriched.cj?.id, enriched);
             }
         }
     };
