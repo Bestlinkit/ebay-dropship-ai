@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ API INTEGRITY VERIFICATION (Step 1-4)
+   * 🏗️ FLEXIBLE SEARCH PIPELINE (Issue 1 & 3)
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -32,12 +32,11 @@ class CJService {
         });
 
         console.log("CJ FETCH RESPONSE:", response);
-        console.log("CJ RESPONSE RECEIVED", response.data);
 
-        // STEP 2: VALIDATE RESPONSE STRUCTURE
+        // ✅ 3. REMOVE PIPELINE BLOCKER
         if (!response || !response.data || response.data.code !== 200) {
-            console.error("CJ API FAILED:", response?.data);
-            throw new Error("CJ DATA INVALID - STOP PIPELINE");
+            console.warn("CJ API RESPONSE PARTIAL - continuing");
+            return { status: "NO_MATCH_FOUND", products: [] };
         }
 
         const rawContent = response.data?.data?.content;
@@ -49,29 +48,14 @@ class CJService {
             productList = response.data?.data?.productList || [];
         }
 
-        if (!productList || productList.length === 0) {
-             console.error("CJ EMPTY RESULT");
-             throw new Error("CJ DATA INVALID - STOP PIPELINE");
+        // ✅ 1. REMOVE OVER-STRICT VALIDATION
+        const products = productList
+            .filter(p => p && (p.id || p.productId || p.pid)) // Minimum requirement: ID exists
+            .map(item => normalizeProduct(item, {}));
+        
+        if (products.length === 0) {
+             console.warn("CJ DATA PARTIAL - continuing");
         }
-
-        // STEP 3: ASSERT REQUIRED FIELDS
-        productList.forEach(p => {
-            const hasId = p.id || p.productId || p.pid;
-            const hasName = p.productName || p.productNameEn || p.name;
-            const hasImage = p.productImage || p.image;
-            const hasVariants = p.skuList || p.variantList || p.variants || p.productVariants;
-
-            if (!hasId || !hasName || !hasImage || !hasVariants) {
-                console.error("CJ INVALID PRODUCT STRUCTURE:", p);
-                // STEP 4: HARD FAIL
-                throw new Error("CJ DATA INVALID - STOP PIPELINE");
-            }
-
-            console.log("CJ VALID PRODUCT:", p);
-        });
-
-        // If integrity check passes, proceed with namespaced normalization
-        const products = productList.map(item => normalizeProduct(item, {}));
         
         return { 
             status: "SUCCESS", 
@@ -79,18 +63,19 @@ class CJService {
             telemetry: { merged_count: products.length }
         };
     } catch (err) {
-        console.error("Integrity Fault:", err.message);
+        console.warn("CJ DATA PARTIAL - continuing", err.message);
         return { status: "ERROR", products: [], error: err.message };
     }
   }
 
   /**
-   * 🧩 DETAIL INTEGRITY (Scoped)
+   * 🧩 FLEXIBLE ENRICHMENT (Scoped)
    */
   async enrichSingleProduct(product) {
     try {
         const pid = product.cj?.id || product.id || product.product_id;
-        
+        if (!pid) return product;
+
         const url = `${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`;
         console.log("CALLING CJ API...", url);
 
@@ -100,20 +85,16 @@ class CJService {
 
         console.log("CJ RESPONSE RECEIVED", response.data);
 
+        // Graceful fallback if detail fails
         if (!response.data || response.data.code !== 200 || !response.data.data) {
-             throw new Error("CJ DETAIL INVALID");
+             console.warn("CJ DETAIL PARTIAL - continuing");
+             return product;
         }
 
         const cjData = response.data.data;
-        
-        // Assert Detail Fields
-        if (!cjData.productNameEn && !cjData.productName) {
-             throw new Error("CJ DETAIL NAME MISSING");
-        }
-
         return normalizeProduct(product, cjData);
     } catch (e) {
-        console.error("Detail Integrity Failure:", e.message);
+        console.warn("CJ DETAIL PARTIAL - continuing", e.message);
         return product;
     }
   }

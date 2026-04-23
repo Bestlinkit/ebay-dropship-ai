@@ -1,35 +1,42 @@
 /**
- * CJ Unified Data Contract (v10.0 - ISOLATION & NAMESPACING)
- * Mandate: Zero Cross-Pipeline Contamination. Scoped CJ Data.
+ * CJ Unified Data Contract (v11.0 - FLEXIBLE MAPPING)
+ * Mandate: Zero Pipeline Blocks. Flexible Fallbacks. Safe String Handling.
  */
 
 /**
- * 🏗️ NAMESPACED MAPPING (Step 2)
+ * 🏗️ NAMESPACED MAPPING (Fixed Step 2)
  */
 export function normalizeProduct(raw = {}, cjData = {}) {
-  // SCOPED LOGGING (Step 8)
+  // SCOPED LOGGING
   console.log("CJ RAW:", raw, cjData);
 
-  const product = cjData || raw;
+  // Combine data sources but prefer detailed data if available
+  const p = { ...raw, ...cjData };
 
-  // 🚫 DO NOT merge into global product object
+  // --- FLEXIBLE FIELD MAPPING (Issue 2 & 5) ---
+  const name = p.nameEn || p.productNameEn || p.productName || p.name || p.title || "Unnamed Product";
+  const image = p.productImage || p.image || "";
+  const price = p.sellPrice || p.price || 0;
+  const variants = p.skuList || p.variants || p.variantList || [];
+
   // Create isolated CJ namespace
   const cjMapped = {
     cj: {
-        id: product.id || product.productId || product.pid,
-        name: product.productName || product.productNameEn || product.name || product.title || "",
-        image: product.productImage || "",
-        images: product.productImageList || [],
-        variants: product.skuList || product.variantList || product.variants || [],
-        price: product.sellPrice || product.price || 0,
-        cost: product.costPrice || product.sellPrice || 0,
-        raw: product,
-        warehouse: product.warehouseName || product.warehouse || "CN",
-        shipping: resolveShipping(product)
+        id: p.id || p.productId || p.pid || "UNKNOWN",
+        name: typeof name === "string" ? name : "Unnamed Product",
+        image: typeof image === "string" ? image : "",
+        images: p.productImageList || (image ? [image] : []),
+        variants: Array.isArray(variants) ? variants : [],
+        variantCount: Array.isArray(variants) ? variants.length : 0,
+        price: parseFloat(price) || 0,
+        cost: parseFloat(p.costPrice || p.sellPrice || 0),
+        raw: p,
+        warehouse: p.warehouseName || p.warehouse || "CN",
+        shipping: resolveShipping(p)
     }
   };
 
-  // LOG MAPPED (Step 8)
+  // LOG MAPPED
   console.log("CJ MAPPED:", cjMapped);
 
   return cjMapped;
@@ -48,7 +55,14 @@ export function resolveShipping(data) {
   };
 }
 
+/**
+ * ✅ 4. FIX STRING TYPE ERRORS
+ */
+export function safeTrim(e) {
+    return (typeof e === "string" ? e.trim() : "");
+}
+
 // Global safety guard for UI
 export const sanitizeProduct = (p) => p;
-export const validateProduct = () => true;
+export const validateProduct = (p) => p && (p.id || p.cj?.id);
 export const normalizeToContract = normalizeProduct;
