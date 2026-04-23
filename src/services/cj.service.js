@@ -25,16 +25,12 @@ class CJService {
     try {
         const url = `${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`;
         console.log("CJ FETCH STARTED");
-        console.log("CJ FETCH URL:", url);
 
         const response = await axios.get(url, { 
             params: { keyword: query, pageNum, pageSize: 20 } 
         });
 
-        console.log("CJ FETCH RESPONSE:", response);
-
         if (!response || !response.data || response.data.code !== 200) {
-            console.warn("CJ API RESPONSE PARTIAL - continuing");
             return { status: "NO_MATCH_FOUND", products: [] };
         }
 
@@ -51,48 +47,64 @@ class CJService {
             .filter(p => p && (p.id || p.productId || p.pid))
             .map(item => normalizeProduct(item, {}));
         
-        if (products.length === 0) {
-             console.warn("CJ DATA PARTIAL - continuing");
-        }
-        
         return { 
             status: "SUCCESS", 
             products,
             telemetry: { merged_count: products.length }
         };
     } catch (err) {
-        console.warn("CJ DATA PARTIAL - continuing", err.message);
         return { status: "ERROR", products: [], error: err.message };
     }
   }
 
   /**
-   * ✅ 2. FALLBACK: FETCH DETAIL FOR SELECTED PRODUCT
+   * ✅ 2. ENRICH: FETCH DETAIL + FREIGHT
    */
   async enrichSingleProduct(product) {
     try {
-        const pid = product.cj?.id || product.id || product.product_id;
-        if (!pid) return product;
+        const pid = String(product.cj?.id || product.id || product.product_id);
+        if (!pid || pid === "UNKNOWN") return product;
 
-        const url = `${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`;
-        console.log("CALLING CJ API...", url);
+        // 1. Fetch Product Detail
+        const detailUrl = `${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`;
+        const detailResponse = await axios.get(detailUrl, { params: { pid } });
 
-        const response = await axios.get(url, { 
-            params: { pid } 
-        });
-
-        console.log("CJ RESPONSE RECEIVED", response.data);
-
-        if (!response.data || response.data.code !== 200 || !response.data.data) {
-             console.warn("CJ DETAIL PARTIAL - continuing");
+        if (!detailResponse.data || detailResponse.data.code !== 200 || !detailResponse.data.data) {
              return product;
         }
 
-        // ✅ Extract TRUE variant source (skuList) via normalizeProduct
-        const cjData = response.data.data;
-        return normalizeProduct(product, cjData);
+        const cjData = detailResponse.data.data;
+        const variants = cjData.skuList || cjData.variantList || [];
+        
+        // 2. Fetch Real Shipping Fee (Freight) for the first variant to fix "$0.00" issue
+        let freightData = {};
+        if (variants.length > 0) {
+            try {
+                const firstSku = variants[0].variantSku || variants[0].sku || variants[0].skuCode;
+                const freightUrl = `${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`;
+                const freightResponse = await axios.post(freightUrl, {
+                    sku: firstSku,
+                    countryCode: 'US',
+                    warehouseId: cjData.warehouseName || 'CN'
+                });
+                
+                if (freightResponse.data?.code === 200 && freightResponse.data.data?.[0]) {
+                    const bestMethod = freightResponse.data.data[0];
+                    freightData = {
+                        shippingFee: bestMethod.price || bestMethod.amount || 0,
+                        deliveryTime: bestMethod.logisticTime || "7-15 Days",
+                        logisticName: bestMethod.logisticName || "Standard Shipping"
+                    };
+                }
+            } catch (fe) {
+                console.warn("Freight calculation failed - using detail defaults", fe.message);
+            }
+        }
+
+        const rawBase = product.cj?.raw || product;
+        // Merge detail data and freight data
+        return normalizeProduct(rawBase, { ...cjData, ...freightData });
     } catch (e) {
-        console.warn("CJ DETAIL PARTIAL - continuing", e.message);
         return product;
     }
   }

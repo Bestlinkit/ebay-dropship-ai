@@ -1,6 +1,6 @@
 /**
- * CJ Unified Data Contract (v16.0 - THE "RESOLVE FRUSTRATION" VERSION)
- * Mandate: Universal Description Capture. Strict String IDs. Comprehensive SKU discovery.
+ * CJ Unified Data Contract (v17.0 - THE "TRUTH" VERSION)
+ * Mandate: Absolute exhaustive mapping. Use every known CJ field variant.
  */
 
 /**
@@ -21,21 +21,21 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     return clean;
   };
 
-  // --- ✅ FIX IMAGE MAPPING ---
+  // --- ✅ FIX IMAGE MAPPING (EXHAUSTIVE) ---
   const rawImage =
     p.productImage ||
     p.product_image ||
     p.image ||
     p.mainImage ||
     p.main_image ||
+    p.product_image_url ||
     (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
     null;
 
   const image = sanitizeUrl(rawImage) || "https://via.placeholder.com/600x600?text=No+Image+Available";
 
-  // --- ✅ FIX VARIANT EXTRACTION (COMPREHENSIVE) ---
-  // CJ uses skuList, skus, variantList, variants, or skus
-  const variants = p.skuList || p.skus || p.variantList || p.variants || p.variant_list || [];
+  // --- ✅ FIX VARIANT EXTRACTION (THE TRUTH) ---
+  const variants = p.skuList || p.skus || p.variantList || p.variants || p.variant_list || p.productSkus || [];
   
   const possibleCounts = [
     Array.isArray(variants) ? variants.length : 0,
@@ -46,32 +46,31 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     parseInt(p.productUnit)
   ];
   
-  const variantCount = possibleCounts.find(c => !isNaN(c) && c > 0) || 0;
+  const variantCount = possibleCounts.find(c => !isNaN(c) && c > 0) || (Array.isArray(variants) ? variants.length : 0);
 
-  // --- ✅ FIX DESCRIPTION MAPPING (AGGRESSIVE) ---
-  // Some CJ API versions return 'description', others 'descriptionHtml', others 'productDesc'
+  // --- ✅ FIX DESCRIPTION MAPPING (THE TRUTH) ---
   const description = 
-    p.description || 
     p.descriptionHtml || 
-    p.description_html ||
+    p.description_html || 
+    p.description || 
     p.productDesc || 
     p.productDescription || 
     p.product_desc ||
+    p.product_description ||
     "";
 
   // Create isolated CJ namespace
   const cjMapped = {
     cj: {
-        // FORCE ID TO STRING TO PREVENT PRECISION LOSS
         id: String(p.id || p.productId || p.pid || p.product_id || "UNKNOWN"),
-        name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || "Unnamed Product",
+        name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || p.productTitle || "Unnamed Product",
         image: image,
         images: Array.isArray(p.productImageList) && p.productImageList.length > 0 
             ? p.productImageList.map(img => sanitizeUrl(img)).filter(Boolean)
             : [image],
         variants: Array.isArray(variants) ? variants : [],
         variantCount: variantCount,
-        price: parseFloat(p.sellPrice || p.price || 0),
+        price: parseFloat(p.sellPrice || p.price || p.productPrice || 0),
         cost: parseFloat(p.costPrice || p.sellPrice || 0),
         raw: p,
         warehouse: p.warehouseName || p.warehouse || "CN",
@@ -91,7 +90,8 @@ export function resolveShipping(data) {
     data?.logistics?.[0] || 
     data?.shipping_options?.[0] || 
     data?.freight?.[0] ||
-    data?.shipping_method;
+    data?.shipping_method ||
+    data?.best_shipping;
 
   const fee = 
     data?.shippingFee || 
@@ -99,6 +99,7 @@ export function resolveShipping(data) {
     data?.logisticFee || 
     data?.freightFee ||
     data?.shippingAmount ||
+    data?.amount ||
     method?.price || 
     method?.amount || 
     method?.fee ||
@@ -108,6 +109,7 @@ export function resolveShipping(data) {
     data?.deliveryTime || 
     data?.logisticTime || 
     data?.shippingTime ||
+    data?.delivery_time ||
     method?.deliveryTime || 
     method?.logisticTime || 
     "7-15 Days";
