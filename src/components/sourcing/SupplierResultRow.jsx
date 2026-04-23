@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronRight, 
   Truck, 
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
+import cjService from '../../services/cj.service';
 
 /**
  * Supplier Discovery Row - CJ Dropshipping Edition (v10.0 - ISOLATION)
@@ -20,17 +21,30 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
     if (source !== "CJ") return null;
 
     // ⚠️ STEP 5: CJ UI ONLY (SCOPED)
-    // Map strictly from the 'cj' namespace
     const cj = product?.cj || {};
     
-    const name = String(cj.name || "Unnamed Product");
-    const image = cj.image || "https://via.placeholder.com/300";
-    const variantsCount = parseInt(cj.variantCount || 0);
-    const price = parseFloat(cj.price || 0);
+    // 🛡️ SELF-HEALING HYDRATION (Bypass list-level merging failures)
+    const [localCj, setLocalCj] = useState(cj);
+    useEffect(() => {
+        // If data is missing or looks incomplete, try to heal it locally
+        if (cj.id && (cj.variantCount === 0 || !cj.shipping?.cost)) {
+            cjService.enrichSingleProduct(product).then(enriched => {
+                if (enriched?.cj) setLocalCj(enriched.cj);
+            });
+        }
+    }, [cj.id, product]);
+
+    const activeCj = localCj || cj;
+    
+    const name = String(activeCj.name || "Unnamed Product");
+    // Dual Fallback: Check namespaced image AND raw search image
+    const image = activeCj.image || product.productImage || product.image || "https://via.placeholder.com/300";
+    const variantsCount = parseInt(activeCj.variantCount || 0);
+    const price = parseFloat(activeCj.price || 0);
     
     const target = parseFloat(targetPrice || 0);
-    const cost = parseFloat(cj.cost || 0);
-    const shipping = cj.shipping || { cost: 0, delivery: "7-15 Days" };
+    const cost = parseFloat(activeCj.cost || 0);
+    const shipping = activeCj.shipping || { cost: 0, delivery: "7-15 Days" };
     const shippingCost = parseFloat(shipping.cost || 0);
 
     // Profit calculation using isolated CJ data
@@ -58,7 +72,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                     
                     <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/80 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
                         <Globe size={10} className="text-blue-400" />
-                        <span className="text-[8px] font-black uppercase tracking-widest text-white">{cj.warehouse || "CN"}</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-white">{activeCj.warehouse || "CN"}</span>
                     </div>
                 </div>
 
