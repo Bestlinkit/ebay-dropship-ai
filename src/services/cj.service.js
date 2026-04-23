@@ -37,7 +37,7 @@ class CJService {
                 productList = response.data?.data?.productList || [];
             }
 
-            // Phase 1: Immediate Normalization
+            // Phase 1: Recovery Mode Normalization
             const products = productList.map(item => normalizeProduct(item, {}));
             
             return { 
@@ -53,7 +53,7 @@ class CJService {
   }
 
   /**
-   * 🧩 EMERGENCY FIX — RESTORE DATA PRIORITY (SAFE MERGE)
+   * 🧩 PHASE 2 — FIX ENRICHMENT (RECOVERY MODE)
    */
   async enrichSingleProduct(product) {
     try {
@@ -70,29 +70,29 @@ class CJService {
             }
         }
 
-        // --- SAFE MERGE LOGIC (Phase 1 Fix) ---
+        // --- SAFE MERGE MODE ---
+        // ONLY use CJ data to fill missing fields
         return {
             ...product,
+            title: product.title || cjData?.productNameEn || cjData?.productName || cjData?.name,
+            description: product.description || cjData?.descriptionHtml || cjData?.productDesc || cjData?.description,
 
-            // ONLY use CJ data if it exists and is valid
-            title: cjData?.productNameEn || cjData?.productName || product?.title || product?.name,
-            description: cjData?.descriptionHtml || cjData?.productDesc || product?.description,
+            images: (product.images && product.images.length > 0)
+                ? product.images
+                : (cjData?.productImageList || cjData?.images || []),
 
-            images: (cjData?.productImageList?.length || cjData?.images?.length)
-                ? (cjData.productImageList || cjData.images)
-                : (product?.images || []),
+            variants: (product.variants && product.variants.length > 0)
+                ? product.variants
+                : (cjData?.variants || cjData?.productVariants || cjData?.skus || []),
 
-            variants: (cjData?.variants?.length || cjData?.productVariants?.length || cjData?.skus?.length)
-                ? (cjData.variants || cjData.productVariants || cjData.skus)
-                : (product?.variants || []),
+            price: product.price ?? cjData?.sellPrice ?? cjData?.price,
+            cjCost: product.cjCost ?? cjData?.sellPrice ?? cjData?.price,
 
-            price: product?.price || 0,
-            cjCost: parseFloat(cjData?.sellPrice || cjData?.price || product?.cjCost || 0),
-
-            warehouse: cjData?.warehouseName || cjData?.warehouse || product?.warehouse || "CN",
-
-            // 🚢 DO NOT TOUCH SHIPPING LOGIC
-            logistics: cjData?.logistics || product?.logistics || []
+            warehouse: product.warehouse || cjData?.warehouseName || cjData?.warehouse,
+            
+            // Pass cjData for shipping resolution downstream
+            shipping: product.shipping || null,
+            rawDetail: cjData
         };
     } catch (e) {
         console.error("Enrichment Failure:", e);
@@ -118,15 +118,6 @@ class CJService {
 
     const workers = Array(Math.min(5, queue.length)).fill(null).map(worker);
     await Promise.all(workers);
-  }
-
-  /**
-   * 🚢 SIMPLE SHIPPING RESOLVER
-   */
-  async getShippingOptions(pid, countryCode = 'US') {
-      // For stability in grid, we mostly rely on enriched data from detail API
-      // but if specifically called, we can fetch fresh freight
-      return { methods: [], status: "resolved_via_enrichment" };
   }
 }
 

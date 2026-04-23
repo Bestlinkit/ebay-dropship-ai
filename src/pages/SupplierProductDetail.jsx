@@ -9,15 +9,16 @@ import {
   DollarSign,
   Activity,
   Zap,
-  Globe
+  Globe,
+  Box
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import cjService from '../services/cj.service';
-import { normalizeProduct } from '../services/cj.schema';
+import { normalizeProduct, resolveShipping } from '../services/cj.schema';
 
 /**
- * 🔍 CJ DEEP DETAIL ENGINE (v3.0 - STABLE FIX)
- * Objective: Description and Variants ALWAYS visible.
+ * 🔍 CJ DEEP DETAIL ENGINE (v4.0 - RECOVERY MODE)
+ * Objective: Protect Data. Restore Integrity.
  */
 const SupplierProductDetail = () => {
     const { id } = useParams();
@@ -51,9 +52,9 @@ const SupplierProductDetail = () => {
     }, [id]);
 
     const image = product?.images?.[0] || "https://via.placeholder.com/300";
-    const cjCost = parseFloat(selectedVariant?.price || selectedVariant?.variantSellPrice || product?.cjCost || 0);
-    const shipping = product?.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
-    const netProfit = targetPrice - (cjCost + parseFloat(shipping.cost || 0));
+    const cjCost = parseFloat(selectedVariant?.price ?? selectedVariant?.variantSellPrice ?? product?.cjCost ?? 0);
+    const shipping = resolveShipping(product.rawDetail || product);
+    const netProfit = (targetPrice > 0 && cjCost > 0) ? (targetPrice - (cjCost + parseFloat(shipping.cost ?? 0))) : null;
 
     return (
         <div className="max-w-[1400px] mx-auto px-6 pb-40 pt-10 animate-in fade-in duration-700">
@@ -85,25 +86,27 @@ const SupplierProductDetail = () => {
                         />
                     </div>
 
-                    {/* Phase 5: Description ALWAYS visible */}
-                    <div className="p-10 bg-slate-50 border border-slate-200 rounded-[3rem] space-y-10">
-                        <section className="space-y-6">
-                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                                <Info size={14} /> Product Description
-                            </h4>
-                            <div 
-                                className="text-sm font-medium text-slate-600 leading-relaxed max-h-[500px] overflow-y-auto pr-4 custom-scrollbar"
-                                dangerouslySetInnerHTML={{ __html: product?.description || "No description available." }}
-                            />
-                        </section>
-                    </div>
+                    {/* Phase 5: Recovery Mode Description */}
+                    {product?.description && (
+                        <div className="p-10 bg-slate-50 border border-slate-200 rounded-[3rem] space-y-10">
+                            <section className="space-y-6">
+                                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                    <Info size={14} /> Product Description
+                                </h4>
+                                <div 
+                                    className="text-sm font-medium text-slate-600 leading-relaxed max-h-[500px] overflow-y-auto pr-4 custom-scrollbar"
+                                    dangerouslySetInnerHTML={{ __html: product.description }}
+                                />
+                            </section>
+                        </div>
+                    )}
                 </div>
 
                 {/* Data Panel */}
                 <div className="lg:col-span-5 space-y-8">
                     <div className="space-y-4">
                         <h1 className="text-4xl font-black text-slate-950 italic tracking-tighter leading-tight uppercase">
-                            {product?.title}
+                            {product?.title || "Unnamed Product"}
                         </h1>
                     </div>
 
@@ -114,9 +117,9 @@ const SupplierProductDetail = () => {
                                 <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Net Profit ($)</p>
                                 <p className={cn(
                                     "text-4xl font-black italic tracking-tighter",
-                                    netProfit >= 0 ? "text-emerald-500" : "text-rose-500"
+                                    netProfit === null ? "text-slate-400" : (netProfit >= 0 ? "text-emerald-500" : "text-rose-500")
                                 )}>
-                                    {netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`}
+                                    {netProfit === null ? "N/A" : (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`)}
                                 </p>
                             </div>
 
@@ -125,11 +128,15 @@ const SupplierProductDetail = () => {
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-1">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">CJ Cost</p>
-                                    <p className="text-lg font-black text-slate-950">${cjCost.toFixed(2)}</p>
+                                    <p className="text-lg font-black text-slate-950">
+                                        {cjCost > 0 ? `$${cjCost.toFixed(2)}` : "—"}
+                                    </p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Shipping</p>
-                                    <p className="text-lg font-black text-slate-950">${parseFloat(shipping.cost).toFixed(2)}</p>
+                                    <p className="text-lg font-black text-slate-950">
+                                        ${parseFloat(shipping.cost ?? 0).toFixed(2)}
+                                    </p>
                                 </div>
                             </div>
 
@@ -144,7 +151,7 @@ const SupplierProductDetail = () => {
                         </div>
                     </div>
 
-                    {/* Phase 5: Variants ALWAYS render */}
+                    {/* Phase 5: Recovery Mode Variants */}
                     <div className="space-y-4">
                         <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Inventory Matrix ({product?.variants?.length || 0})</h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
@@ -159,12 +166,13 @@ const SupplierProductDetail = () => {
                                 >
                                     <div className="flex justify-between items-center mb-1">
                                         <span className="text-[8px] font-black text-slate-400 uppercase truncate max-w-[80px]">{v.color || v.variantKey || "Standard"}</span>
-                                        <span className="text-[10px] font-black text-slate-950">${parseFloat(v.price || v.sellPrice || 0).toFixed(2)}</span>
+                                        <span className="text-[10px] font-black text-slate-950">${parseFloat(v.price ?? v.sellPrice ?? 0).toFixed(2)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-600 truncate">SKU: {v.sku || v.variantSku || "N/A"}</p>
                                 </button>
                             )) : (
                                 <div className="col-span-2 py-8 text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                    <Box size={20} className="mx-auto mb-2 opacity-20" />
                                     No variants found
                                 </div>
                             )}

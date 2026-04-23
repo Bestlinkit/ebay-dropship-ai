@@ -8,25 +8,28 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
+import { normalizeProduct, resolveShipping } from '../../services/cj.schema';
 
 /**
- * Supplier Discovery Row - CJ Dropshipping Edition (v3.0 - STABLE FIX)
- * Objective: ZERO "Fetching" loops. Immediate visibility.
+ * Supplier Discovery Row - CJ Dropshipping Edition (v4.0 - RECOVERY MODE)
+ * Objective: Protect Data. Zero Corruption.
  */
-const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
+const SupplierResultRow = ({ product: rawProduct, targetPrice, onContinue }) => {
     
-    // Phase 4: FORCE SAFE RENDER
-    const image = product?.images?.[0] || "https://via.placeholder.com/300";
-    const variants = product?.variants?.length || 0;
-    const shipping = product?.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
+    // Phase 4: SAFE RECOVERY RENDER
+    const data = normalizeProduct(rawProduct, rawProduct.rawDetail || {});
     
-    const cjCost = parseFloat(product?.cjCost || 0);
+    const image = data.images?.[0];
+    const variantsCount = data.variants?.length || 0;
+    const shipping = resolveShipping(data.rawDetail || data);
+    
+    const cjCost = parseFloat(data.cjCost ?? 0);
     const ebayPrice = parseFloat(targetPrice || 0);
-    const shippingCost = parseFloat(shipping.cost || 0);
+    const shippingCost = parseFloat(shipping.cost ?? 0);
     
-    // Profit Logic: price - (cjCost + shippingCost)
-    const netProfit = ebayPrice - (cjCost + shippingCost);
-    const profitFormatted = netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`;
+    // Profit Calculation: Only show if we have both numbers
+    const netProfit = (ebayPrice > 0 && cjCost > 0) ? (ebayPrice - (cjCost + shippingCost)) : null;
+    const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`) : "N/A";
 
     return (
         <motion.div 
@@ -37,23 +40,30 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
             <div className="flex flex-col md:flex-row gap-8">
                 {/* 1. IMAGE DISPLAY */}
                 <div className="relative w-full md:w-56 h-56 shrink-0 rounded-[2rem] overflow-hidden bg-slate-900 border border-white/5">
-                    <img 
-                        src={image} 
-                        alt=""
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/300";
-                            e.target.onerror = null; // Prevent infinite loop
-                        }}
-                    />
+                    {image ? (
+                        <img 
+                            src={image} 
+                            alt=""
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                            onError={(e) => {
+                                e.target.src = "https://via.placeholder.com/300";
+                                e.target.onerror = null;
+                            }}
+                        />
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-700 bg-slate-900 gap-2">
+                             <Box size={24} />
+                             <span className="text-[8px] font-black uppercase">No Image Available</span>
+                        </div>
+                    )}
                     
                     <div className="absolute top-4 left-4 px-4 py-2 bg-black/80 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
                         <Globe size={10} className="text-blue-400" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-white">{product?.origin || "CN"}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-white">{data.warehouse || "CN"}</span>
                     </div>
 
                     <div className="absolute bottom-4 right-4 px-4 py-2 bg-blue-600 rounded-full text-[9px] font-black text-white shadow-xl">
-                        {variants} VARIANTS
+                        {variantsCount} VARIANTS
                     </div>
                 </div>
 
@@ -63,12 +73,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         <div className="flex items-start justify-between gap-4 mb-4">
                             <div className="flex-1">
                                 <h3 className="text-lg font-bold text-white leading-tight group-hover:text-blue-400 transition-colors line-clamp-2">
-                                    {product?.title}
+                                    {data.title || "—"}
                                 </h3>
                                 <div className="flex items-center gap-4 mt-3">
                                     <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-900/50 rounded-lg border border-white/5">
                                         <Box size={12} className="text-slate-400" />
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">ID: {product?.id}</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">ID: {data.id}</span>
                                     </div>
                                 </div>
                             </div>
@@ -77,7 +87,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                                 <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Profit Est.</div>
                                 <div className={cn(
                                     "text-2xl font-black tracking-tighter transition-all",
-                                    netProfit > 0 ? "text-emerald-400" : "text-rose-400"
+                                    netProfit === null ? "text-slate-600" : (netProfit > 0 ? "text-emerald-400" : "text-rose-400")
                                 )}>
                                     {profitFormatted}
                                 </div>
@@ -87,9 +97,11 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                             </div>
                         </div>
 
-                        <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed mb-6 font-medium">
-                            {product?.description?.replace(/<[^>]*>/g, '') || "No description available."}
-                        </p>
+                        {data.description && (
+                            <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed mb-6 font-medium">
+                                {data.description.replace(/<[^>]*>/g, '')}
+                            </p>
+                        )}
                     </div>
 
                     {/* 3. LOGISTICS BAR */}
@@ -99,7 +111,9 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                                 <DollarSign size={12} />
                                 <span className="text-[9px] font-black uppercase tracking-widest">Unit Cost</span>
                             </div>
-                            <div className="text-sm font-bold text-white">${cjCost.toFixed(2)}</div>
+                            <div className="text-sm font-bold text-white">
+                                {cjCost > 0 ? `$${cjCost.toFixed(2)}` : "—"}
+                            </div>
                         </div>
 
                         <div className="space-y-1">
@@ -119,7 +133,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
                         <div className="flex items-end justify-end">
                             <button 
-                                onClick={() => onContinue(product)}
+                                onClick={() => onContinue(data)}
                                 className="w-full py-3 bg-white hover:bg-blue-500 text-slate-950 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
                             >
                                 Select <ChevronRight size={14} />
