@@ -1,148 +1,139 @@
 /**
- * CJ Unified Data Contract (v6.0 - HYDRATION STABILITY)
- * Mandate: Strict Validation. Clean UI. No Data Overlap.
+ * CJ Unified Data Contract (v7.0 - TYPE SAFETY & HYDRATION RECOVERY)
+ * Mandate: Absolute Type Safety. No TypeErrors. No forced filtering.
  */
 const PLACEHOLDER = "https://via.placeholder.com/300";
 
 /**
- * 🧹 DESCRIPTION FORMATTER
- * Parses raw text into readable sections
+ * 🛡️ SAFE STRING GUARD (Fixes TypeError: e.replace is not a function)
  */
-export function formatDescription(raw = "") {
-  if (!raw) return { html: "", sections: {} };
-  
-  // Basic Cleanup
-  let clean = raw.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-                .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
-
-  const sections = {
-    overview: "",
-    specifications: "",
-    sizeInfo: "",
-    packageContent: ""
-  };
-
-  // Simple heuristic parsing based on keywords
-  const text = clean.replace(/<[^>]*>/g, " ");
-  
-  if (text.toLowerCase().includes("package")) {
-      sections.packageContent = text.split(/package/i)[1]?.split(/\n/)[0]?.trim();
-  }
-  
-  // Return both raw and structured
-  return {
-    html: clean,
-    sections: sections,
-    isFormatted: true
-  };
+function safeString(value) {
+    if (typeof value === "string") return value;
+    if (value === null || value === undefined) return "";
+    if (Array.isArray(value)) return value.join(" ");
+    if (typeof value === "object") {
+        try {
+            return JSON.stringify(value);
+        } catch (e) {
+            return "[Object]";
+        }
+    }
+    return String(value);
 }
 
 /**
- * 🖼️ IMAGE EXTRACTOR
+ * 🖼️ SAFE IMAGE PIPELINE
  */
 function extractImages(raw, cjData) {
-  let images = [];
-  
-  // Priority: Main Image List > Details Images > Variant Images
-  if (cjData?.productImageList?.length) images = cjData.productImageList;
-  else if (cjData?.images?.length) images = cjData.images;
-  else if (raw?.images?.length) images = raw.images;
-  else if (cjData?.productImage) images = [cjData.productImage];
-  else if (raw?.image) images = [raw.image];
+    let images = [];
+    
+    // Extract from ALL possible fields
+    const candidates = [
+        cjData?.productImageList,
+        cjData?.images,
+        cjData?.productImages,
+        cjData?.skuImages,
+        raw?.images,
+        cjData?.productImage ? [cjData.productImage] : null,
+        raw?.image ? [raw.image] : null
+    ];
 
-  // Fallback: Variant Images
-  if (!images.length && (cjData?.variants?.length || raw?.variants?.length)) {
-      const variantImages = (cjData?.variants || raw?.variants)
-          .map(v => v.variantImage || v.image || v.image_url)
-          .filter(Boolean);
-      if (variantImages.length) images = [variantImages[0]];
-  }
+    candidates.forEach(cand => {
+        if (Array.isArray(cand)) {
+            images = images.concat(cand);
+        }
+    });
 
-  // Normalize URLs
-  return images.map(img => {
-      let url = typeof img === 'string' ? img : (img.variantImage || img.image_url || "");
-      if (!url) return null;
-      if (url.startsWith('//')) url = 'https:' + url;
-      return url;
-  }).filter(url => url && url.startsWith('http')).slice(0, 10);
+    // Clean and Normalize
+    return images
+        .map(img => {
+            let url = typeof img === 'string' ? img : (img.variantImage || img.image_url || img.image || "");
+            url = safeString(url).trim();
+            if (!url) return null;
+            if (url.startsWith('//')) url = 'https:' + url;
+            return url;
+        })
+        .filter(url => url && (url.startsWith('http') || url.startsWith('https')))
+        .slice(0, 10);
 }
 
 /**
- * 🛡️ VALIDATION LAYER (TEMPORARILY DISABLED)
- */
-export function validateProduct(normalized) {
-    // Force allow all for debugging/raw discovery
-    return true;
-}
-
-/**
- * 🏗️ NORMALIZATION CORE
+ * 🏗️ STABLE NORMALIZATION CORE
  */
 export function normalizeProduct(raw = {}, cjData = {}) {
-  const images = extractImages(raw, cjData);
-  const variants = (raw?.variants?.length ? raw.variants : cjData?.variants || cjData?.skus || cjData?.productVariants || []).filter(v => v && (v.sku || v.variantSku || v.id));
+    console.log("RAW CJ:", raw, cjData);
+    
+    try {
+        const images = extractImages(raw, cjData);
+        
+        // Variant Extraction (Always Array)
+        const rawVariants = cjData?.variants || cjData?.skus || cjData?.productVariants || raw?.variants || [];
+        const variants = Array.isArray(rawVariants) ? rawVariants : [];
 
-  // 🚢 SHIPPING MAPPING
-  const shipping = resolveShipping(cjData || raw);
+        // Shipping Mapping
+        const shipping = resolveShipping(cjData || raw);
 
-  const normalized = {
-    id: raw?.id || raw?.product_id || cjData?.pid || cjData?.id || "UNKNOWN",
-    title: raw?.title || raw?.productName || cjData?.productNameEn || cjData?.productName || "Unnamed Product",
-    
-    // Description: Formatted for Detail View ONLY
-    description: formatDescription(cjData?.descriptionHtml || cjData?.productDesc || raw?.description || ""),
-    
-    images: images.length ? images : [PLACEHOLDER],
-    variants: variants,
-    variantCount: variants.length,
-    
-    price: parseFloat(raw?.price ?? cjData?.sellPrice ?? cjData?.price ?? 0),
-    cjCost: parseFloat(cjData?.sellPrice ?? cjData?.price ?? raw?.cjCost ?? 0),
-    
-    warehouse: raw?.warehouse || cjData?.warehouseName || cjData?.warehouse || "CN",
-    shipping: shipping,
-    
-    // UI Metadata
-    isValid: false // Will be set by validateProduct
-  };
+        const normalized = {
+            id: safeString(raw?.id || raw?.product_id || cjData?.pid || cjData?.id || "UNKNOWN"),
+            name: safeString(raw?.title || raw?.productName || cjData?.productNameEn || cjData?.productName || "Unnamed Product"),
+            
+            images: images,
+            
+            // Price Logic: null if missing (NOT 0)
+            price: (raw?.price !== undefined && raw?.price !== null) ? Number(raw.price) : 
+                   (cjData?.sellPrice !== undefined && cjData?.sellPrice !== null) ? Number(cjData.sellPrice) : null,
+            
+            variants: variants,
+            
+            shippingCost: shipping.cost !== 0 ? shipping.cost : null,
+            deliveryMin: 7, // Default min
+            deliveryMax: 15, // Default max
+            
+            description: safeString(cjData?.descriptionHtml || cjData?.productDesc || raw?.description || "No description available"),
+            
+            // Legacy/Mapping fields
+            cjCost: (cjData?.sellPrice !== undefined && cjData?.sellPrice !== null) ? Number(cjData.sellPrice) : Number(raw?.cjCost || 0),
+            warehouse: safeString(raw?.warehouse || cjData?.warehouseName || cjData?.warehouse || "CN"),
+            shipping: shipping,
+            isValid: true // All results allowed (Step 5)
+        };
 
-  normalized.isValid = validateProduct(normalized);
-  return normalized;
+        console.log("NORMALIZED:", normalized);
+        return normalized;
+    } catch (e) {
+        console.error("Critical Normalization Failure:", e);
+        return null;
+    }
 }
 
 /**
- * 🚢 SHIPPING RESOLVER (v6.0 Reliability)
+ * 🚢 SHIPPING RESOLVER
  */
 export function resolveShipping(data) {
-  // Priority 1: Direct detail fields
   if (data?.logisticName && data?.logisticTime) {
     return {
       cost: parseFloat(data.shippingFee || 0),
       delivery: data.logisticTime || "7-15 Days",
-      name: data.logisticName || "Standard Shipping",
-      status: "resolved"
+      name: data.logisticName || "Standard Shipping"
     };
   }
 
-  // Priority 2: Logistics Array
   const method = data?.logistics?.[0] || data?.shipping_options?.[0];
   if (method) {
     return {
       cost: parseFloat(method.price ?? method.amount ?? method.shippingFee ?? 0),
       delivery: method.deliveryTime || method.logisticTime || "7-15 Days",
-      name: method.logisticsName || method.logisticName || "Standard Shipping",
-      status: "resolved"
+      name: method.logisticsName || method.logisticName || "Standard Shipping"
     };
   }
 
-  // Fallback
   return {
     cost: 0,
     delivery: "7-15 Days",
-    name: "Shipping info unavailable",
-    status: "none"
+    name: "Standard Shipping"
   };
 }
 
 // Backwards compatibility
 export const normalizeToContract = normalizeProduct;
+export const validateProduct = () => true; // Always true

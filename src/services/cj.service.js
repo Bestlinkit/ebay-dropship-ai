@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ STABLE SEARCH PIPELINE (v6.0 - Filter Broken Products)
+   * 🏗️ STABLE SEARCH PIPELINE (v7.0 - Fault Tolerant)
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -37,10 +37,17 @@ class CJService {
                 productList = response.data?.data?.productList || [];
             }
 
-            // Normalization + Validation Filtering (Phase 7)
+            // Normalization with Per-Product Try/Catch (Step 7)
             const products = productList
-                .map(item => normalizeProduct(item, {}))
-                .filter(p => p.isValid);
+                .map(item => {
+                    try {
+                        return normalizeProduct(item, {});
+                    } catch (e) {
+                        console.error("[Normalization Error] Skipping product:", e);
+                        return null;
+                    }
+                })
+                .filter(p => p !== null); // Only filter out complete failures
             
             return { 
                 status: products.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
@@ -55,7 +62,7 @@ class CJService {
   }
 
   /**
-   * 🧩 PHASE 6 — HYDRATION (ENRICHMENT)
+   * 🧩 PHASE 6 — HYDRATION (RECOVERY MODE)
    */
   async enrichSingleProduct(product) {
     try {
@@ -72,9 +79,7 @@ class CJService {
             }
         }
 
-        // Full Re-normalization (Safe Merge Mode)
-        const enriched = normalizeProduct(product, cjData || {});
-        return enriched;
+        return normalizeProduct(product, cjData || {});
     } catch (e) {
         console.error("Enrichment Failure:", e);
         return product;
@@ -91,7 +96,7 @@ class CJService {
             const product = queue.shift();
             if (!product) continue;
             const enriched = await this.enrichSingleProduct(product);
-            if (enriched && enriched.isValid) {
+            if (enriched) {
                 onEnriched(product.id, enriched);
             }
         }
