@@ -5,53 +5,57 @@ import {
   Box, 
   Globe,
   DollarSign,
-  Package
+  Package,
+  Zap,
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 import cjService from '../../services/cj.service';
 
 /**
- * Supplier Discovery Row - CJ Dropshipping Edition (v10.0 - ISOLATION)
- * Objective: Read ONLY from cjProduct.cj.* namespace.
+ * Supplier Discovery Row - CJ Dropshipping Edition (v12.0 - MAXIMUM RESILIENCE)
+ * Objective: If mapping fails, find the data manually.
  */
 const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) => {
     
-    // ⚠️ STEP 7: SAFETY GUARD
-    if (source !== "CJ") return null;
-
-    // ⚠️ STEP 5: CJ UI ONLY (SCOPED)
+    // 1. DATA NAMESPACING
     const cj = product?.cj || {};
     const [localCj, setLocalCj] = useState(cj);
+    const [isHealed, setIsHealed] = useState(false);
 
-    // 🛡️ ENRICHMENT LOCK (Prevent 'Flicker back to zero' bug)
+    // 2. SELF-HEALING ENGINE (Bypasses all mapping failures)
     useEffect(() => {
-        const isCurrentlyEmpty = (localCj.variantCount === 0 || !localCj.shipping?.cost);
-        if (cj.id && isCurrentlyEmpty) {
+        const needsHealing = !localCj.image || localCj.image.includes('placeholder') || localCj.variantCount === 0;
+        
+        if (cj.id && cj.id !== "UNKNOWN" && needsHealing && !isHealed) {
             cjService.enrichSingleProduct(product).then(enriched => {
-                if (enriched?.cj && (enriched.cj.variantCount > 0 || enriched.cj.shipping?.cost > 0)) {
+                if (enriched?.cj) {
                     setLocalCj(enriched.cj);
+                    setIsHealed(true);
                 }
             });
         }
-    }, [cj.id, product]);
+    }, [cj.id, product, isHealed]);
 
     const activeCj = localCj.variantCount > 0 ? localCj : cj;
     
-    const name = String(activeCj.name || "Unnamed Product");
-    // Dual Fallback: Check namespaced image AND raw search image
-    const image = activeCj.image || product.productImage || product.image || "https://via.placeholder.com/300";
-    const variantsCount = parseInt(activeCj.variantCount || 0);
-    const price = parseFloat(activeCj.price || 0);
-    
-    const target = parseFloat(targetPrice || 0);
-    const cost = parseFloat(activeCj.cost || 0);
+    // 3. AGGRESSIVE FALLBACKS (Search result raw fields)
+    const raw = product || {};
+    const image = activeCj.image || raw.productImage || raw.image || raw.mainImage || "https://via.placeholder.com/300?text=CJ+Image";
+    const name = activeCj.name || raw.productNameEn || raw.name || "Unnamed CJ Product";
+    const variantsCount = parseInt(activeCj.variantCount || raw.variantCount || 0);
+    const price = parseFloat(activeCj.price || raw.sellPrice || 0);
     const shipping = activeCj.shipping || { cost: 0, delivery: "7-15 Days" };
     const shippingCost = parseFloat(shipping.cost || 0);
-
-    // Profit calculation using isolated CJ data
+    
+    const target = parseFloat(targetPrice || 0);
     const netProfit = (target > 0 && price > 0) ? (target - (price + shippingCost)) : null;
     const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`) : "N/A";
+
+    // Sellability Score (Restored)
+    const sellability = Math.min(98, Math.max(45, (netProfit > 15 ? 85 : 65) + (variantsCount > 0 ? 10 : 0)));
 
     return (
         <motion.div 
@@ -60,15 +64,18 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
             className="group relative bg-[#0B1121] border border-white/5 rounded-[2.5rem] p-6 hover:border-blue-500/30 transition-all duration-500 shadow-2xl"
         >
             <div className="flex flex-col md:flex-row gap-8">
-                {/* 1. IMAGE DISPLAY (CJ ONLY) */}
+                {/* 1. IMAGE DISPLAY */}
                 <div className="relative w-full md:w-48 h-48 shrink-0 rounded-[2rem] overflow-hidden bg-slate-900 border border-white/5">
                     <img 
                         src={image} 
                         alt=""
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/300";
-                            e.target.onerror = null;
+                            if (!e.target.src.includes('placeholder')) {
+                                e.target.src = "https://via.placeholder.com/300?text=Image+Refetching...";
+                                // Retry healing if image fails
+                                setIsHealed(false);
+                            }
                         }}
                     />
                     
@@ -78,7 +85,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                     </div>
                 </div>
 
-                {/* 2. PRODUCT DATA (SCOPED) */}
+                {/* 2. PRODUCT DATA */}
                 <div className="flex-1 flex flex-col justify-center py-2">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                         <div className="flex-1 space-y-3">
@@ -91,10 +98,14 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                                     <Package size={12} className="text-blue-500" />
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{variantsCount} VARIANTS</span>
                                 </div>
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                    <Zap size={10} className="text-emerald-400" />
+                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{sellability}% SELLABILITY</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* PROFIT ENGINE (SCOPED) */}
+                        {/* PROFIT ENGINE */}
                         <div className="text-right shrink-0 bg-slate-900/40 p-6 rounded-[2rem] border border-white/5 min-w-[180px]">
                             <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Profit Est.</div>
                             <div className={cn(
@@ -106,7 +117,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                         </div>
                     </div>
 
-                    {/* 3. LOGISTICS SUMMARY (SCOPED) */}
+                    {/* 3. LOGISTICS SUMMARY */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-8 border-t border-white/5">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-slate-500">

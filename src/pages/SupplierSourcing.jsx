@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -12,7 +12,7 @@ import cjService from '../services/cj.service';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 
 /**
- * Stable Supplier Sourcing (v5.0 - The Clean Version)
+ * Stable Supplier Sourcing (v6.0 - Infinite Stability)
  */
 const SupplierSourcing = () => {
     const location = useLocation();
@@ -31,10 +31,10 @@ const SupplierSourcing = () => {
 
     const [pipelineState, setPipelineState] = useState({ status: 'IDLE' });
     const [lastError, setLastError] = useState(null);
-    const observerTarget = React.useRef(null);
+    const observerTarget = useRef(null);
 
-    const performSourcing = useCallback(async (queryParam = searchQuery, append = false, pageNum = 1) => {
-        if (!targetProduct?.id && !queryParam?.trim()) return;
+    const performSourcing = useCallback(async (queryParam, append = false, pageNum = 1) => {
+        if (!queryParam?.trim()) return;
         
         setLoading(true);
         setPipelineState({ status: 'LOADING' });
@@ -84,7 +84,7 @@ const SupplierSourcing = () => {
         } finally {
             setLoading(false);
         }
-    }, [targetProduct, searchQuery]);
+    }, [targetProduct]);
 
     useEffect(() => {
         if (!hasMore || loading) return;
@@ -97,7 +97,7 @@ const SupplierSourcing = () => {
                     setCurrentPage(next);
                 }
             },
-            { threshold: 1.0 }
+            { threshold: 0.1 }
         );
 
         if (observerTarget.current) observer.observe(observerTarget.current);
@@ -107,7 +107,7 @@ const SupplierSourcing = () => {
     }, [hasMore, loading, currentPage, performSourcing, searchQuery]);
 
     const handleSearch = (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         performSourcing(searchQuery, false, 1);
     };
 
@@ -150,7 +150,7 @@ const SupplierSourcing = () => {
                     <div>
                         <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">CJ Discovery Engine</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-indigo-500" /> v5.0 Practical Mode
+                             <Lock size={12} className="text-indigo-500" /> v6.0 Infinite Stability
                         </p>
                     </div>
                 </div>
@@ -197,11 +197,13 @@ const SupplierSourcing = () => {
                             />
                         ))}
                         
-                        <div ref={observerTarget} className="h-20 flex items-center justify-center">
-                            {loading && (
-                                <div className="flex items-center gap-3 px-6 py-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-md">
-                                    <RefreshCw size={14} className="animate-spin text-indigo-400" />
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Hydrating Catalog...</span>
+                        <div ref={observerTarget} className="h-24 flex items-center justify-center">
+                            {hasMore && (
+                                <div className="flex items-center gap-3 px-8 py-4 bg-slate-900/5 rounded-2xl border border-slate-200 backdrop-blur-md">
+                                    <RefreshCw size={16} className={cn("text-indigo-500", loading && "animate-spin")} />
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                                        {loading ? 'Hydrating Catalog...' : 'Scroll for more'}
+                                    </span>
                                 </div>
                             )}
                         </div>
@@ -220,7 +222,7 @@ const SupplierSourcing = () => {
                                     Try broadening your search keywords or manually entering a product name.
                                 </p>
                             </div>
-                            <button onClick={() => performSourcing(searchQuery, false, 1)} className="px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all flex items-center justify-center gap-4 mx-auto">
+                            <button onClick={() => handleSearch()} className="px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all flex items-center justify-center gap-4 mx-auto">
                                 <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> Retry Discovery
                             </button>
                         </div>
