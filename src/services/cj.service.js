@@ -2,7 +2,7 @@ import axios from 'axios';
 import { normalizeProduct } from './cj.schema';
 import { deconstructTitle } from '../utils/productQueryEngine';
 
-const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BRIDGE_BASE = 'http://localhost:3001';
 
 class CJService {
   constructor() {
@@ -23,12 +23,14 @@ class CJService {
     const query = manualQuery || ebayIntel.queries.fallback || product.title;
 
     try {
-        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`, { 
+        const url = `${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`;
+        console.log("CALLING CJ API...", url);
+
+        const response = await axios.get(url, { 
             params: { keyword: query, pageNum, pageSize: 20 } 
         });
 
-        // STEP 1: LOG RAW CJ RESPONSE
-        console.log("CJ API RESPONSE:", response);
+        console.log("CJ RESPONSE RECEIVED", response.data);
 
         // STEP 2: VALIDATE RESPONSE STRUCTURE
         if (!response || !response.data || response.data.code !== 200) {
@@ -87,11 +89,14 @@ class CJService {
     try {
         const pid = product.cj?.id || product.id || product.product_id;
         
-        const response = await axios.get(`${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`, { 
+        const url = `${BRIDGE_BASE}${this.CONFIG.DETAIL_ENDPOINT}`;
+        console.log("CALLING CJ API...", url);
+
+        const response = await axios.get(url, { 
             params: { pid } 
         });
 
-        console.log("CJ DETAIL RESPONSE:", response);
+        console.log("CJ RESPONSE RECEIVED", response.data);
 
         if (!response.data || response.data.code !== 200 || !response.data.data) {
              throw new Error("CJ DETAIL INVALID");
