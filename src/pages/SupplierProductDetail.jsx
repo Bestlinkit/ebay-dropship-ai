@@ -57,7 +57,11 @@ const SupplierProductDetail = () => {
 
     const cj = product?.cj || {};
     const image = cj.image || "https://via.placeholder.com/600";
-    const cjCost = parseFloat(selectedVariant?.price ?? selectedVariant?.variantSellPrice ?? cj.price ?? 0);
+    
+    // Exhaustive price discovery for variants
+    const vPrice = selectedVariant?.variantSellPrice || selectedVariant?.sellPrice || selectedVariant?.price || 0;
+    const cjCost = parseFloat(vPrice || cj.price || 0);
+    
     const shipping = cj.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
     const netProfit = (targetPrice > 0 && cjCost > 0) ? (targetPrice - (cjCost + parseFloat(shipping.cost ?? 0))) : null;
 
@@ -214,8 +218,8 @@ const SupplierProductDetail = () => {
                                                 <span className="text-[14px] font-black text-slate-950">${parseFloat(v.price ?? v.variantSellPrice ?? v.sellPrice ?? 0).toFixed(2)}</span>
                                                 {selectedVariant === v && <CheckCircle2 size={16} className="text-indigo-500" />}
                                             </div>
-                                            <p className="text-[10px] font-black text-slate-900 uppercase truncate">{v.variantKey || v.color || v.size || "STANDARD"}</p>
-                                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter truncate opacity-60">SKU: {v.sku || v.variantSku || "N/A"}</p>
+                                            <p className="text-[10px] font-black text-slate-900 uppercase truncate">{v.variantKey || v.variantName || v.variantStandard || v.color || v.size || "STANDARD"}</p>
+                                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter truncate opacity-60">SKU: {v.sku || v.variantSku || v.skuId || "N/A"}</p>
                                         </div>
                                     </div>
                                 </button>

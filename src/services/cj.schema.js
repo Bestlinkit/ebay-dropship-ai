@@ -1,6 +1,6 @@
 /**
- * CJ Unified Data Contract (v15.0 - PRODUCTION HARDENED)
- * Mandate: Fix Shipping Fees. Fix Underscore Fields. Ensure Gallery Sync.
+ * CJ Unified Data Contract (v16.0 - THE "RESOLVE FRUSTRATION" VERSION)
+ * Mandate: Universal Description Capture. Strict String IDs. Comprehensive SKU discovery.
  */
 
 /**
@@ -12,32 +12,30 @@ export function normalizeProduct(raw = {}, cjData = {}) {
 
   // --- 🛠️ HELPER: UNIVERSAL IMAGE SANITIZER ---
   const sanitizeUrl = (url) => {
-    if (!url || typeof url !== "string") return null;
+    if (!url || typeof url !== "string") return url;
     let clean = url.trim();
     if (!clean) return null;
-    
-    // Handle double-slash and protocol-less
     if (clean.startsWith('http')) return clean;
     if (clean.startsWith('//')) return `https:${clean}`;
     if (clean.includes('.') && !clean.startsWith('http')) return `https://${clean}`;
-    
     return clean;
   };
 
-  // --- ✅ FIX IMAGE MAPPING (EXHAUSTIVE) ---
+  // --- ✅ FIX IMAGE MAPPING ---
   const rawImage =
     p.productImage ||
     p.product_image ||
-    (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
     p.image ||
     p.mainImage ||
     p.main_image ||
+    (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
     null;
 
   const image = sanitizeUrl(rawImage) || "https://via.placeholder.com/600x600?text=No+Image+Available";
 
-  // --- ✅ FIX VARIANT EXTRACTION (EXHAUSTIVE) ---
-  const variants = p.skuList || p.variantList || p.variants || [];
+  // --- ✅ FIX VARIANT EXTRACTION (COMPREHENSIVE) ---
+  // CJ uses skuList, skus, variantList, variants, or skus
+  const variants = p.skuList || p.skus || p.variantList || p.variants || p.variant_list || [];
   
   const possibleCounts = [
     Array.isArray(variants) ? variants.length : 0,
@@ -50,18 +48,22 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   
   const variantCount = possibleCounts.find(c => !isNaN(c) && c > 0) || 0;
 
-  // --- ✅ FIX DESCRIPTION MAPPING ---
+  // --- ✅ FIX DESCRIPTION MAPPING (AGGRESSIVE) ---
+  // Some CJ API versions return 'description', others 'descriptionHtml', others 'productDesc'
   const description = 
-    p.descriptionHtml || 
-    p.productDesc || 
     p.description || 
+    p.descriptionHtml || 
+    p.description_html ||
+    p.productDesc || 
     p.productDescription || 
+    p.product_desc ||
     "";
 
   // Create isolated CJ namespace
   const cjMapped = {
     cj: {
-        id: p.id || p.productId || p.pid || p.product_id || "UNKNOWN",
+        // FORCE ID TO STRING TO PREVENT PRECISION LOSS
+        id: String(p.id || p.productId || p.pid || p.product_id || "UNKNOWN"),
         name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || "Unnamed Product",
         image: image,
         images: Array.isArray(p.productImageList) && p.productImageList.length > 0 
@@ -82,10 +84,9 @@ export function normalizeProduct(raw = {}, cjData = {}) {
 }
 
 /**
- * 🚢 SHIPPING RESOLVER (Aggressive Fallbacks)
+ * 🚢 SHIPPING RESOLVER
  */
 export function resolveShipping(data) {
-  // Search through all possible shipping locations in the payload
   const method = 
     data?.logistics?.[0] || 
     data?.shipping_options?.[0] || 
@@ -97,6 +98,7 @@ export function resolveShipping(data) {
     data?.shipping_fee || 
     data?.logisticFee || 
     data?.freightFee ||
+    data?.shippingAmount ||
     method?.price || 
     method?.amount || 
     method?.fee ||
@@ -121,7 +123,6 @@ export function safeTrim(e) {
     return (typeof e === "string" ? e.trim() : "");
 }
 
-// Global safety guard for UI
 export const sanitizeProduct = (p) => p;
 export const validateProduct = (p) => p && (p.id || p.cj?.id);
 export const normalizeToContract = normalizeProduct;
