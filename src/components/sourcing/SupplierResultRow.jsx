@@ -41,6 +41,10 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         src={image} 
                         alt=""
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        onError={(e) => {
+                            e.target.src = "https://via.placeholder.com/300";
+                            e.target.onerror = null; // Prevent infinite loop
+                        }}
                     />
                     
                     <div className="absolute top-4 left-4 px-4 py-2 bg-black/80 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">

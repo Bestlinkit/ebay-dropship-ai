@@ -53,7 +53,7 @@ class CJService {
   }
 
   /**
-   * 🧩 PHASE 2 — FIX ENRICHMENT (NO DATA LOSS)
+   * 🧩 EMERGENCY FIX — RESTORE DATA PRIORITY (SAFE MERGE)
    */
   async enrichSingleProduct(product) {
     try {
@@ -70,8 +70,30 @@ class CJService {
             }
         }
 
-        // Phase 2 Rule: Never overwrite valid data, but merge new details
-        return normalizeProduct(product, cjData);
+        // --- SAFE MERGE LOGIC (Phase 1 Fix) ---
+        return {
+            ...product,
+
+            // ONLY use CJ data if it exists and is valid
+            title: cjData?.productNameEn || cjData?.productName || product?.title || product?.name,
+            description: cjData?.descriptionHtml || cjData?.productDesc || product?.description,
+
+            images: (cjData?.productImageList?.length || cjData?.images?.length)
+                ? (cjData.productImageList || cjData.images)
+                : (product?.images || []),
+
+            variants: (cjData?.variants?.length || cjData?.productVariants?.length || cjData?.skus?.length)
+                ? (cjData.variants || cjData.productVariants || cjData.skus)
+                : (product?.variants || []),
+
+            price: product?.price || 0,
+            cjCost: parseFloat(cjData?.sellPrice || cjData?.price || product?.cjCost || 0),
+
+            warehouse: cjData?.warehouseName || cjData?.warehouse || product?.warehouse || "CN",
+
+            // 🚢 DO NOT TOUCH SHIPPING LOGIC
+            logistics: cjData?.logistics || product?.logistics || []
+        };
     } catch (e) {
         console.error("Enrichment Failure:", e);
         return product;
