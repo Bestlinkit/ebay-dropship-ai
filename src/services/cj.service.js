@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ FLEXIBLE SEARCH PIPELINE (Issue 1 & 3)
+   * 🏗️ FLEXIBLE SEARCH PIPELINE
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -33,7 +33,6 @@ class CJService {
 
         console.log("CJ FETCH RESPONSE:", response);
 
-        // ✅ 3. REMOVE PIPELINE BLOCKER
         if (!response || !response.data || response.data.code !== 200) {
             console.warn("CJ API RESPONSE PARTIAL - continuing");
             return { status: "NO_MATCH_FOUND", products: [] };
@@ -48,9 +47,8 @@ class CJService {
             productList = response.data?.data?.productList || [];
         }
 
-        // ✅ 1. REMOVE OVER-STRICT VALIDATION
         const products = productList
-            .filter(p => p && (p.id || p.productId || p.pid)) // Minimum requirement: ID exists
+            .filter(p => p && (p.id || p.productId || p.pid))
             .map(item => normalizeProduct(item, {}));
         
         if (products.length === 0) {
@@ -69,7 +67,7 @@ class CJService {
   }
 
   /**
-   * 🧩 FLEXIBLE ENRICHMENT (Scoped)
+   * ✅ 2. FALLBACK: FETCH DETAIL FOR SELECTED PRODUCT
    */
   async enrichSingleProduct(product) {
     try {
@@ -85,12 +83,12 @@ class CJService {
 
         console.log("CJ RESPONSE RECEIVED", response.data);
 
-        // Graceful fallback if detail fails
         if (!response.data || response.data.code !== 200 || !response.data.data) {
              console.warn("CJ DETAIL PARTIAL - continuing");
              return product;
         }
 
+        // ✅ Extract TRUE variant source (skuList) via normalizeProduct
         const cjData = response.data.data;
         return normalizeProduct(product, cjData);
     } catch (e) {

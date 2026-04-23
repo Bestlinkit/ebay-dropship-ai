@@ -40,8 +40,10 @@ const SupplierProductDetail = () => {
                 // Ensure we use the latest normalization even for prefetched
                 const enriched = await cjService.enrichSingleProduct(preFetched || { id });
                 setProduct(enriched);
-                if (enriched.variants?.length > 0) {
-                    setSelectedVariant(enriched.variants[0]);
+                
+                const variants = enriched.cj?.variants || [];
+                if (variants.length > 0) {
+                    setSelectedVariant(variants[0]);
                 }
             } catch (err) {
                 console.error("Detail Hydration Fault:", err);
@@ -53,9 +55,10 @@ const SupplierProductDetail = () => {
         fetchDetails();
     }, [id]);
 
-    const image = product?.images?.[0] || "https://via.placeholder.com/300";
-    const cjCost = parseFloat(selectedVariant?.price ?? selectedVariant?.variantSellPrice ?? product?.cjCost ?? 0);
-    const shipping = product?.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
+    const cj = product?.cj || {};
+    const image = cj.image || "https://via.placeholder.com/600";
+    const cjCost = parseFloat(selectedVariant?.price ?? selectedVariant?.variantSellPrice ?? cj.price ?? 0);
+    const shipping = cj.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
     const netProfit = (targetPrice > 0 && cjCost > 0) ? (targetPrice - (cjCost + parseFloat(shipping.cost ?? 0))) : null;
 
     return (
@@ -87,12 +90,12 @@ const SupplierProductDetail = () => {
                             className="w-full aspect-square object-contain p-12 bg-white group-hover:scale-105 transition-transform duration-700"
                         />
                         
-                        {product.images?.length > 1 && (
+                        {cj.images?.length > 1 && (
                             <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-3 px-6 py-3 bg-black/40 backdrop-blur-xl rounded-full border border-white/10">
-                                {product.images.slice(0, 6).map((img, i) => (
+                                {cj.images.slice(0, 6).map((img, i) => (
                                     <button 
                                         key={i}
-                                        onClick={() => setProduct(prev => ({ ...prev, images: [img, ...prev.images.filter(x => x !== img)] }))}
+                                        onClick={() => setProduct(prev => ({ ...prev, cj: { ...prev.cj, image: img } }))}
                                         className="w-12 h-12 rounded-xl border border-white/20 overflow-hidden hover:scale-110 transition-all"
                                     >
                                         <img src={img.startsWith('http') ? img : `https:${img}`} className="w-full h-full object-cover" alt="" />
@@ -116,7 +119,7 @@ const SupplierProductDetail = () => {
                             
                             <div 
                                 className="text-sm font-medium text-slate-600 leading-relaxed max-h-[800px] overflow-y-auto pr-6 custom-scrollbar description-render"
-                                dangerouslySetInnerHTML={{ __html: product.description?.html || "Analysis pending for this product description." }}
+                                dangerouslySetInnerHTML={{ __html: cj.description || "Analysis pending for this product description." }}
                             />
                         </section>
                     </div>
@@ -126,9 +129,9 @@ const SupplierProductDetail = () => {
                 <div className="lg:col-span-5 space-y-10">
                     <div className="space-y-4">
                         <h1 className="text-4xl font-black text-slate-950 italic tracking-tighter leading-tight uppercase">
-                            {product?.title || "Hydrating Product..."}
+                            {cj.name || "Hydrating Product..."}
                         </h1>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">REF: {product?.id}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">REF: {cj.id}</p>
                     </div>
 
                     {/* PROFIT INTELLIGENCE CARD */}
@@ -166,7 +169,7 @@ const SupplierProductDetail = () => {
                                     <Truck size={16} className="text-indigo-500" /> {shipping.delivery}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Globe size={16} className="text-indigo-500" /> {product?.warehouse || "CN"}
+                                    <Globe size={16} className="text-indigo-500" /> {cj.warehouse || "CN"}
                                 </div>
                             </div>
                         </div>
@@ -176,11 +179,11 @@ const SupplierProductDetail = () => {
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
                             <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">Inventory Matrix</h4>
-                            <span className="px-3 py-1 bg-slate-100 rounded-lg text-[9px] font-black text-slate-500 uppercase">{product?.variants?.length || 0} SKU AVAILABLE</span>
+                            <span className="px-3 py-1 bg-slate-100 rounded-lg text-[9px] font-black text-slate-500 uppercase">{cj.variants?.length || 0} SKU AVAILABLE</span>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
-                            {product?.variants?.length > 0 ? product.variants.map((v, i) => (
+                            {cj.variants?.length > 0 ? cj.variants.map((v, i) => (
                                 <button 
                                     key={i}
                                     onClick={() => setSelectedVariant(v)}
@@ -191,8 +194,8 @@ const SupplierProductDetail = () => {
                                 >
                                     <div className="flex justify-between items-start mb-3">
                                         <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden border border-slate-200">
-                                            {(v.variantImage || product.images[0]) && (
-                                                <img src={v.variantImage || product.images[0]} className="w-full h-full object-cover" alt="" />
+                                            {(v.variantImage || cj.image) && (
+                                                <img src={v.variantImage || cj.image} className="w-full h-full object-cover" alt="" />
                                             )}
                                         </div>
                                         <span className="text-xs font-black text-slate-950">${parseFloat(v.price ?? v.variantSellPrice ?? v.sellPrice ?? 0).toFixed(2)}</span>
