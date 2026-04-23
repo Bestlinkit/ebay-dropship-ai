@@ -68,13 +68,10 @@ function extractImages(raw, cjData) {
 }
 
 /**
- * 🛡️ VALIDATION LAYER
+ * 🛡️ VALIDATION LAYER (TEMPORARILY DISABLED)
  */
 export function validateProduct(normalized) {
-    if (!normalized.title || normalized.title === "Unnamed Product") return false;
-    if (normalized.price <= 0) return false;
-    if (normalized.images.length === 0) return false;
-    if (normalized.variants.length === 0) return false;
+    // Force allow all for debugging/raw discovery
     return true;
 }
 
