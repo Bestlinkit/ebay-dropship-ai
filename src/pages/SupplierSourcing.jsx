@@ -1,38 +1,18 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
-  Search, 
-  Package, 
-  Truck, 
-  DollarSign, 
-  ChevronRight, 
-  ShieldCheck, 
-  Star,
-  Zap,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-  ExternalLink,
   ArrowRight,
-  TrendingUp,
-  Activity,
   RefreshCw,
   AlertCircle,
-  Globe,
-  Clock,
   Lock,
   Box
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import cjService from '../services/cj.service';
-import { toast } from 'sonner';
-import { cn } from '../lib/utils';
-import SourcingStatusHeader from '../components/sourcing/SourcingStatusHeader';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
 
 /**
- * Stable Supplier Sourcing (v4.0 - Practical Mode)
+ * Stable Supplier Sourcing (v5.0 - The Clean Version)
  */
 const SupplierSourcing = () => {
     const location = useLocation();
@@ -50,32 +30,27 @@ const SupplierSourcing = () => {
     const [hasMore, setHasMore] = useState(true);
 
     const [pipelineState, setPipelineState] = useState({ status: 'IDLE' });
-    const [telemetry, setTelemetry] = useState({ cj: null, merged_count: 0 });
     const [lastError, setLastError] = useState(null);
-    const [showLog, setShowLog] = useState(false);
-    
-    // v12.1 Performance-Safe Enrichment State
-    const [enrichedProducts, setEnrichedProducts] = useState({}); // { pid: enrichedObject }
-    
     const observerTarget = React.useRef(null);
 
-    const performSourcing = useCallback(async (queryParam = searchQuery, isManual = false, pageNum = 1) => {
-        if (!targetProduct?.id && !isManual) return;
-        if (!queryParam?.trim()) return;
+    const performSourcing = useCallback(async (queryParam = searchQuery, append = false, pageNum = 1) => {
+        if (!targetProduct?.id && !queryParam?.trim()) return;
         
         setLoading(true);
         setPipelineState({ status: 'LOADING' });
         
-        if (isManual || pageNum === 1) {
+        if (!append) {
             setProducts([]);
             setLastError(null);
             setCurrentPage(1);
+        }
+
         try {
             const res = await cjService.runIterativePipeline({
-                query: query,
+                query: queryParam,
                 product: targetProduct,
-                manualQuery: query,
-                pageNum: page
+                manualQuery: queryParam,
+                pageNum
             });
             
             if (res.status === "SUCCESS") {
@@ -93,12 +68,6 @@ const SupplierSourcing = () => {
                 
                 setHasMore(newProducts.length >= 20);
                 setPipelineState({ status: 'SUCCESS' });
-                setTelemetry(res.telemetry || { cj: null });
-
-                // v12.1: START BACKGROUND ENRICHMENT
-                cjService.enrichProductList(newProducts, (pid, enriched) => {
-                    setEnrichedProducts(prev => ({ ...prev, [pid]: enriched }));
-                });
             } else if (res.status === "NO_MATCH_FOUND") {
                 if (!append) {
                     setProducts([]);
@@ -115,7 +84,7 @@ const SupplierSourcing = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [targetProduct, searchQuery]);
 
     useEffect(() => {
         if (!hasMore || loading) return;
@@ -135,21 +104,19 @@ const SupplierSourcing = () => {
         return () => {
             if (observerTarget.current) observer.unobserve(observerTarget.current);
         };
-    }, [hasMore, loading, currentPage, searchQuery]);
+    }, [hasMore, loading, currentPage, performSourcing, searchQuery]);
 
     const handleSearch = (e) => {
         e.preventDefault();
-        setCurrentPage(1);
         performSourcing(searchQuery, false, 1);
     };
-
 
     useEffect(() => { 
         if (initialQuery) performSourcing(initialQuery, false, 1); 
     }, []);
 
     const handleContinue = (product) => {
-        navigate(`/supplier-detail/cj/${product.id}`, { 
+        navigate(`/supplier-detail/cj/${product.cj?.id}`, { 
             state: { 
                 targetProduct: ebayProduct, 
                 targetPrice,
@@ -189,23 +156,22 @@ const SupplierSourcing = () => {
                 </div>
 
                 <div className="flex-1 max-w-xl">
-                    <div className="relative group">
+                    <form onSubmit={handleSearch} className="relative group">
                         <input 
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
                             placeholder="Search CJ Catalog..."
                             className="w-full pl-6 pr-32 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-950 focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all outline-none"
                         />
                         <button 
-                            onClick={handleSearch}
+                            type="submit"
                             disabled={loading}
                             className="absolute right-3 top-3 bottom-3 px-6 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all"
                         >
                             {loading ? 'SEARCHING...' : 'SEARCH'}
                         </button>
-                    </div>
+                    </form>
                 </div>
 
                 {targetProduct && (
@@ -254,7 +220,7 @@ const SupplierSourcing = () => {
                                     Try broadening your search keywords or manually entering a product name.
                                 </p>
                             </div>
-                            <button onClick={performSourcing} className="px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all flex items-center justify-center gap-4 mx-auto">
+                            <button onClick={() => performSourcing(searchQuery, false, 1)} className="px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all flex items-center justify-center gap-4 mx-auto">
                                 <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> Retry Discovery
                             </button>
                         </div>
