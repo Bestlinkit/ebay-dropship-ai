@@ -13,16 +13,12 @@ import { motion } from 'framer-motion';
 import cjService from '../../services/cj.service';
 
 /**
- * Supplier Discovery Row - CJ Dropshipping Edition (v13.0 - RAW PRIORITY)
- * Objective: Trust the raw 'productImage' string above all else.
+ * Supplier Discovery Row - CJ Dropshipping Edition (v14.0 - CDN RESILIENT)
  */
 const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) => {
-    
-    // 1. DATA NAMESPACING
     const cj = product?.cj || {};
     const [localCj, setLocalCj] = useState(cj);
 
-    // 2. SELF-HEALING (Variants/Shipping ONLY)
     useEffect(() => {
         if (cj.id && cj.id !== "UNKNOWN" && localCj.variantCount === 0) {
             cjService.enrichSingleProduct(product).then(enriched => {
@@ -33,9 +29,8 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
 
     const activeCj = localCj.variantCount > 0 ? localCj : cj;
     
-    // 3. RAW FIELD PRIORITY (As requested by user)
-    // We look at the top-level 'productImage' from search results first.
-    const image = product.productImage || activeCj.image || "https://via.placeholder.com/300?text=CJ+Product";
+    // IMAGE PRIORITY: Search result -> Cleaned cj.image -> Placeholder
+    const image = product.productImage || activeCj.image || "https://via.placeholder.com/300?text=No+Image";
     const name = product.productNameEn || activeCj.name || "Unnamed CJ Product";
     const variantsCount = parseInt(activeCj.variantCount || product.variantCount || 0);
     const price = parseFloat(activeCj.price || product.sellPrice || 0);
@@ -59,10 +54,14 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                     <img 
                         src={image} 
                         alt=""
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         onError={(e) => {
-                            if (!e.target.src.includes('placeholder')) {
-                                e.target.src = "https://via.placeholder.com/300?text=Image+Ref";
+                            if (!e.target.src.includes('placeholder') && !e.target.src.includes('aliyuncs')) {
+                                // Fallback to Aliyun CDN if img.cjdropshipping fails
+                                e.target.src = `https://cc-west-usa.oss-accelerate.aliyuncs.com/${image.split('/').pop()}`;
+                            } else if (!e.target.src.includes('placeholder')) {
+                                e.target.src = "https://via.placeholder.com/300?text=Image+Not+Found";
                             }
                         }}
                     />
