@@ -23,6 +23,9 @@ const SupplierResultRow = ({ product: rawProduct, targetPrice, onContinue }) => 
     const variantsCount = data.variants?.length || 0;
     const shipping = resolveShipping(data.rawDetail || data);
     
+    // DEBUG PATCH
+    console.log(`[DEBUG] Images for ${data.id}:`, data.images);
+    
     const cjCost = parseFloat(data.cjCost ?? 0);
     const ebayPrice = parseFloat(targetPrice || 0);
     const shippingCost = parseFloat(shipping.cost ?? 0);
@@ -42,7 +45,7 @@ const SupplierResultRow = ({ product: rawProduct, targetPrice, onContinue }) => 
                 <div className="relative w-full md:w-56 h-56 shrink-0 rounded-[2rem] overflow-hidden bg-slate-900 border border-white/5">
                     {image ? (
                         <img 
-                            src={image} 
+                            src={image.startsWith('http') ? image : `https:${image}`} 
                             alt=""
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                             onError={(e) => {

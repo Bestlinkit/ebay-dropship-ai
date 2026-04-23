@@ -1,9 +1,10 @@
-/**
- * CJ Unified Data Contract (v5.0 - RECOVERY MODE)
- * Mandate: Protect Data. Do not trust CJ blindly. 
- * Use null-coalescing (??) for numeric safety.
- */
 const PLACEHOLDER = "https://via.placeholder.com/300";
+
+function extractImagesFromDescription(description = "") {
+  if (!description) return [];
+  const matches = description.match(/https?:\/\/[^\s"'<>]+(?:\.jpg|\.jpeg|\.png|\.gif|\.webp)/gi);
+  return matches || [];
+}
 
 export function normalizeProduct(product = {}, cjData = {}) {
   // Merge safety: prioritize existing data, fill gaps with cjData
@@ -30,7 +31,9 @@ export function normalizeProduct(product = {}, cjData = {}) {
       (product?.images && product.images.length > 0) ? product.images :
       (cjData?.productImageList && cjData.productImageList.length > 0) ? cjData.productImageList :
       (cjData?.images && cjData.images.length > 0) ? cjData.images :
-      [],
+      (cjData?.productImages && cjData.productImages.length > 0) ? cjData.productImages :
+      (cjData?.productImage) ? [cjData.productImage] :
+      extractImagesFromDescription(cjData?.descriptionHtml || cjData?.productDesc || cjData?.description || product?.description || ""),
 
     variants:
       (product?.variants && product.variants.length > 0) ? product.variants :

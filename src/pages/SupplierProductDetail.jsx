@@ -80,11 +80,30 @@ const SupplierProductDetail = () => {
                 <div className="lg:col-span-7 space-y-8">
                     <div className="bg-white border border-slate-200 rounded-[3rem] overflow-hidden shadow-sm relative">
                         <img 
-                            src={image} 
+                            src={image.startsWith('http') ? image : `https:${image}`} 
                             alt="" 
                             className="w-full aspect-square object-contain p-10 bg-white"
                         />
                     </div>
+
+                    {/* Phase 3: Gallery Patch */}
+                    {product.images?.length > 1 && (
+                        <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                            {product.images.map((img, i) => (
+                                <button 
+                                    key={i}
+                                    onClick={() => setProduct(prev => ({ ...prev, images: [img, ...prev.images.filter(x => x !== img)] }))}
+                                    className="w-24 h-24 shrink-0 rounded-2xl border border-slate-200 overflow-hidden bg-white hover:border-indigo-500 transition-all"
+                                >
+                                    <img 
+                                        src={img.startsWith('http') ? img : `https:${img}`} 
+                                        className="w-full h-full object-cover" 
+                                        alt="" 
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Phase 5: Recovery Mode Description */}
                     {product?.description && (
