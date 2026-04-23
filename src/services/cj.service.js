@@ -24,12 +24,14 @@ class CJService {
 
     try {
         const url = `${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`;
-        console.log("CALLING CJ API...", url);
+        console.log("CJ FETCH STARTED");
+        console.log("CJ FETCH URL:", url);
 
         const response = await axios.get(url, { 
             params: { keyword: query, pageNum, pageSize: 20 } 
         });
 
+        console.log("CJ FETCH RESPONSE:", response);
         console.log("CJ RESPONSE RECEIVED", response.data);
 
         // STEP 2: VALIDATE RESPONSE STRUCTURE

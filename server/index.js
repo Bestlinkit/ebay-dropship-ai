@@ -285,6 +285,7 @@ cjRouter.use((req, res, next) => {
  * GET /search?keyword=...
  */
 cjRouter.get('/search', async (req, res) => {
+    console.log("CJ ROUTE HIT: /api/cj/search");
     const { keyword, page = 1, size = 20 } = req.query;
     const activeToken = global.CJ_SESSION?.accessToken;
     const payload = { keyWord: keyword, page, size };
@@ -341,6 +342,7 @@ cjRouter.get('/search', async (req, res) => {
  * 🎯 CJ PRODUCT DETAIL
  */
 cjRouter.get('/detail', async (req, res) => {
+    console.log("CJ ROUTE HIT: /api/cj/detail");
     const { pid } = req.query;
     const activeToken = global.CJ_SESSION?.accessToken;
     const payload = { pid };
