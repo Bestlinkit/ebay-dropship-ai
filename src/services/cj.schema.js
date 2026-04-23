@@ -1,9 +1,10 @@
 /**
- * CJ Unified Data Contract (v21.0 - THE "RAW STRING" VERSION)
- * Mandate: Trust the API strings. No complex prefixing.
+ * CJ Unified Data Contract (v23.0 - STABLE GALLERY VERSION)
+ * Mandate: Fix images and gallery without breaking discovery.
  */
 
 export function normalizeProduct(raw = {}, cjData = {}) {
+  // Combine sources, trust enrichment (cjData) for detail fields
   const p = { ...raw, ...cjData };
   
   // 1. SIMPLE SANITIZER
@@ -14,18 +15,38 @@ export function normalizeProduct(raw = {}, cjData = {}) {
           return null;
       }
       let s = url.trim();
+      if (!s || s === "[object Object]") return null;
       if (s.startsWith('//')) return `https:${s}`;
       return s;
   };
 
-  // 2. PRIMARY IMAGE LOOKUP (Prioritize the search result string as requested)
-  const image = cleanUrl(p.productImage || p.product_image || p.image || p.mainImage || (Array.isArray(p.productImageList) ? p.productImageList[0] : null));
+  // 2. PARSE GALLERY (Crucial for images)
+  let gallery = p.productImageList || [];
+  if (typeof gallery === "string") {
+      try {
+          gallery = gallery.includes("[")
+              ? JSON.parse(gallery)
+              : gallery.split(",");
+      } catch {
+          gallery = [];
+      }
+  }
+  const galleryArray = Array.isArray(gallery) ? gallery : [];
 
-  // 3. ID MAPPING
+  // 3. PRODUCT IMAGE RESOLUTION
+  // Priority: raw field -> first of gallery
+  const image = 
+    cleanUrl(p.productImage) || 
+    cleanUrl(p.product_image) || 
+    cleanUrl(p.image) || 
+    cleanUrl(galleryArray[0]) || 
+    "";
+
+  // 4. ID MAPPING
   const pid = p.pid || p.productId || p.product_id || p.id;
   const safeId = pid ? String(pid) : "UNKNOWN";
 
-  // 4. VARIANT EXTRACTION
+  // 5. VARIANT EXTRACTION
   let variants = p.skuList || p.skus || p.variantList || p.variants || [];
   if (typeof variants === 'string' && variants.startsWith('[')) {
       try { variants = JSON.parse(variants); } catch(e) {}
@@ -33,13 +54,15 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   const vArray = Array.isArray(variants) ? variants : [];
   const variantCount = parseInt(p.variantCount || p.variantsNum || p.skuCount || vArray.length || 0);
 
-  // 5. NAMESPACE CONSTRUCTION
+  // 6. NAMESPACE CONSTRUCTION
   const cjMapped = {
     cj: {
         id: safeId,
         name: String(p.nameEn || p.productNameEn || p.productName || p.title || "Unnamed Product"),
         image: image || "https://via.placeholder.com/600x600?text=No+Product+Image",
-        images: Array.isArray(p.productImageList) ? p.productImageList.map(cleanUrl).filter(Boolean) : [image].filter(Boolean),
+        images: galleryArray.map(cleanUrl).filter(Boolean).length > 0 
+                ? galleryArray.map(cleanUrl).filter(Boolean) 
+                : [image].filter(cleanUrl),
         variants: vArray,
         variantCount: variantCount,
         price: parseFloat(p.sellPrice || p.price || 0),
