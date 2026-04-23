@@ -85,7 +85,7 @@ const SupplierProductDetail = () => {
                 <div className="lg:col-span-7 space-y-10">
                     <div className="bg-white border border-slate-200 rounded-[3.5rem] overflow-hidden shadow-sm relative group">
                         <img 
-                            src={image.startsWith('http') ? image : `https:${image}`} 
+                            src={image} 
                             alt="" 
                             className="w-full aspect-square object-contain p-12 bg-white group-hover:scale-105 transition-transform duration-700"
                         />
@@ -98,7 +98,7 @@ const SupplierProductDetail = () => {
                                         onClick={() => setProduct(prev => ({ ...prev, cj: { ...prev.cj, image: img } }))}
                                         className="w-12 h-12 rounded-xl border border-white/20 overflow-hidden hover:scale-110 transition-all"
                                     >
-                                        <img src={img.startsWith('http') ? img : `https:${img}`} className="w-full h-full object-cover" alt="" />
+                                        <img src={img} className="w-full h-full object-cover" alt="" />
                                     </button>
                                 ))}
                             </div>

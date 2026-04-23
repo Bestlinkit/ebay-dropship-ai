@@ -1,29 +1,42 @@
 /**
- * CJ Unified Data Contract (v12.0 - FINAL STABILIZATION)
- * Mandate: Fix Images. Fix Variants. Final Display Lock.
+ * CJ Unified Data Contract (v13.0 - FIX IMAGES & VARIANTS)
+ * Mandate: Fix Protocol-less URLs. Map All Description Sources. Fallback Variant Counts.
  */
 
 /**
- * 🏗️ NAMESPACED MAPPING (Fixed Step 1 & 3)
+ * 🏗️ NAMESPACED MAPPING
  */
 export function normalizeProduct(raw = {}, cjData = {}) {
-  // SCOPED LOGGING
-  console.log("CJ RAW:", raw, cjData);
-
   // Combine sources, prioritize detailed data
   const p = { ...raw, ...cjData };
 
-  // --- ✅ 3. FIX IMAGE MAPPING (CRITICAL) ---
-  const image =
+  // --- ✅ FIX IMAGE MAPPING (CRITICAL) ---
+  const rawImage =
     p.productImage ||
     (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
     p.image ||
     p.mainImage ||
-    "https://via.placeholder.com/600x600?text=No+Image+Available";
+    "";
 
-  // --- ✅ 1. FIX VARIANT EXTRACTION (CRITICAL) ---
+  // Fix protocol-less URLs (starts with //)
+  const image = rawImage 
+    ? (rawImage.startsWith('//') ? `https:${rawImage}` : (rawImage.startsWith('http') ? rawImage : `https:${rawImage}`))
+    : "https://via.placeholder.com/600x600?text=No+Image+Available";
+
+  // --- ✅ FIX VARIANT EXTRACTION ---
   const variants = p.skuList || p.variantList || p.variants || [];
-  const variantCount = Array.isArray(variants) ? variants.length : 0;
+  // Use explicit variant count if available from API (often in search results)
+  const variantCount = Array.isArray(variants) && variants.length > 0 
+    ? variants.length 
+    : (parseInt(p.variantCount || p.variant_count || p.variantsNum || 0) || 0);
+
+  // --- ✅ FIX DESCRIPTION MAPPING ---
+  const description = 
+    p.descriptionHtml || 
+    p.productDesc || 
+    p.description || 
+    p.productDescription || 
+    "";
 
   // Create isolated CJ namespace
   const cjMapped = {
@@ -31,7 +44,9 @@ export function normalizeProduct(raw = {}, cjData = {}) {
         id: p.id || p.productId || p.pid || "UNKNOWN",
         name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || "Unnamed Product",
         image: image,
-        images: Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList : [image],
+        images: Array.isArray(p.productImageList) && p.productImageList.length > 0 
+            ? p.productImageList.map(img => img.startsWith('//') ? `https:${img}` : img)
+            : [image],
         variants: Array.isArray(variants) ? variants : [],
         variantCount: variantCount,
         price: parseFloat(p.sellPrice || p.price || 0),
@@ -39,12 +54,9 @@ export function normalizeProduct(raw = {}, cjData = {}) {
         raw: p,
         warehouse: p.warehouseName || p.warehouse || "CN",
         shipping: resolveShipping(p),
-        description: p.descriptionHtml || p.productDesc || ""
+        description: description
     }
   };
-
-  // LOG MAPPED
-  console.log("CJ MAPPED:", cjMapped);
 
   return cjMapped;
 }

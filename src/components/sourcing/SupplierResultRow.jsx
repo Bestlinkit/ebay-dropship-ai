@@ -25,7 +25,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
     
     const name = String(cj.name || "Unnamed Product");
     const image = String(cj.image || "https://via.placeholder.com/300");
-    const variantsCount = Array.isArray(cj.variants) ? cj.variants.length : 0;
+    const variantsCount = parseInt(cj.variantCount || 0);
     const price = parseFloat(cj.price || 0);
     
     const target = parseFloat(targetPrice || 0);
@@ -47,7 +47,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                 {/* 1. IMAGE DISPLAY (CJ ONLY) */}
                 <div className="relative w-full md:w-48 h-48 shrink-0 rounded-[2rem] overflow-hidden bg-slate-900 border border-white/5">
                     <img 
-                        src={image.startsWith('http') ? image : `https:${image}`} 
+                        src={image} 
                         alt=""
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         onError={(e) => {

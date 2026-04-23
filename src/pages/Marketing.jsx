@@ -99,18 +99,25 @@ const Marketing = () => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: {
+        display: false
+      },
       tooltip: {
         backgroundColor: '#0f172a',
         titleFont: { family: 'Outfit', size: 12, weight: '900' },
         bodyFont: { family: 'Inter', size: 12 },
         padding: 16,
-        cornerRadius: 16,
+        cornerRadius: 16
       }
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10, weight: '900' } } },
-      y: { display: false }
+      x: {
+        grid: { display: false },
+        ticks: { color: '#94a3b8', font: { size: 10, weight: '900' } }
+      },
+      y: {
+        display: false
+      }
     }
   };
 
