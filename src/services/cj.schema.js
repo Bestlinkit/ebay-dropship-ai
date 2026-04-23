@@ -1,6 +1,6 @@
 /**
- * CJ Unified Data Contract (v13.0 - FIX IMAGES & VARIANTS)
- * Mandate: Fix Protocol-less URLs. Map All Description Sources. Fallback Variant Counts.
+ * CJ Unified Data Contract (v14.0 - ULTRA HARDENED)
+ * Mandate: Universal URL Prefixing. Exhaustive Variant Counting. Zero Failures.
  */
 
 /**
@@ -10,25 +10,43 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   // Combine sources, prioritize detailed data
   const p = { ...raw, ...cjData };
 
+  // --- 🛠️ HELPER: UNIVERSAL IMAGE SANITIZER ---
+  const sanitizeUrl = (url) => {
+    if (!url || typeof url !== "string") return null;
+    let clean = url.trim();
+    if (!clean) return null;
+    
+    if (clean.startsWith('http')) return clean;
+    if (clean.startsWith('//')) return `https:${clean}`;
+    
+    // If it looks like a path or domain but has no protocol
+    return `https://${clean}`;
+  };
+
   // --- ✅ FIX IMAGE MAPPING (CRITICAL) ---
   const rawImage =
     p.productImage ||
     (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
     p.image ||
     p.mainImage ||
-    "";
+    null;
 
-  // Fix protocol-less URLs (starts with //)
-  const image = rawImage 
-    ? (rawImage.startsWith('//') ? `https:${rawImage}` : (rawImage.startsWith('http') ? rawImage : `https:${rawImage}`))
-    : "https://via.placeholder.com/600x600?text=No+Image+Available";
+  const image = sanitizeUrl(rawImage) || "https://via.placeholder.com/600x600?text=No+Image+Available";
 
-  // --- ✅ FIX VARIANT EXTRACTION ---
+  // --- ✅ FIX VARIANT EXTRACTION (EXHAUSTIVE) ---
   const variants = p.skuList || p.variantList || p.variants || [];
-  // Use explicit variant count if available from API (often in search results)
-  const variantCount = Array.isArray(variants) && variants.length > 0 
-    ? variants.length 
-    : (parseInt(p.variantCount || p.variant_count || p.variantsNum || 0) || 0);
+  
+  // CJ Search Results often have variants count in these fields
+  const possibleCounts = [
+    Array.isArray(variants) ? variants.length : 0,
+    parseInt(p.variantCount),
+    parseInt(p.variantsNum),
+    parseInt(p.variant_count),
+    parseInt(p.skuCount),
+    parseInt(p.productUnit) // Sometimes used as count in some CJ sub-APIs
+  ];
+  
+  const variantCount = possibleCounts.find(c => !isNaN(c) && c > 0) || 0;
 
   // --- ✅ FIX DESCRIPTION MAPPING ---
   const description = 
@@ -45,7 +63,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
         name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || "Unnamed Product",
         image: image,
         images: Array.isArray(p.productImageList) && p.productImageList.length > 0 
-            ? p.productImageList.map(img => img.startsWith('//') ? `https:${img}` : img)
+            ? p.productImageList.map(img => sanitizeUrl(img)).filter(Boolean)
             : [image],
         variants: Array.isArray(variants) ? variants : [],
         variantCount: variantCount,
