@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import cjService from '../services/cj.service';
 import SupplierResultRow from '../components/sourcing/SupplierResultRow';
+import { cn } from '../lib/utils';
 
 /**
  * Stable Supplier Sourcing (v6.0 - Infinite Stability)
