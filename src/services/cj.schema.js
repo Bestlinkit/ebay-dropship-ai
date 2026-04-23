@@ -1,202 +1,126 @@
+const CJ_CDN = "cc-west-usa.oss-us-west-1.aliyuncs.com";
+const PLACEHOLDER = "https://images.unsplash.com/photo-1594732806283-bc9a9af95a70?q=80&w=1000&auto=format&fit=crop";
+
 /**
- * CJ Unified Data Contract (v1.0 - Single Source of Truth)
- * Mandate: Stability > Intelligence. 
- * All CJ API responses must normalize to this schema before reaching the UI.
+ * CJ Unified Data Contract (v2.0 - Practical Mode)
+ * Mandate: Stability > Everything.
+ * Guaranteed object structure for UI rendering.
  */
 export const CJ_PRODUCT_CONTRACT = {
-  product_id: "",
-  title: "",
+  id: "",
+  title: "Unnamed Product",
+  description: "",
+  images: [PLACEHOLDER],
+  variants: [],
   price: 0,
-  currency: "USD",
-  rating: null, // TRUTH: Null if not in CJ data
-  stock: null,  // TRUTH: Null if not in CJ data
-  warehouse: null,
+  cjCost: 0,
+  origin: "China",
+  warehouse: "CHINA",
   shipping: {
-    from: null,
-    delivery_days: null,
-    options: []
-  },
-  images: [],
-  has_variants: false,
-  variants: [], 
-  weight: null,
-  package_weight: null,
-  dimensions: null,
-  material: null,
-  packing_list: null,
-  rating: null
+    status: "fallback",
+    cost: 0,
+    method: "Unavailable",
+    deliveryTime: "N/A"
+  }
 };
 
 /**
- * Normalizes a candidate object into the strict CJ_PRODUCT_CONTRACT.
- * @param {Object} raw 
- * @param {Boolean} isDetail - If true, treats the source as the absolute Source of Truth (CJ Detail API).
- * @returns {Object} Normalized product or null if critical fields are missing.
+ * 🧱 SAFE NORMALIZATION LAYER
+ * Always returns a valid object matching CJ_PRODUCT_CONTRACT.
  */
-export const normalizeToContract = (raw, isDetail = false) => {
-    if (!raw) return null;
+export const normalizeProduct = (raw, existing = null) => {
+    // Phase 8: Return default contract if raw is invalid
+    if (!raw) return existing || { ...CJ_PRODUCT_CONTRACT };
 
     try {
-        const id = raw.pid || raw.id || raw.productId;
-        const title = raw.productNameEn || raw.productName || raw.nameEn || raw.title;
-        const sku = raw.productSku || raw.sku || id;
-        
-        if (!id || !title) {
-            console.warn("[CJ SCHEMA] Missing critical fields (ID or Title)", { id, title, raw });
-            return null;
-        }
-
-        const price = parseFloat(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
-        
-        // CJ CDN Base
-        const CJ_CDN = "https://cc-west-usa.oss-us-west-1.aliyuncs.com/";
-
-        // 1. IMAGE SYSTEM (v12.1 - DETAIL PRIORITY)
-        let allImages = [];
-        const imageKeys = isDetail 
-            ? ['productImages', 'imageUrls', 'variantImages', 'bigImage', 'image_urls'] 
-            : ['bigImage', 'image_urls', 'productImages'];
-        
-        imageKeys.forEach(key => {
-            const val = raw[key];
-            if (typeof val === 'string' && val.length > 5) {
-                val.split(';').forEach(url => allImages.push(url.trim()));
-            } else if (Array.isArray(val)) {
-                allImages = [...allImages, ...val.map(v => typeof v === 'string' ? v : (v.variantImage || v.image))];
-            }
-        });
-
-        const imageGallery = [];
-        allImages.forEach(img => {
-            if (!img || typeof img !== 'string' || img.length < 5) return;
-            let safeUrl = img.trim();
-            if (!safeUrl.startsWith('http') && !safeUrl.startsWith('//')) safeUrl = CJ_CDN + safeUrl;
-            if (safeUrl.startsWith('//')) safeUrl = 'https:' + safeUrl;
-            if (safeUrl.startsWith('http://')) safeUrl = safeUrl.replace('http://', 'https://');
-            if (safeUrl.startsWith('https://')) imageGallery.push(safeUrl);
-        });
-
-        // Dedup and fulfill min-3 rule
-        let uniqueGallery = Array.from(new Set(imageGallery));
-        
-        // v13.0: Merge variant images into gallery
-        const variantImages = (raw.productVariants || raw.variants || [])
-            .map(v => v.variantImage)
-            .filter(img => typeof img === 'string' && img.length > 5)
-            .map(img => img.startsWith('http') ? img : CJ_CDN + img);
-        
-        uniqueGallery = Array.from(new Set([...uniqueGallery, ...variantImages]));
-        
-        const finalGallery = [...uniqueGallery];
-        const PLACEHOLDER = "https://images.unsplash.com/photo-1594732806283-bc9a9af95a70?q=80&w=1000&auto=format&fit=crop";
-        
-        if (finalGallery.length === 0) {
-            for (let i = 0; i < 3; i++) finalGallery.push(PLACEHOLDER);
-        } else {
-            // Keep actual images preferentially, only repeat if < 3
-            while (finalGallery.length < 3) {
-                finalGallery.push(finalGallery[0]);
-            }
-        }
-
-        // 2. LOGISTICS INFERENCE (v14.0 Pure API)
-        const warehouseName = raw.warehouseName || raw.warehouse || "China";
-        const shipFrom = raw.shippingFrom || raw.shipFrom || warehouseName;
-
-        // 🧠 v14.15: VARIANT-FIRST DATA SOURCE
-        const activeVariant = raw.variants?.[0] || null;
-        const price_v = activeVariant?.price || price;
-        const sku_v = activeVariant?.sku || sku;
-        
-        console.log("[TRACER-3] VARIANT SELECTION (SKU:", sku_v, "):", activeVariant);
-
-        // 3. VARIANT FLATTENING (v14.17 Robust Mapping)
-        const variantSource = raw.productVariants || raw.variants || raw.variantList || raw.variantSkuList || [];
-        let variants = (Array.isArray(variantSource) ? variantSource : [])
-            .map(v => {
-                const vSku = v.skuCode || v.variantSku || v.sku || id;
-                const vImage = v.image || v.variantImage || finalGallery[0];
-                
-                if (!vSku) console.warn(`[CJ SCHEMA] Variant missing SKU for product ${id}`);
-                if (!vImage) console.warn(`[CJ SCHEMA] Variant missing image for product ${id}`);
-
-                return {
-                    id: v.vid || v.variantId || vSku,
-                    sku: vSku,
-                    color: v.variantKey || v.variantName || v.nameEn || v.variantNameEn || "Standard",
-                    size: v.variantStandard || v.variantSize || "Standard",
-                    price: parseFloat(v.variantSellPrice || v.sellPrice || price),
-                    inventory: parseInt(v.variantInventory || v.inventory || v.num || v.quantity || v.variantNum || v.factoryInventory || v.variantFactoryInventory || v.factoryNum || 0),
-                    image: vImage.startsWith('http') ? vImage : CJ_CDN + vImage,
-                    warehouseId: v.warehouseId || v.warehouseCode || raw.warehouseId || null,
-                    warehouseName: v.warehouseName || v.warehouse || raw.warehouseName || null
-                };
-            });
-
-        // v14.17: Default Synthesis Rule
-        if (variants.length === 0) {
-            variants.push({
-                id: id,
-                sku: sku,
-                color: "Standard",
-                size: "Standard",
-                price: price,
-                inventory: parseInt(raw.num || 0),
-                image: finalGallery[0],
-                warehouseId: raw.warehouseId || null,
-                warehouseName: raw.warehouseName || null
-            });
-        }
-
-        // v14.1: Inventory Summation Rule (CJ + Factory)
-        const stock_cj = parseInt(raw.warehouseInventoryNum || raw.num || 0);
-        const stock_factory = parseInt(raw.factoryInventory || raw.factoryNum || 0);
-        
-        const totalStock = variants.reduce((acc, v) => acc + (v.inventory || 0), 0) || (stock_cj + stock_factory);
-        const realStock = totalStock > 0 ? totalStock : (parseInt(raw.num || raw.inventory || raw.quantity || 0));
-
-        const normalized = {
-            ...CJ_PRODUCT_CONTRACT,
-            product_id: id,
-            sku: sku,
-            title: title,
-            price: price,
-            stock: realStock,
-            rating: raw.productRating || raw.rating || raw.score || raw.star || null,
-            description: raw.descriptionHtml || raw.description || raw.productDesc || raw.remark || raw.nameEn || "",
-            warehouse: warehouseName,
-            warehouseId: raw.warehouseId || raw.warehouseId || null,
-            lists: parseInt(raw.listedNum || raw.lists || 0),
-            stock_cj: stock_cj,
-            stock_factory: stock_factory,
-            shipping: {
-                from: (shipFrom === 'China' || shipFrom === 'CN') ? 'China' : (shipFrom === 'USA' || shipFrom === 'US') ? 'United States' : shipFrom,
-                fromCode: (shipFrom === 'China' || shipFrom === 'CN') ? 'CN' : (shipFrom === 'USA' || shipFrom === 'US') ? 'US' : shipFrom,
-                delivery_days: raw.deliveryTime || raw.shippingTime || null,
-                shipping_cost: raw.shippingFee || raw.shippingCost || null,
-                isReal: isDetail && (raw.shippingFee !== undefined || raw.shippingCost !== undefined)
-            },
-            mainImage: finalGallery[0],
-            gallery: finalGallery,
-            has_variants: variants.length > 0,
-            variants: variants,
-            weight: raw.productWeight || raw.weight || null,
-            package_weight: raw.packageWeight || null,
-            dimensions: raw.productSizeEn || raw.packingSize || null,
-            material: raw.material || null,
-            packing_list: raw.packingList || null,
-            rating: raw.productRating || raw.rating || raw.score || raw.star || null,
-            cj_url: `https://cjdropshipping.com/product-detail.html?id=${id}`,
-            isEnriched: isDetail,
-            raw: raw
+        // --- HELPER SYSTEM (Phase 5: Numeric Safety) ---
+        const toStr = (val, fallback = "") => {
+            if (val === null || val === undefined) return fallback;
+            return String(val).trim() || fallback;
         };
 
-        console.log("STEP 1: PRODUCT RECEIVED", id);
-        console.log("STEP 2: NORMALIZED", normalized);
+        const toNum = (val, fallback = 0) => {
+            const n = parseFloat(val);
+            return isNaN(n) ? fallback : n;
+        };
+
+        // 🧠 PHASE 9: TITLE PRIORITY
+        const id = toStr(raw.pid || raw.id || raw.productId || raw.product_id, "");
+        const title = toStr(
+            raw.productName || raw.productNameEn || raw.nameEn || raw.title, 
+            existing?.title || "Unnamed Product"
+        );
+
+        // 🖼️ PHASE 3: IMAGE STABILITY
+        let rawImages = [];
+        if (Array.isArray(raw.productImageEnList)) rawImages = raw.productImageEnList;
+        else if (Array.isArray(raw.productImageList)) rawImages = raw.productImageList;
+        else if (raw.productImage) rawImages = [raw.productImage];
+        else if (raw.image) rawImages = [raw.image];
+
+        const gallery = rawImages.map(img => {
+            let url = typeof img === 'string' ? img : (img.variantImage || img.image_url || "");
+            if (!url) return null;
+            if (!url.startsWith('http') && !url.startsWith('//')) url = `https://${CJ_CDN}/${url.replace(/^\/+/, '')}`;
+            if (url.startsWith('//')) url = 'https:' + url;
+            return url;
+        }).filter(Boolean);
+
+        // Image priority logic (Phase 2)
+        const finalImages = gallery.length > 0 ? gallery : (existing?.images?.length > 0 ? existing.images : [PLACEHOLDER]);
+
+        // 🧩 PHASE 3: VARIANT HANDLING
+        const variantSource = raw.productVariants || raw.variants || raw.variantList || raw.productVariantSkuList || [];
+        const variants = (Array.isArray(variantSource) ? variantSource : []).map(v => {
+            let vImg = toStr(v.variantImage || v.image);
+            if (vImg && !vImg.startsWith('http') && !vImg.startsWith('//')) vImg = `https://${CJ_CDN}/${vImg.replace(/^\/+/, '')}`;
+            if (vImg && vImg.startsWith('//')) vImg = 'https:' + vImg;
+
+            return {
+                sku: toStr(v.variantSku || v.sku || id),
+                price: toNum(v.variantSellPrice || v.sellPrice || v.variantPrice || raw.sellPrice || 0),
+                image: vImg || finalImages[0], // Phase 3 Fallback
+                stock: toNum(v.variantInventory || v.inventory || v.num || 0),
+                warehouse: toStr(v.warehouseName || v.warehouse || raw.warehouseName || "CHINA")
+            };
+        });
+
+        // 🚚 PHASE 4 & 6: SHIPPING & ORIGIN
+        // Origin Priority: variant.warehouse > product.warehouse > fallback
+        const rawWarehouse = toStr(variants[0]?.warehouse || raw.warehouseName || raw.warehouse || "CHINA").toUpperCase();
+        const origin = rawWarehouse.includes('US') ? "United States" : "China";
+
+        // Step 1: Extract ONLY ONE valid method from CJ detail
+        let shipping = existing?.shipping || { ...CJ_PRODUCT_CONTRACT.shipping };
         
-        return normalized;
+        if (raw.logisticName && raw.logisticTime && raw.shippingFee !== undefined) {
+            shipping = {
+                cost: toNum(raw.shippingFee),
+                method: toStr(raw.logisticName),
+                deliveryTime: toStr(raw.logisticTime),
+                status: "resolved"
+            };
+        }
+
+        const cjCost = toNum(raw.sellPrice || raw.variantSellPrice || raw.price || 0);
+
+        return {
+            id: id,
+            title: title,
+            description: toStr(raw.descriptionHtml || raw.description || raw.productDesc || existing?.description || ""),
+            images: finalImages,
+            variants: variants,
+            price: toNum(raw.price || existing?.price || cjCost), // targetPrice/ebayPrice logic
+            cjCost: cjCost,
+            origin: origin,
+            warehouse: rawWarehouse,
+            shipping: shipping
+        };
     } catch (e) {
-        console.error("[CJ v7.0] Normalization Vault Failure:", e);
-        return null;
+        console.error("[CJ NORMALIZATION FAULT]", e);
+        return existing || { ...CJ_PRODUCT_CONTRACT };
     }
 };
+
+// Backwards compatibility export
+export const normalizeToContract = normalizeProduct;

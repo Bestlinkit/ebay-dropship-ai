@@ -221,47 +221,60 @@ class CJService {
   }
 
   /**
-   * 🚢 FETCH SHIPPING OPTIONS (v14.8 - Shipping Fix Only)
-   * PART 1 & 2: Force correct flat payload and include warehouse.
+   * 🚢 FETCH SHIPPING OPTIONS (USA LOCK - SINGLE METHOD)
    */
   async getShippingOptions(sku, countryCode = 'US', warehouseId = null, quantity = 1) {
-    console.log("SHIPPING FUNCTION TRIGGERED");
-    console.log("SKU SENT:", sku);
     if (!sku) return { methods: [], status: "no_sku" };
     
+    // Rule 2: USA LOCK
+    const targetCountry = "US";
+
     try {
         const payload = {
             sku,
             quantity: 1,
-            countryCode,
+            countryCode: targetCountry,
             warehouseId
         };
 
-        console.log("SHIPPING REQUEST PAYLOAD:", payload);
         const response = await axios.post(`${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`, payload);
-        console.log("SHIPPING RESPONSE RAW:", response);
         
-        // 🧠 v14.13: RAW DEBUG LOG (BEFORE MAPPING)
-        console.log("CJ RAW METHODS:", response.data?.data);
-
         if (response.data && response.data.code === 200) {
             const list = response.data.data || [];
             if (list.length > 0) {
-                const methods = list.map(opt => ({
+                // Rule 1: Always pick the FIRST valid method
+                const opt = list[0];
+                const methods = [{
                     name: opt.logisticName || "Standard Shipping",
-                    cost: parseFloat(opt.amount ?? 0), // Use nullish coalescing to preserve 0
-                    deliveryTime: opt.logisticTime || "7-15 Days",
+                    cost: parseFloat(opt.amount ?? 0),
+                    deliveryTime: opt.logisticTime || "N/A",
                     warehouse: warehouseId || (opt.logisticName?.toUpperCase().includes('US') ? 'US' : 'CN')
-                }));
+                }];
                 return { methods, status: "resolved" };
             }
-            return { methods: [], status: "resolved" }; // Resolved but empty
         }
-        return { methods: [], status: "error" };
+        return { methods: [], status: "none" };
     } catch (e) {
-        console.error(`[CJ SHIPPING] Fault for SKU ${sku}:`, e.message);
+        console.error(`[CJ SHIPPING] USA Fault for SKU ${sku}:`, e.message);
         return { methods: [], status: "error" };
     }
+  }
+
+  /**
+   * 🧩 ENRICHMENT FIX (Merge Rules)
+   */
+  async enrichSingleProduct(pid, ebayProduct = null, existingProduct = null) {
+    const detail = await this.getProductDetail(pid);
+    
+    // Normalize with merge safety (Phase 2 Rule 1)
+    const normalized = normalizeProduct(detail, existingProduct);
+    
+    // Phase 5: Profit numeric safety mapping
+    if (ebayProduct) {
+        normalized.price = parseFloat(ebayProduct.price || 0);
+    }
+    
+    return normalized;
   }
 
   /**
@@ -290,23 +303,6 @@ class CJService {
     // Run parallel workers
     const workers = Array(Math.min(concurrency, queue.length)).fill(null).map(worker);
     await Promise.all(workers);
-  }
-
-  /**
-   * 🛒 ENRICH SINGLE PRODUCT (v14.7 - Intelligence Preservation)
-   * Fetches and normalizes a single product ID with depth, while preserving intelligence context.
-   */
-  async enrichSingleProduct(pid, ebayProduct = null) {
-    console.log("ENRICH FUNCTION ACTIVE");
-    const detail = await this.getProductDetail(pid);
-    if (detail) {
-        const normalized = normalizeToContract(detail, true);
-        if (ebayProduct) {
-            normalized.intelligence = this.buildIntelligencePayload(normalized, ebayProduct);
-        }
-        return normalized;
-    }
-    return null;
   }
 
   /**
