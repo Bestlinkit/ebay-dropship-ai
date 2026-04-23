@@ -24,7 +24,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
     const cj = product?.cj || {};
     
     const name = String(cj.name || "Unnamed Product");
-    const image = String(cj.image || "https://via.placeholder.com/300");
+    const image = cj.image || "https://via.placeholder.com/300";
     const variantsCount = parseInt(cj.variantCount || 0);
     const price = parseFloat(cj.price || 0);
     

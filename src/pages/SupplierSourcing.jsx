@@ -152,7 +152,7 @@ const SupplierSourcing = () => {
 
     const processedResults = useMemo(() => {
         return products.map(res => {
-            const pid = res.id || res.product_id;
+            const pid = res.cj?.id;
             const enriched = enrichedProducts[pid];
             return enriched ? { ...res, ...enriched } : res;
         });
@@ -238,7 +238,7 @@ const SupplierSourcing = () => {
                     <div className="grid grid-cols-1 gap-6 px-4">
                         {processedResults.map((product, idx) => (
                             <SupplierResultRow 
-                                key={`${product.id || product.product_id}-${idx}`}
+                                key={`${product.cj?.id || idx}`}
                                 product={product} 
                                 targetPrice={targetPrice}
                                 onContinue={handleContinue}
