@@ -1,54 +1,57 @@
 /**
- * CJ Unified Data Contract (v8.0 - HYDRATION & MAPPING LOCK)
- * Mandate: Fix mapping. Protect existing data. Zero crash.
+ * CJ Unified Data Contract (v9.0 - STABILIZATION LOCK)
+ * Mandate: Fix mapping. Protect existing data. Zero regression.
  */
 const PLACEHOLDER = "https://via.placeholder.com/300";
 
 /**
- * 🛡️ SAFE STRING GUARD
+ * 🔥 ISSUE 5: GLOBAL DATA PROTECTION LAYER
  */
-function safeString(value) {
-    if (typeof value === "string") return value;
-    if (value === null || value === undefined) return "";
-    return String(value);
+export function sanitizeProduct(product = {}) {
+  return {
+    ...product,
+    name: product.name || product.title || "Unnamed Product",
+    images: Array.isArray(product.images) ? product.images : [],
+    variants: Array.isArray(product.variants) ? product.variants : [],
+    price: product.price ?? 0,
+    shipping: product.shipping ?? 0
+  };
 }
 
 /**
- * 🏗️ NORMALIZATION CORE (v8.0 mapping rules)
+ * 🏗️ NORMALIZATION CORE (v9.0 Stabilization)
  */
 export function normalizeProduct(raw = {}, cjData = {}) {
-  // --- HYDRATION PROTECTION ---
-  // If field already exists in raw, do NOT overwrite with null/undefined from cjData
-  
-  const id = raw?.id || cjData?.pid || cjData?.id || "UNKNOWN";
-  
-  // Rule 2: Name Mapping
-  const name = raw?.name || raw?.productName || raw?.title || 
-               cjData?.productNameEn || cjData?.productName || cjData?.name || 
+  // --- HYDRATION PROTECTION LAYER ---
+  // RULE: NEVER overwrite existing data with null, undefined, or empty values
+
+  // 1. Name Mapping (Issue 1)
+  const name = raw?.name || raw?.productName || raw?.title || raw?.productTitle ||
+               cjData?.productNameEn || cjData?.productName || cjData?.name || cjData?.title ||
                "Unnamed Product";
 
-  // Rule 3: Image Mapping
+  // 2. Image Mapping (Issue 4)
   const images = (raw?.images?.length ? raw.images : null) || 
-                 cjData?.productImageList || 
-                 (cjData?.productImage ? [cjData.productImage] : []) || 
+                 (cjData?.productImageList?.length ? cjData.productImageList : null) || 
+                 (cjData?.productImage ? [cjData.productImage] : null) || 
                  cjData?.images || 
                  [];
 
-  // Rule 4: Variant Mapping
+  // 3. Variant Mapping (Issue 3)
   const variants = (raw?.variants?.length ? raw.variants : null) || 
-                   cjData?.variants || 
-                   cjData?.skuList || 
-                   cjData?.variantList || 
+                   (cjData?.variants?.length ? cjData.variants : null) || 
+                   (cjData?.skuList?.length ? cjData.skuList : null) || 
+                   (cjData?.variantList?.length ? cjData.variantList : null) || 
                    [];
 
-  // Rule 5: Shipping Mapping
+  // 4. Shipping Mapping
   const shipping = resolveShipping(cjData || raw);
 
-  // FAILSAFE GUARD (Rule 8)
-  return {
-    id: safeString(id),
-    title: safeString(name),
-    name: safeString(name),
+  // Consolidated Protected Object
+  const normalized = {
+    id: raw?.id || cjData?.pid || cjData?.id || "UNKNOWN",
+    name: name,
+    title: name,
     
     images: Array.isArray(images) ? images.map(img => {
         const url = typeof img === 'string' ? img : (img.variantImage || img.image_url || "");
@@ -64,13 +67,14 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     shippingCost: shipping.cost || 0,
     deliveryTime: shipping.delivery || "7-15 Days",
     
-    description: safeString(cjData?.descriptionHtml || cjData?.productDesc || raw?.description || ""),
-    warehouse: safeString(raw?.warehouse || cjData?.warehouseName || "CN"),
+    description: cjData?.descriptionHtml || cjData?.productDesc || raw?.description || "",
+    warehouse: raw?.warehouse || cjData?.warehouseName || "CN",
     
-    // Pass raw data for downstream needs
     rawDetail: cjData,
     shipping: shipping
   };
+
+  return sanitizeProduct(normalized);
 }
 
 /**

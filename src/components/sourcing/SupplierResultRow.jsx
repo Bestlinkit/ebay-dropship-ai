@@ -9,17 +9,20 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
+import { sanitizeProduct } from '../../services/cj.schema';
 
 /**
- * Supplier Discovery Row - CJ Dropshipping Edition (v8.0 - Mapping Lock)
- * Objective: No Descriptions. Perfect Mapping. Zero Crash.
+ * Supplier Discovery Row - CJ Dropshipping Edition (v9.0 - Stabilization Lock)
+ * Objective: No Descriptions. Stable Mapping. Zero UI Corruption.
  */
-const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
+const SupplierResultRow = ({ product: rawProduct, targetPrice, onContinue }) => {
     
-    // Core Data Extraction (Rule 8: Failsafe Guard)
-    const title = String(product?.title || "Unnamed Product");
-    const image = (product?.images?.length > 0) ? product.images[0] : "https://via.placeholder.com/300";
-    const variantsCount = Number(product?.variantCount || 0);
+    // Core Data Protection (Issue 5: Sanitize before render)
+    const product = sanitizeProduct(rawProduct);
+    
+    const title = String(product.name);
+    const image = (product.images.length > 0) ? product.images[0] : "https://via.placeholder.com/300";
+    const variantsCount = product.variants.length;
     
     const cjCost = parseFloat(product?.cjCost ?? 0);
     const ebayPrice = parseFloat(targetPrice || 0);
@@ -54,7 +57,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                     </div>
                 </div>
 
-                {/* 2. PRODUCT DATA (Rule 6: No Descriptions) */}
+                {/* 2. PRODUCT DATA (Issue 6: No Descriptions) */}
                 <div className="flex-1 flex flex-col justify-center py-2">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                         <div className="flex-1 space-y-3">
@@ -72,7 +75,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
 
                         {/* PROFIT ENGINE */}
                         <div className="text-right shrink-0 bg-slate-900/40 p-6 rounded-[2rem] border border-white/5 min-w-[180px]">
-                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Profit Est.</div>
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Profit Potential</div>
                             <div className={cn(
                                 "text-2xl font-black tracking-tighter transition-all",
                                 netProfit === null ? "text-slate-600" : (netProfit > 0 ? "text-emerald-400" : "text-rose-400")
@@ -87,7 +90,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-slate-500">
                                 <DollarSign size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Sourcing</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Unit Cost</span>
                             </div>
                             <div className="text-sm font-bold text-white">
                                 {cjCost > 0 ? `$${cjCost.toFixed(2)}` : "—"}
@@ -97,7 +100,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                         <div className="space-y-1">
                             <div className="flex items-center gap-2 text-slate-500">
                                 <Truck size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Shipping</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Logistics</span>
                             </div>
                             <div className="text-sm font-bold text-blue-400">
                                 {shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : "FREE"}
@@ -114,7 +117,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue }) => {
                                 onClick={() => onContinue(product)}
                                 className="w-full py-4 bg-white hover:bg-blue-500 text-slate-950 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 shadow-xl flex items-center justify-center gap-2"
                             >
-                                Select <ChevronRight size={14} />
+                                Source Now <ChevronRight size={14} />
                             </button>
                         </div>
                     </div>

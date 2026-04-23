@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { normalizeProduct } from './cj.schema';
+import { normalizeProduct, sanitizeProduct } from './cj.schema';
 import { deconstructTitle } from '../utils/productQueryEngine';
 
 const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -60,7 +60,7 @@ class CJService {
   }
 
   /**
-   * 🧩 PHASE 7 — HYDRATION RULE (DO NOT OVERWRITE)
+   * 🔥 ISSUE 2: HYDRATION PROTECTION (SAFE MERGE)
    */
   async enrichSingleProduct(product) {
     try {
@@ -77,21 +77,26 @@ class CJService {
             }
         }
 
-        // Rule 7: Hydration MUST NOT overwrite valid data
         const enriched = normalizeProduct(product, cjData || {});
         
-        return {
+        // RULE: NEVER overwrite existing data with null, undefined, or empty array
+        return sanitizeProduct({
             ...product,
-            ...enriched,
-            // Ensure specific fields follow the "prefer existing" rule if valid
-            title: product.title || enriched.title,
-            images: (product.images?.length ? product.images : enriched.images),
-            variants: (product.variants?.length ? product.variants : enriched.variants),
-            price: product.price ?? enriched.price
-        };
+            name: product.name || enriched.name,
+            images: (product.images && product.images.length > 0) ? product.images : (enriched.images || []),
+            variants: (product.variants && product.variants.length > 0) ? product.variants : (enriched.variants || []),
+            price: product.price ?? enriched.price,
+            shipping: product.shipping ?? enriched.shipping,
+            
+            // Fill missing gaps only
+            description: product.description || enriched.description,
+            shippingCost: product.shippingCost || enriched.shippingCost,
+            deliveryTime: product.deliveryTime || enriched.deliveryTime,
+            rawDetail: cjData || product.rawDetail
+        });
     } catch (e) {
         console.error("Enrichment Failure:", e);
-        return product;
+        return sanitizeProduct(product);
     }
   }
 
