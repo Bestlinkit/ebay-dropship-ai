@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ STABLE SEARCH PIPELINE
+   * 🏗️ STABLE SEARCH PIPELINE (v6.0 - Filter Broken Products)
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -37,8 +37,10 @@ class CJService {
                 productList = response.data?.data?.productList || [];
             }
 
-            // Phase 1: Recovery Mode Normalization
-            const products = productList.map(item => normalizeProduct(item, {}));
+            // Normalization + Validation Filtering (Phase 7)
+            const products = productList
+                .map(item => normalizeProduct(item, {}))
+                .filter(p => p.isValid);
             
             return { 
                 status: products.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
@@ -53,7 +55,7 @@ class CJService {
   }
 
   /**
-   * 🧩 PHASE 2 — FIX ENRICHMENT (RECOVERY MODE)
+   * 🧩 PHASE 6 — HYDRATION (ENRICHMENT)
    */
   async enrichSingleProduct(product) {
     try {
@@ -70,30 +72,9 @@ class CJService {
             }
         }
 
-        // --- SAFE MERGE MODE ---
-        // ONLY use CJ data to fill missing fields
-        return {
-            ...product,
-            title: product.title || cjData?.productNameEn || cjData?.productName || cjData?.name,
-            description: product.description || cjData?.descriptionHtml || cjData?.productDesc || cjData?.description,
-
-            images: (product.images && product.images.length > 0)
-                ? product.images
-                : (cjData?.productImageList || cjData?.images || []),
-
-            variants: (product.variants && product.variants.length > 0)
-                ? product.variants
-                : (cjData?.variants || cjData?.productVariants || cjData?.skus || []),
-
-            price: product.price ?? cjData?.sellPrice ?? cjData?.price,
-            cjCost: product.cjCost ?? cjData?.sellPrice ?? cjData?.price,
-
-            warehouse: product.warehouse || cjData?.warehouseName || cjData?.warehouse,
-            
-            // Pass cjData for shipping resolution downstream
-            shipping: product.shipping || null,
-            rawDetail: cjData
-        };
+        // Full Re-normalization (Safe Merge Mode)
+        const enriched = normalizeProduct(product, cjData || {});
+        return enriched;
     } catch (e) {
         console.error("Enrichment Failure:", e);
         return product;
@@ -110,7 +91,7 @@ class CJService {
             const product = queue.shift();
             if (!product) continue;
             const enriched = await this.enrichSingleProduct(product);
-            if (enriched) {
+            if (enriched && enriched.isValid) {
                 onEnriched(product.id, enriched);
             }
         }

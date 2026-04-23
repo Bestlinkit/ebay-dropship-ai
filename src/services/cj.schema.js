@@ -1,97 +1,149 @@
+/**
+ * CJ Unified Data Contract (v6.0 - HYDRATION STABILITY)
+ * Mandate: Strict Validation. Clean UI. No Data Overlap.
+ */
 const PLACEHOLDER = "https://via.placeholder.com/300";
 
-function extractImagesFromDescription(description = "") {
-  if (!description) return [];
-  const matches = description.match(/https?:\/\/[^\s"'<>]+(?:\.jpg|\.jpeg|\.png|\.gif|\.webp)/gi);
-  return matches || [];
-}
+/**
+ * 🧹 DESCRIPTION FORMATTER
+ * Parses raw text into readable sections
+ */
+export function formatDescription(raw = "") {
+  if (!raw) return { html: "", sections: {} };
+  
+  // Basic Cleanup
+  let clean = raw.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
 
-export function normalizeProduct(product = {}, cjData = {}) {
-  // Merge safety: prioritize existing data, fill gaps with cjData
+  const sections = {
+    overview: "",
+    specifications: "",
+    sizeInfo: "",
+    packageContent: ""
+  };
+
+  // Simple heuristic parsing based on keywords
+  const text = clean.replace(/<[^>]*>/g, " ");
+  
+  if (text.toLowerCase().includes("package")) {
+      sections.packageContent = text.split(/package/i)[1]?.split(/\n/)[0]?.trim();
+  }
+  
+  // Return both raw and structured
   return {
-    id: product?.id || cjData?.id || product?.product_id || cjData?.pid,
-
-    title:
-      product?.title ||
-      product?.name ||
-      product?.productName ||
-      cjData?.productNameEn ||
-      cjData?.productName ||
-      cjData?.name ||
-      null,
-
-    description:
-      product?.description ||
-      cjData?.descriptionHtml ||
-      cjData?.productDesc ||
-      cjData?.description ||
-      null,
-
-    images:
-      (product?.images && product.images.length > 0) ? product.images :
-      (cjData?.productImageList && cjData.productImageList.length > 0) ? cjData.productImageList :
-      (cjData?.images && cjData.images.length > 0) ? cjData.images :
-      (cjData?.productImages && cjData.productImages.length > 0) ? cjData.productImages :
-      (cjData?.productImage) ? [cjData.productImage] :
-      extractImagesFromDescription(cjData?.descriptionHtml || cjData?.productDesc || cjData?.description || product?.description || ""),
-
-    variants:
-      (product?.variants && product.variants.length > 0) ? product.variants :
-      (cjData?.variants && cjData.variants.length > 0) ? cjData.variants :
-      (cjData?.skus && cjData.skus.length > 0) ? cjData.skus :
-      (cjData?.productVariants && cjData.productVariants.length > 0) ? cjData.productVariants :
-      [],
-
-    price: product?.price ?? cjData?.sellPrice ?? cjData?.price ?? null,
-
-    cjCost: cjData?.sellPrice ?? cjData?.price ?? product?.cjCost ?? null,
-
-    warehouse:
-      product?.warehouse ||
-      cjData?.warehouseName ||
-      cjData?.warehouse ||
-      "CN",
-
-    shipping: cjData?.shipping || product?.shipping || null
+    html: clean,
+    sections: sections,
+    isFormatted: true
   };
 }
 
 /**
- * 🚢 PHASE 3 — SHIPPING (SAFE + REALISTIC)
+ * 🖼️ IMAGE EXTRACTOR
  */
-export function resolveShipping(data) {
-  // If we already have resolved shipping, use it
-  if (data?.shipping && data.shipping.name && data.shipping.name !== "Standard Shipping") {
-      return {
-          cost: data.shipping.cost ?? 0,
-          delivery: data.shipping.delivery || "7-15 Days",
-          name: data.shipping.name || "Standard Shipping"
-      };
+function extractImages(raw, cjData) {
+  let images = [];
+  
+  // Priority: Main Image List > Details Images > Variant Images
+  if (cjData?.productImageList?.length) images = cjData.productImageList;
+  else if (cjData?.images?.length) images = cjData.images;
+  else if (raw?.images?.length) images = raw.images;
+  else if (cjData?.productImage) images = [cjData.productImage];
+  else if (raw?.image) images = [raw.image];
+
+  // Fallback: Variant Images
+  if (!images.length && (cjData?.variants?.length || raw?.variants?.length)) {
+      const variantImages = (cjData?.variants || raw?.variants)
+          .map(v => v.variantImage || v.image || v.image_url)
+          .filter(Boolean);
+      if (variantImages.length) images = [variantImages[0]];
   }
 
-  // Look for direct fields
+  // Normalize URLs
+  return images.map(img => {
+      let url = typeof img === 'string' ? img : (img.variantImage || img.image_url || "");
+      if (!url) return null;
+      if (url.startsWith('//')) url = 'https:' + url;
+      return url;
+  }).filter(url => url && url.startsWith('http')).slice(0, 10);
+}
+
+/**
+ * 🛡️ VALIDATION LAYER
+ */
+export function validateProduct(normalized) {
+    if (!normalized.title || normalized.title === "Unnamed Product") return false;
+    if (normalized.price <= 0) return false;
+    if (normalized.images.length === 0) return false;
+    if (normalized.variants.length === 0) return false;
+    return true;
+}
+
+/**
+ * 🏗️ NORMALIZATION CORE
+ */
+export function normalizeProduct(raw = {}, cjData = {}) {
+  const images = extractImages(raw, cjData);
+  const variants = (raw?.variants?.length ? raw.variants : cjData?.variants || cjData?.skus || cjData?.productVariants || []).filter(v => v && (v.sku || v.variantSku || v.id));
+
+  // 🚢 SHIPPING MAPPING
+  const shipping = resolveShipping(cjData || raw);
+
+  const normalized = {
+    id: raw?.id || raw?.product_id || cjData?.pid || cjData?.id || "UNKNOWN",
+    title: raw?.title || raw?.productName || cjData?.productNameEn || cjData?.productName || "Unnamed Product",
+    
+    // Description: Formatted for Detail View ONLY
+    description: formatDescription(cjData?.descriptionHtml || cjData?.productDesc || raw?.description || ""),
+    
+    images: images.length ? images : [PLACEHOLDER],
+    variants: variants,
+    variantCount: variants.length,
+    
+    price: parseFloat(raw?.price ?? cjData?.sellPrice ?? cjData?.price ?? 0),
+    cjCost: parseFloat(cjData?.sellPrice ?? cjData?.price ?? raw?.cjCost ?? 0),
+    
+    warehouse: raw?.warehouse || cjData?.warehouseName || cjData?.warehouse || "CN",
+    shipping: shipping,
+    
+    // UI Metadata
+    isValid: false // Will be set by validateProduct
+  };
+
+  normalized.isValid = validateProduct(normalized);
+  return normalized;
+}
+
+/**
+ * 🚢 SHIPPING RESOLVER (v6.0 Reliability)
+ */
+export function resolveShipping(data) {
+  // Priority 1: Direct detail fields
   if (data?.logisticName && data?.logisticTime) {
     return {
       cost: parseFloat(data.shippingFee || 0),
       delivery: data.logisticTime || "7-15 Days",
-      name: data.logisticName || "Standard Shipping"
+      name: data.logisticName || "Standard Shipping",
+      status: "resolved"
     };
   }
 
+  // Priority 2: Logistics Array
   const method = data?.logistics?.[0] || data?.shipping_options?.[0];
-
   if (method) {
     return {
-      cost: parseFloat(method.cost ?? method.price ?? method.amount ?? 0),
+      cost: parseFloat(method.price ?? method.amount ?? method.shippingFee ?? 0),
       delivery: method.deliveryTime || method.logisticTime || "7-15 Days",
-      name: method.logisticsName || method.logisticName || "Standard Shipping"
+      name: method.logisticsName || method.logisticName || "Standard Shipping",
+      status: "resolved"
     };
   }
 
+  // Fallback
   return {
     cost: 0,
     delivery: "7-15 Days",
-    name: "Standard Shipping"
+    name: "Shipping info unavailable",
+    status: "none"
   };
 }
 
