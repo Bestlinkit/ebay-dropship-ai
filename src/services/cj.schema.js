@@ -1,6 +1,6 @@
 /**
- * CJ Unified Data Contract (v19.0 - THE "CDN RECONSTRUCTION" VERSION)
- * Mandate: Absolute Image Resolution. Correct Portal Linking. Logistics Accuracy.
+ * CJ Unified Data Contract (v20.0 - THE "ID INTEGRITY" VERSION)
+ * Mandate: Prioritize Supplier IDs. Aggressive CDN Prefixing. Absolute Type Safety.
  */
 
 /**
@@ -8,12 +8,13 @@
  */
 export function normalizeProduct(raw = {}, cjData = {}) {
   // Combine sources, prioritize detailed data
+  // Ensure we don't accidentally inherit eBay IDs from a parent object
   const p = { ...raw, ...cjData };
   
-  // LOG FOR USER DIAGNOSTICS (Visible in Browser Console)
-  console.log("CJ_DATA_AUDIT:", p);
+  // LOG FOR USER DIAGNOSTICS
+  console.log("CJ_DATA_AUDIT_V20:", p);
 
-  // --- 🛠️ HELPER: UNIVERSAL IMAGE SANITIZER (v19.0) ---
+  // --- 🛠️ HELPER: UNIVERSAL IMAGE SANITIZER (v20.0) ---
   const sanitizeUrl = (url) => {
     if (!url) return null;
     
@@ -30,34 +31,30 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     if (clean.startsWith('http')) return clean;
     if (clean.startsWith('//')) return `https:${clean}`;
     
-    // CJ SPECIFIC RECONSTRUCTION:
-    // If it looks like a path (e.g. "20240501/123.jpg" or "/20240501/...")
-    // Prefix with the validated CJ CDN
+    // CJ CONTEXTUAL CDN PREFIXING
     const cjCDN = "https://cc-west-usa.oss-accelerate.aliyuncs.com";
     
-    if (clean.startsWith('/')) {
-        return `${cjCDN}${clean}`;
-    }
+    // If it's a relative path, force the CDN
+    if (clean.startsWith('/')) return `${cjCDN}${clean}`;
+    if (/^\d{8}\//.test(clean)) return `${cjCDN}/${clean}`; // Date-based
     
-    // If it's a date-based relative path (common in CJ)
-    if (/^\d{8}\//.test(clean) || /^\d{4}-\d{2}-\d{2}/.test(clean)) {
-        return `${cjCDN}/${clean}`;
-    }
-    
-    // Fallback prefixing
+    // If it contains a dot but no protocol, assume it's a naked CJ/Ali path
     if (clean.includes('.') && !clean.startsWith('http')) {
-        // If it has a domain-like structure, assume it's naked
-        if (clean.includes('alicdn.com') || clean.includes('aliyuncs.com')) {
-            return `https://${clean}`;
-        }
+        if (clean.includes('alicdn.com') || clean.includes('aliyuncs.com')) return `https://${clean}`;
         return `${cjCDN}/${clean}`;
     }
     
     return clean;
   };
 
+  // --- ✅ FIX ID MAPPING (PRIORITIZE CJ PID) ---
+  // We MUST prioritize pid/productId because 'id' might be a legacy eBay hash
+  const pid = p.pid || p.productId || p.product_id || p.id;
+  const safeId = pid ? String(pid) : "UNKNOWN";
+
   // --- ✅ FIX IMAGE MAPPING ---
   const findImage = (obj) => {
+      // Prioritize productImage (CJ Standard)
       const candidates = [
           obj.productImage, obj.product_image, obj.image, obj.mainImage, 
           obj.main_image, obj.product_image_url, obj.imageUrl, obj.image_url
@@ -65,7 +62,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
       
       for (let c of candidates) {
           const s = sanitizeUrl(c);
-          if (s && s.length > 10 && !s.includes("[object")) return s;
+          if (s && s.length > 15 && !s.includes("[object")) return s;
       }
       
       if (Array.isArray(obj.productImageList) && obj.productImageList.length > 0) {
@@ -100,7 +97,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   // Create isolated CJ namespace
   const cjMapped = {
     cj: {
-        id: String(p.id || p.productId || p.pid || p.product_id || "UNKNOWN"),
+        id: safeId,
         name: String(p.nameEn || p.productNameEn || p.productName || p.name || p.title || p.productTitle || "Unnamed Product"),
         image: image,
         images: vArray.length > 0 
@@ -117,7 +114,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     }
   };
 
-  // Final Gallery Hardening: Ensure no broken strings leaked in
+  // Gallery Deduplication
   const gallery = Array.from(new Set([cjMapped.cj.image, ...cjMapped.cj.images]))
       .filter(img => typeof img === 'string' && img.startsWith('http') && img.length > 15 && !img.includes('[object'));
   
