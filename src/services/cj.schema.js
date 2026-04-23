@@ -1,6 +1,6 @@
 /**
- * CJ Unified Data Contract (v17.0 - THE "TRUTH" VERSION)
- * Mandate: Absolute exhaustive mapping. Use every known CJ field variant.
+ * CJ Unified Data Contract (v18.0 - TYPE SAFE & IMAGE RECOVERY)
+ * Mandate: Absolute Type Safety. Object-to-String Image Conversion. Recursive Field Search.
  */
 
 /**
@@ -9,46 +9,71 @@
 export function normalizeProduct(raw = {}, cjData = {}) {
   // Combine sources, prioritize detailed data
   const p = { ...raw, ...cjData };
+  
+  // LOG FOR USER DIAGNOSTICS (Visible in Browser Console)
+  console.log("CJ_DATA_AUDIT:", p);
 
   // --- 🛠️ HELPER: UNIVERSAL IMAGE SANITIZER ---
   const sanitizeUrl = (url) => {
-    if (!url || typeof url !== "string") return url;
-    let clean = url.trim();
-    if (!clean) return null;
+    if (!url) return null;
+    
+    let target = url;
+    // CRITICAL FIX: Handle cases where API returns an object instead of a string
+    if (typeof url === 'object') {
+        target = url.url || url.image || url.src || url.productImage || null;
+    }
+    
+    if (typeof target !== "string") return null;
+    
+    let clean = target.trim();
+    if (!clean || clean === "[object Object]") return null;
+    
     if (clean.startsWith('http')) return clean;
     if (clean.startsWith('//')) return `https:${clean}`;
+    
+    // CJ Specific: If it's a relative path starting with /
+    if (clean.startsWith('/')) return `https://cc-west-usa.oss-accelerate.aliyuncs.com${clean}`;
+    
+    // If it's a naked domain/path
     if (clean.includes('.') && !clean.startsWith('http')) return `https://${clean}`;
+    
     return clean;
   };
 
-  // --- ✅ FIX IMAGE MAPPING (EXHAUSTIVE) ---
-  const rawImage =
-    p.productImage ||
-    p.product_image ||
-    p.image ||
-    p.mainImage ||
-    p.main_image ||
-    p.product_image_url ||
-    (Array.isArray(p.productImageList) && p.productImageList.length > 0 ? p.productImageList[0] : null) ||
-    null;
+  // --- ✅ FIX IMAGE MAPPING (EXHAUSTIVE & TYPE SAFE) ---
+  const findImage = (obj) => {
+      const candidates = [
+          obj.productImage, obj.product_image, obj.image, obj.mainImage, 
+          obj.main_image, obj.product_image_url, obj.imageUrl, obj.image_url
+      ];
+      
+      for (let c of candidates) {
+          if (typeof c === 'string' && c.length > 5) return c;
+          if (typeof c === 'object' && c?.url) return c.url;
+      }
+      
+      if (Array.isArray(obj.productImageList) && obj.productImageList.length > 0) {
+          return obj.productImageList[0];
+      }
+      return null;
+  };
 
+  const rawImage = findImage(p);
   const image = sanitizeUrl(rawImage) || "https://via.placeholder.com/600x600?text=No+Image+Available";
 
-  // --- ✅ FIX VARIANT EXTRACTION (THE TRUTH) ---
-  const variants = p.skuList || p.skus || p.variantList || p.variants || p.variant_list || p.productSkus || [];
+  // --- ✅ FIX VARIANT EXTRACTION ---
+  let variants = p.skuList || p.skus || p.variantList || p.variants || p.variant_list || p.productSkus || [];
+  // Some APIs return skus as a stringified JSON
+  if (typeof variants === 'string' && variants.startsWith('[')) {
+      try { variants = JSON.parse(variants); } catch(e) {}
+  }
   
-  const possibleCounts = [
-    Array.isArray(variants) ? variants.length : 0,
-    parseInt(p.variantCount),
-    parseInt(p.variantsNum),
-    parseInt(p.variant_count),
-    parseInt(p.skuCount),
-    parseInt(p.productUnit)
-  ];
+  const vArray = Array.isArray(variants) ? variants : [];
   
-  const variantCount = possibleCounts.find(c => !isNaN(c) && c > 0) || (Array.isArray(variants) ? variants.length : 0);
+  // Exhaustive Variant Count
+  const variantCount = parseInt(p.variantCount || p.variantsNum || p.variant_count || p.skuCount || vArray.length || 0);
 
-  // --- ✅ FIX DESCRIPTION MAPPING (THE TRUTH) ---
+  // --- ✅ FIX DESCRIPTION MAPPING ---
   const description = 
     p.descriptionHtml || 
     p.description_html || 
@@ -63,12 +88,12 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   const cjMapped = {
     cj: {
         id: String(p.id || p.productId || p.pid || p.product_id || "UNKNOWN"),
-        name: p.nameEn || p.productNameEn || p.productName || p.name || p.title || p.productTitle || "Unnamed Product",
+        name: String(p.nameEn || p.productNameEn || p.productName || p.name || p.title || p.productTitle || "Unnamed Product"),
         image: image,
-        images: Array.isArray(p.productImageList) && p.productImageList.length > 0 
-            ? p.productImageList.map(img => sanitizeUrl(img)).filter(Boolean)
-            : [image],
-        variants: Array.isArray(variants) ? variants : [],
+        images: vArray.length > 0 
+            ? [image, ...vArray.map(v => sanitizeUrl(v.variantImage || v.image || v.url)).filter(Boolean)]
+            : (Array.isArray(p.productImageList) ? p.productImageList.map(img => sanitizeUrl(img)).filter(Boolean) : [image]),
+        variants: vArray,
         variantCount: variantCount,
         price: parseFloat(p.sellPrice || p.price || p.productPrice || 0),
         cost: parseFloat(p.costPrice || p.sellPrice || 0),
@@ -78,6 +103,10 @@ export function normalizeProduct(raw = {}, cjData = {}) {
         description: description
     }
   };
+
+  // Unified Gallery: Merge all possible image sources
+  const uniqueImages = new Set([cjMapped.cj.image, ...cjMapped.cj.images]);
+  cjMapped.cj.images = Array.from(uniqueImages).filter(img => typeof img === 'string' && img.length > 10);
 
   return cjMapped;
 }
