@@ -6,55 +6,45 @@ import {
   Globe,
   DollarSign,
   Package,
-  Zap,
-  TrendingUp,
-  RefreshCw
+  Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 import cjService from '../../services/cj.service';
 
 /**
- * Supplier Discovery Row - CJ Dropshipping Edition (v12.0 - MAXIMUM RESILIENCE)
- * Objective: If mapping fails, find the data manually.
+ * Supplier Discovery Row - CJ Dropshipping Edition (v13.0 - RAW PRIORITY)
+ * Objective: Trust the raw 'productImage' string above all else.
  */
 const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) => {
     
     // 1. DATA NAMESPACING
     const cj = product?.cj || {};
     const [localCj, setLocalCj] = useState(cj);
-    const [isHealed, setIsHealed] = useState(false);
 
-    // 2. SELF-HEALING ENGINE (Bypasses all mapping failures)
+    // 2. SELF-HEALING (Variants/Shipping ONLY)
     useEffect(() => {
-        const needsHealing = !localCj.image || localCj.image.includes('placeholder') || localCj.variantCount === 0;
-        
-        if (cj.id && cj.id !== "UNKNOWN" && needsHealing && !isHealed) {
+        if (cj.id && cj.id !== "UNKNOWN" && localCj.variantCount === 0) {
             cjService.enrichSingleProduct(product).then(enriched => {
-                if (enriched?.cj) {
-                    setLocalCj(enriched.cj);
-                    setIsHealed(true);
-                }
+                if (enriched?.cj) setLocalCj(enriched.cj);
             });
         }
-    }, [cj.id, product, isHealed]);
+    }, [cj.id, product]);
 
     const activeCj = localCj.variantCount > 0 ? localCj : cj;
     
-    // 3. AGGRESSIVE FALLBACKS (Search result raw fields)
-    const raw = product || {};
-    const image = activeCj.image || raw.productImage || raw.image || raw.mainImage || "https://via.placeholder.com/300?text=CJ+Image";
-    const name = activeCj.name || raw.productNameEn || raw.name || "Unnamed CJ Product";
-    const variantsCount = parseInt(activeCj.variantCount || raw.variantCount || 0);
-    const price = parseFloat(activeCj.price || raw.sellPrice || 0);
+    // 3. RAW FIELD PRIORITY (As requested by user)
+    // We look at the top-level 'productImage' from search results first.
+    const image = product.productImage || activeCj.image || "https://via.placeholder.com/300?text=CJ+Product";
+    const name = product.productNameEn || activeCj.name || "Unnamed CJ Product";
+    const variantsCount = parseInt(activeCj.variantCount || product.variantCount || 0);
+    const price = parseFloat(activeCj.price || product.sellPrice || 0);
     const shipping = activeCj.shipping || { cost: 0, delivery: "7-15 Days" };
     const shippingCost = parseFloat(shipping.cost || 0);
     
     const target = parseFloat(targetPrice || 0);
     const netProfit = (target > 0 && price > 0) ? (target - (price + shippingCost)) : null;
     const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`) : "N/A";
-
-    // Sellability Score (Restored)
     const sellability = Math.min(98, Math.max(45, (netProfit > 15 ? 85 : 65) + (variantsCount > 0 ? 10 : 0)));
 
     return (
@@ -72,9 +62,7 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         onError={(e) => {
                             if (!e.target.src.includes('placeholder')) {
-                                e.target.src = "https://via.placeholder.com/300?text=Image+Refetching...";
-                                // Retry healing if image fails
-                                setIsHealed(false);
+                                e.target.src = "https://via.placeholder.com/300?text=Image+Ref";
                             }
                         }}
                     />
