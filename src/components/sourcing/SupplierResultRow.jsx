@@ -22,19 +22,21 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
 
     // ⚠️ STEP 5: CJ UI ONLY (SCOPED)
     const cj = product?.cj || {};
-    
-    // 🛡️ SELF-HEALING HYDRATION (Bypass list-level merging failures)
     const [localCj, setLocalCj] = useState(cj);
+
+    // 🛡️ ENRICHMENT LOCK (Prevent 'Flicker back to zero' bug)
     useEffect(() => {
-        // If data is missing or looks incomplete, try to heal it locally
-        if (cj.id && (cj.variantCount === 0 || !cj.shipping?.cost)) {
+        const isCurrentlyEmpty = (localCj.variantCount === 0 || !localCj.shipping?.cost);
+        if (cj.id && isCurrentlyEmpty) {
             cjService.enrichSingleProduct(product).then(enriched => {
-                if (enriched?.cj) setLocalCj(enriched.cj);
+                if (enriched?.cj && (enriched.cj.variantCount > 0 || enriched.cj.shipping?.cost > 0)) {
+                    setLocalCj(enriched.cj);
+                }
             });
         }
     }, [cj.id, product]);
 
-    const activeCj = localCj || cj;
+    const activeCj = localCj.variantCount > 0 ? localCj : cj;
     
     const name = String(activeCj.name || "Unnamed Product");
     // Dual Fallback: Check namespaced image AND raw search image

@@ -70,61 +70,52 @@ const SupplierSourcing = () => {
             setProducts([]);
             setLastError(null);
             setCurrentPage(1);
-        }
-
         try {
-            const context = { 
-                query: queryParam, 
-                manualQuery: isManual ? queryParam : null,
+            const res = await cjService.runIterativePipeline({
+                query: query,
                 product: targetProduct,
-                pageNum
-            };
+                manualQuery: query,
+                pageNum: page
+            });
             
-            const result = await cjService.runIterativePipeline(context);
-
-            if (result.status === "SUCCESS") {
-                const newProducts = result.products || [];
+            if (res.status === "SUCCESS") {
+                const newProducts = res.products || [];
                 
-                setProducts(prev => {
-                    const existingIds = new Set(prev.map(p => p.cj?.id));
-                    const filteredNew = newProducts.filter(p => p.cj?.id && !existingIds.has(p.cj?.id));
-                    return [...prev, ...filteredNew];
-                });
-
+                if (append) {
+                    setProducts(prev => {
+                        const existingIds = new Set(prev.map(p => p.cj?.id));
+                        const filteredNew = newProducts.filter(p => p.cj?.id && !existingIds.has(p.cj?.id));
+                        return [...prev, ...filteredNew];
+                    });
+                } else {
+                    setProducts(newProducts);
+                }
+                
                 setHasMore(newProducts.length >= 20);
                 setPipelineState({ status: 'SUCCESS' });
-                setTelemetry(result.telemetry || { cj: null });
-                
-                if (pageNum === 1) {
-                    toast.success(`Discovered ${newProducts.length} products`);
-                }
+                setTelemetry(res.telemetry || { cj: null });
 
                 // v12.1: START BACKGROUND ENRICHMENT
                 cjService.enrichProductList(newProducts, (pid, enriched) => {
                     setEnrichedProducts(prev => ({ ...prev, [pid]: enriched }));
                 });
-            } else if (result.status === "NO_MATCH_FOUND") {
-                if (pageNum === 1) {
+            } else if (res.status === "NO_MATCH_FOUND") {
+                if (!append) {
+                    setProducts([]);
                     setPipelineState({ status: 'NO_MATCH_FOUND' });
-                    setLastError({ 
-                        message: "The CJ catalog returns zero results for this item.",
-                        queryAttempted: queryParam,
-                        suggestion: "Try broader keywords or manually search above."
-                    });
-                } else {
-                    setHasMore(false);
                 }
+                setHasMore(false);
             } else {
                 setPipelineState({ status: 'ERROR' });
-                setLastError(result.message);
+                setLastError(res.message);
             }
-        } catch (e) {
-            console.error("Discovery Pipeline Crash:", e);
+        } catch (err) {
             setPipelineState({ status: 'SYSTEM_DOWN' });
+            setLastError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [targetProduct, searchQuery]);
+    };
 
     useEffect(() => {
         if (!hasMore || loading) return;
@@ -132,8 +123,9 @@ const SupplierSourcing = () => {
         const observer = new IntersectionObserver(
             entries => {
                 if (entries[0].isIntersecting) {
-                    performSourcing(searchQuery, false, currentPage + 1);
-                    setCurrentPage(prev => prev + 1);
+                    const next = currentPage + 1;
+                    performSourcing(searchQuery, true, next);
+                    setCurrentPage(next);
                 }
             },
             { threshold: 1.0 }
@@ -143,20 +135,14 @@ const SupplierSourcing = () => {
         return () => {
             if (observerTarget.current) observer.unobserve(observerTarget.current);
         };
-    }, [hasMore, loading, currentPage, performSourcing, searchQuery]);
+    }, [hasMore, loading, currentPage, searchQuery]);
 
-    const handleManualSearch = (e) => {
+    const handleSearch = (e) => {
         e.preventDefault();
-        performSourcing(searchQuery, true, 1);
+        setCurrentPage(1);
+        performSourcing(searchQuery, false, 1);
     };
 
-    const processedResults = useMemo(() => {
-        return products.map(res => {
-            const pid = res.cj?.id;
-            const enriched = enrichedProducts[pid];
-            return enriched ? { ...res, ...enriched } : res;
-        });
-    }, [products, enrichedProducts]);
 
     useEffect(() => { 
         if (initialQuery) performSourcing(initialQuery, false, 1); 
@@ -208,12 +194,12 @@ const SupplierSourcing = () => {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleManualSearch(e)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
                             placeholder="Search CJ Catalog..."
                             className="w-full pl-6 pr-32 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold text-slate-950 focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all outline-none"
                         />
                         <button 
-                            onClick={handleManualSearch}
+                            onClick={handleSearch}
                             disabled={loading}
                             className="absolute right-3 top-3 bottom-3 px-6 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all"
                         >
@@ -235,8 +221,8 @@ const SupplierSourcing = () => {
 
             <div className="space-y-8">
                 {products.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-6 px-4">
-                        {processedResults.map((product, idx) => (
+                    <div className="grid grid-cols-1 gap-12 px-4">
+                        {products.map((product, idx) => (
                             <SupplierResultRow 
                                 key={`${product.cj?.id || idx}`}
                                 product={product} 
