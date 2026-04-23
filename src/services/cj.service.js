@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { normalizeProduct, sanitizeProduct } from './cj.schema';
+import { normalizeProduct } from './cj.schema';
 import { deconstructTitle } from '../utils/productQueryEngine';
 
 const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
@@ -15,7 +15,7 @@ class CJService {
   }
 
   /**
-   * 🏗️ STABLE SEARCH PIPELINE
+   * 🏗️ ISOLATED SEARCH PIPELINE (Step 4)
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
@@ -37,15 +37,9 @@ class CJService {
                 productList = response.data?.data?.productList || [];
             }
 
+            // Namespaced Normalization ONLY
             const products = productList
-                .map(item => {
-                    try {
-                        return normalizeProduct(item, {});
-                    } catch (e) {
-                        return null;
-                    }
-                })
-                .filter(p => p !== null);
+                .map(item => normalizeProduct(item, {}));
             
             return { 
                 status: products.length > 0 ? "SUCCESS" : "NO_MATCH_FOUND", 
@@ -60,11 +54,11 @@ class CJService {
   }
 
   /**
-   * 🔥 ISSUE 2: HYDRATION PROTECTION (SAFE MERGE)
+   * 🧩 PHASE 4 — DISABLE HYDRATION (CJ ONLY)
    */
   async enrichSingleProduct(product) {
     try {
-        const pid = product.id || product.product_id;
+        const pid = product.cj?.id || product.id || product.product_id;
         let cjData = this.cache.get(pid);
 
         if (!cjData) {
@@ -77,26 +71,11 @@ class CJService {
             }
         }
 
-        const enriched = normalizeProduct(product, cjData || {});
-        
-        // RULE: NEVER overwrite existing data with null, undefined, or empty array
-        return sanitizeProduct({
-            ...product,
-            name: product.name || enriched.name,
-            images: (product.images && product.images.length > 0) ? product.images : (enriched.images || []),
-            variants: (product.variants && product.variants.length > 0) ? product.variants : (enriched.variants || []),
-            price: product.price ?? enriched.price,
-            shipping: product.shipping ?? enriched.shipping,
-            
-            // Fill missing gaps only
-            description: product.description || enriched.description,
-            shippingCost: product.shippingCost || enriched.shippingCost,
-            deliveryTime: product.deliveryTime || enriched.deliveryTime,
-            rawDetail: cjData || product.rawDetail
-        });
+        // Return ONLY namespaced data. NO mutation of original.
+        return normalizeProduct(product, cjData || {});
     } catch (e) {
         console.error("Enrichment Failure:", e);
-        return sanitizeProduct(product);
+        return product;
     }
   }
 
@@ -111,7 +90,7 @@ class CJService {
             if (!product) continue;
             const enriched = await this.enrichSingleProduct(product);
             if (enriched) {
-                onEnriched(product.id, enriched);
+                onEnriched(product.id || enriched.cj?.id, enriched);
             }
         }
     };
