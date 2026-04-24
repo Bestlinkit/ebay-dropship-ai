@@ -42,10 +42,10 @@ const STYLES = ['casual', 'summer', 'winter', 'streetwear', 'vintage', 'classic'
 
 function sanitizeText(text) {
     if (!text) return "";
-    // 1. Strip HTML tags
+    // 1. Strip ALL HTML tags and image tags aggressively
     let clean = text.replace(/<[^>]*>?/gm, ' ');
-    // 2. Remove common HTML entities & artifacts
-    clean = clean.replace(/&nbsp;|br|nbsp|&amp;|&gt;|&lt;/gi, ' ');
+    // 2. Remove common HTML entities, artifacts, and technical jargon with STRICT word boundaries
+    clean = clean.replace(/&nbsp;|\bbr\b|\bnbsp\b|&amp;|&gt;|&lt;|http\S+|\bundefined\b|\bnull\b|\bnan\b|\bpbproduct\b/gi, ' ');
     // 3. Normalize whitespace
     return clean.replace(/\s+/g, ' ').trim();
 }
@@ -74,7 +74,7 @@ function cleanTitle(title) {
     let result = [];
 
     words.forEach(word => {
-        let w = word.replace(/[^a-z0-9-]/g, ''); // Keep hyphens for normalized words
+        let w = word.replace(/[^a-z0-9-]/g, '');
         let norm = normalizeWord(w);
         if (norm.length > 2 && !STOPWORDS.has(norm) && !GARBAGE_TOKENS.has(norm) && !seen.has(norm)) {
             result.push(norm);
@@ -108,7 +108,7 @@ function extractKeywords(title, description) {
 }
 
 /**
- * Generate 3 Structurally Different SEO titles
+ * Generate 3 Angle-Specific SEO titles (Generic / Intent / Trend)
  */
 function generateDeterministicTitles(keywords) {
     if (keywords.length === 0) return ["New Product Listing"];
@@ -117,21 +117,21 @@ function generateDeterministicTitles(keywords) {
     const material = keywords.find(k => MATERIALS.includes(k)) || "";
     const style = keywords.find(k => STYLES.includes(k)) || "Casual";
     const type = keywords[0] || "Item";
-    const features = keywords.slice(1, 4).filter(f => !AUDIENCES.includes(f) && !MATERIALS.includes(f) && !STYLES.includes(f)).join(' ');
+    const feature = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && k !== type) || "";
+    const intent = keywords.find(k => ['comfortable', 'durable', 'lightweight', 'breathable', 'portable'].includes(k)) || "Professional";
 
     const titles = [
-        // Template A: {Audience} {Material} {Product} {Feature} {Use Case}
-        `${audience} ${material} ${type} ${features} ${style}`.trim(),
+        // Angle 1: Generic Search ([Audience] [Material] [Product])
+        `${audience} ${material} ${type} ${feature} ${style}`.trim(),
         
-        // Template B: {Feature} {Product} for {Audience} {Use Case}
-        `${features} ${type} for ${audience} ${style} Wear`.trim(),
+        // Angle 2: Buyer Intent ([Feature] [Product] for [Audience] [Intent])
+        `${intent} ${type} for ${audience} ${style} ${feature}`.trim(),
         
-        // Template C: {Audience} {Use Case} {Material} {Product}
-        `${audience} ${style} ${material} ${type} ${features}`.trim()
+        // Angle 3: Seasonal/Trend ([Trend] [Audience] [Material] [Product])
+        `Summer ${style} ${audience} ${material} ${type} ${feature}`.trim()
     ];
 
     return titles.map(t => {
-        // De-duplicate words
         let words = t.split(/\s+/);
         let seen = new Set();
         let unique = [];
@@ -149,56 +149,55 @@ function generateDeterministicTitles(keywords) {
 }
 
 /**
- * Generate Multi-word tags (Strict Filter)
+ * Generate 8-12 Long-tail Tags (3-5 words)
  */
 function generateTags(keywords) {
     const tags = new Set();
-    const audience = keywords.find(k => AUDIENCES.includes(k)) || "";
-    const type = keywords[0] || "";
+    const audience = keywords.find(k => AUDIENCES.includes(k)) || "Unisex";
+    const type = keywords[0] || "Item";
+    const material = keywords.find(k => MATERIALS.includes(k)) || "";
+    const style = keywords.find(k => STYLES.includes(k)) || "Casual";
 
-    // 2nd word selection
-    const feature = keywords.find(k => !AUDIENCES.includes(k) && k !== type) || "";
-
-    // Build human-readable phrases
+    // Build Long-tail phrases (3-5 words)
     if (audience && type) {
-        tags.add(`${audience} ${type}`);
-        if (feature) tags.add(`${audience} ${feature} ${type}`);
+        tags.add(`${audience} ${material} ${type}`.trim());
+        tags.add(`${style} ${audience} ${type}`.trim());
+        tags.add(`comfortable ${audience} ${type} wear`.trim());
     }
     
-    if (feature && type) {
-        tags.add(`${feature} ${type}`);
-        tags.add(`casual ${feature} wear`);
+    if (material && type) {
+        tags.add(`${material} ${style} ${type}`.trim());
+        tags.add(`breathable ${material} ${type}`.trim());
     }
 
-    // Add some relevant combinations
-    keywords.slice(1, 4).forEach(k => {
+    // Add search-friendly intent phrases
+    tags.add(`high quality ${type} for ${audience}`.trim());
+    tags.add(`${style} ${type} for summer wear`.trim());
+
+    // Mix in some secondary features
+    keywords.slice(2, 6).forEach(k => {
         if (k.length > 3 && !GARBAGE_TOKENS.has(k)) {
-            tags.add(`${k} ${type}`);
+            tags.add(`${audience} ${k} ${type}`.trim());
         }
     });
 
-    // Cleanup: Remove any tag with HTML artifacts or > 3 words
     return Array.from(tags)
-        .filter(t => !t.match(/br|nbsp|html/i) && t.split(' ').length <= 3)
-        .slice(0, 10)
+        .filter(t => !t.match(/br|nbsp|html|undefined/i) && t.split(' ').length >= 2)
+        .slice(0, 12)
         .map(t => t.toLowerCase());
 }
 
 /**
- * Clean description into structured PLAIN TEXT (v3.0)
+ * Clean description into structured PLAIN TEXT (v3.1)
  */
 function cleanDescription(html, titleKeywords = []) {
     if (!html) return "Product Overview:\nNo description available.";
 
-    // 1. Aggressive Sanitization (Strip ALL HTML)
     let text = sanitizeText(html);
-    text = text.replace(/<[^>]*>?/gm, ' ')
-               .replace(/&nbsp;|br|nbsp|&amp;|&gt;|&lt;/gi, ' ')
-               .replace(/product information:|description:|supplier|wholesale|dropship|factory|direct|china/gi, '')
+    text = text.replace(/product information:|description:|supplier|wholesale|dropship|factory|direct|china/gi, '')
                .replace(/\s+/g, ' ')
                .trim();
 
-    // 2. Attribute Extraction
     const attributes = {
         Material: MATERIALS.find(m => text.toLowerCase().includes(m)) || titleKeywords.find(k => MATERIALS.includes(k)) || "",
         Style: STYLES.find(s => text.toLowerCase().includes(s)) || titleKeywords.find(k => STYLES.includes(k)) || "",
@@ -206,30 +205,24 @@ function cleanDescription(html, titleKeywords = []) {
         Sleeve: ['short sleeve', 'long sleeve', 'sleeveless'].find(s => text.toLowerCase().includes(s)) || ""
     };
 
-    // 3. Sentence Extraction
     const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 15 && !s.match(/color|size|package|img|url/i));
     
-    // Overview Construction
     const overview = sentences.length > 0 
         ? sentences.slice(0, 2).join('. ') + '.'
-        : `This high-quality ${attributes.Style || ''} ${attributes.Material || ''} product is designed for daily comfort and versatility.`;
+        : `This high-quality ${attributes.Style || ''} ${attributes.Material || ''} product is designed for professional use and daily comfort.`;
 
-    // Features Construction
-    const features = sentences.slice(2, 6);
-    if (attributes.Material) features.unshift(`${attributes.Material.charAt(0).toUpperCase() + attributes.Material.slice(1)} fabric for ultimate comfort`);
-    if (attributes.Sleeve) features.push(`${attributes.Sleeve.charAt(0).toUpperCase() + attributes.Sleeve.slice(1)} design`);
+    const features = sentences.slice(2, 7);
+    if (attributes.Material) features.unshift(`${attributes.Material.charAt(0).toUpperCase() + attributes.Material.slice(1)} fabric for premium durability`);
 
-    // 4. Build Plain Text Output
     let output = `Product Overview:\n${overview}\n\n`;
-
-    if (features.length > 0) {
-        output += `Key Features:\n${features.map(f => `- ${f}`).join('\n')}\n\n`;
-    }
+    output += `Key Features:\n${features.map(f => `- ${f}`).join('\n')}\n\n`;
 
     const specs = Object.entries(attributes).filter(([k, v]) => v !== "");
     if (specs.length > 0) {
-        output += `Specifications:\n${specs.map(([k, v]) => `- ${k}: ${v.charAt(0).toUpperCase() + v.slice(1)}`).join('\n')}`;
+        output += `Specifications:\n${specs.map(([k, v]) => `- ${k}: ${v.charAt(0).toUpperCase() + v.slice(1)}`).join('\n')}\n\n`;
     }
+
+    output += `Package Includes:\n- 1 x ${titleKeywords[0] || 'Product'} Item\n- Professional Packaging`;
 
     return output.trim();
 }
