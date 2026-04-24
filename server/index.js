@@ -584,16 +584,16 @@ app.post('/api/ai/optimize', async (req, res) => {
         }
 
         // Combine Phase 1 + Phase 2 for Scoring
-        const scoredTitles = baseTitles.map(t => ({
-            text: t,
-            score: seoEngine.scoreTitle(t, demandKeywords)
-        })).sort((a, b) => b.score - a.score);
+        const rawScores = baseTitles.map(t => seoEngine.scoreTitle(t, demandKeywords));
+        
+        // Final Quality Filter (Rewrite + Rank)
+        const finalResults = seoEngine.qualityFilter(baseTitles, rawScores, keywords, demandKeywords);
 
         return res.json({
             success: true,
             data: {
-                titles: scoredTitles.map(t => t.text),
-                scores: scoredTitles.map(t => t.score),
+                titles: finalResults.map(t => t.text),
+                scores: finalResults.map(t => t.score),
                 description: cleanDesc,
                 tags: tags,
                 category: categorySuggestion || { id: "0", name: fallbackCategory },
@@ -604,11 +604,14 @@ app.post('/api/ai/optimize', async (req, res) => {
     } catch (err) {
         console.error("SEO ENGINE FAULT:", err.message);
         // Absolute Fallback to Phase 1
+        const fallbackScores = baseTitles.map(t => seoEngine.scoreTitle(t, []));
+        const fallbackResults = seoEngine.qualityFilter(baseTitles, fallbackScores, keywords, []);
+
         return res.json({
             success: true,
             data: {
-                titles: baseTitles,
-                scores: [70, 65, 60],
+                titles: fallbackResults.map(t => t.text),
+                scores: fallbackResults.map(t => t.score),
                 description: cleanDesc,
                 tags: tags,
                 category: { id: "0", name: fallbackCategory },
