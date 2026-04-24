@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const crypto = require('crypto');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
 const app = express();
@@ -441,93 +440,101 @@ cjRouter.post('/freight', async (req, res) => {
     }
 });
 
-// 🤖 AI LISTING ENGINE (v4.5 - STABILITY PATCH)
+// 🤖 AI LISTING ENGINE (v5.0 - DIRECT FETCH MODE)
 
-// STEP 7: ADD AI TEST ROUTE
-app.get('/api/ai/test', (req, res) => {
-    res.json({
-        success: true,
-        message: "AI route working",
-        model: "gemini-1.5-flash-latest"
+// Diagnostic Route: Verify Connection & Key
+app.get('/api/ai/test', async (req, res) => {
+  try {
+    const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1/models?key=" + GEMINI_KEY
+    );
+
+    const data = await response.json();
+    console.log("GEMINI MODELS:", data);
+
+    return res.json({
+      success: true,
+      models: data
     });
+  } catch (err) {
+    console.error("GEMINI TEST ERROR:", err.message);
+    return res.json({
+      success: false,
+      error: err.message
+    });
+  }
 });
 
+// ✅ WORKING MINIMAL VERSION (Direct REST API)
 app.post('/api/ai/optimize', async (req, res) => {
-    // STEP 6: FIX GEMINI MODEL
-    const modelName = "gemini-1.5-flash-latest"; 
-    const { prompt } = req.body;
-    const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-
-    if (!GEMINI_KEY) {
-        console.error("GEMINI ERROR: GEMINI_API_KEY_MISSING");
-        return res.status(200).json({ success: false, error: "GEMINI_API_KEY_MISSING" });
-    }
-
-    console.log("AI OPTIMIZATION REQUEST:", {
-        apiKeyPresent: !!GEMINI_KEY,
-        promptLength: prompt?.length,
-        model: modelName
-    });
-
     try {
-        // STEP 5: AI ENDPOINT FIX (CRITICAL) - Wrap EVERYTHING
-        const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-        const model = genAI.getGenerativeModel({ model: modelName });
+      const { title, description } = req.body;
+      const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  
+      if (!GEMINI_KEY) {
+          console.error("GEMINI ERROR: GEMINI_API_KEY_MISSING");
+          return res.status(200).json({ success: false, error: "GEMINI_API_KEY_MISSING" });
+      }
 
-        let result;
-        let attempts = 0;
-        const maxAttempts = 2; // Reduced for speed in stability patch
+      console.log("AI OPTIMIZATION (FETCH MODE):", { title });
 
-        while (attempts < maxAttempts) {
-            try {
-                attempts++;
-                console.log(`[AI SDK] Optimization Attempt ${attempts}/${maxAttempts}...`);
-                result = await model.generateContent(prompt);
-                break; 
-            } catch (err) {
-                console.error(`[AI SDK] Attempt ${attempts} failed:`, err.message);
-                if (attempts >= maxAttempts) throw err;
-                await new Promise(r => setTimeout(r, 500));
-            }
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=" + GEMINI_KEY,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `Rewrite this product for eBay SEO:\nTitle: ${title}\nDescription: ${description}\n\nReturn EXACTLY 3 optimized titles, a rewritten description, and 10 tags in JSON format: { "titles": [ { "text": "", "score": 100 } ], "description": "", "tags": [] }`
+                  }
+                ]
+              }
+            ]
+          })
         }
+      );
+  
+      const data = await response.json();
+      console.log("GEMINI RAW:", JSON.stringify(data, null, 2));
+  
+      // Extract content if it exists
+      if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+          const rawText = data.candidates[0].content.parts[0].text;
+          const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+          
+          try {
+              const jsonResult = JSON.parse(cleanText);
+              return res.json({
+                  success: true,
+                  ...jsonResult
+              });
+          } catch (e) {
+              // If not JSON, return as raw text success
+              return res.json({
+                  success: true,
+                  rawText: rawText
+              });
+          }
+      }
 
-        const response = await result.response;
-        const rawText = response.text();
-        console.log("AI RAW RESPONSE RECEIVED (Length:", rawText.length, ")");
-
-        const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-        try {
-            const jsonResult = JSON.parse(cleanText);
-            return res.json({
-                success: true,
-                ...jsonResult
-            });
-        } catch (e) {
-            console.error("AI returned invalid JSON:", cleanText);
-            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-                try {
-                    return res.json({
-                        success: true,
-                        ...JSON.parse(jsonMatch[0])
-                    });
-                } catch (innerE) {
-                    throw new Error("INVALID_JSON_FORMAT");
-                }
-            }
-            throw new Error("INVALID_JSON_FORMAT");
-        }
-
-    } catch (error) {
-        // STEP 5: AI ENDPOINT FIX (CRITICAL) - Return status 200 with success: false
-        console.error("AI ERROR:", error.response?.data || error.message);
-
-        return res.status(200).json({
-            success: false,
-            error: "AI_FAILED",
-            debug: error.message
-        });
+      return res.json({
+        success: true,
+        data // Return the raw data if structure is different
+      });
+  
+    } catch (err) {
+      console.error("AI ERROR:", err.message);
+      return res.json({
+        success: false,
+        error: "AI_FAILED",
+        debug: err.message
+      });
     }
 });
 
