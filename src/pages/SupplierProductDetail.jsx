@@ -86,7 +86,7 @@ const SupplierProductDetail = () => {
         
         const productSnapshot = {
             id: cj.id,
-            title: cj.name || "Unnamed Product",
+            title: cj.nameEn || cj.name || "Unnamed Product",
             description: cj.description || "",
             images: cj.images || [],
             variants: cj.variants || [],
@@ -139,7 +139,7 @@ const SupplierProductDetail = () => {
     const handleProceedToPricing = () => {
         const productSnapshot = {
             id: cj.id,
-            title: cj.name || "Unnamed Product",
+            title: cj.nameEn || cj.name || "Unnamed Product",
             description: cj.description || "",
             images: cj.images || [],
             variants: cj.variants || [],
@@ -404,8 +404,9 @@ const SupplierProductDetail = () => {
                                                     </div>
                                                 </div>
                                                 {selectedTitle === t.text && (
-                                                    <div className="absolute -right-2 -top-2 bg-indigo-600 text-white p-1 rounded-full border-2 border-white">
+                                                    <div className="absolute -right-2 -top-2 bg-indigo-600 text-white p-1 pr-3 rounded-full border-2 border-white flex items-center gap-1.5">
                                                         <CheckCircle2 size={12} />
+                                                        <strong className="text-[8px] uppercase tracking-widest">Selected</strong>
                                                     </div>
                                                 )}
                                             </button>
