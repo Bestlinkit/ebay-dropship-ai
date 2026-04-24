@@ -10,27 +10,42 @@ const DICTIONARIES = {
     BRANDS: ['nike', 'adidas', 'puma', 'reebok', 'skechers', 'levis', 'zara', 'h&m', 'gucci', 'prada', 'clarks', 'ecco', 'timberland']
 };
 
+const FLUFF_WORDS = ['new', 'fashion', 'top', 'hot', 'sale', 'trendy', 'high', 'quality', 'best', 'seller', '2024', '2023', '2025', 'free', 'shipping', 'brand', 'authentic', 'original', 'style', 'mode'];
+
 export const extractCoreKeywords = (title) => {
     if (!title) return "";
     
-    // 1. CLEANING (v2 Rule): lowercase, remove apostrophes and symbols
-    // Replace symbols and apostrophes with space to prevent word merging
+    // 1. CLEANING: lowercase, remove apostrophes and symbols
     let clean = title.toLowerCase().replace(/[^\w\s]/g, ' '); 
     
-    // Split and filter out empty strings and single characters (except maybe 'a' if common, but 2+ is safer)
-    const words = clean.split(/\s+/).filter(word => word.length >= 2);
+    // Split and filter out empty strings, single characters, and FLUFF
+    const words = clean.split(/\s+/)
+        .filter(word => word.length >= 2)
+        .filter(word => !FLUFF_WORDS.includes(word));
     
     // 2. BREADTH Mandate: Keep ALL core words. 
-    // Do not aggressively prune categories or brands here; let fallback handling handle depth.
     const result = words.join(' ').trim();
     
     // Final check: Never return empty if title exists
     return result || title.toLowerCase().trim();
 };
 
+export const generateSearchSteps = (title) => {
+    const core = extractCoreKeywords(title);
+    const words = core.split(' ');
+    
+    return [
+        title,           // Step 0: Raw Title (most specific)
+        core,            // Step 1: Core Keywords (sanitized)
+        words.slice(0, 4).join(' '), // Step 2: First 4 words
+        words.slice(0, 2).join(' ')  // Step 3: First 2 words (broadest)
+    ].filter(Boolean);
+};
+
 export const deconstructTitle = (title) => {
     const raw = title || "";
     const fallback = extractCoreKeywords(raw);
+    const steps = generateSearchSteps(raw);
     
     return {
         gender: "unisex", 
@@ -38,7 +53,8 @@ export const deconstructTitle = (title) => {
         attributes: [], 
         queries: { 
             strict: raw, 
-            fallback: fallback 
+            fallback: fallback,
+            steps: steps
         } 
     };
 };

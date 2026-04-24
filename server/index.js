@@ -309,7 +309,11 @@ cjRouter.get('/search', async (req, res) => {
         const rawContent = response.data?.data?.content;
         let productList = [];
         if (Array.isArray(rawContent)) {
-            productList = rawContent.flatMap(block => block.productList || []);
+            if (rawContent.length > 0 && rawContent[0].productList) {
+                productList = rawContent.flatMap(block => block.productList || []);
+            } else {
+                productList = rawContent;
+            }
         } else {
             productList = response.data?.data?.productList || [];
         }

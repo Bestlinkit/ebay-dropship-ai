@@ -21,12 +21,16 @@ const SupplierSourcing = () => {
     
     const { ebayProduct, query } = location.state || {};
     const targetPrice = Number(ebayProduct?.price || location.state?.targetPrice || 50);
-    const initialQuery = query || ebayProduct?.title || '';
+    
+    // v6.2: Start with core keywords for higher success rate
+    const coreQuery = ebayProduct?.title ? deconstructTitle(ebayProduct.title).queries.fallback : '';
+    const initialQuery = query || coreQuery || ebayProduct?.title || '';
     const targetProduct = ebayProduct;
 
     const [loading, setLoading] = useState(false);
     const [products, setProducts] = useState([]);
     const [searchQuery, setSearchQuery] = useState(initialQuery);
+    const [queryUsed, setQueryUsed] = useState(initialQuery);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
 
@@ -56,6 +60,7 @@ const SupplierSourcing = () => {
             
             if (res.status === "SUCCESS") {
                 const newProducts = res.products || [];
+                setQueryUsed(res.queryUsed || queryParam);
                 
                 if (append) {
                     setProducts(prev => {
@@ -77,7 +82,7 @@ const SupplierSourcing = () => {
                 setHasMore(false);
             } else {
                 setPipelineState({ status: 'ERROR' });
-                setLastError(res.message);
+                setLastError(res.error || res.message);
             }
         } catch (err) {
             setPipelineState({ status: 'SYSTEM_DOWN' });
@@ -151,7 +156,7 @@ const SupplierSourcing = () => {
                     <div>
                         <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">CJ Discovery Engine</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
-                             <Lock size={12} className="text-indigo-500" /> v6.0 Infinite Stability
+                             <Lock size={12} className="text-indigo-500" /> v6.1 Iterative Stability
                         </p>
                     </div>
                 </div>
@@ -173,6 +178,11 @@ const SupplierSourcing = () => {
                             {loading ? 'SEARCHING...' : 'SEARCH'}
                         </button>
                     </form>
+                    {products.length > 0 && (
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-3 px-2">
+                            Showing results for: <span className="text-indigo-500 italic">"{queryUsed}"</span>
+                        </p>
+                    )}
                 </div>
 
                 {targetProduct && (
@@ -213,19 +223,35 @@ const SupplierSourcing = () => {
                     !loading && (
                         <div className="bg-white border-2 border-dashed border-slate-200 p-20 rounded-[4rem] text-center space-y-10 shadow-2xl shadow-slate-100 mx-4">
                             <div className="w-24 h-24 bg-slate-50 text-slate-300 border rounded-[3rem] flex items-center justify-center mx-auto">
-                                <Box size={48} />
+                                <Box size={48} className={pipelineState.status === 'ERROR' ? "text-rose-500" : ""} />
                             </div>
                             <div className="space-y-4">
                                 <h3 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-tight">
-                                    No Products Found
+                                    {pipelineState.status === 'ERROR' ? 'System Disruption' : 'No Products Found'}
                                 </h3>
                                 <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
-                                    Try broadening your search keywords or manually entering a product name.
+                                    {pipelineState.status === 'ERROR' 
+                                        ? `Error Signal: ${lastError || 'Unknown API Exception'}`
+                                        : `We couldn't find a direct match for "${searchQuery}". Try broadening your search keywords or manually entering a shorter product name.`}
                                 </p>
                             </div>
-                            <button onClick={() => handleSearch()} className="px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all flex items-center justify-center gap-4 mx-auto">
-                                <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> Retry Discovery
-                            </button>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                                <button onClick={() => handleSearch()} className="px-16 py-6 bg-slate-950 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all flex items-center justify-center gap-4">
+                                    <RefreshCw size={20} className={loading ? "animate-spin" : ""} /> Retry Discovery
+                                </button>
+                                {targetProduct && (
+                                    <button 
+                                        onClick={() => {
+                                            const broad = deconstructTitle(targetProduct.title).queries.fallback.split(' ').slice(0, 2).join(' ');
+                                            setSearchQuery(broad);
+                                            performSourcing(broad, false, 1);
+                                        }}
+                                        className="px-16 py-6 bg-white border border-slate-200 text-slate-950 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-slate-50 transition-all flex items-center justify-center gap-4"
+                                    >
+                                        Try Broad Search
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     )
                 )}

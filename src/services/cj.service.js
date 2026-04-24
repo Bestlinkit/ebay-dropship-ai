@@ -19,40 +19,70 @@ class CJService {
    */
   async runIterativePipeline(context) {
     const { product, manualQuery, pageNum = 1 } = context;
-    const ebayIntel = deconstructTitle(product.title);
-    const query = manualQuery || ebayIntel.queries.fallback || product.title;
+    const ebayIntel = deconstructTitle(product?.title);
+    
+    // Determine search chain
+    let searchChain = [];
+    if (manualQuery) {
+        searchChain = [manualQuery];
+    } else {
+        searchChain = ebayIntel.queries.steps || [product?.title];
+    }
 
     try {
         const url = `${BRIDGE_BASE}${this.CONFIG.SEARCH_ENDPOINT}`;
-        console.log("CJ FETCH STARTED");
+        console.log("CJ ITERATIVE FETCH INITIATED", { chain_length: searchChain.length });
 
-        const response = await axios.get(url, { 
-            params: { keyword: query, pageNum, pageSize: 20 } 
-        });
+        for (let i = 0; i < searchChain.length; i++) {
+            const currentQuery = searchChain[i];
+            console.log(`[CJ Discovery] Attempt ${i+1}: "${currentQuery}"`);
 
-        if (!response || !response.data || response.data.code !== 200) {
-            return { status: "NO_MATCH_FOUND", products: [] };
+            const response = await axios.get(url, { 
+                params: { 
+                    keyword: currentQuery, 
+                    page: pageNum, 
+                    size: 20 
+                } 
+            });
+
+            if (!response || !response.data || (response.data.code !== 200 && response.data.code !== 0)) {
+                continue; // Try next step if this one failed
+            }
+
+            const rawContent = response.data?.data?.content;
+            let productList = [];
+            
+            if (Array.isArray(rawContent)) {
+                if (rawContent.length > 0 && rawContent[0].productList) {
+                    productList = rawContent.flatMap(block => block.productList || []);
+                } else {
+                    productList = rawContent;
+                }
+            } else {
+                productList = response.data?.data?.productList || [];
+            }
+
+            const products = productList
+                .filter(p => p && (p.id || p.productId || p.pid))
+                .map(item => normalizeProduct(item, {}));
+
+            if (products.length > 0) {
+                console.log(`[CJ Discovery] SUCCESS on attempt ${i+1} with ${products.length} items`);
+                return { 
+                    status: "SUCCESS", 
+                    products,
+                    queryUsed: currentQuery,
+                    telemetry: { attempt: i + 1, total_steps: searchChain.length }
+                };
+            }
+            
+            // If we are on a manual search, don't fallback automatically
+            if (manualQuery) break;
         }
 
-        const rawContent = response.data?.data?.content;
-        let productList = [];
-        
-        if (Array.isArray(rawContent)) {
-            productList = rawContent.flatMap(block => block.productList || []);
-        } else {
-            productList = response.data?.data?.productList || [];
-        }
-
-        const products = productList
-            .filter(p => p && (p.id || p.productId || p.pid))
-            .map(item => normalizeProduct(item, {}));
-        
-        return { 
-            status: "SUCCESS", 
-            products,
-            telemetry: { merged_count: products.length }
-        };
+        return { status: "NO_MATCH_FOUND", products: [] };
     } catch (err) {
+        console.error("CJ Pipeline Critical Failure:", err.message);
         return { status: "ERROR", products: [], error: err.message };
     }
   }
