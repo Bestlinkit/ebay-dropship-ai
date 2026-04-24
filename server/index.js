@@ -442,27 +442,49 @@ cjRouter.post('/freight', async (req, res) => {
 
 // 🤖 AI LISTING ENGINE (v5.0 - DIRECT FETCH MODE)
 
-// Diagnostic Route: Verify Connection & Key
-app.get('/api/ai/test', async (req, res) => {
+// 🧪 DIRECT GEMINI DIAGNOSTIC (STRICT)
+app.get("/api/ai/test", async (req, res) => {
   try {
-    const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    console.log("TEST GEMINI START");
+    const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models?key=" + GEMINI_KEY
+      "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=" + GEMINI_KEY,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: "Say hello in JSON format {message: 'hello'}" }]
+            }
+          ]
+        })
+      }
     );
 
     const data = await response.json();
-    console.log("GEMINI MODELS:", data);
+    console.log("GEMINI TEST RESPONSE:", data);
 
-    return res.json({
-      success: true,
-      models: data
-    });
+    res.json({ success: true, data });
+
   } catch (err) {
-    console.error("GEMINI TEST ERROR:", err.message);
-    return res.json({
-      success: false,
-      error: err.message
-    });
+    console.error("GEMINI TEST FAILED:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 🔍 HELPER: LIST AVAILABLE MODELS
+app.get("/api/ai/test/list", async (req, res) => {
+  try {
+    const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${GEMINI_KEY}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -488,38 +510,29 @@ const generateNativeFallback = (title, description) => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    // STEP 1: TRACE EXECUTION FLOW
     console.log("AI ROUTE HIT");
-    console.log("AI REQUEST BODY:", JSON.stringify(req.body).substring(0, 200));
-
     const { title, description } = req.body;
-    const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
     if (!GEMINI_KEY) {
         console.error("AI ERROR: GEMINI_KEY_MISSING");
         return res.json(generateNativeFallback(title, description));
     }
 
-    const runAIOptimize = async (retryCount = 0) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); 
-
-        try {
-            // STEP 4: FORCE DIRECT GEMINI CALL
-            console.log("CALLING GEMINI NOW");
-            
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
-                {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json"
-                    },
-                    signal: controller.signal,
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: `eBay Listing Optimizer:
+    try {
+        console.log("CALLING GEMINI 2.0 DIRECT");
+        
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+            {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `eBay Listing Optimizer:
 Product: ${title}
 Context: ${description}
 
@@ -529,58 +542,49 @@ Return STRICT JSON:
   "description": "Professional rewritten description",
   "tags": ["10 search keywords"]
 }`
-                            }]
                         }]
-                    })
+                    }]
+                })
+            }
+        );
+
+        const rawData = await response.json();
+        console.log("AI RAW RESPONSE RECEIVED");
+
+        if (rawData.candidates && rawData.candidates[0]?.content?.parts[0]?.text) {
+            const rawText = rawData.candidates[0].content.parts[0].text;
+            const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const jsonResult = JSON.parse(cleanText);
+
+            console.log("AI PARSED OUTPUT SUCCESS");
+
+            return res.json({
+                success: true,
+                data: {
+                    titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
+                    description: jsonResult.description || "",
+                    tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
                 }
-            );
-
-            clearTimeout(timeoutId);
-            const rawData = await response.json();
-            
-            // STEP 5: VERIFY GEMINI EXECUTION
-            console.log("AI RAW RESPONSE RECEIVED");
-
-            if (rawData.candidates && rawData.candidates[0]?.content?.parts[0]?.text) {
-                const rawText = rawData.candidates[0].content.parts[0].text;
-                const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                const jsonResult = JSON.parse(cleanText);
-
-                console.log("AI PARSED OUTPUT SUCCESS");
-
-                const finalResponse = {
-                    success: true,
-                    data: {
-                        titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
-                        description: jsonResult.description || "",
-                        tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
-                    }
-                };
-
-                return finalResponse;
-            }
-
-            throw new Error("MALFORMED_RESPONSE");
-
-        } catch (err) {
-            clearTimeout(timeoutId);
-            console.error("GEMINI ERROR FULL:", err.message);
-
-            if (err.name === 'AbortError') {
-                console.warn("AI TIMEOUT - FALLBACK TRIGGERED");
-            }
-
-            if (retryCount < 1 && err.name !== 'AbortError') {
-                console.log("AI RETRYING...");
-                return runAIOptimize(retryCount + 1);
-            }
-            
-            return generateNativeFallback(title, description);
+            });
         }
-    };
 
-    const finalResult = await runAIOptimize();
-    return res.json(finalResult);
+        // If Gemini returns an error (like 429), propagate it so frontend knows
+        if (rawData.error) {
+            console.error("GEMINI API ERROR:", rawData.error.message);
+            return res.json({
+                success: false,
+                error: rawData.error.message,
+                status: rawData.error.status,
+                data: generateNativeFallback(title, description).data
+            });
+        }
+
+        throw new Error("MALFORMED_RESPONSE");
+
+    } catch (err) {
+        console.error("GEMINI CRITICAL FAULT:", err.message);
+        return res.json(generateNativeFallback(title, description));
+    }
 });
 
 // Mount Router
