@@ -49,7 +49,62 @@ const EbayListingBuilder = () => {
     const [description, setDescription] = useState(cjProduct?.description || "");
     const [tags, setTags] = useState([]);
     const [isOptimizing, setIsOptimizing] = useState(false);
-    const [optimizationError, setOptimizationError] = useState(null)    // SEO ENGINE TRIGGER (TAB 1)
+    const [optimizationError, setOptimizationError] = useState(null);
+
+    // 💰 PRICING & VARIANTS STATE (TAB 2)
+    const [variants, setVariants] = useState([]);
+    const [bulkPrice, setBulkPrice] = useState("");
+    const [bulkInventory, setBulkInventory] = useState("");
+
+    // Initialize Variants from CJ Product
+    useEffect(() => {
+        if (cjProduct?.variants) {
+            const initialVariants = cjProduct.variants.map(v => {
+                const cjPrice = parseFloat(v.sellPrice || v.variantPrice || 0);
+                const ebayPrice = targetPrice || (cjPrice * 2); // Default 2x if no target
+                
+                return calculateMetrics({
+                    name: v.variantKey || v.variantStandardEn || v.variantNameEn || "Standard",
+                    sku: v.skuCode || v.variantSku || "N/A",
+                    cj_price: cjPrice,
+                    ebay_price: ebayPrice,
+                    inventory: 10
+                });
+            });
+            setVariants(initialVariants);
+        }
+    }, [cjProduct, targetPrice]);
+
+    // Metric Calculation Logic
+    function calculateMetrics(v) {
+        const ebayPrice = parseFloat(v.ebay_price) || 0;
+        const cjPrice = parseFloat(v.cj_price) || 0;
+        const fees = ebayPrice * 0.12;
+        const profit = ebayPrice - cjPrice - fees;
+        const rio = cjPrice > 0 ? (profit / cjPrice) * 100 : 0;
+
+        return {
+            ...v,
+            profit: parseFloat(profit.toFixed(2)),
+            rio: parseFloat(rio.toFixed(1))
+        };
+    }
+
+    const handleUpdateVariant = (index, field, value) => {
+        setVariants(prev => {
+            const next = [...prev];
+            next[index] = calculateMetrics({ ...next[index], [field]: value });
+            return next;
+        });
+    };
+
+    const handleApplyBulk = () => {
+        setVariants(prev => prev.map(v => calculateMetrics({
+            ...v,
+            ebay_price: bulkPrice !== "" ? parseFloat(bulkPrice) : v.ebay_price,
+            inventory: bulkInventory !== "" ? parseInt(bulkInventory) : v.inventory
+        })));
+    };
     const handleSEOOptimize = async () => {
         if (!cjProduct) return;
         setIsOptimizing(true);
@@ -308,7 +363,137 @@ const EbayListingBuilder = () => {
                         </div>
                     )}
 
-                    {activeTab > 1 && (
+                    {activeTab === 2 && (
+                        <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Pricing & Inventory</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Adjust margins and stock levels across all variations</p>
+                                </div>
+                                {targetPrice && (
+                                    <div className="px-5 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Suggested Market Price</p>
+                                        <p className="text-sm font-black text-indigo-600">${parseFloat(targetPrice).toFixed(2)}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* BULK ACTIONS BAR */}
+                            <div className="p-8 bg-slate-950 rounded-[2.5rem] shadow-xl shadow-slate-200">
+                                <div className="flex items-end gap-6">
+                                    <div className="flex-1 space-y-3">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bulk eBay Price ($)</label>
+                                        <input 
+                                            type="number"
+                                            value={bulkPrice}
+                                            onChange={(e) => setBulkPrice(e.target.value)}
+                                            placeholder="Set all prices..."
+                                            className="w-full bg-slate-900 border-none rounded-xl px-5 py-4 text-white text-sm font-bold focus:ring-2 ring-indigo-500/50 outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex-1 space-y-3">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bulk Inventory</label>
+                                        <input 
+                                            type="number"
+                                            value={bulkInventory}
+                                            onChange={(e) => setBulkInventory(e.target.value)}
+                                            placeholder="Set all stock..."
+                                            className="w-full bg-slate-900 border-none rounded-xl px-5 py-4 text-white text-sm font-bold focus:ring-2 ring-indigo-500/50 outline-none"
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={handleApplyBulk}
+                                        className="px-10 py-4 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-lg active:scale-95"
+                                    >
+                                        Apply to All
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* VARIANT TABLE */}
+                            <div className="overflow-hidden border border-slate-100 rounded-[2rem] bg-slate-50/50">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-white border-b border-slate-100">
+                                            <th className="px-8 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Variant / SKU</th>
+                                            <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">CJ Cost</th>
+                                            <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">eBay Price</th>
+                                            <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Stock</th>
+                                            <th className="px-6 py-5 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Profit</th>
+                                            <th className="px-8 py-5 text-right text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">ROI %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {variants.map((v, idx) => (
+                                            <tr key={idx} className="group hover:bg-white transition-colors">
+                                                <td className="px-8 py-6">
+                                                    <p className="text-xs font-black text-slate-900 uppercase pr-4">{v.name}</p>
+                                                    <p className="text-[9px] font-bold text-slate-400 mt-1">{v.sku}</p>
+                                                </td>
+                                                <td className="px-6 py-6 text-xs font-bold text-slate-500">
+                                                    ${v.cj_price.toFixed(2)}
+                                                </td>
+                                                <td className="px-6 py-6">
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">$</span>
+                                                        <input 
+                                                            type="number"
+                                                            value={v.ebay_price}
+                                                            onChange={(e) => handleUpdateVariant(idx, 'ebay_price', e.target.value)}
+                                                            className={cn(
+                                                                "w-24 pl-6 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-black outline-none focus:border-indigo-500 transition-all",
+                                                                v.ebay_price < v.cj_price && "border-rose-300 bg-rose-50 text-rose-600"
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    {v.ebay_price < v.cj_price && (
+                                                        <p className="text-[8px] font-black text-rose-500 uppercase mt-1">Loss Warning</p>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-6">
+                                                    <input 
+                                                        type="number"
+                                                        value={v.inventory}
+                                                        onChange={(e) => handleUpdateVariant(idx, 'inventory', e.target.value)}
+                                                        className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-black outline-none focus:border-indigo-500 transition-all"
+                                                    />
+                                                </td>
+                                                <td className="px-6 py-6">
+                                                    <span className={cn(
+                                                        "text-xs font-black",
+                                                        v.profit < 0 ? "text-rose-600" : "text-slate-900"
+                                                    )}>
+                                                        ${v.profit.toFixed(2)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <span className={cn(
+                                                        "px-3 py-1 rounded-full text-[10px] font-black",
+                                                        v.rio > 50 ? "bg-emerald-100 text-emerald-700" : 
+                                                        v.rio < 0 ? "bg-rose-100 text-rose-700" : 
+                                                        "bg-slate-100 text-slate-600"
+                                                    )}>
+                                                        {v.cj_price > 0 ? `${v.rio}%` : "N/A"}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="pt-10 flex justify-between">
+                                <button onClick={() => setActiveTab(1)} className="px-8 py-4 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                                    Back to Title
+                                </button>
+                                <button onClick={() => setActiveTab(3)} className="px-12 py-5 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-4 hover:bg-indigo-600 transition-all shadow-xl group">
+                                    Images <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab > 2 && (
                         <div className="h-full flex flex-col items-center justify-center gap-6 text-center">
                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                                 {tabs.find(t => t.id === activeTab)?.icon}
