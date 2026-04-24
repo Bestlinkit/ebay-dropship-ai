@@ -564,15 +564,24 @@ app.post('/api/ai/optimize', async (req, res) => {
         // STEP 7: TAGS
         const tags = seoEngine.generateTags(keywords);
 
+        // STEP 8: FINAL VALIDATION (v12.0)
+        const validation = seoEngine.validateFinalOutput({
+            category: classification.category,
+            titles: finalTitles,
+            tags: tags
+        });
+
+        if (!validation.valid) {
+            return res.json({ success: false, status: "FAILED", reason: validation.reason });
+        }
+
         return res.json({
             success: true,
             data: {
-                titles: finalTitles, // Now [{text, score}]
-                description: cleanDesc,
-                tags: tags,
                 category: { id: "0", name: classification.category },
-                context: classification.product_type,
-                mode: "DETERMINISTIC_PREMIUM_V11"
+                titles: finalTitles,
+                tags: tags,
+                description: cleanDesc
             }
         });
     } catch (err) {
