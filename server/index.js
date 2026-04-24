@@ -452,7 +452,7 @@ cjRouter.post('/freight', async (req, res) => {
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// 🤖 GEMINI AI OPTIMIZATION (v2.0 - Official SDK Mode)
+// 🤖 GEMINI AI OPTIMIZATION (v2.1 - Resilient SDK Mode)
 app.post('/api/gemini', async (req, res) => {
     console.log("🤖 AI Optimization Request Received (SDK Mode)");
     try {
@@ -467,7 +467,25 @@ app.post('/api/gemini', async (req, res) => {
         const genAI = new GoogleGenerativeAI(GEMINI_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const result = await model.generateContent(prompt);
+        // 🔄 RESILIENCE LAYER: Retry loop for unstable networks
+        let result;
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        while (attempts < maxAttempts) {
+            try {
+                attempts++;
+                console.log(`[AI SDK] Handshake Attempt ${attempts}/${maxAttempts}...`);
+                result = await model.generateContent(prompt);
+                break; // Success!
+            } catch (err) {
+                console.error(`[AI SDK] Attempt ${attempts} failed:`, err.message);
+                if (attempts >= maxAttempts) throw err;
+                // Wait 1s before retry
+                await new Promise(r => setTimeout(r, 1000));
+            }
+        }
+
         const response = await result.response;
         const rawText = response.text();
         
@@ -494,8 +512,8 @@ app.post('/api/gemini', async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Gemini SDK Error:", error.message);
-        res.status(500).json({ error: "AI Optimization Failed", detail: error.message });
+        console.error("Gemini SDK Final Failure:", error.message);
+        res.status(500).json({ error: "AI Optimization Failed (Network Instability)", detail: error.message });
     }
 });
 
