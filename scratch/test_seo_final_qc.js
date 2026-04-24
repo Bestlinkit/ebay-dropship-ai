@@ -13,8 +13,6 @@ async function testSEOHardening() {
         console.log(data.data.titles);
         console.log("=== TAGS ===");
         console.log(data.data.tags);
-        console.log("=== DESCRIPTION ===");
-        console.log(data.data.description);
     } catch (e) {
         console.error(e.message);
     }

@@ -1,14 +1,25 @@
 /**
- * 🚀 eBay SEO Engine (Deterministic + Market-Driven)
+ * 🚀 eBay SEO Engine (Deterministic + Market-Driven) v9.4
  * No AI Dependency. Pure Logic + Real Market Data.
  */
 
-const STOPWORDS = new Set([
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 'in', 'is', 'it', 'its',
-    'of', 'on', 'that', 'the', 'to', 'was', 'were', 'will', 'with', 'the', 'this', 'but', 'not', 'or',
-    'if', 'then', 'else', 'each', 'every', 'any', 'all', 'some', 'one', 'two', 'three', 'four', 'five',
-    'best', 'cheap', 'hot', 'sale', 'official', 'original', 'certified', 'genuine', 'new', 'sealed'
-]);
+const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china']);
+
+const AUDIENCES = ['men', 'women', 'unisex', 'kids', 'adults', 'toddlers', 'babies'];
+const MATERIALS = ['cotton', 'polyester', 'silk', 'linen', 'leather', 'denim', 'wool', 'acrylic', 'nylon', 'spandex', 'mesh'];
+const STYLES = ['casual', 'formal', 'vintage', 'modern', 'streetwear', 'classic', 'luxury', 'oversized', 'slim fit', 'loose fit'];
+const USE_CASES = ['summer', 'winter', 'running', 'daily', 'party', 'outdoor', 'indoor', 'office', 'sports', 'beach'];
+
+const NORMALIZATION_MAP = {
+    'mens': 'men',
+    'womens': 'women',
+    'tshirt': 't-shirt',
+    'tee': 't-shirt',
+    'shortsleeved': 'short sleeve',
+    'longsleeved': 'long sleeve',
+    'plus-size': 'plus size',
+    'plus': 'plus size'
+};
 
 const CATEGORY_MAP = {
     'shoes': 'Men\'s Shoes',
@@ -21,32 +32,15 @@ const CATEGORY_MAP = {
     'speaker': 'Speakers'
 };
 
-const GARBAGE_TOKENS = new Set(['pbproduct', 'undefined', 'null', 'nan', 'placeholder', 'product', 'item', 'br', 'nbsp', 'html']);
+const GARBAGE_TOKENS = new Set(['br', 'nbsp', 'amp', 'nbsp;', 'undefined', 'null', 'nan', 'pbproduct', 'url', 'img', 'width', 'height']);
 const FLUFF_PHRASES = [/premium quality/gi, /best product/gi, /high quality/gi, /top rated/gi, /best seller/gi, /limited edition/gi];
 
-const NORMALIZATION_MAP = {
-    'tshirt': 't-shirt',
-    'shortsleeved': 'short sleeve',
-    'mens': 'men',
-    'womens': 'women',
-    'longsleeved': 'long sleeve',
-    'tee': 't-shirt',
-    't-shirt': 't-shirt'
-};
-
-const AUDIENCES = ['men', 'women', 'unisex', 'kids', 'baby', 'adult', 'male', 'female', 'girls', 'boys'];
-const MATERIALS = ['cotton', 'polyester', 'linen', 'silk', 'leather', 'denim', 'mesh', 'wool', 'canvas'];
-const STYLES = ['casual', 'summer', 'winter', 'streetwear', 'vintage', 'classic', 'modern', 'oversized', 'slim', 'sport'];
-
-// --- UTILS: SANITIZATION & NORMALIZATION ---
+// --- UTILS ---
 
 function sanitizeText(text) {
     if (!text) return "";
-    // 1. Strip ALL HTML tags and image tags aggressively
     let clean = text.replace(/<[^>]*>?/gm, ' ');
-    // 2. Remove common HTML entities, artifacts, and technical jargon with STRICT word boundaries
     clean = clean.replace(/&nbsp;|\bbr\b|\bnbsp\b|&amp;|&gt;|&lt;|http\S+|\bundefined\b|\bnull\b|\bnan\b|\bpbproduct\b/gi, ' ');
-    // 3. Normalize whitespace
     return clean.replace(/\s+/g, ' ').trim();
 }
 
@@ -55,39 +49,19 @@ function normalizeWord(word) {
     return NORMALIZATION_MAP[low] || low;
 }
 
-// --- PHASE 1: DETERMINISTIC ENGINE ---
-
-/**
- * Clean title: remove filler, remove duplicates, trim.
- */
-function cleanTitle(title) {
-    if (!title) return "";
-    let clean = sanitizeText(title).toLowerCase();
-    
-    // Remove Fluff
-    FLUFF_PHRASES.forEach(regex => {
-        clean = clean.replace(regex, '');
-    });
-
-    let words = clean.split(/\s+/);
-    let seen = new Set();
-    let result = [];
-
-    words.forEach(word => {
-        let w = word.replace(/[^a-z0-9-]/g, '');
-        let norm = normalizeWord(w);
-        if (norm.length > 2 && !STOPWORDS.has(norm) && !GARBAGE_TOKENS.has(norm) && !seen.has(norm)) {
-            result.push(norm);
-            seen.add(norm);
-        }
-    });
-
-    return result.join(' ').substring(0, 80);
+function removeDuplicates(str) {
+    const words = str.split(/\s+/);
+    const seen = new Set();
+    return words.filter(w => {
+        const low = w.toLowerCase();
+        if (seen.has(low)) return false;
+        seen.add(low);
+        return true;
+    }).join(' ');
 }
 
-/**
- * Extract meaningful keywords (Nouns/Adjectives)
- */
+// --- ENGINE ---
+
 function extractKeywords(title, description) {
     const text = (title + " " + (description || "")).toLowerCase();
     const sanitized = sanitizeText(text);
@@ -107,89 +81,57 @@ function extractKeywords(title, description) {
     return keywords;
 }
 
-/**
- * Generate 3 Angle-Specific SEO titles (Generic / Intent / Trend)
- */
 function generateDeterministicTitles(keywords) {
     if (keywords.length === 0) return ["New Product Listing"];
 
     const audience = keywords.find(k => AUDIENCES.includes(k)) || "Unisex";
     const material = keywords.find(k => MATERIALS.includes(k)) || "";
     const style = keywords.find(k => STYLES.includes(k)) || "Casual";
-    const type = keywords[0] || "Item";
-    const feature = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && k !== type) || "";
-    const intent = keywords.find(k => ['comfortable', 'durable', 'lightweight', 'breathable', 'portable'].includes(k)) || "Professional";
+    const useCase = keywords.find(k => USE_CASES.includes(k)) || "Daily";
+    const type = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k)) || "Item";
 
-    const titles = [
-        // Angle 1: Generic Search ([Audience] [Material] [Product])
-        `${audience} ${material} ${type} ${feature} ${style}`.trim(),
-        
-        // Angle 2: Buyer Intent ([Feature] [Product] for [Audience] [Intent])
-        `${intent} ${type} for ${audience} ${style} ${feature}`.trim(),
-        
-        // Angle 3: Seasonal/Trend ([Trend] [Audience] [Material] [Product])
-        `Summer ${style} ${audience} ${material} ${type} ${feature}`.trim()
-    ];
+    const title1 = `${audience} ${material} ${type} ${style} ${useCase}`.trim();
+    const intentFeature = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k) && k !== type) || "";
+    const title2 = `${audience} ${type} ${intentFeature} ${style} ${useCase}`.trim();
+    const title3 = `${material} ${type} for ${audience} ${style} ${useCase}`.trim();
 
-    return titles.map(t => {
-        let words = t.split(/\s+/);
-        let seen = new Set();
-        let unique = [];
-        words.forEach(w => {
-            let lower = w.toLowerCase();
-            if (!seen.has(lower)) {
-                unique.push(w);
-                seen.add(lower);
-            }
-        });
-        
-        let cleaned = unique.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        return cleaned.substring(0, 80);
+    return [title1, title2, title3].map(t => {
+        const deDuped = removeDuplicates(t);
+        const capitalized = deDuped.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        return capitalized.substring(0, 80);
     });
 }
 
-/**
- * Generate 8-12 Long-tail Tags (3-5 words)
- */
 function generateTags(keywords) {
     const tags = new Set();
-    const audience = keywords.find(k => AUDIENCES.includes(k)) || "Unisex";
-    const type = keywords[0] || "Item";
+    const audience = keywords.find(k => AUDIENCES.includes(k)) || "unisex";
+    const type = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k)) || "item";
     const material = keywords.find(k => MATERIALS.includes(k)) || "";
-    const style = keywords.find(k => STYLES.includes(k)) || "Casual";
+    const style = keywords.find(k => STYLES.includes(k)) || "casual";
+    const useCase = keywords.find(k => USE_CASES.includes(k)) || "daily";
 
-    // Build Long-tail phrases (3-5 words)
-    if (audience && type) {
-        tags.add(`${audience} ${material} ${type}`.trim());
-        tags.add(`${style} ${audience} ${type}`.trim());
-        tags.add(`comfortable ${audience} ${type} wear`.trim());
-    }
-    
-    if (material && type) {
-        tags.add(`${material} ${style} ${type}`.trim());
-        tags.add(`breathable ${material} ${type}`.trim());
-    }
+    const combinations = [
+        `${material} ${type}`,
+        `${audience} ${type}`,
+        `${style} ${type}`,
+        `${useCase} ${type}`,
+        `${audience} ${style} ${type}`,
+        `${material} ${style} ${type}`,
+        `${useCase} casual ${type}`,
+        `${audience} ${useCase} wear`
+    ];
 
-    // Add search-friendly intent phrases
-    tags.add(`high quality ${type} for ${audience}`.trim());
-    tags.add(`${style} ${type} for summer wear`.trim());
-
-    // Mix in some secondary features
-    keywords.slice(2, 6).forEach(k => {
-        if (k.length > 3 && !GARBAGE_TOKENS.has(k)) {
-            tags.add(`${audience} ${k} ${type}`.trim());
+    combinations.forEach(c => {
+        const words = c.split(' ').filter(w => w !== "");
+        const uniqueWords = new Set(words);
+        if (uniqueWords.size === words.length && words.length >= 2) {
+            tags.add(c.trim());
         }
     });
 
-    return Array.from(tags)
-        .filter(t => !t.match(/br|nbsp|html|undefined/i) && t.split(' ').length >= 2)
-        .slice(0, 12)
-        .map(t => t.toLowerCase());
+    return Array.from(tags).slice(0, 12).map(t => t.toLowerCase());
 }
 
-/**
- * Clean description into structured PLAIN TEXT (v3.1)
- */
 function cleanDescription(html, titleKeywords = []) {
     if (!html) return "Product Overview:\nNo description available.";
 
@@ -209,10 +151,9 @@ function cleanDescription(html, titleKeywords = []) {
     
     const overview = sentences.length > 0 
         ? sentences.slice(0, 2).join('. ') + '.'
-        : `This high-quality ${attributes.Style || ''} ${attributes.Material || ''} product is designed for professional use and daily comfort.`;
+        : `This ${attributes.Material || ''} ${titleKeywords[0] || 'item'} is perfect for ${attributes.Style || 'daily'} wear.`;
 
     const features = sentences.slice(2, 7);
-    if (attributes.Material) features.unshift(`${attributes.Material.charAt(0).toUpperCase() + attributes.Material.slice(1)} fabric for premium durability`);
 
     let output = `Product Overview:\n${overview}\n\n`;
     output += `Key Features:\n${features.map(f => `- ${f}`).join('\n')}\n\n`;
@@ -222,26 +163,38 @@ function cleanDescription(html, titleKeywords = []) {
         output += `Specifications:\n${specs.map(([k, v]) => `- ${k}: ${v.charAt(0).toUpperCase() + v.slice(1)}`).join('\n')}\n\n`;
     }
 
-    output += `Package Includes:\n- 1 x ${titleKeywords[0] || 'Product'} Item\n- Professional Packaging`;
+    output += `Package Includes:\n- 1 x ${titleKeywords[0] || 'Product'} Item\n- Secure Packaging`;
 
     return output.trim();
 }
 
-// --- PHASE 2: ADVANCED SEO ENGINE (EBAY-DRIVEN) ---
+function scoreTitle(title, marketKeywords = []) {
+    let score = 75;
+    const words = title.toLowerCase().split(/\s+/);
+    const seen = new Set();
 
-/**
- * Build keyword frequency map from eBay titles
- */
-function buildFrequencyMap(ebayTitles) {
+    words.forEach(w => {
+        if (seen.has(w)) score -= 20;
+        seen.add(w);
+    });
+
+    marketKeywords.forEach(k => {
+        if (title.toLowerCase().includes(k.toLowerCase())) score += 5;
+    });
+
+    if (AUDIENCES.some(a => title.toLowerCase().includes(a))) score += 5;
+    if (MATERIALS.some(m => title.toLowerCase().includes(m))) score += 5;
+
+    return Math.min(100, Math.max(0, score));
+}
+
+function buildFrequencyMap(titles) {
     const map = {};
-    ebayTitles.forEach(title => {
-        const sanitized = sanitizeText(title);
-        const words = sanitized.toLowerCase().split(/\s+/);
-        words.forEach(word => {
-            let clean = word.replace(/[^a-z0-9-]/g, '');
-            let norm = normalizeWord(clean);
-            if (norm && !STOPWORDS.has(norm) && !GARBAGE_TOKENS.has(norm)) {
-                map[norm] = (map[norm] || 0) + 1;
+    titles.forEach(t => {
+        const words = sanitizeText(t).toLowerCase().split(/\s+/);
+        words.forEach(w => {
+            if (w.length > 3 && !STOPWORDS.has(w)) {
+                map[w] = (map[w] || 0) + 1;
             }
         });
     });
@@ -251,38 +204,6 @@ function buildFrequencyMap(ebayTitles) {
         .map(e => e[0]);
 }
 
-/**
- * Score each title (0-100)
- */
-function scoreTitle(title, demandKeywords) {
-    let score = 0;
-    const words = title.toLowerCase().split(/\s+/);
-    
-    // Keyword relevance (40 pts)
-    const matchCount = words.filter(w => demandKeywords.includes(normalizeWord(w.replace(/[^a-z0-9-]/g, '')))).length;
-    score += Math.min(40, matchCount * 10);
-
-    // Readability & Diversity (20 pts)
-    const seen = new Set();
-    const hasDupes = words.some(w => seen.has(w) || (seen.add(w) && false));
-    if (!hasDupes) score += 20;
-
-    // Structural Check (20 pts)
-    if (words.length >= 5 && words.length <= 10) score += 20;
-
-    // Audience Check (20 pts)
-    const hasAudience = words.some(w => AUDIENCES.includes(w));
-    if (hasAudience) score += 20;
-
-    // Penalize unnatural phrasing (missing spaces, artifacts)
-    if (title.match(/br|nbsp|undefined|null/i)) score -= 50;
-
-    return Math.max(0, score);
-}
-
-/**
- * Auto Category Matching
- */
 function getCategoryFallback(keywords) {
     for (const [key, val] of Object.entries(CATEGORY_MAP)) {
         if (keywords.includes(key)) return val;
@@ -290,16 +211,10 @@ function getCategoryFallback(keywords) {
     return "Miscellaneous";
 }
 
-/**
- * Final Quality Filter
- */
 function qualityFilter(titles, scores, keywords, demandKeywords) {
     let results = titles.map((t, i) => ({ text: t, score: scores[i] }));
-    
-    // Filter out obvious failures
     results = results.filter(res => !res.text.match(/undefined|null|br|nbsp/i));
 
-    // 1. Auto-Rewrite low scores (< 70)
     results = results.map(res => {
         if (res.score < 70) {
             const audience = keywords.find(k => AUDIENCES.includes(k)) || "Unisex";
@@ -308,15 +223,14 @@ function qualityFilter(titles, scores, keywords, demandKeywords) {
             const type = keywords[0] || "Item";
             const feature = keywords.slice(1, 3).join(' ');
             
-            const rewritten = `${audience} ${material} ${type} ${feature} ${style}`.split(' ')
-                .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').substring(0, 80);
+            const rewritten = removeDuplicates(`${audience} ${material} ${type} ${feature} ${style}`)
+                .split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').substring(0, 80);
             
             return { text: rewritten, score: scoreTitle(rewritten, demandKeywords) + 10 };
         }
         return res;
     });
 
-    // 2. Ensure at least one strong title
     results.sort((a, b) => b.score - a.score);
     if (results.length > 0 && results[0].score < 75) {
         results[0].score = 76; 
@@ -326,13 +240,12 @@ function qualityFilter(titles, scores, keywords, demandKeywords) {
 }
 
 module.exports = {
-    cleanTitle,
     extractKeywords,
     generateDeterministicTitles,
     generateTags,
     cleanDescription,
-    buildFrequencyMap,
     scoreTitle,
+    buildFrequencyMap,
     getCategoryFallback,
     qualityFilter,
     sanitizeText,
