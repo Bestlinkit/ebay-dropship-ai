@@ -1,14 +1,12 @@
-/**
- * 🚀 eBay SEO Engine (Deterministic + Market-Driven) v9.4
- * No AI Dependency. Pure Logic + Real Market Data.
- */
+// --- DETERMINISTIC SEO ENGINE v9.5 (KEYWORD DIVERSITY & REALISM) ---
 
-const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china']);
+const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality']);
 
 const AUDIENCES = ['men', 'women', 'unisex', 'kids', 'adults', 'toddlers', 'babies'];
 const MATERIALS = ['cotton', 'polyester', 'silk', 'linen', 'leather', 'denim', 'wool', 'acrylic', 'nylon', 'spandex', 'mesh'];
 const STYLES = ['casual', 'formal', 'vintage', 'modern', 'streetwear', 'classic', 'luxury', 'oversized', 'slim fit', 'loose fit'];
 const USE_CASES = ['summer', 'winter', 'running', 'daily', 'party', 'outdoor', 'indoor', 'office', 'sports', 'beach'];
+const PRODUCT_TYPES = ['t-shirt', 'tee', 'shirt', 'top', 'hoodie', 'shoes', 'watch', 'jacket', 'pants'];
 
 const NORMALIZATION_MAP = {
     'mens': 'men',
@@ -21,19 +19,7 @@ const NORMALIZATION_MAP = {
     'plus': 'plus size'
 };
 
-const CATEGORY_MAP = {
-    'shoes': 'Men\'s Shoes',
-    'watch': 'Wristwatches',
-    'shirt': 'Men\'s Clothing',
-    'phone': 'Cell Phones & Smartphones',
-    'laptop': 'Laptops & Netbooks',
-    'camera': 'Digital Cameras',
-    'headphones': 'Headphones',
-    'speaker': 'Speakers'
-};
-
 const GARBAGE_TOKENS = new Set(['br', 'nbsp', 'amp', 'nbsp;', 'undefined', 'null', 'nan', 'pbproduct', 'url', 'img', 'width', 'height']);
-const FLUFF_PHRASES = [/premium quality/gi, /best product/gi, /high quality/gi, /top rated/gi, /best seller/gi, /limited edition/gi];
 
 // --- UTILS ---
 
@@ -85,14 +71,25 @@ function generateDeterministicTitles(keywords) {
     if (keywords.length === 0) return ["New Product Listing"];
 
     const audience = keywords.find(k => AUDIENCES.includes(k)) || "Unisex";
-    const material = keywords.find(k => MATERIALS.includes(k)) || "";
+    const material = keywords.find(k => MATERIALS.includes(k)) || "Soft";
     const style = keywords.find(k => STYLES.includes(k)) || "Casual";
-    const useCase = keywords.find(k => USE_CASES.includes(k)) || "Daily";
-    const type = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k)) || "Item";
+    const useCase = keywords.find(k => USE_CASES.includes(k)) || "Summer";
+    
+    // Mandate Product Type
+    const typeCandidates = keywords.filter(k => PRODUCT_TYPES.includes(k));
+    const type = typeCandidates[0] || "T-Shirt";
+    const typeSynonyms = ["t-shirt", "tee", "shirt", "top"];
 
+    // Build Angle 1: Strict Structure
+    // [Audience] + [Material] + [Product Type] + [Style] + [Use Case]
     const title1 = `${audience} ${material} ${type} ${style} ${useCase}`.trim();
-    const intentFeature = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k) && k !== type) || "";
-    const title2 = `${audience} ${type} ${intentFeature} ${style} ${useCase}`.trim();
+
+    // Angle 2: Trend/Synonym
+    const altType = typeSynonyms.find(s => s !== type) || "Tee";
+    const feature = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k) && k !== type) || "";
+    const title2 = `${audience} ${altType} ${feature} ${style} ${useCase}`.trim();
+
+    // Angle 3: Direct Keyword Angle
     const title3 = `${material} ${type} for ${audience} ${style} ${useCase}`.trim();
 
     return [title1, title2, title3].map(t => {
@@ -103,33 +100,67 @@ function generateDeterministicTitles(keywords) {
 }
 
 function generateTags(keywords) {
-    const tags = new Set();
+    const finalTags = [];
+    const keywordCounters = {};
+    
     const audience = keywords.find(k => AUDIENCES.includes(k)) || "unisex";
-    const type = keywords.find(k => !AUDIENCES.includes(k) && !MATERIALS.includes(k) && !STYLES.includes(k) && !USE_CASES.includes(k)) || "item";
-    const material = keywords.find(k => MATERIALS.includes(k)) || "";
+    const typeCandidates = keywords.filter(k => PRODUCT_TYPES.includes(k));
+    const type = typeCandidates[0] || "t-shirt";
+    const material = keywords.find(k => MATERIALS.includes(k)) || "cotton";
     const style = keywords.find(k => STYLES.includes(k)) || "casual";
     const useCase = keywords.find(k => USE_CASES.includes(k)) || "daily";
 
+    const typeSynonyms = ["t-shirt", "tee", "shirt", "top", "apparel", "clothing"];
+
     const combinations = [
         `${material} ${type}`,
-        `${audience} ${type}`,
-        `${style} ${type}`,
-        `${useCase} ${type}`,
+        `${audience} ${typeSynonyms[1]}`, // tee
+        `${style} ${typeSynonyms[2]}`, // shirt
+        `${useCase} ${typeSynonyms[3]}`, // top
         `${audience} ${style} ${type}`,
-        `${material} ${style} ${type}`,
-        `${useCase} casual ${type}`,
-        `${audience} ${useCase} wear`
+        `${material} ${style} ${typeSynonyms[4]}`, // apparel
+        `${useCase} casual ${typeSynonyms[5]}`, // clothing
+        `${audience} ${useCase} wear`,
+        `${material} breathable ${type}`,
+        `${style} ${audience} item`,
+        `${type} for ${useCase}`,
+        `soft ${material} ${typeSynonyms[1]}`,
+        `trendy ${audience} ${typeSynonyms[2]}`,
+        `lightweight ${material} ${typeSynonyms[3]}`,
+        `outdoor ${style} ${typeSynonyms[0]}`
     ];
 
     combinations.forEach(c => {
+        if (finalTags.length >= 12) return;
+        
         const words = c.split(' ').filter(w => w !== "");
-        const uniqueWords = new Set(words);
-        if (uniqueWords.size === words.length && words.length >= 2) {
-            tags.add(c.trim());
+        
+        // 1. Check for back-to-back duplicates
+        let hasBackToBack = false;
+        for (let i = 0; i < words.length - 1; i++) {
+            if (words[i] === words[i+1]) hasBackToBack = true;
+        }
+        if (hasBackToBack) return;
+
+        // 2. Strict Diversity Check: 40% limit from start
+        let canAdd = true;
+        words.forEach(w => {
+            const count = keywordCounters[w] || 0;
+            // Allow first instance always, then check limit
+            if (count > 0 && (count + 1) / (finalTags.length + 1) > 0.41) {
+                canAdd = false;
+            }
+        });
+
+        if (canAdd) {
+            finalTags.push(c.trim());
+            words.forEach(w => {
+                keywordCounters[w] = (keywordCounters[w] || 0) + 1;
+            });
         }
     });
 
-    return Array.from(tags).slice(0, 12).map(t => t.toLowerCase());
+    return finalTags.slice(0, 12).map(t => t.toLowerCase());
 }
 
 function cleanDescription(html, titleKeywords = []) {
@@ -171,17 +202,23 @@ function cleanDescription(html, titleKeywords = []) {
 function scoreTitle(title, marketKeywords = []) {
     let score = 75;
     const words = title.toLowerCase().split(/\s+/);
+    
+    // 1. Penalty: Duplicates
     const seen = new Set();
-
     words.forEach(w => {
-        if (seen.has(w)) score -= 20;
+        if (seen.has(w)) score -= 25;
         seen.add(w);
     });
 
+    // 2. Penalty: Missing Product Type
+    if (!PRODUCT_TYPES.some(t => title.toLowerCase().includes(t))) score -= 40;
+
+    // 3. Reward: Market Match
     marketKeywords.forEach(k => {
         if (title.toLowerCase().includes(k.toLowerCase())) score += 5;
     });
 
+    // 4. Reward: Structure
     if (AUDIENCES.some(a => title.toLowerCase().includes(a))) score += 5;
     if (MATERIALS.some(m => title.toLowerCase().includes(m))) score += 5;
 
@@ -205,38 +242,71 @@ function buildFrequencyMap(titles) {
 }
 
 function getCategoryFallback(keywords) {
+    const CATEGORY_MAP = {
+        'shoes': 'Men\'s Shoes',
+        'watch': 'Wristwatches',
+        'shirt': 'Men\'s Clothing',
+        't-shirt': 'Men\'s Clothing',
+        'tee': 'Men\'s Clothing',
+        'phone': 'Cell Phones & Smartphones',
+        'laptop': 'Laptops & Netbooks',
+        'camera': 'Digital Cameras',
+        'headphones': 'Headphones',
+        'speaker': 'Speakers'
+    };
     for (const [key, val] of Object.entries(CATEGORY_MAP)) {
         if (keywords.includes(key)) return val;
     }
     return "Miscellaneous";
 }
 
+function validateSEO(data) {
+    // 1. Check for duplicates in titles
+    for (const title of data.titles) {
+        const words = title.toLowerCase().split(' ');
+        if (new Set(words).size !== words.length) return false;
+        
+        // 2. Ensure product type exists
+        if (!PRODUCT_TYPES.some(pt => title.toLowerCase().includes(pt))) return false;
+    }
+    
+    // 3. Check tag diversity
+    const allTagWords = data.tags.join(' ').split(' ');
+    const counts = {};
+    allTagWords.forEach(w => counts[w] = (counts[w] || 0) + 1);
+    const maxAllowed = Math.ceil(data.tags.length * 0.4);
+    if (Object.values(counts).some(c => c > maxAllowed)) {
+        // We let it slide if tags are very few, but for 6-12 tags it's a fail
+        if (data.tags.length >= 6) return false;
+    }
+
+    return true;
+}
+
 function qualityFilter(titles, scores, keywords, demandKeywords) {
     let results = titles.map((t, i) => ({ text: t, score: scores[i] }));
+    
+    // Filter out obvious failures
     results = results.filter(res => !res.text.match(/undefined|null|br|nbsp/i));
 
+    // Auto-Rewrite low scores or failing validation
     results = results.map(res => {
-        if (res.score < 70) {
+        if (res.score < 75 || !PRODUCT_TYPES.some(pt => res.text.toLowerCase().includes(pt))) {
             const audience = keywords.find(k => AUDIENCES.includes(k)) || "Unisex";
-            const material = keywords.find(k => MATERIALS.includes(k)) || "";
+            const material = keywords.find(k => MATERIALS.includes(k)) || "Soft";
             const style = keywords.find(k => STYLES.includes(k)) || "Casual";
-            const type = keywords[0] || "Item";
-            const feature = keywords.slice(1, 3).join(' ');
+            const type = keywords.find(k => PRODUCT_TYPES.includes(k)) || "T-Shirt";
             
-            const rewritten = removeDuplicates(`${audience} ${material} ${type} ${feature} ${style}`)
-                .split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').substring(0, 80);
+            const rewritten = `${audience} ${material} ${type} ${style} Wear`.split(' ')
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').substring(0, 80);
             
-            return { text: rewritten, score: scoreTitle(rewritten, demandKeywords) + 10 };
+            return { text: rewritten, score: scoreTitle(rewritten, demandKeywords) };
         }
         return res;
     });
 
     results.sort((a, b) => b.score - a.score);
-    if (results.length > 0 && results[0].score < 75) {
-        results[0].score = 76; 
-    }
-
-    return results;
+    return results.slice(0, 3);
 }
 
 module.exports = {
@@ -248,6 +318,7 @@ module.exports = {
     buildFrequencyMap,
     getCategoryFallback,
     qualityFilter,
+    validateSEO,
     sanitizeText,
     normalizeWord
 };

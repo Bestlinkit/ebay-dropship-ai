@@ -13,6 +13,16 @@ async function testSEOHardening() {
         console.log(data.data.titles);
         console.log("=== TAGS ===");
         console.log(data.data.tags);
+        
+        // Validation Checks
+        const hasTshirt = data.data.titles.every(t => t.toLowerCase().includes('shirt') || t.toLowerCase().includes('tee'));
+        console.log("Validation: All titles have product type:", hasTshirt);
+        
+        const allWords = data.data.tags.join(' ').split(' ');
+        const counts = {};
+        allWords.forEach(w => counts[w] = (counts[w] || 0) + 1);
+        const maxFreq = Math.max(...Object.values(counts));
+        console.log("Validation: Max keyword frequency in tags:", maxFreq, `(Total tags: ${data.data.tags.length})`);
     } catch (e) {
         console.error(e.message);
     }
