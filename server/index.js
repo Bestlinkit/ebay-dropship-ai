@@ -536,7 +536,7 @@ const getEbayAppToken = async () => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE v11.0 (PREMIUM PIPELINE)");
+    console.log("SEO ENGINE v12.0 (STRICT VALIDATION)");
     const { title, description } = req.body;
 
     try {
@@ -562,7 +562,7 @@ app.post('/api/ai/optimize', async (req, res) => {
         const cleanDesc = seoEngine.generateDescription(description, classification, keywords);
 
         // STEP 7: TAGS
-        const tags = seoEngine.generateTags(keywords);
+        const tags = seoEngine.generateTags(keywords, classification);
 
         // STEP 8: FINAL VALIDATION (v12.0)
         const validation = seoEngine.validateFinalOutput({
