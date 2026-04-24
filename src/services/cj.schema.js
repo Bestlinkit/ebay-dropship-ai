@@ -9,11 +9,25 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   // 1. SMART SANITIZER
   const cleanUrl = (url) => {
       if (!url) return null;
+      
+      // Handle potential stringified JSON arrays (CJ API quirk)
+      if (typeof url === 'string' && url.startsWith('[') && url.endsWith(']')) {
+          try {
+              const parsed = JSON.parse(url);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                  return cleanUrl(parsed[0]);
+              }
+          } catch (e) {
+              // Not JSON, continue
+          }
+      }
+
       if (typeof url !== 'string') {
           if (url.url) return cleanUrl(url.url);
           if (url.image) return cleanUrl(url.image);
           return null;
       }
+
       let s = url.trim();
       if (!s || s === "[object Object]") return null;
       
@@ -26,7 +40,6 @@ export function normalizeProduct(raw = {}, cjData = {}) {
       // Handle relative paths (e.g. 20240423/...)
       if (!s.startsWith('http')) {
           // If it's a relative path, prepend the primary CJ CDN
-          // We check for common image patterns or at least a slash
           if (s.includes('/') || s.includes('.')) {
               const cleanPath = s.startsWith('/') ? s.slice(1) : s;
               return `https://img.cjdropshipping.com/${cleanPath}`;
@@ -37,7 +50,10 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   };
 
   // 2. PARSE GALLERY
-  let gallery = p.productImageList || p.productImages || [];
+  // v6.3: Support productImageSet and bigImage
+  let gallery = p.productImageSet || p.productImageList || p.productImages || [];
+  
+  // Handle stringified JSON for gallery too
   if (typeof gallery === "string") {
       try {
           gallery = gallery.includes("[") ? JSON.parse(gallery) : gallery.split(",");
@@ -49,6 +65,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
 
   // 3. PRODUCT IMAGE RESOLUTION
   const image = 
+    cleanUrl(p.bigImage) || 
     cleanUrl(p.productImage) || 
     cleanUrl(p.product_image) || 
     cleanUrl(p.image) || 
@@ -70,7 +87,10 @@ export function normalizeProduct(raw = {}, cjData = {}) {
                 ? galleryArray.map(cleanUrl).filter(Boolean) 
                 : [image].filter(Boolean),
         variants: Array.isArray(p.skuList || p.variantList || p.skus || p.variants) 
-                ? (p.skuList || p.variantList || p.skus || p.variants) 
+                ? (p.skuList || p.variantList || p.skus || p.variants).map(v => ({
+                    ...v,
+                    variantImage: cleanUrl(v.variantImage || v.image || v.img)
+                }))
                 : [],
         variantCount: parseInt(p.variantCount || p.variantsNum || p.skuList?.length || p.variantList?.length || 0),
         price: parseFloat(p.sellPrice || p.price || p.lowPrice || 0),
