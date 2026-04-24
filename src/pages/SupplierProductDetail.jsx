@@ -11,11 +11,17 @@ import {
   Zap,
   Globe,
   Box,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles,
+  Trophy,
+  Tag,
+  Plus,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import cjService from '../services/cj.service';
 import { normalizeProduct } from '../services/cj.schema';
+import { optimizeListing } from '../services/aiOptimization.service';
 
 /**
  * 🔍 CJ DEEP DETAIL ENGINE (v6.0 - Full Hydration)
@@ -32,6 +38,11 @@ const SupplierProductDetail = () => {
     const [product, setProduct] = useState(normalizeProduct(preFetched, {}));
     const [loading, setLoading] = useState(true);
     const [selectedVariant, setSelectedVariant] = useState(null);
+
+    // AI OPTIMIZATION STATE
+    const [optimizedData, setOptimizedData] = useState(null);
+    const [selectedTitle, setSelectedTitle] = useState(null);
+    const [isOptimizing, setIsOptimizing] = useState(false);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -64,6 +75,85 @@ const SupplierProductDetail = () => {
     
     const shipping = cj.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
     const netProfit = (targetPrice > 0 && cjCost > 0) ? (targetPrice - (cjCost + parseFloat(shipping.cost ?? 0))) : null;
+
+    // AI OPTIMIZATION LOGIC
+    const handleOptimize = async () => {
+        setIsOptimizing(true);
+        
+        const productSnapshot = {
+            id: cj.id,
+            title: cj.name || "Unnamed Product",
+            description: cj.description || "",
+            images: cj.images || [],
+            variants: cj.variants || [],
+            price: cj.price || 0,
+        };
+
+        try {
+            const result = await optimizeListing(productSnapshot);
+            
+            // Safety: Ensure description is a string
+            const safeResult = {
+                ...result,
+                description: typeof result.description === 'string' ? result.description : JSON.stringify(result.description)
+            };
+
+            setOptimizedData(safeResult);
+
+            // Auto-select best title
+            const best = [...result.titles].sort((a, b) => b.score - a.score)[0];
+            setSelectedTitle(best?.text || cj.name);
+
+        } catch (err) {
+            console.error("AI Optimization Failed", err);
+            // Fallback or error state
+        } finally {
+            setIsOptimizing(false);
+        }
+    };
+
+    const handleAddTag = (e) => {
+        if (e.key === 'Enter' && e.target.value.trim()) {
+            const newTag = e.target.value.trim();
+            if (!optimizedData.tags.includes(newTag)) {
+                setOptimizedData({
+                    ...optimizedData,
+                    tags: [...optimizedData.tags, newTag]
+                });
+            }
+            e.target.value = '';
+        }
+    };
+
+    const handleRemoveTag = (tagToRemove) => {
+        setOptimizedData({
+            ...optimizedData,
+            tags: optimizedData.tags.filter(t => t !== tagToRemove)
+        });
+    };
+
+    const handleProceedToPricing = () => {
+        const productSnapshot = {
+            id: cj.id,
+            title: cj.name || "Unnamed Product",
+            description: cj.description || "",
+            images: cj.images || [],
+            variants: cj.variants || [],
+            price: cj.price || 0,
+        };
+
+        const finalListing = {
+            original: productSnapshot,
+            optimized: {
+                title: selectedTitle,
+                description: optimizedData.description,
+                tags: optimizedData.tags
+            }
+        };
+
+        console.log("🚀 FINAL LISTING PREPARED FOR PRICING:", finalListing);
+        // navigate('/pricing', { state: { finalListing } });
+    };
 
     return (
         <div className="max-w-[1400px] mx-auto px-6 pb-40 pt-10 animate-in fade-in duration-700">
@@ -258,12 +348,107 @@ const SupplierProductDetail = () => {
                         </div>
                     </div>
 
-                    {/* ACTION FOOTER */}
-                    <div className="pt-10">
-                        <button className="w-full py-10 bg-slate-950 text-white rounded-[3rem] text-sm font-black uppercase tracking-[0.25em] flex items-center justify-center gap-4 hover:bg-indigo-600 transition-all shadow-2xl group relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                            <Zap size={24} className="group-hover:animate-pulse text-yellow-400" /> Confirm & Push to eBay
-                        </button>
+                    {/* ACTION FOOTER / AI OPTIMIZATION INTERFACE */}
+                    <div className="pt-10 space-y-10">
+                        {!optimizedData ? (
+                            <button 
+                                onClick={handleOptimize}
+                                disabled={isOptimizing}
+                                className="w-full py-10 bg-slate-950 text-white rounded-[3rem] text-sm font-black uppercase tracking-[0.25em] flex items-center justify-center gap-4 hover:bg-indigo-600 transition-all shadow-2xl group relative overflow-hidden disabled:opacity-50"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                <Zap size={24} className={cn("group-hover:animate-pulse text-yellow-400", isOptimizing && "animate-spin")} /> 
+                                {isOptimizing ? "Running AI Engine..." : "Confirm & Push to eBay"}
+                            </button>
+                        ) : (
+                            <div className="p-10 bg-indigo-50 border-2 border-indigo-200 rounded-[3.5rem] space-y-10 animate-in slide-in-from-bottom duration-500">
+                                <div className="flex items-center gap-4 text-indigo-600">
+                                    <Sparkles size={24} />
+                                    <h3 className="text-xl font-black uppercase tracking-tighter italic">AI Optimization Active</h3>
+                                </div>
+
+                                {/* TITLE SELECTION */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                        <Trophy size={16} className="text-amber-500" />
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Optimized eBay Titles</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {optimizedData.titles.map((t, i) => (
+                                            <button 
+                                                key={i} 
+                                                onClick={() => setSelectedTitle(t.text)}
+                                                className={cn(
+                                                    "w-full p-6 rounded-2xl border-2 text-left transition-all relative group/t",
+                                                    selectedTitle === t.text ? "border-indigo-600 bg-white shadow-lg" : "border-indigo-100 bg-indigo-50/50 hover:border-indigo-300"
+                                                )}
+                                            >
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <p className="text-[13px] font-bold text-slate-900 leading-snug">{t.text}</p>
+                                                    <div className="shrink-0 px-2 py-1 bg-indigo-100 rounded-md text-[9px] font-black text-indigo-600 uppercase">
+                                                        {t.score}% Match
+                                                    </div>
+                                                </div>
+                                                {selectedTitle === t.text && (
+                                                    <div className="absolute -right-2 -top-2 bg-indigo-600 text-white p-1 rounded-full border-2 border-white">
+                                                        <CheckCircle2 size={12} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* DESCRIPTION EDITING */}
+                                <div className="space-y-4">
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">AI Enhanced Description</p>
+                                    <textarea
+                                        value={optimizedData.description}
+                                        onChange={(e) =>
+                                            setOptimizedData({
+                                                ...optimizedData,
+                                                description: e.target.value
+                                            })
+                                        }
+                                        className="w-full h-48 p-6 bg-white border-2 border-indigo-100 rounded-2xl text-xs font-medium text-slate-600 leading-relaxed focus:border-indigo-600 outline-none transition-all custom-scrollbar"
+                                    />
+                                </div>
+
+                                {/* SEO TAGS */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">High-Intent SEO Tags</p>
+                                        <span className="text-[9px] font-bold text-slate-400">{optimizedData.tags.length} TAGS</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {optimizedData.tags.map((tag, i) => (
+                                            <span 
+                                                key={i} 
+                                                className="px-3 py-1.5 bg-white border border-indigo-100 rounded-full text-[10px] font-bold text-indigo-700 flex items-center gap-2 group/tag shadow-sm"
+                                            >
+                                                {tag}
+                                                <button onClick={() => handleRemoveTag(tag)} className="hover:text-rose-500 transition-colors">
+                                                    <X size={10} />
+                                                </button>
+                                            </span>
+                                        ))}
+                                        <input 
+                                            placeholder="Add tag..."
+                                            onKeyDown={handleAddTag}
+                                            className="px-4 py-1.5 bg-transparent border-b border-indigo-200 outline-none text-[10px] font-black uppercase tracking-widest placeholder:text-indigo-300 w-24 focus:w-32 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* NEXT STAGE TRIGGER */}
+                                <button 
+                                    onClick={handleProceedToPricing}
+                                    className="w-full py-8 bg-indigo-600 text-white rounded-[2.5rem] text-[11px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3"
+                                >
+                                    Proceed to Pricing & Logistics <ArrowRight size={18} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
