@@ -450,9 +450,11 @@ cjRouter.post('/freight', async (req, res) => {
     }
 });
 
-// 🤖 GEMINI AI OPTIMIZATION (v1.0 - eBay Expert Mode)
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+// 🤖 GEMINI AI OPTIMIZATION (v2.0 - Official SDK Mode)
 app.post('/api/gemini', async (req, res) => {
-    console.log("🤖 AI Optimization Request Received");
+    console.log("🤖 AI Optimization Request Received (SDK Mode)");
     try {
         const { prompt } = req.body;
         const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY;
@@ -461,21 +463,16 @@ app.post('/api/gemini', async (req, res) => {
             return res.status(500).json({ error: "Gemini API Key missing in server environment" });
         }
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
-        
-        const payload = {
-            contents: [{
-                parts: [{ text: prompt }]
-            }]
-        };
+        // Initialize the SDK
+        const genAI = new GoogleGenerativeAI(GEMINI_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-        const response = await axios.post(url, payload, {
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        // Gemini returns a nested structure, we need to extract the text and parse it if it's JSON
-        const rawText = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const rawText = response.text();
         
+        console.log("🤖 AI Response Received");
+
         // Clean up markdown code blocks if Gemini wraps the JSON
         const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
@@ -484,11 +481,20 @@ app.post('/api/gemini', async (req, res) => {
             return res.json(jsonResult);
         } catch (e) {
             console.error("Gemini returned invalid JSON:", cleanText);
+            // If it's not valid JSON, try to extract JSON with regex
+            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    return res.json(JSON.parse(jsonMatch[0]));
+                } catch (innerE) {
+                    return res.status(500).json({ error: "AI returned invalid format", raw: cleanText });
+                }
+            }
             return res.status(500).json({ error: "AI returned invalid format", raw: cleanText });
         }
 
     } catch (error) {
-        console.error("Gemini API Error:", error.response?.data || error.message);
+        console.error("Gemini SDK Error:", error.message);
         res.status(500).json({ error: "AI Optimization Failed", detail: error.message });
     }
 });
