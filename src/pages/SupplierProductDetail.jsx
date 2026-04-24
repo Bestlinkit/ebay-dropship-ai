@@ -43,6 +43,7 @@ const SupplierProductDetail = () => {
     const [optimizedData, setOptimizedData] = useState(null);
     const [selectedTitle, setSelectedTitle] = useState(null);
     const [isOptimizing, setIsOptimizing] = useState(false);
+    const [optimizationError, setOptimizationError] = useState(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -79,6 +80,7 @@ const SupplierProductDetail = () => {
     // AI OPTIMIZATION LOGIC
     const handleOptimize = async () => {
         setIsOptimizing(true);
+        setOptimizationError(null);
         
         const productSnapshot = {
             id: cj.id,
@@ -106,7 +108,7 @@ const SupplierProductDetail = () => {
 
         } catch (err) {
             console.error("AI Optimization Failed", err);
-            // Fallback or error state
+            setOptimizationError(err.message || "Optimization failed. Check if server is running.");
         } finally {
             setIsOptimizing(false);
         }
@@ -350,6 +352,16 @@ const SupplierProductDetail = () => {
 
                     {/* ACTION FOOTER / AI OPTIMIZATION INTERFACE */}
                     <div className="pt-10 space-y-10">
+                        {optimizationError && (
+                            <div className="p-6 bg-rose-50 border-2 border-rose-100 rounded-[2rem] flex items-center gap-4 text-rose-600 animate-in fade-in slide-in-from-top-2">
+                                <AlertCircle size={20} />
+                                <div className="flex-1 text-[11px] font-bold uppercase tracking-widest">{optimizationError}</div>
+                                <button onClick={handleOptimize} className="px-4 py-2 bg-rose-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-colors">
+                                    Retry
+                                </button>
+                            </div>
+                        )}
+
                         {!optimizedData ? (
                             <button 
                                 onClick={handleOptimize}

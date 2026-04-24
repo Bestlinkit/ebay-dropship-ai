@@ -47,13 +47,21 @@ OUTPUT FORMAT (STRICT JSON):
 
   try {
     const BRIDGE_BASE = 'http://localhost:3001';
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+
     const response = await fetch(`${BRIDGE_BASE}/api/gemini`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ prompt }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
         throw new Error(`AI Optimization Request Failed: ${response.statusText}`);
