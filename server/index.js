@@ -488,18 +488,26 @@ const generateNativeFallback = (title, description) => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
+    // STEP 1: TRACE EXECUTION FLOW
+    console.log("AI ROUTE HIT");
+    console.log("AI REQUEST BODY:", JSON.stringify(req.body).substring(0, 200));
+
     const { title, description } = req.body;
     const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
     if (!GEMINI_KEY) {
+        console.error("AI ERROR: GEMINI_KEY_MISSING");
         return res.json(generateNativeFallback(title, description));
     }
 
     const runAIOptimize = async (retryCount = 0) => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s Timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); 
 
         try {
+            // STEP 4: FORCE DIRECT GEMINI CALL
+            console.log("CALLING GEMINI NOW");
+            
             const response = await fetch(
                 `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
                 {
@@ -530,18 +538,16 @@ Return STRICT JSON:
             clearTimeout(timeoutId);
             const rawData = await response.json();
             
-            // STEP 5: LOGGING (MANDATORY)
-            console.log("AI RAW RESPONSE:", JSON.stringify(rawData).substring(0, 500));
+            // STEP 5: VERIFY GEMINI EXECUTION
+            console.log("AI RAW RESPONSE RECEIVED");
 
             if (rawData.candidates && rawData.candidates[0]?.content?.parts[0]?.text) {
                 const rawText = rawData.candidates[0].content.parts[0].text;
                 const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const jsonResult = JSON.parse(cleanText);
 
-                // STEP 5: LOGGING (MANDATORY)
-                console.log("AI PARSED OUTPUT:", jsonResult);
+                console.log("AI PARSED OUTPUT SUCCESS");
 
-                // STEP 3: FIX RESPONSE FORMAT (CRITICAL)
                 const finalResponse = {
                     success: true,
                     data: {
@@ -550,11 +556,6 @@ Return STRICT JSON:
                         tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
                     }
                 };
-
-                // STEP 4: HARD VALIDATION BEFORE RETURN
-                if (!finalResponse.data || !Array.isArray(finalResponse.data.titles)) {
-                    throw new Error("INVALID_AI_RESPONSE_FORMAT");
-                }
 
                 return finalResponse;
             }

@@ -76,11 +76,11 @@ const EbayListingBuilder = () => {
             }
 
             if (!result.success) {
-                setOptimizationError("Market Intelligence Busy. Local Optimization Applied.");
+                setOptimizationError("Optimization Offline. Local Fallback Applied.");
             }
         } catch (err) {
             console.error("AI Build Fault:", err);
-            setOptimizationError("Connection Jitter. Local Optimization Applied.");
+            setOptimizationError("System Timeout. Local Fallback Applied.");
         } finally {
             setIsOptimizing(false);
         }
