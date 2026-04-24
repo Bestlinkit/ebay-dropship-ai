@@ -257,25 +257,50 @@ cjRouter.post('/auth', async (req, res) => {
 });
 
 /**
- * 🛡️ STRICT TOKEN VALIDATION MIDDLEWARE
- * Must precede any core CJ actions (search, detail, freight).
+ * 🛡️ SMART TOKEN VALIDATION & AUTO-RECOVERY
+ * Automatically attempts to restore token if session is lost (e.g. server restart)
  */
-cjRouter.use((req, res, next) => {
+cjRouter.use(async (req, res, next) => {
     if (req.path === '/auth' || req.path === '/ping') return next();
 
-    console.log("[CJ SESSION TRACE]", {
-        hasSession: !!global.CJ_SESSION,
-        tokenPreview: global.CJ_SESSION?.accessToken?.slice(-6),
-        expiry: global.CJ_SESSION?.expiry
-    });
-
+    // 🔄 AUTO-RECOVERY: If token is missing, attempt immediate handshake
     if (!global.CJ_SESSION?.accessToken) {
-        console.warn(`[CJ SECURITY] Blocked request to ${req.path} - Missing Token`);
-        return res.status(401).json({
-            cjConnected: false,
-            tokenValid: false,
-            error: "Missing or expired CJ accessToken"
-        });
+        console.log(`[CJ SECURITY] Session lost. Attempting auto-recovery for: ${req.path}`);
+        
+        try {
+            const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
+            const targetApiKey = CJ_API_KEY;
+
+            const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 10000 
+            });
+
+            const raw = response.data;
+            if (raw.code == 200 || raw.success === true) {
+                global.CJ_SESSION = {
+                    accessToken: raw.data?.accessToken,
+                    refreshToken: raw.data?.refreshToken,
+                    expiry: raw.data?.accessTokenExpiryDate
+                };
+                console.log("[CJ SECURITY] Auto-recovery successful. Token restored.");
+            } else {
+                console.error("[CJ SECURITY] Auto-recovery failed:", raw.message);
+                return res.status(401).json({
+                    cjConnected: false,
+                    tokenValid: false,
+                    error: "Auto-recovery failed. Manual auth required.",
+                    raw: raw
+                });
+            }
+        } catch (error) {
+            console.error("[CJ SECURITY] Auto-recovery exception:", error.message);
+            return res.status(401).json({
+                cjConnected: false,
+                tokenValid: false,
+                error: "Session lost and auto-recovery exception occurred."
+            });
+        }
     }
     next();
 });
@@ -427,6 +452,7 @@ cjRouter.post('/freight', async (req, res) => {
 
 // 🤖 GEMINI AI OPTIMIZATION (v1.0 - eBay Expert Mode)
 app.post('/api/gemini', async (req, res) => {
+    console.log("🤖 AI Optimization Request Received");
     try {
         const { prompt } = req.body;
         const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY;
@@ -485,5 +511,6 @@ app.use((req, res) => {
 app.listen(PORT, () => {
     console.log(`\n🚀 CJ BRIDGE ACTIVE: http://localhost:${PORT}`);
     console.log(`🔗 REACHABLE VIA: /api/cj/ping`);
+    console.log(`🤖 AI OPTIMIZATION: /api/gemini (POST)`);
     console.log(`🔐 VAULT STATUS: READY\n`);
 });
