@@ -1,6 +1,6 @@
 /**
- * 🤖 AI Listing Optimization Service (v6.0 - High Precision)
- * Directly targets the flattened backend response.
+ * 🤖 AI Listing Optimization Service (v7.0 - Strict Reliability)
+ * Uses the new 'data' wrapper contract.
  */
 
 export async function optimizeListing(snapshot) {
@@ -14,28 +14,32 @@ export async function optimizeListing(snapshot) {
       },
       body: JSON.stringify({ 
         title: snapshot.title,
-        description: snapshot.description,
-        category: snapshot.category || "General"
+        description: snapshot.description 
       }),
     });
 
     const result = await response.json();
     
-    // STEP 6: FRONTEND GUARD (CRITICAL)
-    if (result.success && !Array.isArray(result.titles)) {
-      throw new Error("INVALID_AI_RESPONSE");
-    }
-
-    return result;
+    // STEP 7: FRONTEND SAFETY FIX
+    // Backend returns { success, data: { titles, description, tags } }
+    const titles = Array.isArray(result.data?.titles) ? result.data.titles : [];
+    
+    return {
+        ...result,
+        titles // Ensure titles is always available at top level for component ease
+    };
 
   } catch (error) {
     console.error("AI Service Fault:", error);
-    // Silent Fallback
+    // Silent Fallback structure matching the contract
     return {
         success: false,
-        titles: [snapshot.title, `Premium ${snapshot.title}`, `${snapshot.title} - High Quality`],
-        description: snapshot.description,
-        tags: []
+        data: {
+            titles: [snapshot.title, `New ${snapshot.title}`, `${snapshot.title} - Premium Quality`],
+            description: snapshot.description,
+            tags: []
+        },
+        titles: [snapshot.title, `New ${snapshot.title}`, `${snapshot.title} - Premium Quality`]
     };
   }
 }

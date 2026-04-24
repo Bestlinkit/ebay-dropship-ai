@@ -466,30 +466,30 @@ app.get('/api/ai/test', async (req, res) => {
   }
 });
 
-// 🤖 AI LISTING ENGINE (v6.0 - HIGH PRECISION MODE)
+// 🤖 AI LISTING ENGINE (v7.0 - STRICT RELIABILITY MODE)
 
 const generateNativeFallback = (title, description) => {
-    console.warn("⚠️ AI PIPELINE: EXECUTING NATIVE FALLBACK...");
+    console.warn("⚠️ AI TIMEOUT - FALLBACK TRIGGERED");
     const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
     const keywords = cleanTitle.split(' ').filter(w => w.length > 3).slice(0, 5);
     
     return {
         success: false,
-        titles: [
-            cleanTitle.substring(0, 80),
-            `Premium ${cleanTitle}`.substring(0, 80),
-            `${cleanTitle} - High Quality`.substring(0, 80)
-        ],
-        description: description.replace(/<[^>]*>?/gm, '').trim(),
-        tags: keywords.length > 0 ? keywords : ["BestSeller", "Premium", "Quality"]
+        data: {
+            titles: [
+                cleanTitle.substring(0, 80),
+                `New ${cleanTitle}`.substring(0, 80),
+                `${cleanTitle} - Premium Quality`.substring(0, 80)
+            ],
+            description: description.replace(/<[^>]*>?/gm, '').trim(),
+            tags: keywords.length > 0 ? keywords : ["BestSeller", "Premium", "Quality"]
+        }
     };
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    const { title, description, category } = req.body;
+    const { title, description } = req.body;
     const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-
-    console.log("AI REQUEST INITIATED:", { title: title?.substring(0, 40) });
 
     if (!GEMINI_KEY) {
         return res.json(generateNativeFallback(title, description));
@@ -497,38 +497,30 @@ app.post('/api/ai/optimize', async (req, res) => {
 
     const runAIOptimize = async (retryCount = 0) => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s Timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s Timeout
 
         try {
             const response = await fetch(
-                "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=" + GEMINI_KEY,
+                `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: { 
+                        "Content-Type": "application/json"
+                    },
                     signal: controller.signal,
                     body: JSON.stringify({
                         contents: [{
                             parts: [{
-                                text: `Optimize this product for eBay SEO.
+                                text: `eBay Listing Optimizer:
+Product: ${title}
+Context: ${description}
 
 Return STRICT JSON:
 {
-  "titles": [3 optimized titles ranked best to worst],
-  "description": "HTML formatted description",
-  "tags": ["5 high-converting keywords"]
-}
-
-Product:
-Title: ${title}
-Description: ${description}
-Category: ${category || "General"}
-
-Rules:
-- Titles max 80 characters
-- No fake claims (no 'best seller', no 'guaranteed')
-- eBay compliant
-- Tags must be real search keywords
-- Output ONLY JSON`
+  "titles": ["3 optimized titles"],
+  "description": "Professional rewritten description",
+  "tags": ["10 search keywords"]
+}`
                             }]
                         }]
                     })
@@ -536,20 +528,35 @@ Rules:
             );
 
             clearTimeout(timeoutId);
-            const data = await response.json();
+            const rawData = await response.json();
+            
+            // STEP 5: LOGGING (MANDATORY)
+            console.log("AI RAW RESPONSE:", JSON.stringify(rawData).substring(0, 500));
 
-            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-                const rawText = data.candidates[0].content.parts[0].text;
+            if (rawData.candidates && rawData.candidates[0]?.content?.parts[0]?.text) {
+                const rawText = rawData.candidates[0].content.parts[0].text;
                 const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const jsonResult = JSON.parse(cleanText);
 
-                // STEP 3: RESPONSE STRUCTURE (CRITICAL)
-                return {
+                // STEP 5: LOGGING (MANDATORY)
+                console.log("AI PARSED OUTPUT:", jsonResult);
+
+                // STEP 3: FIX RESPONSE FORMAT (CRITICAL)
+                const finalResponse = {
                     success: true,
-                    titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
-                    description: jsonResult.description || "",
-                    tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
+                    data: {
+                        titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
+                        description: jsonResult.description || "",
+                        tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
+                    }
                 };
+
+                // STEP 4: HARD VALIDATION BEFORE RETURN
+                if (!finalResponse.data || !Array.isArray(finalResponse.data.titles)) {
+                    throw new Error("INVALID_AI_RESPONSE_FORMAT");
+                }
+
+                return finalResponse;
             }
 
             throw new Error("MALFORMED_RESPONSE");
@@ -558,8 +565,12 @@ Rules:
             clearTimeout(timeoutId);
             console.error("GEMINI ERROR FULL:", err.message);
 
-            if (retryCount < 1) {
-                console.log("AI RETRYING (1/1)...");
+            if (err.name === 'AbortError') {
+                console.warn("AI TIMEOUT - FALLBACK TRIGGERED");
+            }
+
+            if (retryCount < 1 && err.name !== 'AbortError') {
+                console.log("AI RETRYING...");
                 return runAIOptimize(retryCount + 1);
             }
             

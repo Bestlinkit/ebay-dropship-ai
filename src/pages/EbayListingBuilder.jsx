@@ -49,9 +49,7 @@ const EbayListingBuilder = () => {
     const [description, setDescription] = useState(cjProduct?.description || "");
     const [tags, setTags] = useState([]);
     const [isOptimizing, setIsOptimizing] = useState(false);
-    const [optimizationError, setOptimizationError] = useState(null);
-
-    // AI TRIGGER (TAB 1)
+    const [optimizationError, setOptimizationError] = useState(null)    // AI TRIGGER (TAB 1)
     const handleAIOptimize = async () => {
         if (!cjProduct) return;
         setIsOptimizing(true);
@@ -63,25 +61,26 @@ const EbayListingBuilder = () => {
                 description: cjProduct.description
             });
 
-            // STEP 6: FRONTEND GUARD (CRITICAL)
-            if (!Array.isArray(result.titles)) {
-                throw new Error("INVALID_AI_RESPONSE");
-            }
+            // STEP 7: FRONTEND SAFETY FIX
+            const aiData = result.data || {};
+            const safeTitles = Array.isArray(aiData.titles) ? aiData.titles : [];
+            const safeTags = Array.isArray(aiData.tags) ? aiData.tags : [];
+            const safeDesc = aiData.description || cjProduct.description || "";
 
-            setOptimizedData(result);
-            setTags(result.tags || []);
-            setDescription(result.description || cjProduct.description);
+            setOptimizedData({ ...result, titles: safeTitles });
+            setTags(safeTags);
+            setDescription(safeDesc);
 
-            if (result.titles.length > 0) {
-                setSelectedTitle(result.titles[0]);
+            if (safeTitles.length > 0) {
+                setSelectedTitle(safeTitles[0]);
             }
 
             if (!result.success) {
-                setOptimizationError("AI Handshake Failed. Local Optimization Active.");
+                setOptimizationError("Market Intelligence Busy. Local Optimization Applied.");
             }
         } catch (err) {
             console.error("AI Build Fault:", err);
-            setOptimizationError("Market Intelligence Unavailable. Local Optimization Active.");
+            setOptimizationError("Connection Jitter. Local Optimization Applied.");
         } finally {
             setIsOptimizing(false);
         }
@@ -151,7 +150,7 @@ const EbayListingBuilder = () => {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                     <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">AI Content Engine</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized titles and SEO description</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized titles and description</p>
                                 </div>
                                 {!optimizedData && !isOptimizing && (
                                     <button 
