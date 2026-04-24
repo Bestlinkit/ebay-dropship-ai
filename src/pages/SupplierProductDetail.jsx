@@ -94,8 +94,22 @@ const SupplierProductDetail = () => {
         };
 
         try {
+            // STEP 6: FRONTEND LOGGING
+            console.log("AI REQUEST PAYLOAD:", productSnapshot);
+
             const result = await optimizeListing(productSnapshot);
             
+            // STEP 6: FRONTEND LOGGING
+            console.log("AI RESPONSE:", result);
+
+            if (result.success === false && result.fallback) {
+                console.warn("Gemini Failed, using Fail-Safe Fallback", result.error_detail);
+                const fb = result.fallback;
+                setOptimizedData(fb);
+                setSelectedTitle(fb.titles[0].text);
+                return;
+            }
+
             // Safety: Ensure description is a string
             const safeResult = {
                 ...result,

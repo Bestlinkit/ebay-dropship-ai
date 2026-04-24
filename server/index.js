@@ -452,20 +452,29 @@ cjRouter.post('/freight', async (req, res) => {
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// 🤖 GEMINI AI OPTIMIZATION (v2.1 - Resilient SDK Mode)
+// 🤖 GEMINI AI OPTIMIZATION (v3.0 - DEBUG & RESILIENCE MODE)
 app.post('/api/gemini', async (req, res) => {
-    console.log("🤖 AI Optimization Request Received (SDK Mode)");
+    const modelName = "gemini-1.5-flash"; // STRICT MODEL
+    const { prompt } = req.body;
+    const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+
+    // STEP 2: VERIFY API KEY
+    if (!GEMINI_KEY) {
+        console.error("GEMINI ERROR: GEMINI_API_KEY_MISSING");
+        return res.status(500).json({ error: "GEMINI_API_KEY_MISSING" });
+    }
+
+    // STEP 1: LOG BEFORE CALL
+    console.log("GEMINI REQUEST:", {
+        apiKeyPresent: !!GEMINI_KEY,
+        promptLength: prompt?.length,
+        model: modelName
+    });
+
     try {
-        const { prompt } = req.body;
-        const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY;
-
-        if (!GEMINI_KEY) {
-            return res.status(500).json({ error: "Gemini API Key missing in server environment" });
-        }
-
         // Initialize the SDK
         const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         // 🔄 RESILIENCE LAYER: Retry loop for unstable networks
         let result;
@@ -481,7 +490,6 @@ app.post('/api/gemini', async (req, res) => {
             } catch (err) {
                 console.error(`[AI SDK] Attempt ${attempts} failed:`, err.message);
                 if (attempts >= maxAttempts) throw err;
-                // Wait 1s before retry
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
@@ -489,31 +497,52 @@ app.post('/api/gemini', async (req, res) => {
         const response = await result.response;
         const rawText = response.text();
         
-        console.log("🤖 AI Response Received");
+        // STEP 1: LOG AFTER CALL
+        console.log("GEMINI RAW RESPONSE RECEIVED (Length:", rawText.length, ")");
 
         // Clean up markdown code blocks if Gemini wraps the JSON
         const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
         try {
             const jsonResult = JSON.parse(cleanText);
-            return res.json(jsonResult);
+            return res.json({
+                success: true,
+                ...jsonResult
+            });
         } catch (e) {
             console.error("Gemini returned invalid JSON:", cleanText);
-            // If it's not valid JSON, try to extract JSON with regex
             const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
                 try {
-                    return res.json(JSON.parse(jsonMatch[0]));
+                    return res.json({
+                        success: true,
+                        ...JSON.parse(jsonMatch[0])
+                    });
                 } catch (innerE) {
-                    return res.status(500).json({ error: "AI returned invalid format", raw: cleanText });
+                    throw new Error("INVALID_JSON_FORMAT");
                 }
             }
-            return res.status(500).json({ error: "AI returned invalid format", raw: cleanText });
+            throw new Error("INVALID_JSON_FORMAT");
         }
 
     } catch (error) {
-        console.error("Gemini SDK Final Failure:", error.message);
-        res.status(500).json({ error: "AI Optimization Failed (Network Instability)", detail: error.message });
+        // LOG ERRORS
+        console.error("GEMINI ERROR:", error.response?.data || error.message);
+
+        // STEP 5: FAIL SAFE RESPONSE
+        return res.json({
+            success: false,
+            error_detail: error.message,
+            fallback: {
+                titles: [
+                    { text: "Optimized eBay Listing (Premium)", score: 95 },
+                    { text: "Quality Direct Sourced Item (Best Seller)", score: 88 },
+                    { text: "Global Sourcing Special Edition", score: 82 }
+                ],
+                description: "This product offers premium quality and exceptional value. Sourced directly from verified manufacturers to ensure top-tier performance and reliability. Features high-quality materials and professional-grade durability.",
+                tags: ["Top Quality", "Best Seller", "Free Shipping", "Premium Item", "eBay Choice"]
+            }
+        });
     }
 });
 
