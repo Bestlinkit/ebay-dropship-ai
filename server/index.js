@@ -543,7 +543,7 @@ app.post('/api/ai/optimize', async (req, res) => {
     const keywords = seoEngine.extractKeywords(title, description);
     const baseTitles = seoEngine.generateDeterministicTitles(keywords);
     const tags = seoEngine.generateTags(keywords);
-    const cleanDesc = seoEngine.cleanDescription(description);
+    const cleanDesc = seoEngine.cleanDescription(description, keywords);
     const fallbackCategory = seoEngine.getCategoryFallback(keywords);
 
     try {

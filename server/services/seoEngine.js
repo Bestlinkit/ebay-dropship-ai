@@ -185,43 +185,52 @@ function generateTags(keywords) {
 }
 
 /**
- * Clean description into structured HTML (Final Sanitization)
+ * Clean description into structured HTML (v2.0)
  */
-function cleanDescription(html) {
-    if (!html) return "<h2>Product Details</h2><p>No description available.</p>";
+function cleanDescription(html, titleKeywords = []) {
+    if (!html) return "<h2>Product Overview</h2><p>No description available.</p>";
 
-    // Full Sanitization
+    // 1. Initial Sanitization
     let text = sanitizeText(html);
-    text = text.replace(/supplier|wholesale|dropship|factory|direct|china/gi, '')
+    text = text.replace(/product information:|supplier|wholesale|dropship|factory|direct|china/gi, '')
+               .replace(/\s+/g, ' ')
                .trim();
 
-    // Strip Fluff
-    FLUFF_PHRASES.forEach(regex => {
-        text = text.replace(regex, '');
-    });
+    // 2. Attribute Extraction (Deterministic)
+    const attributes = {
+        Material: MATERIALS.find(m => text.toLowerCase().includes(m)) || titleKeywords.find(k => MATERIALS.includes(k)) || "",
+        Style: STYLES.find(s => text.toLowerCase().includes(s)) || titleKeywords.find(k => STYLES.includes(k)) || "",
+        Fit: ['oversized', 'slim', 'plus size', 'loose', 'regular'].find(f => text.toLowerCase().includes(f)) || "",
+        Sleeve: ['short sleeve', 'long sleeve', 'sleeveless'].find(s => text.toLowerCase().includes(s)) || ""
+    };
 
-    // Split into sentences for bullets
-    const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 10);
-    const overview = sentences.slice(0, 2).join('. ') + (sentences.length > 0 ? '.' : '');
+    // 3. Sentence Extraction for Overview & Features
+    const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 15 && !s.match(/color|size|package/i));
+    
+    // Overview Construction
+    const overview = sentences.length > 0 
+        ? sentences.slice(0, 2).join('. ') + '.'
+        : `This high-quality ${attributes.Style || ''} ${attributes.Material || ''} product is designed for daily comfort and versatility.`;
+
+    // Features Construction
     const features = sentences.slice(2, 6);
-    const specs = sentences.slice(6, 12);
+    if (attributes.Material) features.unshift(`${attributes.Material.charAt(0).toUpperCase() + attributes.Material.slice(1)} fabric for ultimate comfort`);
+    if (attributes.Sleeve) features.push(`${attributes.Sleeve.charAt(0).toUpperCase() + attributes.Sleeve.slice(1)} design`);
 
-    return `
-<h2>Product Overview</h2>
-<p>${overview}</p>
+    // 4. Build Structured HTML
+    let output = `<h2>Product Overview</h2>\n<p>${overview}</p>\n\n`;
 
-${features.length > 0 ? `
-<h3>Key Features</h3>
-<ul>
-    ${features.map(f => `<li>${f}</li>`).join('\n    ')}
-</ul>` : ''}
+    if (features.length > 0) {
+        output += `<h3>Key Features</h3>\n<ul>\n    ${features.map(f => `<li>${f}</li>`).join('\n    ')}\n</ul>\n\n`;
+    }
 
-${specs.length > 0 ? `
-<h3>Specifications</h3>
-<ul>
-    ${specs.map(s => `<li>${s}</li>`).join('\n    ')}
-</ul>` : ''}
-    `.trim();
+    // Specifications (Only include if detected)
+    const specs = Object.entries(attributes).filter(([k, v]) => v !== "");
+    if (specs.length > 0) {
+        output += `<h3>Specifications</h3>\n<ul>\n    ${specs.map(([k, v]) => `<li>${k}: ${v.charAt(0).toUpperCase() + v.slice(1)}</li>`).join('\n    ')}\n</ul>`;
+    }
+
+    return output.trim();
 }
 
 // --- PHASE 2: ADVANCED SEO ENGINE (EBAY-DRIVEN) ---

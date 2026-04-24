@@ -32,6 +32,7 @@ const EbayListingBuilder = () => {
     const { product: cjProduct, targetPrice } = location.state || {};
 
     const [activeTab, setActiveTab] = useState(1);
+    const [isPreview, setIsPreview] = useState(false);
     
     // TABS CONFIG
     const tabs = [
@@ -244,16 +245,46 @@ const EbayListingBuilder = () => {
 
                                     {/* DESCRIPTION EDITOR */}
                                     <div className="space-y-6">
-                                        <div className="flex items-center gap-3 text-slate-400">
-                                            <Sparkles size={16} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Listing Description</span>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 text-slate-400">
+                                                <Sparkles size={16} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Listing Description</span>
+                                            </div>
+                                            <div className="flex bg-slate-100 p-1 rounded-xl">
+                                                <button 
+                                                    onClick={() => setIsPreview(false)}
+                                                    className={cn(
+                                                        "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
+                                                        !isPreview ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                                    )}
+                                                >
+                                                    Edit Code
+                                                </button>
+                                                <button 
+                                                    onClick={() => setIsPreview(true)}
+                                                    className={cn(
+                                                        "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
+                                                        isPreview ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                                    )}
+                                                >
+                                                    Visual Preview
+                                                </button>
+                                            </div>
                                         </div>
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            className="w-full h-80 p-8 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] text-sm font-medium text-slate-600 leading-relaxed focus:border-indigo-500 focus:bg-white outline-none transition-all custom-scrollbar"
-                                            placeholder="Write your listing description here..."
-                                        />
+                                        
+                                        {isPreview ? (
+                                            <div 
+                                                className="w-full h-80 p-10 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] overflow-y-auto prose prose-slate max-w-none prose-h2:text-xl prose-h2:font-black prose-h2:uppercase prose-h3:text-sm prose-h3:font-black prose-h3:uppercase prose-p:text-sm prose-li:text-sm"
+                                                dangerouslySetInnerHTML={{ __html: description }}
+                                            />
+                                        ) : (
+                                            <textarea
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                                className="w-full h-80 p-8 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] text-sm font-medium text-slate-600 leading-relaxed focus:border-indigo-500 focus:bg-white outline-none transition-all custom-scrollbar"
+                                                placeholder="Write your listing description here..."
+                                            />
+                                        )}
                                     </div>
 
                                     {/* SEO TAGS */}
