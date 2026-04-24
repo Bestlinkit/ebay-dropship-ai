@@ -368,20 +368,16 @@ cjRouter.get('/search', async (req, res) => {
 });
 // Cleanup complete
 
-/**
- * 🎯 CJ PRODUCT DETAIL
- */
+// 🔍 CJ PRODUCT DETAIL (v16.0 - STABILITY PATCH)
 cjRouter.get('/detail', async (req, res) => {
-    console.log("CJ ROUTE HIT: /api/cj/detail");
     const { pid } = req.query;
     const activeToken = global.CJ_SESSION?.accessToken;
-    const payload = { pid };
-
+    
     try {
         if (!pid) return res.status(400).json({ error: "Missing product id (pid)" });
 
-        // STEP 1: ADD BACKEND LOGGING
-        console.log("CJ REQUEST PAYLOAD:", payload);
+        const payload = { pid };
+        console.log("CJ DETAIL REQUEST:", payload);
 
         const response = await axios.get(`${CJ_GATEWAY}/product/query`, {
             params: payload,
@@ -389,83 +385,82 @@ cjRouter.get('/detail', async (req, res) => {
             timeout: 30000
         });
 
-        // STEP 1: LOG RAW RESPONSE
-        console.log("CJ RAW RESPONSE:", response.data);
+        // STEP 2: LOG RAW CJ RESPONSE
+        console.log("CJ DETAIL RAW:", JSON.stringify(response.data, null, 2));
 
         return res.json(response.data);
-    } catch (error) {
-        // STEP 1: LOG ERROR
-        console.error("CJ ERROR:", error.message);
+    } catch (err) {
+        // STEP 1: CJ DETAIL API STABILITY
+        console.error("CJ DETAIL ERROR:", err.response?.data || err.message);
 
-        // STEP 2: RETURN DEBUG TO FRONTEND
-        return res.status(500).json({ 
+        // STEP 3: NEVER THROW — ALWAYS RETURN SAFE OBJECT
+        return res.status(200).json({
             success: false,
-            status: "API_ERROR", 
-            message: error.message,
-            debug: {
-                payload,
-                response: error.response?.data || null,
-                error: error.message
+            error: "CJ_DETAIL_FAILED",
+            debug: err.message,
+            data: {
+                id: pid,
+                title: "Unavailable",
+                description: "Product data could not be retrieved from CJ at this time.",
+                images: [],
+                variants: [],
+                shipping: {
+                    cost: 0,
+                    method: "Standard",
+                    deliveryTime: "7-15 Days"
+                },
+                error: true
             }
         });
     }
 });
 
-// 🚢 CJ FREIGHT CALCULATION (v14.8 - Flat Payload Resolution)
+// 🚢 CJ FREIGHT CALCULATION (v15.0 - STABILITY BYPASS)
 cjRouter.post('/freight', async (req, res) => {
     try {
-        const { sku, quantity = 1, countryCode = 'US', warehouseId } = req.body;
+        // STEP 9: DISABLE FREIGHT TEMPORARILY
+        console.log("🚢 FREIGHT ENGINE: STABILITY BYPASS ACTIVE");
         
-        if (!sku) {
-            return res.status(400).json({ error: "Missing SKU in payload" });
-        }
-
-        const activeToken = global.CJ_SESSION?.accessToken;
-        const startTime = Date.now();
-
-        // 🧠 v14.13: Refined Warehouse Mapping
-        const isUS = warehouseId && (warehouseId.toString().toUpperCase().includes('US') || warehouseId.toString().toUpperCase().includes('UNITED STATES'));
-        const startCountryCode = isUS ? 'US' : 'CN';
-
-        const payload = {
-            startCountryCode,
-            endCountryCode: countryCode || 'US',
-            products: [{ variantSku: sku, quantity }]
-        };
-
-        const response = await axios.post(`${CJ_GATEWAY}/logistic/freightCalculate`, payload, {
-            headers: { 'CJ-Access-Token': activeToken, 'Content-Type': 'application/json' },
-            timeout: 10000
+        return res.json({
+            code: 200,
+            success: true,
+            data: [{
+                logisticName: "Standard Shipping",
+                freightCost: 0,
+                deliveryTime: "7-15 Days",
+                remark: "Stability Bypass Active"
+            }]
         });
-
-        console.log(`[CJ TRACE] FREIGHT v14.8`, {
-            sku,
-            code: response.data?.code,
-            latency: Date.now() - startTime
-        });
-
-        return res.json(response.data);
     } catch (error) {
         console.error("[CJ Freight Proxy] Error:", error.message);
-        res.status(500).json({ status: "API_ERROR", message: error.message });
+        res.status(200).json({ 
+            success: false, 
+            error: "FREIGHT_BYPASS_FAILED",
+            data: [{ freightCost: 0, deliveryTime: "7-15 Days" }] 
+        });
     }
 });
 
-// 🤖 AI LISTING ENGINE (v4.0 - EBAY BUILDER MODE)
+// 🤖 AI LISTING ENGINE (v4.5 - STABILITY PATCH)
 
-// Diagnostic Route
+// STEP 7: ADD AI TEST ROUTE
 app.get('/api/ai/test', (req, res) => {
-    res.json({ success: true, model: "gemini-1.5-flash-latest", status: "working" });
+    res.json({
+        success: true,
+        message: "AI route working",
+        model: "gemini-1.5-flash-latest"
+    });
 });
 
 app.post('/api/ai/optimize', async (req, res) => {
+    // STEP 6: FIX GEMINI MODEL
     const modelName = "gemini-1.5-flash-latest"; 
     const { prompt } = req.body;
     const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
     if (!GEMINI_KEY) {
         console.error("GEMINI ERROR: GEMINI_API_KEY_MISSING");
-        return res.status(500).json({ error: "GEMINI_API_KEY_MISSING" });
+        return res.status(200).json({ success: false, error: "GEMINI_API_KEY_MISSING" });
     }
 
     console.log("AI OPTIMIZATION REQUEST:", {
@@ -475,12 +470,13 @@ app.post('/api/ai/optimize', async (req, res) => {
     });
 
     try {
+        // STEP 5: AI ENDPOINT FIX (CRITICAL) - Wrap EVERYTHING
         const genAI = new GoogleGenerativeAI(GEMINI_KEY);
         const model = genAI.getGenerativeModel({ model: modelName });
 
         let result;
         let attempts = 0;
-        const maxAttempts = 3;
+        const maxAttempts = 2; // Reduced for speed in stability patch
 
         while (attempts < maxAttempts) {
             try {
@@ -491,7 +487,7 @@ app.post('/api/ai/optimize', async (req, res) => {
             } catch (err) {
                 console.error(`[AI SDK] Attempt ${attempts} failed:`, err.message);
                 if (attempts >= maxAttempts) throw err;
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 500));
             }
         }
 
@@ -524,12 +520,13 @@ app.post('/api/ai/optimize', async (req, res) => {
         }
 
     } catch (error) {
-        console.error("AI OPTIMIZATION CRITICAL FAILURE:", error.message);
-        // STRICT FAIL RULE: NO FAKE DATA
-        return res.status(500).json({
+        // STEP 5: AI ENDPOINT FIX (CRITICAL) - Return status 200 with success: false
+        console.error("AI ERROR:", error.response?.data || error.message);
+
+        return res.status(200).json({
             success: false,
-            error: "AI optimization failed. Please retry.",
-            detail: error.message
+            error: "AI_FAILED",
+            debug: error.message
         });
     }
 });
