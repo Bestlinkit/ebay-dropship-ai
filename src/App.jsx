@@ -22,6 +22,7 @@ import AuthCallback from './pages/AuthCallback';
 import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
 import SupplierProductDetail from './pages/SupplierProductDetail';
+import EbayListingBuilder from './pages/EbayListingBuilder';
 import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -78,6 +79,14 @@ function App() {
               } />
 
 
+
+              <Route path="/ebay-builder/:productId" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EbayListingBuilder />
+                  </Layout>
+                </ProtectedRoute>
+              } />
 
               <Route path="/product-import-preview" element={
                 <ProtectedRoute>

@@ -1,6 +1,7 @@
 /**
- * 🤖 AI Listing Optimization Service (v1.0)
+ * 🤖 AI Listing Optimization Service (v4.0 - Ebay Builder Mode)
  * Uses Gemini to transform supplier data into high-converting eBay listings.
+ * REAL AI OR FAIL - NO FAKE DATA
  */
 
 export async function optimizeListing(snapshot) {
@@ -45,41 +46,32 @@ OUTPUT FORMAT (STRICT JSON):
   "tags": []
 }`;
 
+  const BRIDGE_BASE = 'http://localhost:3001';
+  
   try {
-    const BRIDGE_BASE = 'http://localhost:3001';
-    
-    // Add timeout to prevent hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
-
-    const response = await fetch(`${BRIDGE_BASE}/api/gemini`, {
+    const response = await fetch(`${BRIDGE_BASE}/api/ai/optimize`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ prompt }),
-      signal: controller.signal
     });
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
-        throw new Error(`AI Optimization Request Failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `AI optimization failed. Please retry.`);
     }
 
     const data = await response.json();
     
-    // Safety check: parse JSON if backend returns it as a string
-    let result = data;
-    if (typeof data === 'string') {
-        result = JSON.parse(data);
+    // STEP 7: STRICT FAIL RULE - NO FAKE DATA
+    if (!data.success && !data.titles) {
+        throw new Error(data.error || "AI optimization failed. Please retry.");
     }
-    
-    // Extract result from potential Gemini wrapper structure if needed
-    // Assuming /api/gemini returns the direct JSON result for now
-    return result;
+
+    return data;
   } catch (error) {
-    console.error("AI Service Error:", error);
+    console.error("AI Service Fault:", error);
     throw error;
   }
 }
