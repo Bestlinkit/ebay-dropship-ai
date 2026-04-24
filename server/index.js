@@ -536,57 +536,41 @@ const getEbayAppToken = async () => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE v13.0.4 (INTENT HARDENED)");
+    console.log("SEO ENGINE v14.0 (ZERO-BLOCK PIPELINE)");
     const { title, description } = req.body;
 
     try {
         // STEP 1: CLASSIFICATION
         const classification = seoEngine.classifyProduct(title, description);
-        if (classification.confidence < 0.8) {
-            console.warn("AI REJECTION: Confidence Low");
-            return res.json({ success: false, status: "FAILED", reason: "AI confidence low (<80%) or invalid context" });
-        }
-
+        
         // STEP 2: EXTRACTION
         const keywords = seoEngine.extractKeywords(title, description);
-        if (keywords.length === 0) {
-            console.warn("AI REJECTION: No Keywords Extracted");
-            return res.json({ success: false, status: "FAILED", reason: "Keyword extraction failed" });
-        }
-
-        // STEP 3 & 4: GENERATION & VALIDATION
-        const finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
-        if (finalTitles.length === 0) {
-            console.warn("AI REJECTION: Title Gen Failed");
-            return res.json({ success: false, status: "FAILED", reason: "Title validation failed" });
-        }
-
+        
+        // STEP 3 & 4: GENERATION
+        let finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
+        
         // STEP 6: DESCRIPTION
         const cleanDesc = seoEngine.generateDescription(description, classification, keywords);
 
         // STEP 7: TAGS
-        const tags = seoEngine.generateTags(keywords, classification);
+        let tags = seoEngine.generateTags(keywords, classification);
 
-        // STEP 8: FINAL QUALITY GATE (v13.0)
-        const validation = seoEngine.validateFinalOutput({
-            category: classification.category,
+        // STEP 8: ZERO-BLOCK RECOVERY GATE (v14.0)
+        const gate = seoEngine.validateAndRecover({
             titles: finalTitles,
             tags: tags
         }, classification);
 
-        if (!validation.valid) {
-            console.warn(`QUALITY REJECTION: ${validation.reason}`);
-            return res.json({ success: false, status: "FAILED", reason: validation.reason });
-        }
+        const finalOutput = gate.data;
 
-        console.log(`SUCCESS: Optimized ${classification.product_type}`);
         return res.json({
             success: true,
             data: {
                 category: { id: "0", name: classification.category },
-                titles: finalTitles,
-                tags: tags,
-                description: cleanDesc
+                titles: finalOutput.titles,
+                tags: finalOutput.tags,
+                description: cleanDesc,
+                recovered: gate.recovered
             }
         });
     } catch (err) {

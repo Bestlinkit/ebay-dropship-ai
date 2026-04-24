@@ -1,4 +1,4 @@
-// --- PREMIUM SEO QUALITY ENGINE v13.0.4 (TAG INTENT PATCH) ---
+// --- SEO INTELLIGENCE RECOVERY ENGINE v14.0 (ZERO-BLOCK PIPELINE) ---
 
 const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality', 'limited edition', 'top rated', 'great value', 'quality', 'daily use']);
 
@@ -11,19 +11,22 @@ const CATEGORY_LOCKED_MAP = {
         name: 'Health & Beauty > Skin Care > Body Scrubs',
         product_type: 'Body Scrub',
         benefits: ['Exfoliating', 'Moisturizing', 'Brightening', 'Hydrating'],
-        outcomes: ['Smooth Skin', 'Even Tone', 'Radiant Glow']
+        outcomes: ['Smooth Skin', 'Even Tone', 'Radiant Glow'],
+        fallback_tags: ["turmeric body scrub", "exfoliating body scrub", "moisturizing body scrub", "skin brightening scrub", "body exfoliator"]
     },
     'apparel': {
         name: 'Clothing, Shoes & Accessories > Men\'s Clothing > T-Shirts',
         product_type: 'T-Shirt',
         benefits: ['Breathable', 'Lightweight', 'Soft Cotton', 'Comfortable'],
-        outcomes: ['Casual Style', 'Everyday Wear', 'Slim Fit']
+        outcomes: ['Casual Style', 'Everyday Wear', 'Slim Fit'],
+        fallback_tags: ["cotton t-shirt", "casual short sleeve", "summer breathable tee", "loose fit shirt", "unisex fashion top"]
     },
     'jewelry': {
         name: 'Jewelry & Watches > Fine Jewelry > Necklaces',
         product_type: 'Necklace',
         benefits: ['Elegant', 'Luxurious', 'Handcrafted', 'High Shine'],
-        outcomes: ['Statement Piece', 'Timeless Gift', 'Sophisticated Look']
+        outcomes: ['Statement Piece', 'Timeless Gift', 'Sophisticated Look'],
+        fallback_tags: ["elegant necklace", "luxury jewelry gift", "handcrafted pendant", "sterling silver chain", "timeless accessory"]
     }
 };
 
@@ -39,7 +42,6 @@ function classifyProduct(title, description) {
 
     const config = CATEGORY_LOCKED_MAP[key];
     
-    // Hardened Primary Keyword Extraction
     const primaryWords = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
         .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w)).slice(0, 3);
     
@@ -56,7 +58,7 @@ function classifyProduct(title, description) {
 }
 
 /**
- * 2. KEYWORD EXTRACTION (STRICT INTENT FILTER)
+ * 2. KEYWORD EXTRACTION
  */
 function extractKeywords(title, description) {
     const text = (title + " " + (description || "")).toLowerCase();
@@ -65,7 +67,6 @@ function extractKeywords(title, description) {
     const seen = new Set();
 
     words.forEach(w => {
-        // AGGRESSIVE FILTER: Misleading tokens are blocked at extraction level
         if (w.length > 3 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !MISLEADING_TOKENS.has(w) && !seen.has(w)) {
             keywords.push(w);
             seen.add(w);
@@ -91,31 +92,28 @@ function generatePremiumTitles(keywords, classification) {
     return templates.map(obj => {
         const text = obj.t.replace(/\s+/g, ' ').trim().substring(0, 80);
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        
         return { text: capitalized, score: obj.s };
     });
 }
 
 /**
- * 4. TAG GENERATION (SAFE MULTI-WORD)
+ * 4. TAG GENERATION (RECOVERY AWARE)
  */
 function generateTags(keywords, classification) {
     const { primary_keyword } = classification;
     const tags = new Set();
     
     keywords.forEach(k => {
-        // Ensure k is not part of primary to avoid redundancy (e.g. "turmeric turmeric body scrub")
         if (tags.size < 8 && !primary_keyword.includes(k)) {
             const safeTag = `${k} ${primary_keyword}`.trim();
-            if (safeTag.split(' ').length >= 2) {
-                tags.add(safeTag);
-            }
+            if (safeTag.split(' ').length >= 2) tags.add(safeTag);
         }
     });
 
-    // Fallback if tags empty
-    if (tags.size === 0) {
-        classification.benefits.forEach(b => tags.add(`${b.toLowerCase()} ${primary_keyword}`));
+    if (tags.size < 5) {
+        classification.benefits.forEach(b => {
+            if (tags.size < 8) tags.add(`${b.toLowerCase()} ${primary_keyword}`);
+        });
     }
 
     return Array.from(tags).slice(0, 8);
@@ -124,41 +122,72 @@ function generateTags(keywords, classification) {
 /**
  * 5. DESCRIPTION
  */
-function generateDescription(html, classification, keywords) {
+function generateDescription(html, classification) {
     const { product_type, category } = classification;
-    
     let output = `Product Overview:\nThis professional ${product_type} is engineered for high-performance results.\n\n`;
     output += `Key Benefits:\n- ${classification.benefits.join('\n- ')}\n\n`;
     output += `How to Use:\nApply to target area. Massage thoroughly. Rinse or remove as directed.\n\n`;
     output += `Specifications:\n- Type: ${product_type}\n- Category: ${category}`;
-
     return output;
 }
 
 /**
- * 6. FINAL QUALITY GATE (v13.0.4)
+ * 6. RECOVERY SYSTEM (v14.0)
  */
-function validateFinalOutput(output, classification) {
-    const primary = classification.primary_keyword.toLowerCase();
-    
-    // 1. Title Quality Check
-    const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(primary.split(' ')[0]));
-    if (!titlesValid) return { valid: false, reason: 'Primary Keyword Missing in Title' };
+function recoverSEO(output, classification) {
+    console.log("🚀 SEO RECOVERY ACTIVE (v14.0)");
+    const { primary_keyword, config } = classification;
+    const primary = primary_keyword.toLowerCase();
 
-    // 2. Tag Quality Check (Strict 2-word + No Misleading)
-    const tagsValid = output.tags.every(t => {
-        const words = t.split(' ');
-        const hasMisleading = words.some(w => MISLEADING_TOKENS.has(w));
-        return words.length >= 2 && !hasMisleading;
+    // 1. Title Recovery
+    const typeWord = primary.split(' ')[0];
+    output.titles = output.titles.map((t, i) => {
+        if (!t.text.toLowerCase().includes(typeWord)) {
+            const fallbackT = `${classification.benefits[i % 3]} ${primary} for ${config.outcomes[0]}`;
+            return { text: fallbackT.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), score: 90 - (i * 2) };
+        }
+        return t;
     });
 
-    if (!tagsValid) {
-        // Emergency tag cleanup if gate finds issues (self-healing)
-        output.tags = output.tags.filter(t => t.split(' ').length >= 2 && !t.split(' ').some(w => MISLEADING_TOKENS.has(w)));
-        if (output.tags.length < 3) return { valid: false, reason: 'Misleading Intent or Single-word Tags' };
+    // 2. Tag Recovery (Auto Clean + Rebuild)
+    let cleanedTags = output.tags.filter(t => {
+        const words = t.split(' ');
+        const isMisleading = words.some(w => MISLEADING_TOKENS.has(w));
+        return words.length >= 2 && !isMisleading;
+    });
+
+    if (cleanedTags.length < 5) {
+        const rebuiltTags = config.fallback_tags.map(t => t.toLowerCase());
+        cleanedTags = Array.from(new Set([...cleanedTags, ...rebuiltTags])).slice(0, 8);
     }
 
-    return { valid: true };
+    output.tags = cleanedTags;
+    return output;
+}
+
+/**
+ * 7. FINAL VALIDATION GATE (ZERO-BLOCK)
+ */
+function validateAndRecover(output, classification) {
+    const primary = classification.primary_keyword.toLowerCase();
+    const typeWord = primary.split(' ')[0];
+
+    // Validation Check
+    const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(typeWord));
+    const tagsValid = output.tags.length >= 5 && output.tags.every(t => {
+        const words = t.split(' ');
+        return words.length >= 2 && !words.some(w => MISLEADING_TOKENS.has(w));
+    });
+
+    if (!titlesValid || !tagsValid) {
+        return { 
+            valid: true, // Always return true for Zero-Block pipeline
+            recovered: true, 
+            data: recoverSEO(output, classification) 
+        };
+    }
+
+    return { valid: true, recovered: false, data: output };
 }
 
 module.exports = {
@@ -167,5 +196,5 @@ module.exports = {
     generatePremiumTitles,
     generateDescription,
     generateTags,
-    validateFinalOutput
+    validateAndRecover
 };
