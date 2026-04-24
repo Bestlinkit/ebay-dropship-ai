@@ -1,8 +1,8 @@
-// --- SEO INTELLIGENCE ENGINE v15.0 (CRITICAL QUALITY CORRECTION) ---
+// --- SEO INTELLIGENCE ENGINE v16.0 (FINAL CLEANUP PATCH) ---
 
 const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality', 'limited edition', 'top rated', 'great value', 'quality', 'daily use']);
 
-const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 'information', 'description']);
+const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 'information', 'description', 'people', 'applicable', 'various', 'available']);
 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
 
@@ -14,23 +14,43 @@ const CATEGORY_LOCKED_MAP = {
         product_type: 'Body Scrub',
         benefits: ['Exfoliating', 'Moisturizing', 'Brightening', 'Hydrating'],
         outcomes: ['Smooth Skin', 'Even Tone', 'Radiant Glow'],
-        fallback_tags: ["turmeric body scrub", "exfoliating body scrub", "moisturizing body scrub", "skin brightening scrub", "body exfoliator"]
+        intent_keywords: ['exfoliating', 'hydrating', 'cleansing', 'skincare'],
+        fallback_tags: ["exfoliating body scrub", "moisturizing body scrub", "skin brightening scrub", "natural body exfoliator", "hydrating skin scrub"]
     },
     'apparel': {
         name: 'Clothing, Shoes & Accessories > Men\'s Clothing > T-Shirts',
         product_type: 'T-Shirt',
         benefits: ['Breathable', 'Lightweight', 'Soft Cotton', 'Comfortable'],
         outcomes: ['Casual Style', 'Everyday Wear', 'Slim Fit'],
-        fallback_tags: ["cotton t-shirt", "casual short sleeve", "summer breathable tee", "loose fit shirt", "unisex fashion top"]
+        intent_keywords: ['cotton', 'breathable', 'casual', 'apparel'],
+        fallback_tags: ["soft cotton t-shirt", "breathable casual tee", "short sleeve shirt", "comfortable daily top", "slim fit apparel"]
     },
     'jewelry': {
         name: 'Jewelry & Watches > Fine Jewelry > Necklaces',
         product_type: 'Necklace',
         benefits: ['Elegant', 'Luxurious', 'Handcrafted', 'High Shine'],
         outcomes: ['Statement Piece', 'Timeless Gift', 'Sophisticated Look'],
-        fallback_tags: ["elegant necklace", "luxury jewelry gift", "handcrafted pendant", "sterling silver chain", "timeless accessory"]
+        intent_keywords: ['elegant', 'luxury', 'handcrafted', 'jewelry'],
+        fallback_tags: ["elegant silver necklace", "luxury jewelry pendant", "handcrafted chain gift", "sophisticated accessory", "timeless jewelry piece"]
     }
 };
+
+/**
+ * Helper: Deduplicate words in a string
+ */
+function deduplicateWords(text) {
+    const words = text.split(' ');
+    const seen = new Set();
+    const result = [];
+    words.forEach(w => {
+        const lower = w.toLowerCase();
+        if (!seen.has(lower) || w === '-') {
+            result.push(w);
+            seen.add(lower);
+        }
+    });
+    return result.join(' ');
+}
 
 /**
  * 1. PRODUCT CLASSIFICATION
@@ -79,60 +99,50 @@ function extractKeywords(title, description) {
 }
 
 /**
- * 3. SCORING ENGINE (v15.0)
- */
-function scoreTitle(text, classification) {
-    let score = 95;
-    const lower = text.toLowerCase();
-    const type = classification.product_type.toLowerCase();
-
-    // -20 Penalty: Missing Product Type
-    if (!lower.includes(type)) score -= 20;
-
-    // -10 Penalty: Generic phrases
-    if (lower.includes('great value') || lower.includes('best quality')) score -= 10;
-
-    return Math.max(0, score);
-}
-
-/**
- * 4. TITLE GENERATION
+ * 3. TITLE GENERATION (v16.0 Deduplicated & Enhanced)
  */
 function generatePremiumTitles(keywords, classification) {
     const { primary_keyword, benefits, config, product_type } = classification;
+    const intent = config.intent_keywords[0];
     const outcome = config.outcomes[0];
     
-    // ENSURE Product Type is present in all templates
     const templates = [
-        `${primary_keyword} ${product_type} - ${benefits[0]} & ${outcome}`,
-        `${benefits[1]} ${primary_keyword} ${product_type} for ${outcome}`,
-        `${primary_keyword} ${product_type} with ${benefits[2]} Formula`
+        `${primary_keyword} ${product_type} - ${intent} & ${outcome}`,
+        `${benefits[0]} ${primary_keyword} ${product_type} for ${outcome}`,
+        `${primary_keyword} ${product_type} with ${benefits[1]} formula`
     ];
 
-    return templates.map(t => {
-        const text = t.replace(/\s+/g, ' ').trim().substring(0, 80);
+    return templates.map((t, i) => {
+        let text = deduplicateWords(t.replace(/\s+/g, ' ').trim());
+        text = text.substring(0, 80);
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        return { text: capitalized, score: scoreTitle(capitalized, classification) };
+        
+        let score = 95 - (i * 3);
+        if (!capitalized.toLowerCase().includes(product_type.toLowerCase())) score -= 20;
+        
+        return { text: capitalized, score: score };
     });
 }
 
 /**
- * 5. TAG GENERATION (v15.0 [modifier] + [product type])
+ * 4. TAG GENERATION (v16.0 Natural Buyer Queries)
  */
 function generateTags(keywords, classification) {
-    const { product_type } = classification;
+    const { product_type, config } = classification;
     const tags = new Set();
     const type = product_type.toLowerCase();
     
     keywords.forEach(k => {
-        if (tags.size < 8 && k !== type) {
-            tags.add(`${k} ${type}`); // [modifier] + [product type]
+        if (tags.size < 8 && k !== type && !config.intent_keywords.includes(k)) {
+            // Natural Query Format: [intent] + [keyword] + [type]
+            const intent = config.intent_keywords[Math.floor(Math.random() * config.intent_keywords.length)];
+            tags.add(`${intent} ${k} ${type}`);
         }
     });
 
     if (tags.size < 5) {
-        classification.benefits.forEach(b => {
-            if (tags.size < 8) tags.add(`${b.toLowerCase()} ${type}`);
+        config.fallback_tags.forEach(t => {
+            if (tags.size < 8) tags.add(t.toLowerCase());
         });
     }
 
@@ -140,7 +150,7 @@ function generateTags(keywords, classification) {
 }
 
 /**
- * 6. DESCRIPTION
+ * 5. DESCRIPTION
  */
 function generateDescription(html, classification) {
     const { product_type, category } = classification;
@@ -152,50 +162,48 @@ function generateDescription(html, classification) {
 }
 
 /**
- * 7. RECOVERY SYSTEM (v15.0 Hardened)
+ * 6. RECOVERY SYSTEM (v16.0 Final Cleanup)
  */
 function recoverSEO(output, classification) {
-    console.log("🚀 SEO RECOVERY ACTIVE (v15.0)");
+    console.log("🚀 SEO FINAL CLEANUP RECOVERY (v16.0)");
     const { product_type, config, primary_keyword } = classification;
     const type = product_type.toLowerCase();
 
-    // Title Recovery: Inject Product Type
-    output.titles = output.titles.map((t, i) => {
-        if (!t.text.toLowerCase().includes(type)) {
-            const fallbackT = `${classification.benefits[i % 3]} ${primary_keyword} ${product_type}`;
-            return { text: fallbackT.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), score: 70 };
-        }
-        return t;
-    });
+    // 1. Title Deduplication
+    output.titles = output.titles.map(t => ({
+        text: deduplicateWords(t.text),
+        score: t.score
+    }));
 
-    // Tag Recovery: Enforce [modifier] + [type]
-    let cleanedTags = output.tags.filter(t => {
-        const words = t.split(' ');
-        const isMisleading = words.some(w => MISLEADING_TOKENS.has(w) || UNRELATED_PRODUCTS.has(w));
-        return words.length >= 2 && !isMisleading && t.toLowerCase().includes(type);
-    });
-
-    if (cleanedTags.length < 5) {
-        cleanedTags = config.fallback_tags.map(t => t.toLowerCase());
+    // 2. Tag Intent Check (70% Intent Rule)
+    const intentWords = [type, ...config.intent_keywords];
+    let intentCount = output.tags.filter(t => intentWords.some(iw => t.toLowerCase().includes(iw))).length;
+    
+    if (intentCount / output.tags.length < 0.7 || output.tags.length < 5) {
+        output.tags = config.fallback_tags.map(t => t.toLowerCase());
     }
 
-    output.tags = cleanedTags;
+    // Filter vague/garbage tokens from tags
+    output.tags = output.tags.filter(t => {
+        const words = t.split(' ');
+        return !words.some(w => GARBAGE_TOKENS.has(w.toLowerCase()));
+    });
+
     return output;
 }
 
 /**
- * 8. FINAL VALIDATION GATE (ZERO-BLOCK)
+ * 7. FINAL VALIDATION GATE (ZERO-BLOCK)
  */
 function validateAndRecover(output, classification) {
     const type = classification.product_type.toLowerCase();
+    const config = classification.config;
+    const intentWords = [type, ...config.intent_keywords];
 
     // Validation Check
     const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(type));
-    const tagsValid = output.tags.length >= 5 && output.tags.every(t => {
-        const words = t.split(' ');
-        const isClean = !words.some(w => MISLEADING_TOKENS.has(w) || UNRELATED_PRODUCTS.has(w));
-        return words.length >= 2 && isClean && t.toLowerCase().includes(type);
-    });
+    const intentRatio = output.tags.filter(t => intentWords.some(iw => t.toLowerCase().includes(iw))).length / output.tags.length;
+    const tagsValid = output.tags.length >= 5 && intentRatio >= 0.7;
 
     if (!titlesValid || !tagsValid) {
         return { 

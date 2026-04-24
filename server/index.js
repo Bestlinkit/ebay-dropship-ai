@@ -536,7 +536,7 @@ const getEbayAppToken = async () => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE v15.0 (QUALITY CORRECTED)");
+    console.log("SEO ENGINE v16.0 (FINAL CLEANUP)");
     const { title, description } = req.body;
 
     try {
