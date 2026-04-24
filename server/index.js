@@ -564,12 +564,12 @@ app.post('/api/ai/optimize', async (req, res) => {
         // STEP 7: TAGS
         const tags = seoEngine.generateTags(keywords, classification);
 
-        // STEP 8: FINAL VALIDATION (v12.0)
+        // STEP 8: FINAL QUALITY GATE (v13.0)
         const validation = seoEngine.validateFinalOutput({
             category: classification.category,
             titles: finalTitles,
             tags: tags
-        });
+        }, classification);
 
         if (!validation.valid) {
             return res.json({ success: false, status: "FAILED", reason: validation.reason });

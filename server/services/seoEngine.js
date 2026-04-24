@@ -1,8 +1,10 @@
-// --- DETERMINISTIC SEO ENGINE v12.0 (STRICT VALIDATION LAYER) ---
+// --- PREMIUM SEO QUALITY ENGINE v13.0 (FINAL QUALITY PATCH) ---
 
 const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality', 'limited edition', 'top rated', 'great value', 'quality', 'daily use']);
 
 const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 'information', 'description']);
+
+const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment']);
 
 const CATEGORY_LOCKED_MAP = {
     'skincare': {
@@ -30,18 +32,24 @@ const CATEGORY_LOCKED_MAP = {
  */
 function classifyProduct(title, description) {
     const text = (title + " " + (description || "")).toLowerCase();
-    let key = "apparel"; // Default to apparel if unknown, but better than Miscellaneous
+    let key = "apparel";
     
     if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) key = "skincare";
     if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry')) key = "jewelry";
 
     const config = CATEGORY_LOCKED_MAP[key];
+    
+    // Identify Primary Keyword (First 2-3 significant words of title)
+    const primaryWords = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
+        .filter(w => w.length > 2 && !STOPWORDS.has(w)).slice(0, 3);
+    const primaryKeyword = primaryWords.join(' ');
 
     return {
         product_type: config.product_type,
         category: config.name,
         benefits: config.benefits,
         config: config,
+        primary_keyword: primaryKeyword,
         confidence: 0.9
     };
 }
@@ -56,7 +64,7 @@ function extractKeywords(title, description) {
     const seen = new Set();
 
     words.forEach(w => {
-        if (w.length > 3 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !seen.has(w)) {
+        if (w.length > 3 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !MISLEADING_TOKENS.has(w) && !seen.has(w)) {
             keywords.push(w);
             seen.add(w);
         }
@@ -66,38 +74,37 @@ function extractKeywords(title, description) {
 }
 
 /**
- * 3. TITLE GENERATION (OUTCOME DRIVEN)
+ * 3. TITLE GENERATION (OUTCOME DRIVEN & SCORE DISTRIBUTION)
  */
 function generatePremiumTitles(keywords, classification) {
-    const { product_type, benefits, config } = classification;
-    const attr1 = keywords[0] || "";
-    const benefit = benefits[Math.floor(Math.random() * benefits.length)];
+    const { primary_keyword, benefits, config } = classification;
     const outcome = config.outcomes[0];
-
+    
     const templates = [
-        `${attr1} ${product_type} - ${benefit} & ${outcome}`,
-        `${benefit} ${attr1} ${product_type} for ${outcome}`,
-        `${product_type} with ${benefit} ${attr1} formula`
+        { t: `${primary_keyword} - ${benefits[0]} & ${outcome}`, s: 98 },
+        { t: `${benefits[1]} ${primary_keyword} for ${outcome}`, s: 95 },
+        { t: `${primary_keyword} with ${benefits[2]} Formula`, s: 92 }
     ];
 
-    return templates.map(t => {
-        const text = t.replace(/\s+/g, ' ').trim().substring(0, 80);
+    return templates.map(obj => {
+        const text = obj.t.replace(/\s+/g, ' ').trim().substring(0, 80);
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         
-        return { text: capitalized, score: 95 };
+        return { text: capitalized, score: obj.s };
     });
 }
 
 /**
- * 4. TAG GENERATION (MIN 2 WORDS)
+ * 4. TAG GENERATION (MIN 2 WORDS & INTENT FILTER)
  */
 function generateTags(keywords, classification) {
-    const { product_type } = classification;
+    const { primary_keyword } = classification;
     const tags = new Set();
+    const base = primary_keyword.split(' ').pop(); // Use last word of primary as base
     
     keywords.forEach(k => {
-        if (tags.size < 8 && k !== product_type.toLowerCase()) {
-            tags.add(`${k} ${product_type.toLowerCase()}`);
+        if (tags.size < 8 && !primary_keyword.includes(k)) {
+            tags.add(`${k} ${primary_keyword}`);
         }
     });
 
@@ -109,9 +116,8 @@ function generateTags(keywords, classification) {
  */
 function generateDescription(html, classification, keywords) {
     const { product_type, category } = classification;
-    const text = html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
     
-    let output = `Product Overview:\nThis professional ${product_type} is designed for optimal performance.\n\n`;
+    let output = `Product Overview:\nThis professional ${product_type} is engineered for high-performance results.\n\n`;
     output += `Key Benefits:\n- ${classification.benefits.join('\n- ')}\n\n`;
     output += `How to Use:\nApply to target area. Massage thoroughly. Rinse or remove as directed.\n\n`;
     output += `Specifications:\n- Type: ${product_type}\n- Category: ${category}`;
@@ -120,20 +126,21 @@ function generateDescription(html, classification, keywords) {
 }
 
 /**
- * 6. FINAL VALIDATION LAYER
+ * 6. FINAL QUALITY GATE
  */
-function validateFinalOutput(output) {
-    if (output.category.includes('Miscellaneous')) return { valid: false, reason: 'Invalid Category' };
+function validateFinalOutput(output, classification) {
+    const primary = classification.primary_keyword.toLowerCase();
     
-    const type = output.titles[0].text.toLowerCase();
-    const hasType = output.titles.every(t => t.text.toLowerCase().includes(type.split(' ')[0]));
-    if (!hasType) return { valid: false, reason: 'Missing Product Type in Title' };
+    // Title Quality Check
+    const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(primary));
+    if (!titlesValid) return { valid: false, reason: 'Primary Keyword Missing in Title' };
 
-    const hasGarbage = output.tags.some(t => {
+    // Tag Quality Check
+    const tagsValid = output.tags.every(t => {
         const words = t.split(' ');
-        return words.some(w => GARBAGE_TOKENS.has(w)) || words.length < 2;
+        return words.length >= 2 && !words.some(w => MISLEADING_TOKENS.has(w));
     });
-    if (hasGarbage) return { valid: false, reason: 'Garbage or Single-word Tags detected' };
+    if (!tagsValid) return { valid: false, reason: 'Misleading Intent or Single-word Tags' };
 
     return { valid: true };
 }

@@ -1,6 +1,6 @@
-async function testV12Stable() {
+async function testV13Quality() {
     try {
-        console.log("TESTING: Turmeric Body Scrub (v12.0 Stable Pipeline)");
+        console.log("TESTING: Turmeric Body Scrub (v13.0 Quality Pipeline)");
         const response = await fetch('http://localhost:3001/api/ai/optimize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -16,13 +16,10 @@ async function testV12Stable() {
             return;
         }
 
-        console.log("=== CATEGORY ===");
-        console.log(data.data.category);
-        
-        console.log("=== TITLES (Strict v12) ===");
+        console.log("=== TITLES (Score Distribution) ===");
         console.log(data.data.titles);
         
-        console.log("=== TAGS (Min 2 Words, No Garbage) ===");
+        console.log("=== TAGS (Primary Priority) ===");
         console.log(data.data.tags);
         
         console.log("=== DESCRIPTION ===");
@@ -32,4 +29,4 @@ async function testV12Stable() {
         console.error(e.message);
     }
 }
-testV12Stable();
+testV13Quality();
