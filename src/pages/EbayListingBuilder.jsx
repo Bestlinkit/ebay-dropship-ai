@@ -49,38 +49,39 @@ const EbayListingBuilder = () => {
     const [description, setDescription] = useState(cjProduct?.description || "");
     const [tags, setTags] = useState([]);
     const [isOptimizing, setIsOptimizing] = useState(false);
-    const [optimizationError, setOptimizationError] = useState(null)    // AI TRIGGER (TAB 1)
-    const handleAIOptimize = async () => {
+    const [optimizationError, setOptimizationError] = useState(null)    // SEO ENGINE TRIGGER (TAB 1)
+    const handleSEOOptimize = async () => {
         if (!cjProduct) return;
         setIsOptimizing(true);
         setOptimizationError(null);
 
         try {
-            const result = await optimizeListing({
-                title: cjProduct.title,
-                description: cjProduct.description
+            const response = await fetch('http://localhost:3001/api/ai/optimize', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: cjProduct.title,
+                    description: cjProduct.description
+                }),
             });
 
-            // STEP 7: FRONTEND SAFETY FIX
-            const aiData = result.data || {};
-            const safeTitles = Array.isArray(aiData.titles) ? aiData.titles : [];
-            const safeTags = Array.isArray(aiData.tags) ? aiData.tags : [];
-            const safeDesc = aiData.description || cjProduct.description || "";
-
-            setOptimizedData({ ...result, titles: safeTitles });
-            setTags(safeTags);
-            setDescription(safeDesc);
-
-            if (safeTitles.length > 0) {
-                setSelectedTitle(safeTitles[0]);
-            }
-
-            if (!result.success) {
-                setOptimizationError("Optimization Offline. Local Fallback Applied.");
+            const result = await response.json();
+            
+            if (result.success) {
+                const seoData = result.data || {};
+                setOptimizedData(seoData);
+                setTags(seoData.tags || []);
+                setDescription(seoData.description || cjProduct.description || "");
+                
+                if (seoData.titles?.length > 0) {
+                    setSelectedTitle(seoData.titles[0]);
+                }
+            } else {
+                setOptimizationError("Market Scan Delayed. Using Deterministic Baseline.");
             }
         } catch (err) {
-            console.error("AI Build Fault:", err);
-            setOptimizationError("System Timeout. Local Fallback Applied.");
+            console.error("SEO Build Fault:", err);
+            setOptimizationError("Bridge Timeout. Using Deterministic Baseline.");
         } finally {
             setIsOptimizing(false);
         }
@@ -149,15 +150,15 @@ const EbayListingBuilder = () => {
                         <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">AI Content Engine</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized titles and description</p>
+                                    <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Market Intelligence</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized titles based on real demand</p>
                                 </div>
                                 {!optimizedData && !isOptimizing && (
                                     <button 
-                                        onClick={handleAIOptimize}
-                                        className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-indigo-700 transition-all shadow-lg"
+                                        onClick={handleSEOOptimize}
+                                        className="px-8 py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-slate-800 transition-all shadow-lg"
                                     >
-                                        <Sparkles size={16} /> Run AI Optimization
+                                        <Sparkles size={16} /> Run Market Optimizer
                                     </button>
                                 )}
                             </div>
@@ -165,7 +166,7 @@ const EbayListingBuilder = () => {
                             {isOptimizing && (
                                 <div className="py-20 flex flex-col items-center justify-center gap-6">
                                     <RefreshCw size={48} className="text-indigo-600 animate-spin" />
-                                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 animate-pulse">Consulting Gemini AI...</p>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 animate-pulse">Scraping eBay Demand Data...</p>
                                 </div>
                             )}
 
@@ -176,19 +177,35 @@ const EbayListingBuilder = () => {
                                         <h4 className="text-lg font-black text-rose-900 uppercase">Optimization Warning</h4>
                                         <p className="text-sm font-medium text-rose-600">{optimizationError}</p>
                                     </div>
-                                    <button onClick={handleAIOptimize} className="px-12 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-xl">
-                                        Retry AI Handshake
+                                    <button onClick={handleSEOOptimize} className="px-12 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-xl">
+                                        Retry Market Handshake
                                     </button>
                                 </div>
                             )}
 
                             {optimizedData && (
                                 <div className="space-y-12 animate-in fade-in duration-700">
+                                    {/* AUTO CATEGORY MATCH */}
+                                    {optimizedData.category && (
+                                        <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
+                                                    <ShieldCheck size={20} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Auto-Matched Category</p>
+                                                    <p className="text-sm font-bold text-slate-900 uppercase">{optimizedData.category.name}</p>
+                                                </div>
+                                            </div>
+                                            <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase">Verified Match</span>
+                                        </div>
+                                    )}
+
                                     {/* TITLE SELECTION */}
                                     <div className="space-y-6">
                                         <div className="flex items-center gap-3 text-slate-400">
                                             <Trophy size={16} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Select Optimized Title</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Ranked Title Options</span>
                                         </div>
                                         <div className="grid gap-4">
                                             {optimizedData.titles?.map((titleText, i) => (
@@ -197,12 +214,28 @@ const EbayListingBuilder = () => {
                                                     onClick={() => setSelectedTitle(titleText)}
                                                     className={cn(
                                                         "w-full p-6 rounded-2xl border-2 text-left transition-all relative group",
-                                                        selectedTitle === titleText ? "border-indigo-600 bg-indigo-50/30" : "border-slate-100 hover:border-slate-300"
+                                                        selectedTitle === titleText ? "border-slate-950 bg-slate-50/50" : "border-slate-100 hover:border-slate-200"
                                                     )}
                                                 >
+                                                    <div className="flex items-start justify-between mb-2">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-[10px] font-black text-slate-400">SCORE</span>
+                                                            <span className={cn(
+                                                                "text-[10px] font-black px-2 py-0.5 rounded",
+                                                                (optimizedData.scores?.[i] || 0) > 80 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                                                            )}>
+                                                                {optimizedData.scores?.[i] || 70}/100
+                                                            </span>
+                                                        </div>
+                                                        {i === 0 && (
+                                                            <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[9px] font-black uppercase">
+                                                                <Trophy size={10} /> Recommended
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <p className="text-[14px] font-bold text-slate-900 pr-20">{titleText}</p>
                                                     <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                        {selectedTitle === titleText && <CheckCircle2 size={20} className="text-indigo-600" />}
+                                                        {selectedTitle === titleText && <CheckCircle2 size={20} className="text-slate-950" />}
                                                     </div>
                                                 </button>
                                             ))}

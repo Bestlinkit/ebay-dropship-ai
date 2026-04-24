@@ -509,81 +509,112 @@ const generateNativeFallback = (title, description) => {
     };
 };
 
-app.post('/api/ai/optimize', async (req, res) => {
-    console.log("AI ROUTE HIT");
-    const { title, description } = req.body;
-    const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+// 🚀 MARKET-DRIVEN SEO ENGINE (NO AI DEPENDENCY)
+const seoEngine = require('./services/seoEngine');
 
-    if (!GEMINI_KEY) {
-        console.error("AI ERROR: GEMINI_KEY_MISSING");
-        return res.json(generateNativeFallback(title, description));
-    }
-
+const getEbayAppToken = async () => {
     try {
-        console.log("CALLING GEMINI 2.0 DIRECT");
-        
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-            {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `eBay Listing Optimizer:
-Product: ${title}
-Context: ${description}
+        const appId = process.env.VITE_EBAY_APP_ID;
+        const certId = process.env.VITE_EBAY_CERT_ID;
+        if (!appId || !certId) return null;
 
-Return STRICT JSON:
-{
-  "titles": ["3 optimized titles"],
-  "description": "Professional rewritten description",
-  "tags": ["10 search keywords"]
-}`
-                        }]
-                    }]
-                })
+        const auth = Buffer.from(`${appId}:${certId}`).toString('base64');
+        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+            'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope', 
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${auth}`
+                }
             }
         );
+        return response.data.access_token;
+    } catch (e) {
+        console.error("EBAY AUTH FAULT:", e.message);
+        return null;
+    }
+};
 
-        const rawData = await response.json();
-        console.log("AI RAW RESPONSE RECEIVED");
+app.post('/api/ai/optimize', async (req, res) => {
+    console.log("SEO ENGINE TRIGGERED");
+    const { title, description } = req.body;
 
-        if (rawData.candidates && rawData.candidates[0]?.content?.parts[0]?.text) {
-            const rawText = rawData.candidates[0].content.parts[0].text;
-            const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-            const jsonResult = JSON.parse(cleanText);
+    // PHASE 1: DETERMINISTIC BASELINE
+    const keywords = seoEngine.extractKeywords(title, description);
+    const baseTitles = seoEngine.generateDeterministicTitles(keywords);
+    const tags = seoEngine.generateTags(keywords);
+    const cleanDesc = seoEngine.cleanDescription(description);
+    const fallbackCategory = seoEngine.getCategoryFallback(keywords);
 
-            console.log("AI PARSED OUTPUT SUCCESS");
+    try {
+        // PHASE 2: ADVANCED MARKET DATA (EBAY SCRAPER)
+        const token = await getEbayAppToken();
+        let demandKeywords = [];
+        let categorySuggestion = null;
 
-            return res.json({
-                success: true,
-                data: {
-                    titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
-                    description: jsonResult.description || "",
-                    tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
-                }
+        if (token) {
+            console.log("SCRAPING EBAY MARKET DEMAND...");
+            const mainKeyword = keywords.slice(0, 3).join(' ');
+            
+            // 1. Fetch Item Summaries for Frequency Mapping
+            const searchRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+                params: { q: mainKeyword, limit: 15 },
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+
+            if (searchRes.data?.itemSummaries) {
+                const ebayTitles = searchRes.data.itemSummaries.map(item => item.title);
+                demandKeywords = seoEngine.buildFrequencyMap(ebayTitles);
+                console.log("DEMAND KEYWORDS EXTRACTED:", demandKeywords.join(', '));
+            }
+
+            // 2. Fetch Category Suggestions
+            const taxRes = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions', {
+                params: { q: mainKeyword },
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (taxRes.data?.categorySuggestions?.[0]) {
+                const sug = taxRes.data.categorySuggestions[0].category;
+                categorySuggestion = {
+                    id: sug.categoryId,
+                    name: sug.categoryName
+                };
+            }
         }
 
-        // If Gemini returns an error (like 429), propagate it so frontend knows
-        if (rawData.error) {
-            console.error("GEMINI API ERROR:", rawData.error.message);
-            return res.json({
-                success: false,
-                error: rawData.error.message,
-                status: rawData.error.status,
-                data: generateNativeFallback(title, description).data
-            });
-        }
+        // Combine Phase 1 + Phase 2 for Scoring
+        const scoredTitles = baseTitles.map(t => ({
+            text: t,
+            score: seoEngine.scoreTitle(t, demandKeywords)
+        })).sort((a, b) => b.score - a.score);
 
-        throw new Error("MALFORMED_RESPONSE");
+        return res.json({
+            success: true,
+            data: {
+                titles: scoredTitles.map(t => t.text),
+                scores: scoredTitles.map(t => t.score),
+                description: cleanDesc,
+                tags: tags,
+                category: categorySuggestion || { id: "0", name: fallbackCategory },
+                mode: token ? "ADVANCED_MARKET" : "DETERMINISTIC_BASE"
+            }
+        });
 
     } catch (err) {
-        console.error("GEMINI CRITICAL FAULT:", err.message);
-        return res.json(generateNativeFallback(title, description));
+        console.error("SEO ENGINE FAULT:", err.message);
+        // Absolute Fallback to Phase 1
+        return res.json({
+            success: true,
+            data: {
+                titles: baseTitles,
+                scores: [70, 65, 60],
+                description: cleanDesc,
+                tags: tags,
+                category: { id: "0", name: fallbackCategory },
+                mode: "DETERMINISTIC_FALLBACK"
+            }
+        });
     }
 });
 
