@@ -286,7 +286,7 @@ const IntelligenceReview = () => {
                </div>
                
                <div className="h-24 w-full flex items-end gap-1 px-2">
-                  {sellData.momentum.map((p, i) => (
+                  {sellData.momentum?.map((p, i) => (
                     <motion.div 
                       key={i}
                       initial={{ height: 0 }}

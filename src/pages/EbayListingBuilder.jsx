@@ -192,7 +192,7 @@ const EbayListingBuilder = () => {
                                             <span className="text-[10px] font-black uppercase tracking-widest">Select Optimized Title</span>
                                         </div>
                                         <div className="grid gap-4">
-                                            {optimizedData.titles.map((t, i) => (
+                                            {optimizedData.titles?.map((t, i) => (
                                                 <button
                                                     key={i}
                                                     onClick={() => setSelectedTitle(t.text)}
@@ -235,7 +235,7 @@ const EbayListingBuilder = () => {
                                             <span className="text-[9px] font-black text-slate-300 uppercase">{tags.length} TAGS GENERATED</span>
                                         </div>
                                         <div className="flex flex-wrap gap-3">
-                                            {tags.map((tag, i) => (
+                                            {tags?.map((tag, i) => (
                                                 <div key={i} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-tight group hover:border-slate-400 transition-all">
                                                     {tag}
                                                     <button onClick={() => handleRemoveTag(tag)} className="text-slate-300 hover:text-rose-500 transition-colors">

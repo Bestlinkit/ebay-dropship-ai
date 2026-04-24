@@ -189,7 +189,7 @@ const Discovery = () => {
            </div>
 
            <div className="flex flex-col gap-4">
-              {topPicks.map(p => (
+              {topPicks?.map(p => (
                 <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} isCompact={true} />
               ))}
            </div>
@@ -221,7 +221,7 @@ const Discovery = () => {
                                 exit={{ opacity: 0, y: 10 }}
                                 className="absolute top-full left-0 right-0 mt-4 bg-[#0B1121] border border-white/10 rounded-[2rem] shadow-4xl z-[100] overflow-hidden"
                             >
-                                {suggestions.map((sug, i) => (
+                                {suggestions?.map((sug, i) => (
                                     <button
                                         key={i}
                                         onClick={() => {
@@ -276,7 +276,7 @@ const Discovery = () => {
                             className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none cursor-pointer hover:bg-[#1f2e4d] transition-colors appearance-none shadow-inner"
                           >
                             <option value="">All Segments</option>
-                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
                        </div>
                        
@@ -361,7 +361,7 @@ const Discovery = () => {
                 <div key={i} className="h-32 bg-slate-900/50 rounded-2xl animate-pulse border border-slate-800/30" />
               ))
             ) : processedProducts.length > 0 ? (
-              shuffleResults(processedProducts).map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
+              shuffleResults(processedProducts)?.map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
             ) : (
               <div className="col-span-full py-56 flex flex-col items-center justify-center gap-8 opacity-10">
                  <Waves size={80} className="text-slate-400" />
