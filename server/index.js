@@ -466,163 +466,109 @@ app.get('/api/ai/test', async (req, res) => {
   }
 });
 
-// 🤖 AI LISTING ENGINE (v5.5 - STRICT STABILITY MODE)
+// 🤖 AI LISTING ENGINE (v6.0 - HIGH PRECISION MODE)
 
-// Diagnostic Route: Verify Connection & Key
-app.get('/api/ai/test', async (req, res) => {
-  try {
-    const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models?key=" + GEMINI_KEY
-    );
-
-    const data = await response.json();
-    return res.json({ success: true, models: data });
-  } catch (err) {
-    return res.json({ success: false, error: err.message });
-  }
-});
-
-/**
- * 🛠️ NATIVE FALLBACK GENERATOR (Heuristic-Based)
- * Used when Gemini fails or timeouts (< 2s).
- * Generates REAL usable data, no fake metrics.
- */
 const generateNativeFallback = (title, description) => {
     console.warn("⚠️ AI PIPELINE: EXECUTING NATIVE FALLBACK...");
-    
-    // 1. Clean Title & Extract Keywords
     const cleanTitle = title.replace(/[^\w\s]/gi, '').trim();
     const keywords = cleanTitle.split(' ').filter(w => w.length > 3).slice(0, 5);
     
-    // 2. Generate 3 REAL Variations
-    const titles = [
-        cleanTitle.substring(0, 80),
-        `Premium ${cleanTitle}`.substring(0, 80),
-        `${cleanTitle} - Best Quality`.substring(0, 80)
-    ];
-
-    // 3. Clean & Structure Description
-    const cleanDesc = description.replace(/<[^>]*>?/gm, '').trim();
-    const structuredDesc = `
-# KEY FEATURES
-- High quality construction
-- Durable and reliable
-- Professional design
-
-# PRODUCT DETAILS
-${cleanDesc || "Quality product for everyday use."}
-
-# PACKAGE INCLUDES
-- 1x Main Product Unit
-- User Documentation
-    `.trim();
-
     return {
-        titles: titles.map(t => ({ text: t, score: 80 })),
-        description: structuredDesc,
+        success: false,
+        titles: [
+            cleanTitle.substring(0, 80),
+            `Premium ${cleanTitle}`.substring(0, 80),
+            `${cleanTitle} - High Quality`.substring(0, 80)
+        ],
+        description: description.replace(/<[^>]*>?/gm, '').trim(),
         tags: keywords.length > 0 ? keywords : ["BestSeller", "Premium", "Quality"]
     };
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, category } = req.body;
     const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
-    // STEP 7: LOGGING (INPUT)
-    console.log("AI INPUT:", { title: title?.substring(0, 50), descLength: description?.length });
+    console.log("AI REQUEST INITIATED:", { title: title?.substring(0, 40) });
 
     if (!GEMINI_KEY) {
-        console.error("AI ERROR: API_KEY_MISSING");
-        const fallback = generateNativeFallback(title, description);
-        return res.status(200).json({ success: false, error: "KEY_MISSING", data: fallback });
+        return res.json(generateNativeFallback(title, description));
     }
 
-    // STEP 6: SPEED REQUIREMENT (2s Timeout)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const runAIOptimize = async (retryCount = 0) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s Timeout
 
-    try {
-        const response = await fetch(
-            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=" + GEMINI_KEY,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `eBay SEO Expert Task:
-Rewrite for eBay SEO:
+        try {
+            const response = await fetch(
+                "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=" + GEMINI_KEY,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    signal: controller.signal,
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Optimize this product for eBay SEO.
+
+Return STRICT JSON:
+{
+  "titles": [3 optimized titles ranked best to worst],
+  "description": "HTML formatted description",
+  "tags": ["5 high-converting keywords"]
+}
+
+Product:
 Title: ${title}
 Description: ${description}
+Category: ${category || "General"}
 
-STRICT JSON FORMAT:
-{
-  "titles": [
-    { "text": "Optimized Title 1", "score": 95 },
-    { "text": "Optimized Title 2", "score": 90 },
-    { "text": "Optimized Title 3", "score": 85 }
-  ],
-  "description": "Clean, structured HTML-free description",
-  "tags": ["tag1", "tag2"]
-}`
+Rules:
+- Titles max 80 characters
+- No fake claims (no 'best seller', no 'guaranteed')
+- eBay compliant
+- Tags must be real search keywords
+- Output ONLY JSON`
+                            }]
                         }]
-                    }]
-                })
-            }
-        );
+                    })
+                }
+            );
 
-        clearTimeout(timeoutId);
-        const data = await response.json();
+            clearTimeout(timeoutId);
+            const data = await response.json();
 
-        // STEP 7: LOGGING (RAW RESPONSE)
-        console.log("AI RAW RESPONSE:", JSON.stringify(data).substring(0, 300) + "...");
-
-        // Parse AI Result
-        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-            const rawText = data.candidates[0].content.parts[0].text;
-            const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-            
-            try {
+            if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+                const rawText = data.candidates[0].content.parts[0].text;
+                const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const jsonResult = JSON.parse(cleanText);
-                
-                // STEP 3: BACKEND RESPONSE CONTRACT (STRICT)
-                const finalData = {
+
+                // STEP 3: RESPONSE STRUCTURE (CRITICAL)
+                return {
                     success: true,
-                    data: {
-                        titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
-                        description: jsonResult.description || "",
-                        tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
-                    }
+                    titles: Array.isArray(jsonResult.titles) ? jsonResult.titles : [],
+                    description: jsonResult.description || "",
+                    tags: Array.isArray(jsonResult.tags) ? jsonResult.tags : []
                 };
-
-                // STEP 7: LOGGING (FINAL OUTPUT)
-                console.log("AI FINAL OUTPUT: SUCCESS");
-                return res.json(finalData);
-
-            } catch (e) {
-                console.error("AI JSON Parse Error");
             }
+
+            throw new Error("MALFORMED_RESPONSE");
+
+        } catch (err) {
+            clearTimeout(timeoutId);
+            console.error("GEMINI ERROR FULL:", err.message);
+
+            if (retryCount < 1) {
+                console.log("AI RETRYING (1/1)...");
+                return runAIOptimize(retryCount + 1);
+            }
+            
+            return generateNativeFallback(title, description);
         }
+    };
 
-        throw new Error("MALFORMED_AI_RESPONSE");
-
-    } catch (err) {
-        clearTimeout(timeoutId);
-        const errorType = err.name === 'AbortError' ? 'TIMEOUT' : 'FAILURE';
-        console.error(`AI ${errorType}:`, err.message);
-
-        // STEP 5: FALLBACK SYSTEM (NO FAKE AI)
-        const fallback = generateNativeFallback(title, description);
-
-        // STEP 3: BACKEND RESPONSE CONTRACT (STRICT)
-        return res.status(200).json({
-            success: false,
-            error: errorType,
-            data: fallback
-        });
-    }
+    const finalResult = await runAIOptimize();
+    return res.json(finalResult);
 });
 
 // Mount Router

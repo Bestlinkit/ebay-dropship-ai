@@ -63,28 +63,25 @@ const EbayListingBuilder = () => {
                 description: cjProduct.description
             });
 
-            // STEP 3 & 4: BACKEND RESPONSE CONTRACT & FRONTEND SAFETY
-            const aiData = result.data || {};
-            
-            // MANDATORY SAFETY CHECKS
-            const safeTitles = Array.isArray(aiData.titles) ? aiData.titles : [];
-            const safeTags = Array.isArray(aiData.tags) ? aiData.tags : [];
-            const safeDesc = aiData.description || cjProduct.description || "";
+            // STEP 6: FRONTEND GUARD (CRITICAL)
+            if (!Array.isArray(result.titles)) {
+                throw new Error("INVALID_AI_RESPONSE");
+            }
 
-            setOptimizedData({ ...result, titles: safeTitles });
-            setTags(safeTags);
-            setDescription(safeDesc);
+            setOptimizedData(result);
+            setTags(result.tags || []);
+            setDescription(result.description || cjProduct.description);
 
-            if (safeTitles.length > 0) {
-                setSelectedTitle(safeTitles[0].text);
+            if (result.titles.length > 0) {
+                setSelectedTitle(result.titles[0]);
             }
 
             if (!result.success) {
-                setOptimizationError(`AI Offline (${result.error}). Local Optimization Applied.`);
+                setOptimizationError("AI Handshake Failed. Local Optimization Active.");
             }
         } catch (err) {
             console.error("AI Build Fault:", err);
-            setOptimizationError("System timeout. Local optimization applied.");
+            setOptimizationError("Market Intelligence Unavailable. Local Optimization Active.");
         } finally {
             setIsOptimizing(false);
         }
@@ -118,12 +115,6 @@ const EbayListingBuilder = () => {
                         <h1 className="text-3xl font-black text-slate-950 italic tracking-tighter uppercase leading-none">eBay Listing Builder</h1>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Optimization Phase • Product {productId}</p>
                     </div>
-                </div>
-                <div className="flex items-center gap-4">
-                     <div className="px-6 py-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-3">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Sourcing Data Locked</span>
-                     </div>
                 </div>
             </div>
 
@@ -160,7 +151,7 @@ const EbayListingBuilder = () => {
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
                                     <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">AI Content Engine</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized title and description using Gemini Flash</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized titles and SEO description</p>
                                 </div>
                                 {!optimizedData && !isOptimizing && (
                                     <button 
@@ -183,7 +174,7 @@ const EbayListingBuilder = () => {
                                 <div className="p-10 bg-rose-50 border-2 border-rose-100 rounded-[2.5rem] flex flex-col items-center gap-6 text-center">
                                     <AlertCircle size={40} className="text-rose-500" />
                                     <div className="space-y-2">
-                                        <h4 className="text-lg font-black text-rose-900 uppercase">Optimization Failed</h4>
+                                        <h4 className="text-lg font-black text-rose-900 uppercase">Optimization Warning</h4>
                                         <p className="text-sm font-medium text-rose-600">{optimizationError}</p>
                                     </div>
                                     <button onClick={handleAIOptimize} className="px-12 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-xl">
@@ -201,18 +192,18 @@ const EbayListingBuilder = () => {
                                             <span className="text-[10px] font-black uppercase tracking-widest">Select Optimized Title</span>
                                         </div>
                                         <div className="grid gap-4">
-                                            {optimizedData.titles?.map((t, i) => (
+                                            {optimizedData.titles?.map((titleText, i) => (
                                                 <button
                                                     key={i}
-                                                    onClick={() => setSelectedTitle(t.text)}
+                                                    onClick={() => setSelectedTitle(titleText)}
                                                     className={cn(
                                                         "w-full p-6 rounded-2xl border-2 text-left transition-all relative group",
-                                                        selectedTitle === t.text ? "border-indigo-600 bg-indigo-50/30" : "border-slate-100 hover:border-slate-300"
+                                                        selectedTitle === titleText ? "border-indigo-600 bg-indigo-50/30" : "border-slate-100 hover:border-slate-300"
                                                     )}
                                                 >
-                                                    <p className="text-[14px] font-bold text-slate-900 pr-20">{t.text}</p>
+                                                    <p className="text-[14px] font-bold text-slate-900 pr-20">{titleText}</p>
                                                     <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                        {selectedTitle === t.text && <CheckCircle2 size={20} className="text-indigo-600" />}
+                                                        {selectedTitle === titleText && <CheckCircle2 size={20} className="text-indigo-600" />}
                                                     </div>
                                                 </button>
                                             ))}
