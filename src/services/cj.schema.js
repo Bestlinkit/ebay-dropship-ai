@@ -31,12 +31,12 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   };
 
   // 2. PARSE GALLERY
-  let gallery = p.productImageList || [];
+  let gallery = p.productImageList || p.productImages || [];
   if (typeof gallery === "string") {
       try {
           gallery = gallery.includes("[") ? JSON.parse(gallery) : gallery.split(",");
       } catch {
-          gallery = [];
+          gallery = [gallery];
       }
   }
   const galleryArray = Array.isArray(gallery) ? gallery : [];
@@ -46,6 +46,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     cleanUrl(p.productImage) || 
     cleanUrl(p.product_image) || 
     cleanUrl(p.image) || 
+    cleanUrl(p.mainImage) ||
     cleanUrl(galleryArray[0]) || 
     "";
 
@@ -57,19 +58,19 @@ export function normalizeProduct(raw = {}, cjData = {}) {
   const cjMapped = {
     cj: {
         id: safeId,
-        name: String(p.nameEn || p.productNameEn || p.productName || p.title || "Unnamed Product"),
+        name: String(p.productNameEn || p.nameEn || p.productName || p.title || p.name || "Unnamed Product"),
         image: image || "https://via.placeholder.com/600x600?text=No+Product+Image",
         images: galleryArray.map(cleanUrl).filter(Boolean).length > 0 
                 ? galleryArray.map(cleanUrl).filter(Boolean) 
-                : [image].filter(cleanUrl),
-        variants: Array.isArray(p.skuList || p.skus) ? (p.skuList || p.skus) : [],
-        variantCount: parseInt(p.variantCount || p.variantsNum || 0),
-        price: parseFloat(p.sellPrice || p.price || 0),
-        cost: parseFloat(p.costPrice || 0),
+                : [image].filter(Boolean),
+        variants: Array.isArray(p.skuList || p.variantList || p.skus || p.variants) ? (p.skuList || p.variantList || p.skus || p.variants) : [],
+        variantCount: parseInt(p.variantCount || p.variantsNum || p.skuList?.length || 0),
+        price: parseFloat(p.sellPrice || p.price || p.lowPrice || 0),
+        cost: parseFloat(p.costPrice || p.purchasePrice || 0),
         raw: p,
         warehouse: p.warehouseName || p.warehouse || "CN",
         shipping: resolveShipping(p),
-        description: p.descriptionHtml || p.description || ""
+        description: p.productDescription || p.descriptionHtml || p.description || p.content || ""
     }
   };
 

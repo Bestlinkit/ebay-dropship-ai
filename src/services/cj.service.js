@@ -104,37 +104,46 @@ class CJService {
         }
 
         const cjData = detailResponse.data.data;
-        const variants = cjData.skuList || cjData.variantList || [];
+        const variants = cjData.skuList || cjData.variantList || cjData.variants || [];
         
-        // 2. Fetch Real Shipping Fee (Freight) for the first variant to fix "$0.00" issue
+        console.log(`[CJ Enrich] Hydrated ID ${pid}: ${variants.length} variants found.`);
+
+        // 2. Fetch Real Shipping Fee (Freight)
         let freightData = {};
         if (variants.length > 0) {
             try {
-                const firstSku = variants[0].variantSku || variants[0].sku || variants[0].skuCode;
-                const freightUrl = `${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`;
-                const freightResponse = await axios.post(freightUrl, {
-                    sku: firstSku,
-                    countryCode: 'US',
-                    warehouseId: cjData.warehouseName || 'CN'
-                });
+                const firstVar = variants[0];
+                const firstSku = firstVar.variantSku || firstVar.sku || firstVar.skuCode || firstVar.variantKey;
                 
-                if (freightResponse.data?.code === 200 && freightResponse.data.data?.[0]) {
-                    const bestMethod = freightResponse.data.data[0];
-                    freightData = {
-                        shippingFee: bestMethod.price || bestMethod.amount || 0,
-                        deliveryTime: bestMethod.logisticTime || "7-15 Days",
-                        logisticName: bestMethod.logisticName || "Standard Shipping"
-                    };
+                if (firstSku) {
+                    const freightUrl = `${BRIDGE_BASE}${this.CONFIG.FREIGHT_ENDPOINT}`;
+                    const freightResponse = await axios.post(freightUrl, {
+                        sku: firstSku,
+                        countryCode: 'US',
+                        warehouseId: cjData.warehouseName || cjData.warehouseCode || 'CN'
+                    });
+                    
+                    if (freightResponse.data?.code === 200 && freightResponse.data.data?.[0]) {
+                        const bestMethod = freightResponse.data.data[0];
+                        freightData = {
+                            shippingFee: bestMethod.price || bestMethod.amount || 0,
+                            deliveryTime: bestMethod.logisticTime || "7-15 Days",
+                            logisticName: bestMethod.logisticName || "Standard Shipping"
+                        };
+                    }
                 }
             } catch (fe) {
-                console.warn("Freight calculation failed - using detail defaults", fe.message);
+                console.warn("Freight calculation failed", fe.message);
             }
         }
 
+        // Merge logic: ensure we use the raw data from the search if detail is missing some fields
         const rawBase = product.cj?.raw || product;
-        // Merge detail data and freight data
-        return normalizeProduct(rawBase, { ...cjData, ...freightData });
+        const mergedRaw = { ...rawBase, ...cjData, ...freightData };
+        
+        return normalizeProduct(mergedRaw, {});
     } catch (e) {
+        console.error("CJ Enrichment Failure:", e.message);
         return product;
     }
   }
