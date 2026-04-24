@@ -56,6 +56,10 @@ const EbayListingBuilder = () => {
     const [bulkPrice, setBulkPrice] = useState("");
     const [bulkInventory, setBulkInventory] = useState("");
 
+    // 🖼️ IMAGES SELECTION STATE (TAB 3)
+    const [availableImages, setAvailableImages] = useState([]);
+    const [selectedImages, setSelectedImages] = useState([]);
+
     // Initialize Variants from CJ Product
     useEffect(() => {
         if (cjProduct?.variants) {
@@ -104,6 +108,26 @@ const EbayListingBuilder = () => {
             ebay_price: bulkPrice !== "" ? parseFloat(bulkPrice) : v.ebay_price,
             inventory: bulkInventory !== "" ? parseInt(bulkInventory) : v.inventory
         })));
+    };
+
+    // Initialize Images
+    useEffect(() => {
+        if (cjProduct?.images) {
+            setAvailableImages(cjProduct.images);
+            // Default select: First image + next 4
+            setSelectedImages(cjProduct.images.slice(0, 5));
+        }
+    }, [cjProduct]);
+
+    const handleToggleImage = (url) => {
+        setSelectedImages(prev => {
+            if (prev.includes(url)) {
+                return prev.filter(i => i !== url);
+            } else {
+                if (prev.length >= 12) return prev; // eBay limit
+                return [...prev, url];
+            }
+        });
     };
     const handleSEOOptimize = async () => {
         if (!cjProduct) return;
@@ -524,7 +548,106 @@ const EbayListingBuilder = () => {
                         </div>
                     )}
 
-                    {activeTab > 2 && (
+                    {activeTab === 3 && (
+                        <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Images Selection</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select up to 12 images for your eBay gallery</p>
+                                </div>
+                                <div className={cn(
+                                    "px-6 py-3 rounded-2xl flex items-center gap-3 border-2 transition-all",
+                                    selectedImages.length === 0 ? "bg-rose-50 border-rose-100 text-rose-500" : "bg-slate-50 border-slate-100 text-slate-900"
+                                )}>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Selected</span>
+                                    <span className="text-sm font-black">{selectedImages.length} / 12</span>
+                                </div>
+                            </div>
+
+                            {selectedImages.length === 0 && (
+                                <div className="p-6 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-4 text-rose-600 animate-bounce">
+                                    <AlertCircle size={20} />
+                                    <p className="text-[10px] font-black uppercase tracking-widest">Please select at least one product image to continue</p>
+                                </div>
+                            )}
+
+                            {/* IMAGE GRID */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                {availableImages.map((img, i) => {
+                                    const isSelected = selectedImages.includes(img);
+                                    const selectIndex = selectedImages.indexOf(img);
+                                    
+                                    return (
+                                        <button 
+                                            key={i}
+                                            onClick={() => handleToggleImage(img)}
+                                            className={cn(
+                                                "relative aspect-square rounded-[2rem] overflow-hidden border-4 transition-all group",
+                                                isSelected ? "border-slate-950 shadow-2xl scale-[1.02]" : "border-slate-100 hover:border-slate-300"
+                                            )}
+                                        >
+                                            <img 
+                                                src={img} 
+                                                className={cn(
+                                                    "w-full h-full object-cover transition-transform duration-500",
+                                                    isSelected ? "scale-105" : "group-hover:scale-105"
+                                                )} 
+                                                alt="" 
+                                                referrerPolicy="no-referrer"
+                                            />
+                                            
+                                            {/* SELECTION OVERLAY */}
+                                            <div className={cn(
+                                                "absolute inset-0 bg-slate-950/20 transition-opacity",
+                                                isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                            )} />
+
+                                            {isSelected && (
+                                                <div className="absolute top-4 right-4 w-8 h-8 bg-slate-950 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white animate-in zoom-in duration-300">
+                                                    <CheckCircle2 size={16} />
+                                                </div>
+                                            )}
+
+                                            {isSelected && (
+                                                <div className="absolute bottom-4 left-4 px-3 py-1 bg-white/90 backdrop-blur-md rounded-lg shadow-sm border border-slate-200">
+                                                    <p className="text-[9px] font-black text-slate-950 uppercase tracking-tighter">
+                                                        {selectIndex === 0 ? "Main Image" : `Position ${selectIndex + 1}`}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {availableImages.length === 0 && (
+                                <div className="py-32 flex flex-col items-center justify-center gap-6 border-2 border-dashed border-slate-100 rounded-[3rem]">
+                                    <ImageIcon size={48} className="text-slate-200" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No images found for this product</p>
+                                </div>
+                            )}
+
+                            <div className="pt-10 flex justify-between">
+                                <button onClick={() => setActiveTab(2)} className="px-8 py-4 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                                    Back to Pricing
+                                </button>
+                                <button 
+                                    disabled={selectedImages.length === 0}
+                                    onClick={() => setActiveTab(4)} 
+                                    className={cn(
+                                        "px-12 py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-4 transition-all shadow-xl group",
+                                        selectedImages.length === 0 
+                                            ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                                            : "bg-slate-950 text-white hover:bg-indigo-600"
+                                    )}
+                                >
+                                    Video Lab <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab > 3 && (
                         <div className="h-full flex flex-col items-center justify-center gap-6 text-center">
                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                                 {tabs.find(t => t.id === activeTab)?.icon}
