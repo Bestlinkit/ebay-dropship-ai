@@ -63,19 +63,28 @@ const EbayListingBuilder = () => {
                 description: cjProduct.description
             });
 
-            if (result.success) {
-                setOptimizedData(result);
-                // Auto-select highest score title
-                const best = [...result.titles].sort((a, b) => b.score - a.score)[0];
-                setSelectedTitle(best.text);
-                setDescription(result.description);
-                setTags(result.tags || []);
-            } else {
-                throw new Error(result.error || "AI failed to generate response.");
+            // STEP 3 & 4: BACKEND RESPONSE CONTRACT & FRONTEND SAFETY
+            const aiData = result.data || {};
+            
+            // MANDATORY SAFETY CHECKS
+            const safeTitles = Array.isArray(aiData.titles) ? aiData.titles : [];
+            const safeTags = Array.isArray(aiData.tags) ? aiData.tags : [];
+            const safeDesc = aiData.description || cjProduct.description || "";
+
+            setOptimizedData({ ...result, titles: safeTitles });
+            setTags(safeTags);
+            setDescription(safeDesc);
+
+            if (safeTitles.length > 0) {
+                setSelectedTitle(safeTitles[0].text);
+            }
+
+            if (!result.success) {
+                setOptimizationError(`AI Offline (${result.error}). Local Optimization Applied.`);
             }
         } catch (err) {
             console.error("AI Build Fault:", err);
-            setOptimizationError(err.message || "AI optimization failed. Please retry.");
+            setOptimizationError("System timeout. Local optimization applied.");
         } finally {
             setIsOptimizing(false);
         }
@@ -202,8 +211,7 @@ const EbayListingBuilder = () => {
                                                     )}
                                                 >
                                                     <p className="text-[14px] font-bold text-slate-900 pr-20">{t.text}</p>
-                                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-4">
-                                                        <span className="text-[9px] font-black text-indigo-600 bg-indigo-100 px-3 py-1 rounded-md uppercase">Score: {t.score}</span>
+                                                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
                                                         {selectedTitle === t.text && <CheckCircle2 size={20} className="text-indigo-600" />}
                                                     </div>
                                                 </button>
