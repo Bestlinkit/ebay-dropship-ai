@@ -225,8 +225,10 @@ const SupplierProductDetail = () => {
                                             <img src={v.variantImage || cj.image} className="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div className="space-y-1">
-                                            <span className="text-[14px] font-black text-slate-950">${parseFloat(v.price || 0).toFixed(2)}</span>
-                                            <p className="text-[10px] font-black text-slate-900 uppercase truncate">{v.variantKey || "STANDARD"}</p>
+                                            <span className="text-[14px] font-black text-slate-950">
+                                                ${parseFloat(v.variantSellPrice || v.sellPrice || v.variantPrice || v.price || 0).toFixed(2)}
+                                            </span>
+                                            <p className="text-[10px] font-black text-slate-900 uppercase truncate">{v.variantKey || v.variantStandardEn || "STANDARD"}</p>
                                         </div>
                                     </div>
                                 </button>

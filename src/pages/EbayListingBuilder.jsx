@@ -60,7 +60,7 @@ const EbayListingBuilder = () => {
     useEffect(() => {
         if (cjProduct?.variants) {
             const initialVariants = cjProduct.variants.map(v => {
-                const cjPrice = parseFloat(v.sellPrice || v.variantPrice || 0);
+                const cjPrice = parseFloat(v.variantSellPrice || v.sellPrice || v.variantPrice || v.price || 0);
                 const ebayPrice = targetPrice || (cjPrice * 2); // Default 2x if no target
                 
                 return calculateMetrics({
@@ -257,11 +257,42 @@ const EbayListingBuilder = () => {
                                         </div>
                                     )}
 
-                                    {/* TITLE SELECTION */}
+                                    {/* SELECTED TITLE (MANUAL OVERRIDE) */}
+                                    <div className="space-y-6 p-10 bg-slate-50 border border-slate-100 rounded-[2.5rem]">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3 text-slate-400">
+                                                <Trophy size={16} className="text-indigo-500" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Primary eBay Title</span>
+                                            </div>
+                                            <div className={cn(
+                                                "px-3 py-1 rounded-md text-[9px] font-black uppercase",
+                                                selectedTitle.length > 80 ? "bg-rose-100 text-rose-600" : "bg-slate-200 text-slate-600"
+                                            )}>
+                                                {selectedTitle.length} / 80 CHARS
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="text"
+                                            value={selectedTitle}
+                                            onChange={(e) => setSelectedTitle(e.target.value)}
+                                            className={cn(
+                                                "w-full p-6 bg-white border-2 rounded-2xl text-sm font-bold text-slate-900 outline-none transition-all shadow-sm focus:ring-4 ring-indigo-500/5",
+                                                selectedTitle.length > 80 ? "border-rose-400" : "border-slate-200 focus:border-slate-950"
+                                            )}
+                                            placeholder="Select a ranked option below or type your custom title here..."
+                                        />
+                                        {selectedTitle.length > 80 && (
+                                            <p className="text-[9px] font-black text-rose-500 uppercase flex items-center gap-2 px-2">
+                                                <AlertCircle size={12} /> Title exceeds eBay character limit (80)
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* RANKED TITLE OPTIONS */}
                                     <div className="space-y-6">
-                                        <div className="flex items-center gap-3 text-slate-400">
-                                            <Trophy size={16} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Ranked Title Options</span>
+                                        <div className="flex items-center gap-3 text-slate-400 px-2">
+                                            <Sparkles size={16} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Market-Driven Recommendations</span>
                                         </div>
                                         <div className="grid gap-4">
                                             {optimizedData.titles?.map((t, i) => {
