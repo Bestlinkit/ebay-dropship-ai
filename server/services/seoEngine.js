@@ -2,7 +2,7 @@
 
 const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality', 'limited edition', 'top rated', 'great value', 'quality', 'daily use']);
 
-const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 'information', 'description', 'people', 'applicable', 'various', 'available']);
+const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 'information', 'description', 'people', 'applicable', 'various', 'available', 'type', 'standard', 'specifications']);
 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
 
@@ -12,9 +12,9 @@ const CATEGORY_LOCKED_MAP = {
     'skincare': {
         name: 'Health & Beauty > Skin Care > Body Scrubs',
         product_type: 'Body Scrub',
-        benefits: ['Exfoliating', 'Moisturizing', 'Brightening', 'Hydrating'],
-        outcomes: ['Smooth Skin', 'Even Tone', 'Radiant Glow'],
-        intent_keywords: ['exfoliating', 'hydrating', 'cleansing', 'skincare'],
+        benefits: ['Smooth Skin', 'Even Tone', 'Radiant Glow', 'Deep Clean'],
+        outcomes: ['Silky Texture', 'Youthful Glow', 'Healthy Skin'],
+        intent_keywords: ['exfoliating', 'hydrating', 'cleansing', 'moisturizing'],
         fallback_tags: ["exfoliating body scrub", "moisturizing body scrub", "skin brightening scrub", "natural body exfoliator", "hydrating skin scrub"]
     },
     'apparel': {
@@ -103,23 +103,46 @@ function extractKeywords(title, description) {
  */
 function generatePremiumTitles(keywords, classification) {
     const { primary_keyword, benefits, config, product_type } = classification;
-    const intent = config.intent_keywords[0];
+    const intent = config.intent_keywords;
     const outcome = config.outcomes[0];
     
-    const templates = [
-        `${primary_keyword} ${product_type} - ${intent} & ${outcome}`,
-        `${benefits[0]} ${primary_keyword} ${product_type} for ${outcome}`,
-        `${primary_keyword} ${product_type} with ${benefits[1]} formula`
-    ];
+    let templates = [];
+
+    if (product_type === "Body Scrub") {
+        // Specialized Structure: [Function] + Body Scrub + [Benefit] + [Optional: Skin Care]
+        templates = [
+            `${intent[0]} Body Scrub ${benefits[0]} Skin Care`,
+            `${intent[1]} Body Scrub for ${benefits[1]}`,
+            `${intent[2]} Body Scrub - ${benefits[2]}`
+        ];
+    } else {
+        templates = [
+            `${primary_keyword} ${product_type} - ${intent[0]} & ${outcome}`,
+            `${benefits[0]} ${primary_keyword} ${product_type} for ${outcome}`,
+            `${primary_keyword} ${product_type} with ${benefits[1]} formula`
+        ];
+    }
 
     return templates.map((t, i) => {
         let text = deduplicateWords(t.replace(/\s+/g, ' ').trim());
+        
+        // Block-list: Must NOT start with "Bath Scrub Body"
+        if (text.toLowerCase().startsWith("bath scrub body")) {
+            text = text.replace(/Bath Scrub Body/i, "Exfoliating Body Scrub");
+        }
+
         text = text.substring(0, 80);
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         
         let score = 95 - (i * 3);
-        if (!capitalized.toLowerCase().includes(product_type.toLowerCase())) score -= 20;
         
+        // Strict Validation: Must include "Body Scrub" (case insensitive)
+        if (!capitalized.toLowerCase().includes("body scrub")) score -= 30;
+        
+        // Must include 1 function keyword
+        const hasFunction = intent.some(f => capitalized.toLowerCase().includes(f));
+        if (!hasFunction) score -= 20;
+
         return { text: capitalized, score: score };
     });
 }
@@ -129,24 +152,61 @@ function generatePremiumTitles(keywords, classification) {
  */
 function generateTags(keywords, classification) {
     const { product_type, config } = classification;
-    const tags = new Set();
+    const finalTags = new Set();
     const type = product_type.toLowerCase();
     
+    const candidateTags = [];
+
+    // Build candidates from keywords and classification intent
     keywords.forEach(k => {
-        if (tags.size < 8 && k !== type && !config.intent_keywords.includes(k)) {
-            // Natural Query Format: [intent] + [keyword] + [type]
-            const intent = config.intent_keywords[Math.floor(Math.random() * config.intent_keywords.length)];
-            tags.add(`${intent} ${k} ${type}`);
-        }
+        config.intent_keywords.forEach(intent => {
+            candidateTags.push(`${intent} ${k} ${type}`);
+            candidateTags.push(`${k} ${type}`);
+            candidateTags.push(`${intent} ${type}`);
+        });
     });
 
-    if (tags.size < 5) {
-        config.fallback_tags.forEach(t => {
-            if (tags.size < 8) tags.add(t.toLowerCase());
-        });
+    // Add fallback tags
+    config.fallback_tags.forEach(t => candidateTags.push(t.toLowerCase()));
+
+    for (let tag of candidateTags) {
+        if (finalTags.size >= 10) break;
+
+        // 1. Lowercase
+        tag = tag.toLowerCase().trim();
+
+        // 2. Word Count (2-4 words)
+        const words = tag.split(/\s+/);
+        if (words.length < 2 || words.length > 4) continue;
+
+        // 3. Reject Filler/Garbage
+        if (words.some(w => GARBAGE_TOKENS.has(w))) continue;
+
+        // 4. Deduplicate words within tag
+        const uniqueWords = Array.from(new Set(words));
+        if (uniqueWords.length !== words.length) continue; // Reject if duplicated words in tag
+
+        // 5. Human Search Test (Heuristic: Must contain product type or key intent)
+        const hasCoreNoun = tag.includes(type) || tag.includes('scrub');
+        if (!hasCoreNoun) continue;
+
+        // 6. Global Similarity Filter (Remove mirrored or overly similar tags)
+        const sortedTag = uniqueWords.sort().join(' ');
+        let isDuplicate = false;
+        for (let existing of finalTags) {
+            const existingSorted = existing.split(' ').sort().join(' ');
+            if (existingSorted === sortedTag) {
+                isDuplicate = true;
+                break;
+            }
+        }
+
+        if (!isDuplicate) {
+            finalTags.add(tag);
+        }
     }
 
-    return Array.from(tags).slice(0, 8);
+    return Array.from(finalTags).slice(0, 8);
 }
 
 /**
@@ -198,14 +258,28 @@ function recoverSEO(output, classification) {
 function validateAndRecover(output, classification) {
     const type = classification.product_type.toLowerCase();
     const config = classification.config;
-    const intentWords = [type, ...config.intent_keywords];
+    const intentKeywords = config.intent_keywords;
 
-    // Validation Check
-    const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(type));
-    const intentRatio = output.tags.filter(t => intentWords.some(iw => t.toLowerCase().includes(iw))).length / output.tags.length;
-    const tagsValid = output.tags.length >= 5 && intentRatio >= 0.7;
+    // 1. Strict Title Validation
+    const titlesValid = output.titles.every(t => {
+        const lower = t.text.toLowerCase();
+        const hasType = lower.includes(type);
+        const hasIntent = intentKeywords.some(ik => lower.includes(ik));
+        const noBathScrub = !lower.startsWith("bath scrub body");
+        return hasType && hasIntent && noBathScrub;
+    });
+
+    // 2. Strict Tag Validation
+    const tagsValid = output.tags.every(tag => {
+        const words = tag.split(' ');
+        const isCorrectLength = words.length >= 2 && words.length <= 4;
+        const noGarbage = !words.some(w => GARBAGE_TOKENS.has(w.toLowerCase()));
+        const isLowercase = tag === tag.toLowerCase();
+        return isCorrectLength && noGarbage && isLowercase;
+    }) && output.tags.length >= 5;
 
     if (!titlesValid || !tagsValid) {
+        console.warn("⚠️ SEO VALIDATION FAILED - TRIGGERING RECOVERY");
         return { 
             valid: true, 
             recovered: true, 
