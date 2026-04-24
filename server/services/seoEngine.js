@@ -1,10 +1,12 @@
-// --- SEO INTELLIGENCE RECOVERY ENGINE v14.0 (ZERO-BLOCK PIPELINE) ---
+// --- SEO INTELLIGENCE ENGINE v15.0 (CRITICAL QUALITY CORRECTION) ---
 
 const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality', 'limited edition', 'top rated', 'great value', 'quality', 'daily use']);
 
 const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 'information', 'description']);
 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
+
+const UNRELATED_PRODUCTS = new Set(['jeans', 'pants', 'shoes', 'bag', 'watch', 'phone', 'laptop', 'socks', 'underwear', 'hat', 'gloves']);
 
 const CATEGORY_LOCKED_MAP = {
     'skincare': {
@@ -67,7 +69,7 @@ function extractKeywords(title, description) {
     const seen = new Set();
 
     words.forEach(w => {
-        if (w.length > 3 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !MISLEADING_TOKENS.has(w) && !seen.has(w)) {
+        if (w.length > 3 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !MISLEADING_TOKENS.has(w) && !seen.has(w) && !UNRELATED_PRODUCTS.has(w)) {
             keywords.push(w);
             seen.add(w);
         }
@@ -77,42 +79,60 @@ function extractKeywords(title, description) {
 }
 
 /**
- * 3. TITLE GENERATION
+ * 3. SCORING ENGINE (v15.0)
+ */
+function scoreTitle(text, classification) {
+    let score = 95;
+    const lower = text.toLowerCase();
+    const type = classification.product_type.toLowerCase();
+
+    // -20 Penalty: Missing Product Type
+    if (!lower.includes(type)) score -= 20;
+
+    // -10 Penalty: Generic phrases
+    if (lower.includes('great value') || lower.includes('best quality')) score -= 10;
+
+    return Math.max(0, score);
+}
+
+/**
+ * 4. TITLE GENERATION
  */
 function generatePremiumTitles(keywords, classification) {
-    const { primary_keyword, benefits, config } = classification;
+    const { primary_keyword, benefits, config, product_type } = classification;
     const outcome = config.outcomes[0];
     
+    // ENSURE Product Type is present in all templates
     const templates = [
-        { t: `${primary_keyword} - ${benefits[0]} & ${outcome}`, s: 98 },
-        { t: `${benefits[1]} ${primary_keyword} for ${outcome}`, s: 95 },
-        { t: `${primary_keyword} with ${benefits[2]} Formula`, s: 92 }
+        `${primary_keyword} ${product_type} - ${benefits[0]} & ${outcome}`,
+        `${benefits[1]} ${primary_keyword} ${product_type} for ${outcome}`,
+        `${primary_keyword} ${product_type} with ${benefits[2]} Formula`
     ];
 
-    return templates.map(obj => {
-        const text = obj.t.replace(/\s+/g, ' ').trim().substring(0, 80);
+    return templates.map(t => {
+        const text = t.replace(/\s+/g, ' ').trim().substring(0, 80);
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        return { text: capitalized, score: obj.s };
+        return { text: capitalized, score: scoreTitle(capitalized, classification) };
     });
 }
 
 /**
- * 4. TAG GENERATION (RECOVERY AWARE)
+ * 5. TAG GENERATION (v15.0 [modifier] + [product type])
  */
 function generateTags(keywords, classification) {
-    const { primary_keyword } = classification;
+    const { product_type } = classification;
     const tags = new Set();
+    const type = product_type.toLowerCase();
     
     keywords.forEach(k => {
-        if (tags.size < 8 && !primary_keyword.includes(k)) {
-            const safeTag = `${k} ${primary_keyword}`.trim();
-            if (safeTag.split(' ').length >= 2) tags.add(safeTag);
+        if (tags.size < 8 && k !== type) {
+            tags.add(`${k} ${type}`); // [modifier] + [product type]
         }
     });
 
     if (tags.size < 5) {
         classification.benefits.forEach(b => {
-            if (tags.size < 8) tags.add(`${b.toLowerCase()} ${primary_keyword}`);
+            if (tags.size < 8) tags.add(`${b.toLowerCase()} ${type}`);
         });
     }
 
@@ -120,7 +140,7 @@ function generateTags(keywords, classification) {
 }
 
 /**
- * 5. DESCRIPTION
+ * 6. DESCRIPTION
  */
 function generateDescription(html, classification) {
     const { product_type, category } = classification;
@@ -132,33 +152,31 @@ function generateDescription(html, classification) {
 }
 
 /**
- * 6. RECOVERY SYSTEM (v14.0)
+ * 7. RECOVERY SYSTEM (v15.0 Hardened)
  */
 function recoverSEO(output, classification) {
-    console.log("🚀 SEO RECOVERY ACTIVE (v14.0)");
-    const { primary_keyword, config } = classification;
-    const primary = primary_keyword.toLowerCase();
+    console.log("🚀 SEO RECOVERY ACTIVE (v15.0)");
+    const { product_type, config, primary_keyword } = classification;
+    const type = product_type.toLowerCase();
 
-    // 1. Title Recovery
-    const typeWord = primary.split(' ')[0];
+    // Title Recovery: Inject Product Type
     output.titles = output.titles.map((t, i) => {
-        if (!t.text.toLowerCase().includes(typeWord)) {
-            const fallbackT = `${classification.benefits[i % 3]} ${primary} for ${config.outcomes[0]}`;
-            return { text: fallbackT.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), score: 90 - (i * 2) };
+        if (!t.text.toLowerCase().includes(type)) {
+            const fallbackT = `${classification.benefits[i % 3]} ${primary_keyword} ${product_type}`;
+            return { text: fallbackT.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), score: 70 };
         }
         return t;
     });
 
-    // 2. Tag Recovery (Auto Clean + Rebuild)
+    // Tag Recovery: Enforce [modifier] + [type]
     let cleanedTags = output.tags.filter(t => {
         const words = t.split(' ');
-        const isMisleading = words.some(w => MISLEADING_TOKENS.has(w));
-        return words.length >= 2 && !isMisleading;
+        const isMisleading = words.some(w => MISLEADING_TOKENS.has(w) || UNRELATED_PRODUCTS.has(w));
+        return words.length >= 2 && !isMisleading && t.toLowerCase().includes(type);
     });
 
     if (cleanedTags.length < 5) {
-        const rebuiltTags = config.fallback_tags.map(t => t.toLowerCase());
-        cleanedTags = Array.from(new Set([...cleanedTags, ...rebuiltTags])).slice(0, 8);
+        cleanedTags = config.fallback_tags.map(t => t.toLowerCase());
     }
 
     output.tags = cleanedTags;
@@ -166,22 +184,22 @@ function recoverSEO(output, classification) {
 }
 
 /**
- * 7. FINAL VALIDATION GATE (ZERO-BLOCK)
+ * 8. FINAL VALIDATION GATE (ZERO-BLOCK)
  */
 function validateAndRecover(output, classification) {
-    const primary = classification.primary_keyword.toLowerCase();
-    const typeWord = primary.split(' ')[0];
+    const type = classification.product_type.toLowerCase();
 
     // Validation Check
-    const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(typeWord));
+    const titlesValid = output.titles.every(t => t.text.toLowerCase().includes(type));
     const tagsValid = output.tags.length >= 5 && output.tags.every(t => {
         const words = t.split(' ');
-        return words.length >= 2 && !words.some(w => MISLEADING_TOKENS.has(w));
+        const isClean = !words.some(w => MISLEADING_TOKENS.has(w) || UNRELATED_PRODUCTS.has(w));
+        return words.length >= 2 && isClean && t.toLowerCase().includes(type);
     });
 
     if (!titlesValid || !tagsValid) {
         return { 
-            valid: true, // Always return true for Zero-Block pipeline
+            valid: true, 
             recovered: true, 
             data: recoverSEO(output, classification) 
         };
