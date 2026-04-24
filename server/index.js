@@ -425,6 +425,48 @@ cjRouter.post('/freight', async (req, res) => {
     }
 });
 
+// 🤖 GEMINI AI OPTIMIZATION (v1.0 - eBay Expert Mode)
+app.post('/api/gemini', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+        const GEMINI_KEY = process.env.VITE_GEMINI_API_KEY;
+
+        if (!GEMINI_KEY) {
+            return res.status(500).json({ error: "Gemini API Key missing in server environment" });
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+        
+        const payload = {
+            contents: [{
+                parts: [{ text: prompt }]
+            }]
+        };
+
+        const response = await axios.post(url, payload, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        // Gemini returns a nested structure, we need to extract the text and parse it if it's JSON
+        const rawText = response.data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        
+        // Clean up markdown code blocks if Gemini wraps the JSON
+        const cleanText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+        try {
+            const jsonResult = JSON.parse(cleanText);
+            return res.json(jsonResult);
+        } catch (e) {
+            console.error("Gemini returned invalid JSON:", cleanText);
+            return res.status(500).json({ error: "AI returned invalid format", raw: cleanText });
+        }
+
+    } catch (error) {
+        console.error("Gemini API Error:", error.response?.data || error.message);
+        res.status(500).json({ error: "AI Optimization Failed", detail: error.message });
+    }
+});
+
 // Mount Router
 app.use("/api/cj", cjRouter);
 

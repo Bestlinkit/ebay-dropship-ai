@@ -46,7 +46,8 @@ OUTPUT FORMAT (STRICT JSON):
 }`;
 
   try {
-    const response = await fetch("/api/gemini", {
+    const BRIDGE_BASE = 'http://localhost:3001';
+    const response = await fetch(`${BRIDGE_BASE}/api/gemini`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
