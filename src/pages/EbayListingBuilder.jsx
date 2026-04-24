@@ -208,37 +208,41 @@ const EbayListingBuilder = () => {
                                             <span className="text-[10px] font-black uppercase tracking-widest">Ranked Title Options</span>
                                         </div>
                                         <div className="grid gap-4">
-                                            {optimizedData.titles?.map((titleText, i) => (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => setSelectedTitle(titleText)}
-                                                    className={cn(
-                                                        "w-full p-6 rounded-2xl border-2 text-left transition-all relative group",
-                                                        selectedTitle === titleText ? "border-slate-950 bg-slate-50/50" : "border-slate-100 hover:border-slate-200"
-                                                    )}
-                                                >
-                                                    <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="text-[10px] font-black text-slate-400">SCORE</span>
-                                                            <span className={cn(
-                                                                "text-[10px] font-black px-2 py-0.5 rounded",
-                                                                (optimizedData.scores?.[i] || 0) > 80 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                                                            )}>
-                                                                {optimizedData.scores?.[i] || 70}/100
-                                                            </span>
-                                                        </div>
-                                                        {i === 0 && (
-                                                            <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[9px] font-black uppercase">
-                                                                <Trophy size={10} /> Recommended
-                                                            </div>
+                                            {optimizedData.titles?.map((t, i) => {
+                                                const titleText = typeof t === 'string' ? t : (t.text || "Untitled Title");
+                                                const titleScore = typeof t === 'object' ? t.score : (optimizedData.scores?.[i] || 70);
+                                                return (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => setSelectedTitle(titleText)}
+                                                        className={cn(
+                                                            "w-full p-6 rounded-2xl border-2 text-left transition-all relative group",
+                                                            selectedTitle === titleText ? "border-slate-950 bg-slate-50/50" : "border-slate-100 hover:border-slate-200"
                                                         )}
-                                                    </div>
-                                                    <p className="text-[14px] font-bold text-slate-900 pr-20">{titleText}</p>
-                                                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                        {selectedTitle === titleText && <CheckCircle2 size={20} className="text-slate-950" />}
-                                                    </div>
-                                                </button>
-                                            ))}
+                                                    >
+                                                        <div className="flex items-start justify-between mb-2">
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[10px] font-black text-slate-400">SCORE</span>
+                                                                <span className={cn(
+                                                                    "text-[10px] font-black px-2 py-0.5 rounded",
+                                                                    titleScore > 80 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                                                                )}>
+                                                                    {titleScore}/100
+                                                                </span>
+                                                            </div>
+                                                            {i === 0 && (
+                                                                <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[9px] font-black uppercase">
+                                                                    <Trophy size={10} /> Recommended
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-[14px] font-bold text-slate-900 pr-20">{titleText}</p>
+                                                        <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                                            {selectedTitle === titleText && <CheckCircle2 size={20} className="text-slate-950" />}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
