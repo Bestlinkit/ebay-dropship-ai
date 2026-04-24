@@ -74,10 +74,11 @@ const EbayListingBuilder = () => {
                 setDescription(seoData.description || cjProduct.description || "");
                 
                 if (seoData.titles?.length > 0) {
-                    setSelectedTitle(seoData.titles[0]);
+                    const firstTitle = typeof seoData.titles[0] === 'object' ? seoData.titles[0].text : seoData.titles[0];
+                    setSelectedTitle(firstTitle);
                 }
             } else {
-                setOptimizationError("Market Scan Delayed. Using Deterministic Baseline.");
+                setOptimizationError(`Optimization Rejected: ${result.reason || "Context Lock Fault"}`);
             }
         } catch (err) {
             console.error("SEO Build Fault:", err);

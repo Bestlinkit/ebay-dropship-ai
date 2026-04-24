@@ -536,25 +536,28 @@ const getEbayAppToken = async () => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE v12.0 (STRICT VALIDATION)");
+    console.log("SEO ENGINE v13.0 (QUALITY ENGINE)");
     const { title, description } = req.body;
 
     try {
         // STEP 1: CLASSIFICATION
         const classification = seoEngine.classifyProduct(title, description);
         if (classification.confidence < 0.8) {
+            console.warn("AI REJECTION: Confidence Low");
             return res.json({ success: false, status: "FAILED", reason: "AI confidence low (<80%) or invalid context" });
         }
 
         // STEP 2: EXTRACTION
         const keywords = seoEngine.extractKeywords(title, description);
         if (keywords.length === 0) {
+            console.warn("AI REJECTION: No Keywords Extracted");
             return res.json({ success: false, status: "FAILED", reason: "Keyword extraction failed" });
         }
 
         // STEP 3 & 4: GENERATION & VALIDATION
         const finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
         if (finalTitles.length === 0) {
+            console.warn("AI REJECTION: Title Gen Failed");
             return res.json({ success: false, status: "FAILED", reason: "Title validation failed" });
         }
 
@@ -572,9 +575,11 @@ app.post('/api/ai/optimize', async (req, res) => {
         }, classification);
 
         if (!validation.valid) {
+            console.warn(`QUALITY REJECTION: ${validation.reason}`);
             return res.json({ success: false, status: "FAILED", reason: validation.reason });
         }
 
+        console.log(`SUCCESS: Optimized ${classification.product_type}`);
         return res.json({
             success: true,
             data: {
@@ -585,7 +590,7 @@ app.post('/api/ai/optimize', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error("SEO ENGINE FAULT:", err.message);
+        console.error("CRITICAL SEO ENGINE FAULT:", err.message);
         return res.json({ 
             success: false, 
             status: "FAILED", 
