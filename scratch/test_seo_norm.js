@@ -1,11 +1,11 @@
-async function testSEOQC() {
+async function testSEONorm() {
     try {
         const response = await fetch('http://localhost:3001/api/ai/optimize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                title: "Cotton Oversized T-Shirt null pbproduct",
-                description: "Best product ever. Premium quality. Men cotton tshirt for summer streetwear."
+                title: "Cotton tshirt br nbsp shortsleeved &nbsp; mens",
+                description: "Best product tshirt ever. <br><b>Bold</b> mens cotton tshirt."
             })
         });
         const data = await response.json();
@@ -14,4 +14,4 @@ async function testSEOQC() {
         console.error(e.message);
     }
 }
-testSEOQC();
+testSEONorm();

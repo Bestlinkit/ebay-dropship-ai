@@ -21,12 +21,39 @@ const CATEGORY_MAP = {
     'speaker': 'Speakers'
 };
 
-const GARBAGE_TOKENS = new Set(['pbproduct', 'undefined', 'null', 'nan', 'placeholder', 'product', 'item']);
+const GARBAGE_TOKENS = new Set(['pbproduct', 'undefined', 'null', 'nan', 'placeholder', 'product', 'item', 'br', 'nbsp', 'html']);
 const FLUFF_PHRASES = [/premium quality/gi, /best product/gi, /high quality/gi, /top rated/gi, /best seller/gi, /limited edition/gi];
+
+const NORMALIZATION_MAP = {
+    'tshirt': 't-shirt',
+    'shortsleeved': 'short sleeve',
+    'mens': 'men',
+    'womens': 'women',
+    'longsleeved': 'long sleeve',
+    'tee': 't-shirt',
+    't-shirt': 't-shirt'
+};
 
 const AUDIENCES = ['men', 'women', 'unisex', 'kids', 'baby', 'adult', 'male', 'female', 'girls', 'boys'];
 const MATERIALS = ['cotton', 'polyester', 'linen', 'silk', 'leather', 'denim', 'mesh', 'wool', 'canvas'];
 const STYLES = ['casual', 'summer', 'winter', 'streetwear', 'vintage', 'classic', 'modern', 'oversized', 'slim', 'sport'];
+
+// --- UTILS: SANITIZATION & NORMALIZATION ---
+
+function sanitizeText(text) {
+    if (!text) return "";
+    // 1. Strip HTML tags
+    let clean = text.replace(/<[^>]*>?/gm, ' ');
+    // 2. Remove common HTML entities & artifacts
+    clean = clean.replace(/&nbsp;|br|nbsp|&amp;|&gt;|&lt;/gi, ' ');
+    // 3. Normalize whitespace
+    return clean.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeWord(word) {
+    const low = word.toLowerCase();
+    return NORMALIZATION_MAP[low] || low;
+}
 
 // --- PHASE 1: DETERMINISTIC ENGINE ---
 
@@ -35,7 +62,7 @@ const STYLES = ['casual', 'summer', 'winter', 'streetwear', 'vintage', 'classic'
  */
 function cleanTitle(title) {
     if (!title) return "";
-    let clean = title.toLowerCase();
+    let clean = sanitizeText(title).toLowerCase();
     
     // Remove Fluff
     FLUFF_PHRASES.forEach(regex => {
@@ -47,10 +74,11 @@ function cleanTitle(title) {
     let result = [];
 
     words.forEach(word => {
-        let w = word.replace(/[^a-z0-9]/g, '');
-        if (w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !seen.has(w)) {
-            result.push(w);
-            seen.add(w);
+        let w = word.replace(/[^a-z0-9-]/g, ''); // Keep hyphens for normalized words
+        let norm = normalizeWord(w);
+        if (norm.length > 2 && !STOPWORDS.has(norm) && !GARBAGE_TOKENS.has(norm) && !seen.has(norm)) {
+            result.push(norm);
+            seen.add(norm);
         }
     });
 
@@ -62,15 +90,17 @@ function cleanTitle(title) {
  */
 function extractKeywords(title, description) {
     const text = (title + " " + (description || "")).toLowerCase();
-    const words = text.split(/\s+/);
+    const sanitized = sanitizeText(text);
+    const words = sanitized.split(/\s+/);
     const seen = new Set();
     const keywords = [];
 
     words.forEach(word => {
-        let clean = word.replace(/[^a-z0-9]/g, '');
-        if (clean.length > 2 && !STOPWORDS.has(clean) && !GARBAGE_TOKENS.has(clean) && !seen.has(clean)) {
-            keywords.push(clean);
-            seen.add(clean);
+        let w = word.replace(/[^a-z0-9-]/g, '');
+        let norm = normalizeWord(w);
+        if (norm.length > 2 && !STOPWORDS.has(norm) && !GARBAGE_TOKENS.has(norm) && !seen.has(norm)) {
+            keywords.push(norm);
+            seen.add(norm);
         }
     });
 
@@ -78,7 +108,7 @@ function extractKeywords(title, description) {
 }
 
 /**
- * Generate 3 SEO titles based on strict quality templates
+ * Generate 3 Structurally Different SEO titles
  */
 function generateDeterministicTitles(keywords) {
     if (keywords.length === 0) return ["New Product Listing"];
@@ -90,14 +120,14 @@ function generateDeterministicTitles(keywords) {
     const features = keywords.slice(1, 4).filter(f => !AUDIENCES.includes(f) && !MATERIALS.includes(f) && !STYLES.includes(f)).join(' ');
 
     const titles = [
-        // Primary: [Audience] [Material/Feature] [Product] [Style/Use]
+        // Template A: {Audience} {Material} {Product} {Feature} {Use Case}
         `${audience} ${material} ${type} ${features} ${style}`.trim(),
         
-        // Alternative: [Product] [Audience] [Feature] [Style]
-        `${type} ${audience} ${features} ${material} ${style}`.trim(),
+        // Template B: {Feature} {Product} for {Audience} {Use Case}
+        `${features} ${type} for ${audience} ${style} Wear`.trim(),
         
-        // Short: [Style] [Audience] [Product]
-        `${style} ${audience} ${type} ${features}`.trim()
+        // Template C: {Audience} {Use Case} {Material} {Product}
+        `${audience} ${style} ${material} ${type} ${features}`.trim()
     ];
 
     return titles.map(t => {
@@ -119,46 +149,51 @@ function generateDeterministicTitles(keywords) {
 }
 
 /**
- * Generate Multi-word tags (2-3 phrases)
+ * Generate Multi-word tags (Strict Filter)
  */
 function generateTags(keywords) {
     const tags = new Set();
     const audience = keywords.find(k => AUDIENCES.includes(k)) || "";
     const type = keywords[0] || "";
 
-    // 2-word phrases
-    keywords.forEach((k, i) => {
-        if (i > 0 && k.length > 2) {
-            tags.add(`${type} ${k}`);
-            if (audience) tags.add(`${audience} ${k}`);
+    // 2nd word selection
+    const feature = keywords.find(k => !AUDIENCES.includes(k) && k !== type) || "";
+
+    // Build human-readable phrases
+    if (audience && type) {
+        tags.add(`${audience} ${type}`);
+        if (feature) tags.add(`${audience} ${feature} ${type}`);
+    }
+    
+    if (feature && type) {
+        tags.add(`${feature} ${type}`);
+        tags.add(`casual ${feature} wear`);
+    }
+
+    // Add some relevant combinations
+    keywords.slice(1, 4).forEach(k => {
+        if (k.length > 3 && !GARBAGE_TOKENS.has(k)) {
+            tags.add(`${k} ${type}`);
         }
     });
 
-    // 3-word phrases
-    if (keywords.length >= 3) {
-        tags.add(`${audience} ${keywords[1]} ${type}`.trim());
-        tags.add(`${keywords[1]} ${keywords[2]} ${type}`.trim());
-    }
-
-    // Fallback to single words if needed
-    if (tags.size < 5) {
-        keywords.slice(0, 5).forEach(k => tags.add(k));
-    }
-
-    return Array.from(tags).slice(0, 10).map(t => t.toLowerCase());
+    // Cleanup: Remove any tag with HTML artifacts or > 3 words
+    return Array.from(tags)
+        .filter(t => !t.match(/br|nbsp|html/i) && t.split(' ').length <= 3)
+        .slice(0, 10)
+        .map(t => t.toLowerCase());
 }
 
 /**
- * Clean description into structured HTML
+ * Clean description into structured HTML (Final Sanitization)
  */
 function cleanDescription(html) {
     if (!html) return "<h2>Product Details</h2><p>No description available.</p>";
 
-    // Remove broken HTML and supplier junk
-    let text = html.replace(/<[^>]*>?/gm, ' ')
-                   .replace(/supplier|wholesale|dropship|factory|direct|china/gi, '')
-                   .replace(/\s+/g, ' ')
-                   .trim();
+    // Full Sanitization
+    let text = sanitizeText(html);
+    text = text.replace(/supplier|wholesale|dropship|factory|direct|china/gi, '')
+               .trim();
 
     // Strip Fluff
     FLUFF_PHRASES.forEach(regex => {
@@ -197,11 +232,13 @@ ${specs.length > 0 ? `
 function buildFrequencyMap(ebayTitles) {
     const map = {};
     ebayTitles.forEach(title => {
-        const words = title.toLowerCase().split(/\s+/);
+        const sanitized = sanitizeText(title);
+        const words = sanitized.toLowerCase().split(/\s+/);
         words.forEach(word => {
-            let clean = word.replace(/[^a-z0-9]/g, '');
-            if (clean && !STOPWORDS.has(clean) && !GARBAGE_TOKENS.has(clean)) {
-                map[clean] = (map[clean] || 0) + 1;
+            let clean = word.replace(/[^a-z0-9-]/g, '');
+            let norm = normalizeWord(clean);
+            if (norm && !STOPWORDS.has(norm) && !GARBAGE_TOKENS.has(norm)) {
+                map[norm] = (map[norm] || 0) + 1;
             }
         });
     });
@@ -219,24 +256,25 @@ function scoreTitle(title, demandKeywords) {
     const words = title.toLowerCase().split(/\s+/);
     
     // Keyword relevance (40 pts)
-    const matchCount = words.filter(w => demandKeywords.includes(w.replace(/[^a-z0-9]/g, ''))).length;
+    const matchCount = words.filter(w => demandKeywords.includes(normalizeWord(w.replace(/[^a-z0-9-]/g, '')))).length;
     score += Math.min(40, matchCount * 10);
 
-    // Readability (20 pts)
+    // Readability & Diversity (20 pts)
     const seen = new Set();
     const hasDupes = words.some(w => seen.has(w) || (seen.add(w) && false));
     if (!hasDupes) score += 20;
 
-    // Length optimization (20 pts)
-    if (title.length >= 60 && title.length <= 80) score += 20;
-    else if (title.length > 40) score += 10;
+    // Structural Check (20 pts)
+    if (words.length >= 5 && words.length <= 10) score += 20;
 
-    // Formatting (20 pts)
+    // Audience Check (20 pts)
     const hasAudience = words.some(w => AUDIENCES.includes(w));
-    if (hasAudience) score += 10;
-    if (words.length >= 5) score += 10;
+    if (hasAudience) score += 20;
 
-    return score;
+    // Penalize unnatural phrasing (missing spaces, artifacts)
+    if (title.match(/br|nbsp|undefined|null/i)) score -= 50;
+
+    return Math.max(0, score);
 }
 
 /**
@@ -255,6 +293,9 @@ function getCategoryFallback(keywords) {
 function qualityFilter(titles, scores, keywords, demandKeywords) {
     let results = titles.map((t, i) => ({ text: t, score: scores[i] }));
     
+    // Filter out obvious failures
+    results = results.filter(res => !res.text.match(/undefined|null|br|nbsp/i));
+
     // 1. Auto-Rewrite low scores (< 70)
     results = results.map(res => {
         if (res.score < 70) {
@@ -274,8 +315,8 @@ function qualityFilter(titles, scores, keywords, demandKeywords) {
 
     // 2. Ensure at least one strong title
     results.sort((a, b) => b.score - a.score);
-    if (results[0].score < 75) {
-        results[0].score = 76; // Force boost for best candidate if logic is sound
+    if (results.length > 0 && results[0].score < 75) {
+        results[0].score = 76; 
     }
 
     return results;
@@ -290,5 +331,7 @@ module.exports = {
     buildFrequencyMap,
     scoreTitle,
     getCategoryFallback,
-    qualityFilter
+    qualityFilter,
+    sanitizeText,
+    normalizeWord
 };
