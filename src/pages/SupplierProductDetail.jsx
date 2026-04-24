@@ -92,7 +92,18 @@ const SupplierProductDetail = () => {
                             <img 
                                 src={image} 
                                 alt="" 
+                                referrerPolicy="no-referrer"
                                 className="w-full aspect-square object-contain p-12 bg-white group-hover:scale-105 transition-transform duration-700"
+                                onError={(e) => {
+                                    if (!e.target.src.includes('placeholder') && !e.target.src.includes('aliyuncs')) {
+                                        try {
+                                            const path = new URL(image).pathname;
+                                            e.target.src = `https://cc-west-usa.oss-accelerate.aliyuncs.com${path}`;
+                                        } catch (err) {
+                                            e.target.src = "https://via.placeholder.com/600?text=Image+Not+Found";
+                                        }
+                                    }
+                                }}
                             />
                         </div>
 
@@ -108,7 +119,22 @@ const SupplierProductDetail = () => {
                                             image === img ? "border-slate-950 shadow-lg scale-105" : "border-slate-100 opacity-60 hover:opacity-100"
                                         )}
                                     >
-                                        <img src={img} className="w-full h-full object-cover" alt="" />
+                                        <img 
+                                            src={img} 
+                                            className="w-full h-full object-cover" 
+                                            alt="" 
+                                            referrerPolicy="no-referrer"
+                                            onError={(e) => {
+                                                if (!e.target.src.includes('placeholder') && !e.target.src.includes('aliyuncs')) {
+                                                    try {
+                                                        const path = new URL(img).pathname;
+                                                        e.target.src = `https://cc-west-usa.oss-accelerate.aliyuncs.com${path}`;
+                                                    } catch (err) {
+                                                        e.target.src = "https://via.placeholder.com/150?text=Error";
+                                                    }
+                                                }
+                                            }}
+                                        />
                                     </button>
                                 ))}
                             </div>

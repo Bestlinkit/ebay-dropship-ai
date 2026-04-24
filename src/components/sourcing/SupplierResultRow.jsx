@@ -27,13 +27,13 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
         }
     }, [cj.id, product]);
 
-    const activeCj = localCj.variantCount > 0 ? localCj : cj;
+    const activeCj = (localCj && localCj.id !== "UNKNOWN") ? localCj : cj;
     
-    // IMAGE PRIORITY: Search result -> Cleaned cj.image -> Placeholder
-    const image = product.productImage || activeCj.image || "https://via.placeholder.com/300?text=No+Image";
-    const name = product.productNameEn || activeCj.name || "Unnamed CJ Product";
-    const variantsCount = parseInt(activeCj.variantCount || product.variantCount || 0);
-    const price = parseFloat(activeCj.price || product.sellPrice || 0);
+    // IMAGE PRIORITY: Cleaned cj.image -> raw cj.raw.productImage -> Placeholder
+    const image = activeCj.image || product.productImage || "https://via.placeholder.com/300?text=No+Image";
+    const name = activeCj.name || product.productNameEn || "Unnamed CJ Product";
+    const variantsCount = parseInt(activeCj.variantCount || 0);
+    const price = parseFloat(activeCj.price || 0);
     const shipping = activeCj.shipping || { cost: 0, delivery: "7-15 Days" };
     const shippingCost = parseFloat(shipping.cost || 0);
     
@@ -59,7 +59,13 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
                         onError={(e) => {
                             if (!e.target.src.includes('placeholder') && !e.target.src.includes('aliyuncs')) {
                                 // Fallback to Aliyun CDN if img.cjdropshipping fails
-                                e.target.src = `https://cc-west-usa.oss-accelerate.aliyuncs.com/${image.split('/').pop()}`;
+                                // Preserve the path
+                                try {
+                                    const path = new URL(image).pathname;
+                                    e.target.src = `https://cc-west-usa.oss-accelerate.aliyuncs.com${path}`;
+                                } catch (err) {
+                                    e.target.src = "https://via.placeholder.com/300?text=Image+Not+Found";
+                                }
                             } else if (!e.target.src.includes('placeholder')) {
                                 e.target.src = "https://via.placeholder.com/300?text=Image+Not+Found";
                             }

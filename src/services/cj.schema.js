@@ -11,19 +11,25 @@ export function normalizeProduct(raw = {}, cjData = {}) {
       if (!url) return null;
       if (typeof url !== 'string') {
           if (url.url) return cleanUrl(url.url);
+          if (url.image) return cleanUrl(url.image);
           return null;
       }
       let s = url.trim();
       if (!s || s === "[object Object]") return null;
       
       // Handle // protocol-less
-      if (s.startsWith('//')) return `https:${s}`;
+      if (s.startsWith('//')) s = `https:${s}`;
+      
+      // Upgrade http to https
+      if (s.startsWith('http:')) s = s.replace('http:', 'https:');
       
       // Handle relative paths (e.g. 20240423/...)
       if (!s.startsWith('http')) {
-          // Check if it looks like a path (contains slashes and an extension)
-          if (s.includes('/') && (s.includes('.jpg') || s.includes('.png') || s.includes('.jpeg') || s.includes('.webp'))) {
-              return `https://img.cjdropshipping.com/${s.startsWith('/') ? s.slice(1) : s}`;
+          // If it's a relative path, prepend the primary CJ CDN
+          // We check for common image patterns or at least a slash
+          if (s.includes('/') || s.includes('.')) {
+              const cleanPath = s.startsWith('/') ? s.slice(1) : s;
+              return `https://img.cjdropshipping.com/${cleanPath}`;
           }
       }
       
@@ -51,7 +57,7 @@ export function normalizeProduct(raw = {}, cjData = {}) {
     "";
 
   // 4. ID MAPPING
-  const pid = p.pid || p.productId || p.product_id || p.id;
+  const pid = p.pid || p.productId || p.product_id || p.id || p.product_id;
   const safeId = pid ? String(pid) : "UNKNOWN";
 
   // 5. NAMESPACE CONSTRUCTION
@@ -63,12 +69,14 @@ export function normalizeProduct(raw = {}, cjData = {}) {
         images: galleryArray.map(cleanUrl).filter(Boolean).length > 0 
                 ? galleryArray.map(cleanUrl).filter(Boolean) 
                 : [image].filter(Boolean),
-        variants: Array.isArray(p.skuList || p.variantList || p.skus || p.variants) ? (p.skuList || p.variantList || p.skus || p.variants) : [],
-        variantCount: parseInt(p.variantCount || p.variantsNum || p.skuList?.length || 0),
+        variants: Array.isArray(p.skuList || p.variantList || p.skus || p.variants) 
+                ? (p.skuList || p.variantList || p.skus || p.variants) 
+                : [],
+        variantCount: parseInt(p.variantCount || p.variantsNum || p.skuList?.length || p.variantList?.length || 0),
         price: parseFloat(p.sellPrice || p.price || p.lowPrice || 0),
         cost: parseFloat(p.costPrice || p.purchasePrice || 0),
         raw: p,
-        warehouse: p.warehouseName || p.warehouse || "CN",
+        warehouse: p.warehouseName || p.warehouse || p.warehouseCode || p.warehouse_name || "CN",
         shipping: resolveShipping(p),
         description: p.productDescription || p.descriptionHtml || p.description || p.content || ""
     }
@@ -78,11 +86,13 @@ export function normalizeProduct(raw = {}, cjData = {}) {
 }
 
 export function resolveShipping(data) {
-  const method = data?.logistics?.[0] || data?.freight?.[0] || {};
+  // Exhaustive search for shipping/logistics/freight data
+  const method = data?.logistics?.[0] || data?.freight?.[0] || data?.shipping?.[0] || {};
+  
   return {
-    cost: parseFloat(data?.shippingFee || method.price || 0),
-    delivery: String(data?.deliveryTime || method.deliveryTime || "7-15 Days"),
-    name: data?.logisticName || method.logisticsName || "Standard Shipping"
+    cost: parseFloat(data?.shippingFee || data?.shipping_fee || method.price || method.amount || 0),
+    delivery: String(data?.deliveryTime || data?.delivery_time || method.deliveryTime || method.logisticTime || "7-15 Days"),
+    name: data?.logisticName || data?.logistic_name || method.logisticsName || method.logisticName || "Standard Shipping"
   };
 }
 
