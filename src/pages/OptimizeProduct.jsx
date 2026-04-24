@@ -210,11 +210,18 @@ const OptimizeProduct = () => {
       
       const opt = await aiService.optimizeListing(registry.selectedTitle, registry.price, competitors, persona);
       
+      const titles = Array.isArray(opt?.titles) ? opt.titles : [];
+      
       setRegistry(prev => ({
         ...prev,
-        titles: opt.titles || [],
-        optimizedDescription: opt.description,
-        tags: opt.tags || [],
+        titles: titles.map((t, i) => ({
+            id: i,
+            title: t.text || t,
+            score: t.score || 85,
+            type: t.score > 90 ? 'Premium' : 'Market'
+        })),
+        optimizedDescription: opt.description || prev.optimizedDescription,
+        tags: (Array.isArray(opt.tags) ? opt.tags : []).map(t => ({ text: t })),
         suggestedPrice: opt.pricing?.suggested || prev.price,
         competition: opt.pricing?.competition || 'Medium',
         probability: opt.pricing?.salesProbability || 75,
@@ -377,9 +384,8 @@ const OptimizeProduct = () => {
                                 <div className={cn("w-5 h-5 rounded-full border-4", registry.selectedTitle === t.title ? "border-slate-950 bg-white" : "border-slate-100")} />
                                 <span className={cn(
                                     "px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest",
-                                    t.type === 'SEO' ? 'bg-blue-50 text-blue-600' : 
-                                    t.type === 'Benefit' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                                )}>{t.type}</span>
+                                    t.score > 90 ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'
+                                )}>{t.score}% Match</span>
                              </div>
                              <p className="text-[11px] font-bold leading-relaxed text-slate-950">{t.title}</p>
                           </button>

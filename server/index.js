@@ -536,97 +536,51 @@ const getEbayAppToken = async () => {
 };
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE TRIGGERED (v10.0 PRODUCT-AWARE)");
+    console.log("SEO ENGINE v11.0 (PREMIUM PIPELINE)");
     const { title, description } = req.body;
 
-    // PHASE 1: CONTEXTUAL EXTRACTION
-    const { keywords, context } = seoEngine.extractKeywords(title, description);
-    
-    // Fail-safe: Detect obvious mismatches or empty contexts
-    if (keywords.length === 0) {
-        return res.json({ success: false, error: "PRODUCT_CONTEXT_MISMATCH" });
-    }
-
-    const baseTitles = seoEngine.generateDeterministicTitles(keywords, context);
-    const tags = seoEngine.generateTags(keywords, context);
-    const cleanDesc = seoEngine.cleanDescription(description, context);
-    
-    // Category Lock Logic
-    const categoryInfo = seoEngine.detectProductContext(title, description);
-    const fallbackCategory = { id: "0", name: categoryInfo.sub.charAt(0).toUpperCase() + categoryInfo.sub.slice(1) };
-
     try {
-        // PHASE 2: ADVANCED MARKET DATA (EBAY SCRAPER)
-        const token = await getEbayAppToken();
-        let demandKeywords = [];
-        let categorySuggestion = null;
-
-        if (token) {
-            console.log("SCRAPING EBAY MARKET DEMAND...");
-            const mainKeyword = keywords.slice(0, 3).join(' ');
-            
-            try {
-                const searchRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
-                    params: { q: mainKeyword, limit: 15 },
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (searchRes.data?.itemSummaries) {
-                    const ebayTitles = searchRes.data.itemSummaries.map(item => item.title);
-                    demandKeywords = seoEngine.buildFrequencyMap(ebayTitles);
-                }
-
-                const taxRes = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions', {
-                    params: { q: mainKeyword },
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (taxRes.data?.categorySuggestions?.[0]) {
-                    const sug = taxRes.data.categorySuggestions[0].category;
-                    categorySuggestion = {
-                        id: sug.categoryId,
-                        name: sug.categoryName
-                    };
-                }
-            } catch (apiErr) {
-                console.warn("EBAY API MUTE:", apiErr.message);
-            }
+        // STEP 1: CLASSIFICATION
+        const classification = seoEngine.classifyProduct(title, description);
+        if (classification.confidence < 0.8) {
+            return res.json({ success: false, status: "FAILED", reason: "AI confidence low (<80%) or invalid context" });
         }
 
-        // Final Validation
-        if (!seoEngine.validateSEO({ titles: baseTitles, tags, description: cleanDesc }, context)) {
-            console.warn("SEO VALIDATION FAILED - REWRITING...");
+        // STEP 2: EXTRACTION
+        const keywords = seoEngine.extractKeywords(title, description);
+        if (keywords.length === 0) {
+            return res.json({ success: false, status: "FAILED", reason: "Keyword extraction failed" });
         }
+
+        // STEP 3 & 4: GENERATION & VALIDATION
+        const finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
+        if (finalTitles.length === 0) {
+            return res.json({ success: false, status: "FAILED", reason: "Title validation failed" });
+        }
+
+        // STEP 6: DESCRIPTION
+        const cleanDesc = seoEngine.generateDescription(description, classification, keywords);
+
+        // STEP 7: TAGS
+        const tags = seoEngine.generateTags(keywords);
 
         return res.json({
             success: true,
             data: {
-                titles: baseTitles,
-                scores: baseTitles.map(() => 85), // Deterministic high score for context-locked titles
+                titles: finalTitles, // Now [{text, score}]
                 description: cleanDesc,
                 tags: tags,
-                category: categorySuggestion || fallbackCategory,
-                context: context.type,
-                mode: token ? "ADVANCED_MARKET" : "DETERMINISTIC_BASE"
+                category: { id: "0", name: classification.category },
+                context: classification.product_type,
+                mode: "DETERMINISTIC_PREMIUM_V11"
             }
         });
-
     } catch (err) {
         console.error("SEO ENGINE FAULT:", err.message);
-        // Absolute Fallback to Phase 1
-        const fallbackScores = baseTitles.map(t => seoEngine.scoreTitle(t, []));
-        const fallbackResults = seoEngine.qualityFilter(baseTitles, fallbackScores, keywords, []);
-
-        return res.json({
-            success: true,
-            data: {
-                titles: fallbackResults.map(t => t.text),
-                scores: fallbackResults.map(t => t.score),
-                description: cleanDesc,
-                tags: tags,
-                category: { id: "0", name: fallbackCategory },
-                mode: "DETERMINISTIC_FALLBACK"
-            }
+        return res.json({ 
+            success: false, 
+            status: "FAILED", 
+            reason: "Internal server error in SEO pipeline" 
         });
     }
 });
