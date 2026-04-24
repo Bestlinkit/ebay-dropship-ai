@@ -208,27 +208,41 @@ const OptimizeProduct = () => {
       const keyword = registry.selectedTitle.split(' ').slice(0, 4).join(' ');
       const competitors = await ebayService.getCompetitorInsights(keyword);
       
-      const opt = await aiService.optimizeListing(registry.selectedTitle, registry.price, competitors, persona);
+      // SWITCHED TO BACKEND SEO ENGINE v11.0
+      const response = await fetch('http://localhost:3001/api/ai/optimize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: registry.selectedTitle, description: registry.description })
+      });
+      const result = await response.json();
       
-      const titles = Array.isArray(opt?.titles) ? opt.titles : [];
+      if (!result.success) throw new Error(result.reason || "SEO Pipeline Failure");
+      const opt = result.data;
+      
+      const rawTitles = Array.isArray(opt?.titles) ? opt.titles : [];
       
       setRegistry(prev => ({
         ...prev,
-        titles: titles.map((t, i) => ({
-            id: i,
-            title: t.text || t,
-            score: t.score || 85,
-            type: t.score > 90 ? 'Premium' : 'Market'
-        })),
+        titles: rawTitles.map((t, i) => {
+            // Robust String Resolution to prevent React Error #31
+            const titleText = typeof t === 'string' ? t : (t.text || t.title || "Untitled Product");
+            const score = t.score || 85;
+            return {
+                id: i,
+                title: titleText,
+                score: score,
+                type: score > 90 ? 'Premium' : 'Market'
+            };
+        }),
         optimizedDescription: opt.description || prev.optimizedDescription,
-        tags: (Array.isArray(opt.tags) ? opt.tags : []).map(t => ({ text: t })),
+        tags: (Array.isArray(opt.tags) ? opt.tags : []).map(t => ({ text: typeof t === 'object' ? t.text : t })),
         suggestedPrice: opt.pricing?.suggested || prev.price,
         competition: opt.pricing?.competition || 'Medium',
         probability: opt.pricing?.salesProbability || 75,
         marketStats: competitors.stats || null
       }));
       
-      addSystemLog("Optimization vectors locked and validated.", 'success');
+      addSystemLog("Premium Market Intelligence locked and validated.", 'success');
     } catch (e) {
       addSystemLog(`AI Sync Failure: ${e.message}`, 'error');
     } finally {
