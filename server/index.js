@@ -583,7 +583,6 @@ app.post('/api/ai/optimize', async (req, res) => {
     }
 });
 
-});
 
 // --- EBAY ROUTER MOUNT ---
 const ebayRoutes = require('./routes/ebay');
