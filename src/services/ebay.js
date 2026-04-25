@@ -447,6 +447,70 @@ class eBayService {
         return [];
     }
   }
+
+  /**
+   * 📋 EBAY BUSINESS POLICIES
+   * Fetches Fulfillment, Payment, and Return policies for the connected account.
+   */
+  async getBusinessPolicies() {
+    if (!this.userToken) {
+        console.warn("[eBay Policies] User Token missing. Cannot fetch policies.");
+        return { fulfillment: [], payment: [], return: [] };
+    }
+
+    const fetchPolicy = async (type) => {
+        try {
+            const response = await this.fetchWithRetry('get', `https://api.ebay.com/sell/account/v1/${type}_policy`, {
+                params: { marketplace_id: 'EBAY_US' },
+                headers: { 'Authorization': `Bearer ${this.userToken}` }
+            });
+            return response.data[`${type}Policies`] || [];
+        } catch (e) {
+            console.error(`[eBay Policies] Failed to fetch ${type} policies:`, e.message);
+            return [];
+        }
+    };
+
+    const [fulfillment, payment, returnPolicies] = await Promise.all([
+        fetchPolicy('fulfillment'),
+        fetchPolicy('payment'),
+        fetchPolicy('return')
+    ]);
+
+    return {
+        fulfillment,
+        payment,
+        return: returnPolicies
+    };
+  }
+
+  /**
+   * 🔍 EBAY ITEM ASPECTS (SPECIFICS)
+   * Fetches required and optional attributes for a specific leaf category.
+   */
+  async getItemAspects(categoryId) {
+    const token = await this.getAppToken();
+    if (!token || !categoryId) return [];
+
+    try {
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_item_aspects_for_category`, {
+            params: { category_id: categoryId },
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        // Return aspects with usage metadata (REQUIRED vs OPTIONAL)
+        return (response.data?.aspects || []).map(a => ({
+            name: a.localizedAspectName,
+            required: a.aspectConstraint?.aspectUsage === 'REQUIRED',
+            usage: a.aspectConstraint?.aspectUsage,
+            values: (a.aspectValues || []).map(v => v.localizedValue),
+            maxValues: a.aspectConstraint?.maxValuesAllowed || 1
+        }));
+    } catch (e) {
+        console.error("[eBay Taxonomy] Failed to fetch item aspects:", e.message);
+        return [];
+    }
+  }
 }
 
 export default new eBayService();
