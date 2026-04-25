@@ -476,49 +476,30 @@ class eBayService {
    * 📋 EBAY BUSINESS POLICIES
    * Fetches Fulfillment, Payment, and Return policies for the connected account.
    */
+  /**
+   * 📋 EBAY BUSINESS POLICIES
+   * Fetches Fulfillment, Payment, and Return policies via Backend Bridge.
+   * This avoids CORS issues with eBay Sell APIs in the browser.
+   */
   async getBusinessPolicies() {
-    if (!this.userToken) {
-        console.warn("[eBay Policies] User Token missing. Cannot fetch policies.");
+    try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const response = await axios.get(`${backendUrl}/api/ebay/policies`, {
+            timeout: 15000
+        });
+
+        const data = response.data;
+        console.log("[eBay Policies] Backend Bridge Response:", data);
+
+        return {
+            fulfillment: data.shippingPolicies || [],
+            payment: data.paymentPolicies || [],
+            return: data.returnPolicies || []
+        };
+    } catch (e) {
+        console.error("[eBay Policies] Backend Bridge Failed:", e.message);
         return { fulfillment: [], payment: [], return: [] };
     }
-
-    const fetchPolicy = async (type) => {
-        try {
-            const response = await this.fetchWithRetry('get', `https://api.ebay.com/sell/account/v1/${type}_policy`, {
-                params: { marketplace_id: 'EBAY_US' },
-                headers: { 
-                    'Authorization': `Bearer ${this.userToken}`,
-                    'Content-Type': 'application/json',
-                    'Content-Language': 'en-US'
-                }
-            });
-            console.log(`[eBay Policies] RAW ${type.toUpperCase()} RESPONSE:`, response.data);
-            console.log("POLICY RESPONSE FULL:", response.data);
-            
-            // Strict parsing as requested: Check nested property then fallback to array
-            const data = response.data;
-            if (type === 'fulfillment') return data.fulfillmentPolicies?.fulfillmentPolicies || data.fulfillmentPolicies || [];
-            if (type === 'payment') return data.paymentPolicies?.paymentPolicies || data.paymentPolicies || [];
-            if (type === 'return') return data.returnPolicies?.returnPolicies || data.returnPolicies || [];
-            
-            return data[`${type}Policies`] || [];
-        } catch (e) {
-            console.error(`[eBay Policies] Failed to fetch ${type} policies:`, e.message);
-            return [];
-        }
-    };
-
-    const [fulfillment, payment, returnPolicies] = await Promise.all([
-        fetchPolicy('fulfillment'),
-        fetchPolicy('payment'),
-        fetchPolicy('return')
-    ]);
-
-    return {
-        fulfillment,
-        payment,
-        return: returnPolicies
-    };
   }
 
   /**
