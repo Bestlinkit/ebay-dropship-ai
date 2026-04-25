@@ -348,8 +348,12 @@ class eBayService {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        const node = response.data?.categorySubtreeNode || response.data?.categoryTreeNode;
-        return (node?.childCategoryTreeNodes || []).map(node => ({
+        // Ensure we check both standard and subtree response keys
+        const children = response.data?.categorySubtreeNode?.childCategoryTreeNodes || 
+                         response.data?.categoryTreeNode?.childCategoryTreeNodes || 
+                         [];
+
+        return children.map(node => ({
             id: node.category.categoryId,
             name: node.category.categoryName,
             isLeaf: !node.childCategoryTreeNodes || node.childCategoryTreeNodes.length === 0
@@ -444,6 +448,8 @@ class eBayService {
             return response.data[1];
         }
         return [];
+    } catch (e) {
+        return [];
     }
   }
 
@@ -488,12 +494,13 @@ class eBayService {
             });
             console.log(`[eBay Policies] RAW ${type.toUpperCase()} RESPONSE:`, response.data);
             
-            // Map correctly based on endpoint structure
-            if (type === 'fulfillment') return response.data.fulfillmentPolicies || [];
-            if (type === 'payment') return response.data.paymentPolicies || [];
-            if (type === 'return') return response.data.returnPolicies || [];
+            // eBay API can return arrays directly or wrapped in a property of the same name
+            const data = response.data;
+            if (type === 'fulfillment') return data.fulfillmentPolicies?.fulfillmentPolicies || data.fulfillmentPolicies || [];
+            if (type === 'payment') return data.paymentPolicies?.paymentPolicies || data.paymentPolicies || [];
+            if (type === 'return') return data.returnPolicies?.returnPolicies || data.returnPolicies || [];
             
-            return response.data[`${type}Policies`] || [];
+            return data[`${type}Policies`] || [];
         } catch (e) {
             console.error(`[eBay Policies] Failed to fetch ${type} policies:`, e.message);
             return [];
