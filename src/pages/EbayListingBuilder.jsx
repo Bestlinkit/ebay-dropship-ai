@@ -62,6 +62,7 @@ const EbayListingBuilder = () => {
     
     // 📂 CATEGORY & POLICIES STATE (TAB 4)
     const [categoryPath, setCategoryPath] = useState([]); // Array of {id, name}
+    const [categoryTreeId, setCategoryTreeId] = useState("0");
     const [currentLevelCategories, setCurrentLevelCategories] = useState([]);
     const [isLeafSelected, setIsLeafSelected] = useState(false);
     const [isLoadingCategories, setIsLoadingCategories] = useState(false);
@@ -159,12 +160,11 @@ const EbayListingBuilder = () => {
     const loadInitialCategories = async () => {
         setIsLoadingCategories(true);
         try {
-            // Priority 1: Use auto-suggested category from SEO if available
-            if (optimizedData?.category?.id) {
-                // In a real flow, we'd pre-populate the path, but hierarchical selection requires drill-down.
-                // We'll show top levels but highlight/suggest the SEO match.
-            }
-            const root = await ebayService.getTopCategories();
+            // 🌳 Fetch dynamic Tree ID first
+            const treeId = await ebayService.getCategoryTreeId();
+            setCategoryTreeId(treeId);
+
+            const root = await ebayService.getTopCategories(treeId);
             setCurrentLevelCategories(root);
         } catch (err) {
             console.error("Failed to load root categories:", err);
@@ -174,6 +174,7 @@ const EbayListingBuilder = () => {
     };
 
     const handleSelectCategory = async (cat) => {
+        console.log("SELECTED CATEGORY ID:", cat.id);
         const newPath = [...categoryPath, cat];
         setCategoryPath(newPath);
         
@@ -184,11 +185,12 @@ const EbayListingBuilder = () => {
         } else {
             setIsLoadingCategories(true);
             try {
-                const subs = await ebayService.getSubCategories(cat.id);
+                const subs = await ebayService.getSubCategories(cat.id, categoryTreeId);
                 setCurrentLevelCategories(subs);
                 setIsLeafSelected(false);
             } catch (err) {
                 console.error("Subcategory Load Fault:", err);
+                // DO NOT RESET UI - Keep current selection available
             } finally {
                 setIsLoadingCategories(false);
             }

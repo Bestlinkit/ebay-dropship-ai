@@ -305,20 +305,19 @@ class eBayService {
     }
   }
 
-  async getTopCategories() {
+  async getTopCategories(treeId = "0") {
     const token = await this.getAppToken();
     if (!token) return this.getCachedCategories();
 
     try {
-        // Fetching root-level nodes for the EBAY_US tree (ID: 0)
-        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0`, {
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
         return (response.data?.rootCategoryNode?.childCategoryTreeNodes || []).map(node => ({
             id: node.category.categoryId,
             name: node.category.categoryName,
-            isLeaf: node.leafCategoryTreeNodes?.length === 0
+            isLeaf: !node.childCategoryTreeNodes || node.childCategoryTreeNodes.length === 0
         }));
     } catch (e) {
         return this.getCachedCategories();
@@ -339,20 +338,21 @@ class eBayService {
     ];
   }
 
-  async getSubCategories(parentId) {
+  async getSubCategories(parentId, treeId = "0") {
     const token = await this.getAppToken();
-    if (!token) return [];
+    if (!token || !parentId) return [];
 
     try {
-        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_subtree`, {
-            params: { category_id: parentId },
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree`, {
+            params: { category_id: parentId.toString() },
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        return (response.data?.categoryTreeNode?.childCategoryTreeNodes || []).map(node => ({
+        const node = response.data?.categorySubtreeNode || response.data?.categoryTreeNode;
+        return (node?.childCategoryTreeNodes || []).map(node => ({
             id: node.category.categoryId,
             name: node.category.categoryName,
-            isLeaf: node.leafCategoryTreeNodes?.length === 0 && (!node.childCategoryTreeNodes || node.childCategoryTreeNodes.length === 0)
+            isLeaf: !node.childCategoryTreeNodes || node.childCategoryTreeNodes.length === 0
         }));
     } catch (e) {
         console.error("[Taxonomy Drill-Down] Node Retrieval Failed:", e.message);
@@ -360,16 +360,17 @@ class eBayService {
     }
   }
 
-  async getCategoryInfo(categoryId) {
+  async getCategoryInfo(categoryId, treeId = "0") {
     const token = await this.getAppToken();
     if (!token) return null;
 
     try {
-        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_subtree`, {
-            params: { category_id: categoryId },
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree`, {
+            params: { category_id: categoryId.toString() },
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        return response.data?.categoryTreeNode?.childCategoryTreeNodes || [];
+        const node = response.data?.categorySubtreeNode || response.data?.categoryTreeNode;
+        return node?.childCategoryTreeNodes || [];
     } catch (e) {
         console.error("[eBay Taxonomy] Subtree Fetch Failed:", e);
         return [];
@@ -443,8 +444,25 @@ class eBayService {
             return response.data[1];
         }
         return [];
+    }
+  }
+
+  /**
+   * 🌳 GET DEFAULT CATEGORY TREE ID
+   * Fetches the dynamic tree ID for the marketplace (required for taxonomy drill-down)
+   */
+  async getCategoryTreeId() {
+    const token = await this.getAppToken();
+    if (!token) return "0";
+    try {
+        const response = await this.fetchWithRetry('get', `https://api.ebay.com/commerce/taxonomy/v1/get_default_category_tree_id`, {
+            params: { marketplace_id: 'EBAY_US' },
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        return response.data?.categoryTreeId || "0";
     } catch (e) {
-        return [];
+        console.warn("[eBay Taxonomy] Tree ID Fetch Failed. Using default '0'.");
+        return "0";
     }
   }
 
@@ -462,8 +480,19 @@ class eBayService {
         try {
             const response = await this.fetchWithRetry('get', `https://api.ebay.com/sell/account/v1/${type}_policy`, {
                 params: { marketplace_id: 'EBAY_US' },
-                headers: { 'Authorization': `Bearer ${this.userToken}` }
+                headers: { 
+                    'Authorization': `Bearer ${this.userToken}`,
+                    'Content-Type': 'application/json',
+                    'Content-Language': 'en-US'
+                }
             });
+            console.log(`[eBay Policies] RAW ${type.toUpperCase()} RESPONSE:`, response.data);
+            
+            // Map correctly based on endpoint structure
+            if (type === 'fulfillment') return response.data.fulfillmentPolicies || [];
+            if (type === 'payment') return response.data.paymentPolicies || [];
+            if (type === 'return') return response.data.returnPolicies || [];
+            
             return response.data[`${type}Policies`] || [];
         } catch (e) {
             console.error(`[eBay Policies] Failed to fetch ${type} policies:`, e.message);
