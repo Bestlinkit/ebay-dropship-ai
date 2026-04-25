@@ -363,9 +363,39 @@ const Discovery = () => {
             ) : processedProducts.length > 0 ? (
               shuffleResults(processedProducts)?.map(p => <ProductCard key={p.id} product={p} onAdd={handleAddProduct} batchContext={batchIntelligence} />)
             ) : (
-              <div className="col-span-full py-56 flex flex-col items-center justify-center gap-8 opacity-10">
-                 <Waves size={80} className="text-slate-400" />
-                 <p className="text-[14px] font-black uppercase tracking-[0.8em] text-center">Zero Market Alignment Detected</p>
+              <div className="col-span-full py-56 flex flex-col items-center justify-center gap-8 bg-slate-900/20 border border-dashed border-slate-800 rounded-[4rem] text-center mx-4">
+                 <div className="w-24 h-24 bg-slate-800/50 text-slate-500 rounded-[3rem] flex items-center justify-center">
+                    <Waves size={48} className={error ? "text-rose-500" : ""} />
+                 </div>
+                 <div className="space-y-4">
+                    <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">
+                        {error ? 'Intelligence Offline' : 'Zero Market Alignment'}
+                    </h3>
+                    <p className="text-slate-500 max-w-xl mx-auto text-sm leading-relaxed font-medium">
+                        {error ? error : "No products matched your current discovery parameters. Try broadening your criteria or using a simpler keyword."}
+                    </p>
+                 </div>
+                 <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-4">
+                    <button 
+                        onClick={() => executeSearch()} 
+                        className="px-16 py-6 bg-white text-slate-950 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:scale-105 transition-all flex items-center justify-center gap-4 shadow-xl shadow-white/5"
+                    >
+                        <Zap size={20} /> Retry Discovery
+                    </button>
+                    {query && (
+                        <button 
+                            onClick={() => {
+                                const broad = query.split(' ').slice(0, 2).join(' ');
+                                setQuery(broad);
+                                setFilters(f => ({ ...f, categoryId: '', minPrice: '', maxPrice: '' }));
+                                executeSearch();
+                            }}
+                            className="px-16 py-6 bg-slate-800 border border-slate-700 text-white rounded-[2rem] text-[11px] font-black uppercase tracking-[0.2em] hover:bg-slate-700 transition-all flex items-center justify-center gap-4"
+                        >
+                            Try Broad Search
+                        </button>
+                    )}
+                 </div>
               </div>
             )}
          </div>

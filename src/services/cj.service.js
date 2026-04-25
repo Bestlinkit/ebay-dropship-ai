@@ -2,7 +2,7 @@ import axios from 'axios';
 import { normalizeProduct } from './cj.schema';
 import { deconstructTitle } from '../utils/productQueryEngine';
 
-const BRIDGE_BASE = 'http://localhost:3001';
+const BRIDGE_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 class CJService {
   constructor() {
