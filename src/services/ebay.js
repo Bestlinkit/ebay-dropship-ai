@@ -498,9 +498,9 @@ class eBayService {
         console.log("[eBay Policies] Bridge Success:", data);
 
         return {
-            fulfillment: data.fulfillment || [],
-            payment: data.payment || [],
-            return: data.return || []
+            fulfillment: data.fulfillmentPolicies || [],
+            payment: data.paymentPolicies || [],
+            return: data.returnPolicies || []
         };
     } catch (e) {
         console.error("[eBay Policies] Bridge Fault:", e.response?.data || e.message);
