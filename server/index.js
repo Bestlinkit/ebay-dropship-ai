@@ -583,63 +583,11 @@ app.post('/api/ai/optimize', async (req, res) => {
     }
 });
 
-// --- EBAY BUSINESS POLICIES BRIDGE (v1.0) ---
-app.get('/api/ebay/policies', async (req, res) => {
-    console.log("EBAY POLICY BRIDGE: Fetching production policies...");
-    const userToken = process.env.EBAY_USER_TOKEN;
-
-    if (!userToken) {
-        console.error("EBAY POLICY BRIDGE: EBAY_USER_TOKEN missing in server .env");
-        return res.status(500).json({ 
-            success: false, 
-            error: "EBAY_USER_TOKEN_MISSING",
-            message: "Server environment not configured with eBay User Token."
-        });
-    }
-
-    const fetchPolicy = async (type) => {
-        try {
-            const response = await axios.get(`https://api.ebay.com/sell/account/v1/${type}_policy`, {
-                params: { marketplace_id: 'EBAY_US' },
-                headers: { 
-                    'Authorization': `Bearer ${userToken}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: 10000
-            });
-            
-            // Standard eBay response structure: { [type]Policies: [...] }
-            return response.data[`${type}Policies`] || [];
-        } catch (e) {
-            console.error(`EBAY POLICY BRIDGE: Failed to fetch ${type} policies:`, e.response?.data || e.message);
-            return [];
-        }
-    };
-
-    try {
-        const [payment, fulfillment, returnPolicies] = await Promise.all([
-            fetchPolicy('payment'),
-            fetchPolicy('fulfillment'),
-            fetchPolicy('return')
-        ]);
-
-        console.log("EBAY POLICY BRIDGE: Successfully retrieved policies.");
-        res.json({
-            paymentPolicies: payment,
-            fulfillmentPolicies: fulfillment,
-            returnPolicies: returnPolicies
-        });
-    } catch (err) {
-        console.error("EBAY POLICY BRIDGE: Critical aggregation fault:", err.message);
-        res.status(500).json({ 
-            success: false, 
-            error: "AGGREGATION_FAULT",
-            paymentPolicies: [],
-            shippingPolicies: [],
-            returnPolicies: []
-        });
-    }
 });
+
+// --- EBAY ROUTER MOUNT ---
+const ebayRoutes = require('./routes/ebay');
+app.use('/api/ebay', ebayRoutes);
 
 // Mount Router
 app.use("/api/cj", cjRouter);

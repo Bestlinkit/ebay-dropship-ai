@@ -935,7 +935,7 @@ const EbayListingBuilder = () => {
                                          <AlertCircle size={20} />
                                          <div>
                                              <p className="text-[10px] font-black uppercase tracking-widest">No active eBay policies found</p>
-                                             <p className="text-xs font-bold opacity-80">Please create policies in eBay Seller Hub or retry the connection.</p>
+                                             <p className="text-xs font-bold opacity-80">Create policies in Seller Hub.</p>
                                          </div>
                                      </div>
                                      <button 

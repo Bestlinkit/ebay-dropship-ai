@@ -477,25 +477,33 @@ class eBayService {
   /**
    * 📋 EBAY BUSINESS POLICIES
    * Fetches Fulfillment, Payment, and Return policies via Backend Bridge.
-   * This avoids CORS issues with eBay Sell APIs in the browser.
+   * This implementation passes the client token to the server to maintain auth context.
    */
   async getBusinessPolicies() {
+    if (!this.userToken) {
+        console.warn("[eBay Policies] User Token missing.");
+        return { fulfillment: [], payment: [], return: [] };
+    }
+
     try {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
         const response = await axios.get(`${backendUrl}/api/ebay/policies`, {
+            headers: {
+                'Authorization': `Bearer ${this.userToken}`
+            },
             timeout: 15000
         });
 
         const data = response.data;
-        console.log("[eBay Policies] Backend Bridge Response:", data);
+        console.log("[eBay Policies] Bridge Success:", data);
 
         return {
-            fulfillment: data.fulfillmentPolicies || [],
-            payment: data.paymentPolicies || [],
-            return: data.returnPolicies || []
+            fulfillment: data.fulfillment || [],
+            payment: data.payment || [],
+            return: data.return || []
         };
     } catch (e) {
-        console.error("[eBay Policies] Backend Bridge Failed:", e.message);
+        console.error("[eBay Policies] Bridge Fault:", e.response?.data || e.message);
         return { fulfillment: [], payment: [], return: [] };
     }
   }
