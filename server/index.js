@@ -626,7 +626,7 @@ app.get('/api/ebay/policies', async (req, res) => {
         console.log("EBAY POLICY BRIDGE: Successfully retrieved policies.");
         res.json({
             paymentPolicies: payment,
-            shippingPolicies: fulfillment,
+            fulfillmentPolicies: fulfillment,
             returnPolicies: returnPolicies
         });
     } catch (err) {

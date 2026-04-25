@@ -41,9 +41,7 @@ class eBayService {
     const marketplaceid = h['X-EBAY-C-MARKETPLACE-ID'] || h['x-ebay-c-marketplace-id'] || this.marketplaceId || 'EBAY_US';
 
     const proxies = [
-        this.proxyUrl ? `${this.proxyUrl}/?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(finalTargetUrl)}`,
-        `https://cors-proxy.org/?url=${encodeURIComponent(finalTargetUrl)}`
+        this.proxyUrl ? `${this.proxyUrl}/?url=${encodeURIComponent(finalTargetUrl)}&auth=${encodeURIComponent(auth)}&marketplaceid=${marketplaceid}` : null
     ].filter(Boolean);
 
     let lastError = null;
@@ -492,7 +490,7 @@ class eBayService {
         console.log("[eBay Policies] Backend Bridge Response:", data);
 
         return {
-            fulfillment: data.shippingPolicies || [],
+            fulfillment: data.fulfillmentPolicies || [],
             payment: data.paymentPolicies || [],
             return: data.returnPolicies || []
         };

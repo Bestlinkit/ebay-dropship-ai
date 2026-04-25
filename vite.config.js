@@ -26,11 +26,6 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
     proxy: {
-      '/api/ebay': {
-        target: 'https://api.ebay.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/ebay/, ''),
-      },
       '/api/cj': {
         target: 'http://localhost:3001',
         changeOrigin: true,
@@ -47,12 +42,6 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'require-corp',
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
-    proxy: {
-      '/api/ebay': {
-        target: 'https://api.ebay.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/ebay/, ''),
-      }
-    }
+    proxy: {}
   },
 })

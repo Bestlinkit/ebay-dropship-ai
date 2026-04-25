@@ -930,12 +930,20 @@ const EbayListingBuilder = () => {
                              </div>
 
                              {arePoliciesEmpty && !isLoadingPolicies && (
-                                 <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-4 text-amber-700 animate-in fade-in zoom-in duration-300">
-                                     <AlertCircle size={20} />
-                                     <div>
-                                         <p className="text-[10px] font-black uppercase tracking-widest">No active eBay policies found</p>
-                                         <p className="text-xs font-bold opacity-80">Please create Payment, Shipping, and Return policies in your eBay Seller Hub to continue.</p>
+                                 <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-between gap-4 text-amber-700 animate-in fade-in zoom-in duration-300">
+                                     <div className="flex items-center gap-4">
+                                         <AlertCircle size={20} />
+                                         <div>
+                                             <p className="text-[10px] font-black uppercase tracking-widest">No active eBay policies found</p>
+                                             <p className="text-xs font-bold opacity-80">Please create policies in eBay Seller Hub or retry the connection.</p>
+                                         </div>
                                      </div>
+                                     <button 
+                                         onClick={loadPolicies}
+                                         className="px-6 py-2 bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-amber-700 transition-all shadow-md active:scale-95"
+                                     >
+                                         Retry Sync
+                                     </button>
                                  </div>
                              )}
 
