@@ -70,6 +70,7 @@ const EbayListingBuilder = () => {
     const [policies, setPolicies] = useState({ fulfillment: [], payment: [], return: [] });
     const [selectedPolicies, setSelectedPolicies] = useState({ fulfillment: "", payment: "", return: "" });
     const [isLoadingPolicies, setIsLoadingPolicies] = useState(false);
+    const [policyError, setPolicyError] = useState(null);
 
     // 🏷️ ITEM SPECIFICS STATE (TAB 5)
     const [aspects, setAspects] = useState([]);
@@ -212,6 +213,8 @@ const EbayListingBuilder = () => {
         try {
             const data = await ebayService.getBusinessPolicies();
             setPolicies(data);
+            setPolicyError(data.isError ? (data.error || "Failed to sync with eBay account") : null);
+            
             // Default select first available
             setSelectedPolicies({
                 fulfillment: data.fulfillment[0]?.fulfillmentPolicyId || "",
@@ -934,8 +937,8 @@ const EbayListingBuilder = () => {
                                      <div className="flex items-center gap-4">
                                          <AlertCircle size={20} />
                                          <div>
-                                             <p className="text-[10px] font-black uppercase tracking-widest">No policies found</p>
-                                             <p className="text-xs font-bold opacity-80">Create in eBay Seller Hub.</p>
+                                             <p className="text-[10px] font-black uppercase tracking-widest">{policyError ? "Bridge Sync Error" : "No policies found"}</p>
+                                             <p className="text-xs font-bold opacity-80">{policyError || "Create in eBay Seller Hub."}</p>
                                          </div>
                                      </div>
                                      <button 

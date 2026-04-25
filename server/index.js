@@ -10,9 +10,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// 🛡️ IDENTITY MIDDLEWARE (Forensic Signature)
+// 🛡️ IDENTITY MIDDLEWARE (Protocol v28.0-Hardened)
 app.use((req, res, next) => {
-    res.setHeader('X-Bridge-Identity', 'CJ-PRO-BRIDGE-v2.5');
+    res.setHeader('X-Bridge-Identity', 'Protocol v28.0-Hardened');
     next();
 });
 
@@ -116,8 +116,8 @@ app.post('/api/eprolo/detail', async (req, res) => {
 // --- CJ DROPSHIPPING API (v2.0 - Unified Sourcing) ---
 const cjRouter = express.Router();
 
-const CJ_API_KEY = process.env.CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5fb00a4ecba7b';
-const CJ_GATEWAY = process.env.CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
+const CJ_API_KEY = process.env.CJ_API_KEY || process.env.VITE_CJ_API_KEY || 'CJ5340052@api@ca55825f11224430a4b5fb00a4ecba7b';
+const CJ_GATEWAY = process.env.CJ_API_GATEWAY || process.env.VITE_CJ_API_GATEWAY || 'https://developers.cjdropshipping.com/api2.0/v1';
 
 // 🔐 SESSION VAULT: Maintain token continuity across requests via global singleton
 if (!global.CJ_SESSION) {
@@ -267,40 +267,45 @@ cjRouter.use(async (req, res, next) => {
     if (!global.CJ_SESSION?.accessToken) {
         console.log(`[CJ SECURITY] Session lost. Attempting auto-recovery for: ${req.path}`);
         
-        try {
-            const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
-            const targetApiKey = CJ_API_KEY;
+            // 🔄 RETRY LOOP: 3 attempts with exponential backoff
+            let lastErr = null;
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const authUrl = 'https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken';
+                    const targetApiKey = CJ_API_KEY;
 
-            const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
-                headers: { 'Content-Type': 'application/json' },
-                timeout: 10000 
-            });
+                    const response = await axios.post(authUrl, { apiKey: targetApiKey }, {
+                        headers: { 'Content-Type': 'application/json' },
+                        timeout: 15000 
+                    });
 
-            const raw = response.data;
-            if (raw.code == 200 || raw.success === true) {
-                global.CJ_SESSION = {
-                    accessToken: raw.data?.accessToken,
-                    refreshToken: raw.data?.refreshToken,
-                    expiry: raw.data?.accessTokenExpiryDate
-                };
-                console.log("[CJ SECURITY] Auto-recovery successful. Token restored.");
-            } else {
-                console.error("[CJ SECURITY] Auto-recovery failed:", raw.message);
-                return res.status(401).json({
-                    cjConnected: false,
-                    tokenValid: false,
-                    error: "Auto-recovery failed. Manual auth required.",
-                    raw: raw
-                });
+                    const raw = response.data;
+                    if (raw.code == 200 || raw.success === true) {
+                        global.CJ_SESSION = {
+                            accessToken: raw.data?.accessToken,
+                            refreshToken: raw.data?.refreshToken,
+                            expiry: raw.data?.accessTokenExpiryDate
+                        };
+                        console.log(`[CJ SECURITY] Auto-recovery successful on attempt ${i+1}.`);
+                        return next();
+                    } else {
+                        lastErr = raw.message;
+                        console.warn(`[CJ SECURITY] Auto-recovery attempt ${i+1} failed:`, raw.message);
+                    }
+                } catch (error) {
+                    lastErr = error.message;
+                    console.error(`[CJ SECURITY] Auto-recovery attempt ${i+1} exception:`, error.message);
+                }
+                // Wait before retry: 500ms, 1500ms...
+                if (i < 2) await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
             }
-        } catch (error) {
-            console.error("[CJ SECURITY] Auto-recovery exception:", error.message);
+
             return res.status(401).json({
                 cjConnected: false,
                 tokenValid: false,
-                error: "Session lost and auto-recovery exception occurred."
+                error: "Auto-recovery exhausted. 401 Unauthenticated.",
+                details: lastErr
             });
-        }
     }
     next();
 });

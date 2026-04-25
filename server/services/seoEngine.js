@@ -134,6 +134,8 @@ function generatePremiumTitles(keywords, classification) {
         ];
     }
 
+    const type = product_type.toLowerCase();
+
     return templates.map((t, i) => {
         let text = deduplicateWords(t.replace(/\s+/g, ' ').trim());
         

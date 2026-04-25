@@ -504,7 +504,13 @@ class eBayService {
         };
     } catch (e) {
         console.error("[eBay Policies] Bridge Fault:", e.response?.data || e.message);
-        return { fulfillment: [], payment: [], return: [] };
+        return { 
+            fulfillment: [], 
+            payment: [], 
+            return: [], 
+            error: e.response?.data?.message || e.message,
+            isError: true 
+        };
     }
   }
 

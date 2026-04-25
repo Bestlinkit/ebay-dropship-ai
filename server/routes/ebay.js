@@ -18,7 +18,7 @@ router.get('/policies', async (req, res) => {
             });
         }
 
-        const [payment, fulfillment, ret] = await Promise.all([
+        const results = await Promise.allSettled([
             axios.get('https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=EBAY_US', {
                 headers: { Authorization: token }
             }),
@@ -30,10 +30,22 @@ router.get('/policies', async (req, res) => {
             })
         ]);
 
+        const payment = results[0].status === 'fulfilled' ? results[0].value.data.paymentPolicies : [];
+        const fulfillment = results[1].status === 'fulfilled' ? results[1].value.data.fulfillmentPolicies : [];
+        const ret = results[2].status === 'fulfilled' ? results[2].value.data.returnPolicies : [];
+
+        // Log failures for debugging
+        results.forEach((res, i) => {
+            if (res.status === 'rejected') {
+                const types = ['Payment', 'Fulfillment', 'Return'];
+                console.warn(`[eBay Bridge] ${types[i]} Policy Fetch Failed:`, res.reason.message);
+            }
+        });
+
         res.json({
-            paymentPolicies: payment.data.paymentPolicies || [],
-            fulfillmentPolicies: fulfillment.data.fulfillmentPolicies || [],
-            returnPolicies: ret.data.returnPolicies || []
+            paymentPolicies: payment || [],
+            fulfillmentPolicies: fulfillment || [],
+            returnPolicies: ret || []
         });
 
     } catch (err) {
