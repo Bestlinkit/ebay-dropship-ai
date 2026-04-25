@@ -38,9 +38,8 @@ const EbayListingBuilder = () => {
         { id: 1, name: "Title & Description", icon: <Sparkles size={18} /> },
         { id: 2, name: "Pricing & Variants", icon: <DollarSign size={18} /> },
         { id: 3, name: "Images", icon: <ImageIcon size={18} /> },
-        { id: 4, name: "Video", icon: <Video size={18} /> },
-        { id: 5, name: "Category & Policies", icon: <ShieldCheck size={18} /> },
-        { id: 6, name: "Review & Publish", icon: <Send size={18} /> },
+        { id: 4, name: "Category & Policies", icon: <ShieldCheck size={18} /> },
+        { id: 5, name: "Review & Publish", icon: <Send size={18} /> },
     ];
 
     // AI OPTIMIZATION STATE (TAB 1 ONLY)
@@ -641,7 +640,7 @@ const EbayListingBuilder = () => {
                                             : "bg-slate-950 text-white hover:bg-indigo-600"
                                     )}
                                 >
-                                    Video Lab <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    Category & Policies <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                 </button>
                             </div>
                         </div>

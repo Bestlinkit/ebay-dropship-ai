@@ -6,7 +6,7 @@ const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 
 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
 
-const UNRELATED_PRODUCTS = new Set(['jeans', 'pants', 'shoes', 'bag', 'watch', 'phone', 'laptop', 'socks', 'underwear', 'hat', 'gloves']);
+const UNRELATED_PRODUCTS = new Set(['pbproduct', 'br', 'nbsp', 'description', 'information']);
 
 const CATEGORY_LOCKED_MAP = {
     'skincare': {
@@ -32,6 +32,14 @@ const CATEGORY_LOCKED_MAP = {
         outcomes: ['Statement Piece', 'Timeless Gift', 'Sophisticated Look'],
         intent_keywords: ['elegant', 'luxury', 'handcrafted', 'jewelry'],
         fallback_tags: ["elegant silver necklace", "luxury jewelry pendant", "handcrafted chain gift", "sophisticated accessory", "timeless jewelry piece"]
+    },
+    'shoes': {
+        name: 'Clothing, Shoes & Accessories > Men\'s Shoes > Casual Shoes',
+        product_type: 'Shoes',
+        benefits: ['Ergonomic', 'Lightweight', 'Breathable', 'Durable'],
+        outcomes: ['Stylish Walk', 'Daily Comfort', 'Perfect Fit'],
+        intent_keywords: ['comfortable', 'handmade', 'leather', 'walking'],
+        fallback_tags: ["handmade men shoes", "comfortable leather footwear", "casual walking shoes", "durable mens sneakers", "stylish breathable shoes"]
     }
 };
 
@@ -59,8 +67,11 @@ function classifyProduct(title, description) {
     const text = (title + " " + (description || "")).toLowerCase();
     let key = "apparel";
     
+    
     if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) key = "skincare";
-    if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry')) key = "jewelry";
+    else if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry') || text.includes('pendant')) key = "jewelry";
+    else if (text.includes('shoe') || text.includes('sneaker') || text.includes('boot') || text.includes('footwear')) key = "shoes";
+    else if (text.includes('shirt') || text.includes('apparel') || text.includes('clothing')) key = "apparel";
 
     const config = CATEGORY_LOCKED_MAP[key];
     
@@ -136,8 +147,8 @@ function generatePremiumTitles(keywords, classification) {
         
         let score = 95 - (i * 3);
         
-        // Strict Validation: Must include "Body Scrub" (case insensitive)
-        if (!capitalized.toLowerCase().includes("body scrub")) score -= 30;
+        // Strict Validation: Must include product type
+        if (!capitalized.toLowerCase().includes(type)) score -= 30;
         
         // Must include 1 function keyword
         const hasFunction = intent.some(f => capitalized.toLowerCase().includes(f));
@@ -187,7 +198,7 @@ function generateTags(keywords, classification) {
         if (uniqueWords.length !== words.length) continue; // Reject if duplicated words in tag
 
         // 5. Human Search Test (Heuristic: Must contain product type or key intent)
-        const hasCoreNoun = tag.includes(type) || tag.includes('scrub');
+        const hasCoreNoun = tag.includes(type);
         if (!hasCoreNoun) continue;
 
         // 6. Global Similarity Filter (Remove mirrored or overly similar tags)
@@ -265,8 +276,7 @@ function validateAndRecover(output, classification) {
         const lower = t.text.toLowerCase();
         const hasType = lower.includes(type);
         const hasIntent = intentKeywords.some(ik => lower.includes(ik));
-        const noBathScrub = !lower.startsWith("bath scrub body");
-        return hasType && hasIntent && noBathScrub;
+        return hasType && hasIntent;
     });
 
     // 2. Strict Tag Validation
