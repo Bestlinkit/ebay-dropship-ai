@@ -79,6 +79,9 @@ const EbayListingBuilder = () => {
     const [isPushing, setIsPushing] = useState(false);
     const [pushSuccess, setPushSuccess] = useState(false);
 
+    // 🛡️ POLICY HELPERS
+    const arePoliciesEmpty = policies.fulfillment.length === 0 && policies.payment.length === 0 && policies.return.length === 0;
+
     // Initialize Variants from CJ Product
     useEffect(() => {
         if (cjProduct?.variants) {
@@ -266,7 +269,7 @@ const EbayListingBuilder = () => {
         }
 
         if (!selectedPolicies.fulfillment || !selectedPolicies.payment || !selectedPolicies.return) {
-            setPushError("Handshake Error: Missing Business Policies.");
+            setPushError("Handshake Error: Missing Business Policies. Please ensure Payment, Shipping, and Return policies are selected in Tab 4.");
             setIsPushing(false);
             return;
         }
@@ -897,30 +900,44 @@ const EbayListingBuilder = () => {
                                 </div>
                             </div>
 
-                            {/* BUSINESS POLICIES */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                {[
-                                    { label: "Payment Policy", type: "payment", options: policies.payment, idKey: "paymentPolicyId" },
-                                    { label: "Shipping Policy", type: "fulfillment", options: policies.fulfillment, idKey: "fulfillmentPolicyId" },
-                                    { label: "Return Policy", type: "return", options: policies.return, idKey: "returnPolicyId" }
-                                ].map((group) => (
-                                    <div key={group.type} className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{group.label}</label>
-                                        <div className="relative">
-                                            <select 
-                                                value={selectedPolicies[group.type]}
-                                                onChange={(e) => setSelectedPolicies(prev => ({ ...prev, [group.type]: e.target.value }))}
-                                                className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[11px] font-bold text-slate-900 outline-none focus:border-slate-950 transition-all appearance-none shadow-sm"
-                                            >
-                                                <option value="">Select Policy...</option>
-                                                {group.options.map(opt => (
-                                                    <option key={opt[group.idKey]} value={opt[group.idKey]}>{opt.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                             {/* BUSINESS POLICIES */}
+                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                 {[
+                                     { label: "Payment Policy", type: "payment", options: policies.payment, idKey: "paymentPolicyId" },
+                                     { label: "Shipping Policy", type: "fulfillment", options: policies.fulfillment, idKey: "fulfillmentPolicyId" },
+                                     { label: "Return Policy", type: "return", options: policies.return, idKey: "returnPolicyId" }
+                                 ].map((group) => (
+                                     <div key={group.type} className="space-y-4">
+                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{group.label}</label>
+                                         <div className="relative">
+                                             <select 
+                                                 value={selectedPolicies[group.type]}
+                                                 disabled={arePoliciesEmpty}
+                                                 onChange={(e) => setSelectedPolicies(prev => ({ ...prev, [group.type]: e.target.value }))}
+                                                 className={cn(
+                                                     "w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[11px] font-bold outline-none transition-all appearance-none shadow-sm",
+                                                     arePoliciesEmpty ? "text-slate-300 cursor-not-allowed" : "text-slate-900 focus:border-slate-950"
+                                                 )}
+                                             >
+                                                 <option value="">{arePoliciesEmpty ? "No Policies" : "Select Policy..."}</option>
+                                                 {group.options.map(opt => (
+                                                     <option key={opt[group.idKey]} value={opt[group.idKey]}>{opt.name}</option>
+                                                 ))}
+                                             </select>
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
+
+                             {arePoliciesEmpty && !isLoadingPolicies && (
+                                 <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-center gap-4 text-amber-700 animate-in fade-in zoom-in duration-300">
+                                     <AlertCircle size={20} />
+                                     <div>
+                                         <p className="text-[10px] font-black uppercase tracking-widest">No active eBay policies found</p>
+                                         <p className="text-xs font-bold opacity-80">Please create Payment, Shipping, and Return policies in your eBay Seller Hub to continue.</p>
+                                     </div>
+                                 </div>
+                             )}
 
                             <div className="pt-10 flex justify-between">
                                 <button onClick={() => setActiveTab(3)} className="px-8 py-4 border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
@@ -1025,16 +1042,22 @@ const EbayListingBuilder = () => {
                                     </button>
                                     
                                     <div className="flex items-center gap-8">
+                                        {arePoliciesEmpty && (
+                                            <div className="flex items-center gap-3 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl border border-amber-100">
+                                                <AlertCircle size={14} />
+                                                <span className="text-[9px] font-black uppercase tracking-widest">Setup eBay Policies to push</span>
+                                            </div>
+                                        )}
                                         <div className="text-right">
                                             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ready for Handshake</p>
                                             <p className="text-xs font-black text-slate-900">{variants.length} Variations • {selectedImages.length} Images</p>
                                         </div>
                                         <button 
                                             onClick={handlePushToEbay}
-                                            disabled={isPushing}
+                                            disabled={isPushing || arePoliciesEmpty}
                                             className={cn(
                                                 "px-16 py-6 rounded-[2rem] text-[12px] font-black uppercase tracking-widest flex items-center gap-4 transition-all shadow-2xl",
-                                                isPushing ? "bg-slate-400 cursor-not-allowed" : "bg-slate-950 text-white hover:bg-emerald-600 hover:scale-105 active:scale-95"
+                                                (isPushing || arePoliciesEmpty) ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-950 text-white hover:bg-emerald-600 hover:scale-105 active:scale-95"
                                             )}
                                         >
                                             {isPushing ? (

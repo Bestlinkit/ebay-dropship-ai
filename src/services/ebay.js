@@ -493,8 +493,9 @@ class eBayService {
                 }
             });
             console.log(`[eBay Policies] RAW ${type.toUpperCase()} RESPONSE:`, response.data);
+            console.log("POLICY RESPONSE FULL:", response.data);
             
-            // eBay API can return arrays directly or wrapped in a property of the same name
+            // Strict parsing as requested: Check nested property then fallback to array
             const data = response.data;
             if (type === 'fulfillment') return data.fulfillmentPolicies?.fulfillmentPolicies || data.fulfillmentPolicies || [];
             if (type === 'payment') return data.paymentPolicies?.paymentPolicies || data.paymentPolicies || [];
