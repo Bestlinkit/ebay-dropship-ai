@@ -67,9 +67,11 @@ class EbayTradingService {
     }
 
     /**
-     * AddItem using LEGACY structure (No Business Policies)
+     * AddItem using LEGACY or Business Policy structure
      */
     async addItem(itemData) {
+        const hasPolicies = itemData.paymentPolicyId && itemData.shippingPolicyId && itemData.returnPolicyId;
+        
         const xmlBody = `
   <Item>
     <Title>${this.escapeXml(itemData.title)}</Title>
@@ -90,6 +92,19 @@ class EbayTradingService {
     </PictureDetails>
     <PostalCode>${itemData.postalCode || '95125'}</PostalCode>
     
+    ${hasPolicies ? `
+    <SellerProfiles>
+      <SellerPaymentProfile>
+        <PaymentProfileID>${itemData.paymentPolicyId}</PaymentProfileID>
+      </SellerPaymentProfile>
+      <SellerShippingProfile>
+        <ShippingProfileID>${itemData.shippingPolicyId}</ShippingProfileID>
+      </SellerShippingProfile>
+      <SellerReturnProfile>
+        <ReturnProfileID>${itemData.returnPolicyId}</ReturnProfileID>
+      </SellerReturnProfile>
+    </SellerProfiles>
+    ` : `
     <PaymentMethods>PayPal</PaymentMethods>
     <PayPalEmailAddress>${itemData.paypalEmail || 'support@geonoyc.com'}</PayPalEmailAddress>
     
@@ -109,6 +124,7 @@ class EbayTradingService {
         <ShippingServiceCost>0.00</ShippingServiceCost>
       </ShippingServiceOptions>
     </ShippingDetails>
+    `}
   </Item>`;
 
         return this.callTradingAPI('AddItem', xmlBody);
@@ -140,6 +156,12 @@ class EbayTradingService {
     </Pagination>
   </ActiveList>`;
         return this.callTradingAPI('GetMyeBaySelling', xmlBody);
+    }
+
+    async getBusinessPolicies() {
+        // Business Policies are managed via the Account API (REST) or SellerProfiles (Trading)
+        // We use GetSellerProfiles for Trading API compatibility
+        return this.callTradingAPI('GetSellerProfiles', '');
     }
 
     async getOrders() {

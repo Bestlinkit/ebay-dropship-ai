@@ -271,12 +271,6 @@ const EbayListingBuilder = () => {
             return;
         }
 
-        if (!selectedPolicies.fulfillment || !selectedPolicies.payment || !selectedPolicies.return) {
-            setPushError("Handshake Error: Missing Business Policies. Please ensure Payment, Shipping, and Return policies are selected in Tab 4.");
-            setIsPushing(false);
-            return;
-        }
-
         // Check required aspects
         const missingAspects = aspects.filter(a => a.required && !attributeValues[a.name]);
         if (missingAspects.length > 0) {
@@ -290,7 +284,7 @@ const EbayListingBuilder = () => {
             title: selectedTitle,
             description: description,
             categoryId: categoryPath[categoryPath.length - 1].id,
-            price: variants[0]?.ebay_price || 0, // Single source of truth from CJ-init variants
+            price: variants[0]?.ebay_price || 0,
             quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
             images: selectedImages,
             variants: variants.map(v => ({
@@ -308,13 +302,15 @@ const EbayListingBuilder = () => {
         try {
             console.info("[eBay Push] Initializing Production Synchronization...", payload);
             
-            // Mocking the successful push for now as per "Do not touch existing listing logic" 
-            // but ensuring the payload is correctly structured for the future bridge call.
-            await new Promise(r => setTimeout(r, 2000));
+            const response = await ebayService.publishItem(payload);
             
-            setPushSuccess(true);
+            if (response.success) {
+                setPushSuccess(true);
+            } else {
+                setPushError(response.error || "Bridge Fault: Sync rejected by eBay.");
+            }
         } catch (err) {
-            setPushError("Bridge Fault: Connection to eBay Production failed.");
+            setPushError(`Bridge Fault: ${err.message}`);
         } finally {
             setIsPushing(false);
         }
@@ -955,11 +951,11 @@ const EbayListingBuilder = () => {
                                     Back to Images
                                 </button>
                                 <button 
-                                    disabled={!isLeafSelected || !selectedPolicies.fulfillment || !selectedPolicies.payment || !selectedPolicies.return}
+                                    disabled={!isLeafSelected}
                                     onClick={() => setActiveTab(5)} 
                                     className={cn(
                                         "px-12 py-5 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-4 transition-all shadow-xl group",
-                                        (!isLeafSelected || !selectedPolicies.fulfillment || !selectedPolicies.payment || !selectedPolicies.return)
+                                        (!isLeafSelected)
                                             ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
                                             : "bg-slate-950 text-white hover:bg-emerald-600"
                                     )}
