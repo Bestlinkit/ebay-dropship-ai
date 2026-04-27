@@ -218,7 +218,10 @@ class EbayTradingService {
             filter: []
         };
 
-        if (options.categoryId) params.category_ids = options.categoryId;
+        if (options.categoryId) {
+            params.category_ids = options.categoryId;
+        }
+
         if (options.minPrice || options.maxPrice) {
             let priceFilter = 'price:[';
             priceFilter += options.minPrice || '0';
@@ -227,10 +230,11 @@ class EbayTradingService {
             priceFilter += ']';
             params.filter.push(priceFilter);
         }
+
         if (options.condition) {
             params.filter.push(`conditions:{${options.condition}}`);
         }
-        
+
         if (params.filter.length > 0) {
             params.filter = params.filter.join(',');
         } else {
@@ -240,7 +244,10 @@ class EbayTradingService {
         try {
             const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
                 params,
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
             });
             return (response.data?.itemSummaries || []).map(item => ({
                 id: item.itemId,
@@ -255,7 +262,7 @@ class EbayTradingService {
                 totalFound: response.data.total
             }));
         } catch (e) {
-            console.error("[eBay Search] API Error:", e.message);
+            console.error("[eBay Search] API Error Details:", e.response?.data || e.message);
             return [];
         }
     }
