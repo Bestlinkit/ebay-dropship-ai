@@ -110,12 +110,12 @@ class EbayTradingService {
       </ShippingServiceOptions>
     </ShippingDetails>
 
-    ${itemData.itemSpecifics ? `
+    ${itemData.itemSpecifics?.nameValueList ? `
     <ItemSpecifics>
-      ${itemData.itemSpecifics.map(spec => `
+      ${itemData.itemSpecifics.nameValueList.map(spec => `
         <NameValueList>
           <Name>${this.escapeXml(spec.name)}</Name>
-          <Value>${this.escapeXml(spec.value)}</Value>
+          ${spec.value.map(val => `<Value>${this.escapeXml(val)}</Value>`).join('')}
         </NameValueList>
       `).join('')}
     </ItemSpecifics>

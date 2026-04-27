@@ -261,12 +261,23 @@ const EbayListingBuilder = () => {
 
         // --- PAYLOAD CONSTRUCTION ---
         // Construct itemSpecifics dynamically based on current attributeValues
-        const finalItemSpecifics = Object.entries(attributeValues)
-            .filter(([_, value]) => value && value.trim() !== "")
+        // Requirement: nameValueList: [ { name: string, value: string[] } ]
+        const nameValueList = Object.entries(attributeValues)
+            .filter(([_, value]) => value && String(value).trim() !== "")
             .map(([name, value]) => ({
                 name: name,
-                value: value
+                value: [String(value)] // MUST BE ARRAY
             }));
+
+        const itemSpecifics = { nameValueList };
+
+        // MANDATORY VALIDATION: Ensure Color is present
+        // Requirement: System must throw error if Color is missing in payload
+        if (!nameValueList.find(x => x.name === "Color")) {
+            setPushError("Specification Error: 'Color' is missing in payload. This is required for your category.");
+            setIsPushing(false);
+            return;
+        }
 
         const payload = {
             title: selectedTitle,
@@ -281,11 +292,12 @@ const EbayListingBuilder = () => {
                 price: v.ebay_price,
                 inventory: v.inventory
             })),
-            itemSpecifics: finalItemSpecifics
+            itemSpecifics: itemSpecifics // NEW STRUCTURE: { nameValueList: [...] }
         };
 
         try {
-            console.info("[eBay Push] Initializing Production Synchronization...", payload);
+            console.info("[eBay Push] FINAL PAYLOAD PRE-SYNC:");
+            console.log(JSON.stringify(payload, null, 2));
             
             const response = await ebayService.publishItem(payload);
             
