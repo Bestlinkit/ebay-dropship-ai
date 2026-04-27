@@ -1,61 +1,79 @@
+
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
+const ebayTrading = require('../services/ebayTrading');
 
 /**
- * 📋 EBAY BUSINESS POLICIES BRIDGE
- * Proxies requests to eBay Sell Account API to avoid browser-side CORS/Auth issues.
- * GET /api/ebay/policies
+ * 📦 LIST PRODUCT
+ * POST /api/ebay/list
  */
-router.get('/policies', async (req, res) => {
+router.post('/list', async (req, res) => {
     try {
-        const token = req.headers.authorization;
-
-        if (!token) {
-            return res.status(401).json({ 
-                status: 'ERROR', 
-                message: 'Missing Authorization header' 
+        const itemData = req.body;
+        console.log(`[eBay Route] Listing attempt for: ${itemData.title}`);
+        
+        const responseXml = await ebayTrading.addItem(itemData);
+        
+        // Parse basic status from XML response
+        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
+        
+        if (ack === 'Success' || ack === 'Warning') {
+            const itemId = responseXml.match(/<ItemID>(.*?)<\/ItemID>/)?.[1];
+            res.json({
+                success: true,
+                itemId: itemId,
+                ack: ack,
+                raw: responseXml
+            });
+        } else {
+            const errors = [...responseXml.matchAll(/<LongMessage>(.*?)<\/LongMessage>/g)].map(m => m[1]);
+            res.status(400).json({
+                success: false,
+                errors: errors,
+                raw: responseXml
             });
         }
-
-        const results = await Promise.allSettled([
-            axios.get('https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=EBAY_US', {
-                headers: { Authorization: token }
-            }),
-            axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US', {
-                headers: { Authorization: token }
-            }),
-            axios.get('https://api.ebay.com/sell/account/v1/return_policy?marketplace_id=EBAY_US', {
-                headers: { Authorization: token }
-            })
-        ]);
-
-        const payment = results[0].status === 'fulfilled' ? results[0].value.data.paymentPolicies : [];
-        const fulfillment = results[1].status === 'fulfilled' ? results[1].value.data.fulfillmentPolicies : [];
-        const ret = results[2].status === 'fulfilled' ? results[2].value.data.returnPolicies : [];
-
-        // Log failures for debugging
-        results.forEach((res, i) => {
-            if (res.status === 'rejected') {
-                const types = ['Payment', 'Fulfillment', 'Return'];
-                console.warn(`[eBay Bridge] ${types[i]} Policy Fetch Failed:`, res.reason.message);
-            }
-        });
-
-        res.json({
-            paymentPolicies: payment || [],
-            fulfillmentPolicies: fulfillment || [],
-            returnPolicies: ret || []
-        });
-
     } catch (err) {
-        console.error("[eBay Bridge] Policy Fetch Failed:", err.message);
+        console.error("[eBay Route] List Failed:", err.message);
         res.status(500).json({
-            status: 'ERROR',
-            message: 'Failed to fetch eBay policies',
+            success: false,
+            message: 'Internal Server Error during listing',
             error: err.message
         });
     }
 });
+
+/**
+ * 📊 GET ACCOUNT SUMMARY
+ * GET /api/ebay/account
+ */
+router.get('/account', async (req, res) => {
+    try {
+        const responseXml = await ebayTrading.getMyeBaySelling();
+        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
+        
+        if (ack === 'Success' || ack === 'Warning') {
+            const totalActive = responseXml.match(/<TotalActiveListings>(.*?)<\/TotalActiveListings>/)?.[1] || "0";
+            res.json({
+                success: true,
+                activeListings: parseInt(totalActive),
+                raw: responseXml
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                raw: responseXml
+            });
+        }
+    } catch (err) {
+        console.error("[eBay Route] Account Fetch Failed:", err.message);
+        res.status(500).json({
+            success: false,
+            error: err.message
+        });
+    }
+});
+
+// REMOVED: /policies (Account not opted in, legacy AddItem used instead)
 
 module.exports = router;

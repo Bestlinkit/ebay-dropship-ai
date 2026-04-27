@@ -10,11 +10,6 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// 🛡️ IDENTITY MIDDLEWARE (Protocol v28.0-Hardened)
-app.use((req, res, next) => {
-    res.setHeader('X-Bridge-Identity', 'Protocol v28.0-Hardened');
-    next();
-});
 
 // Helper: MD5 Signing
 const generateMD5 = (data) => {
@@ -47,12 +42,6 @@ app.post('/api/eprolo/search', async (req, res) => {
         let baseUrl = 'https://openapi.eprolo.com/eprolo_product_list.html';
         const queryParams = `?apiKey=${EPROLO_APP_KEY}&sign=${sign}&timestamp=${timestamp}`;
         let finalUrl = `${baseUrl}${queryParams}`;
-
-        const proxyUrl = process.env.VITE_PROXY_URL;
-        if (proxyUrl) {
-            console.log(`[Eprolo] Routing via Bridge: ${proxyUrl}`);
-            finalUrl = `${proxyUrl}?url=${encodeURIComponent(finalUrl)}`;
-        }
 
         const body = { 
             keyword, 
@@ -90,12 +79,6 @@ app.post('/api/eprolo/detail', async (req, res) => {
         let baseUrl = 'https://openapi.eprolo.com/eprolo_product_detail.html';
         const queryParams = `?apiKey=${EPROLO_APP_KEY}&sign=${sign}&timestamp=${timestamp}`;
         let finalUrl = `${baseUrl}${queryParams}`;
-
-        const proxyUrl = process.env.VITE_PROXY_URL;
-        if (proxyUrl) {
-            console.log(`[Eprolo-Detail] Routing via Bridge: ${proxyUrl}`);
-            finalUrl = `${proxyUrl}?url=${encodeURIComponent(finalUrl)}`;
-        }
 
         const body = { product_id };
 
@@ -517,28 +500,6 @@ const generateNativeFallback = (title, description) => {
 // 🚀 MARKET-DRIVEN SEO ENGINE (NO AI DEPENDENCY)
 const seoEngine = require('./services/seoEngine');
 
-const getEbayAppToken = async () => {
-    try {
-        const appId = process.env.VITE_EBAY_APP_ID;
-        const certId = process.env.VITE_EBAY_CERT_ID;
-        if (!appId || !certId) return null;
-
-        const auth = Buffer.from(`${appId}:${certId}`).toString('base64');
-        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
-            'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope', 
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${auth}`
-                }
-            }
-        );
-        return response.data.access_token;
-    } catch (e) {
-        console.error("EBAY AUTH FAULT:", e.message);
-        return null;
-    }
-};
 
 app.post('/api/ai/optimize', async (req, res) => {
     console.log("SEO ENGINE v16.0 (FINAL CLEANUP)");
