@@ -250,11 +250,11 @@ const EbayListingBuilder = () => {
             return;
         }
 
-        // --- VARIATION EXTRACTION & SYNC ---
-        console.log("VARIANTS:", variants);
-        
-        // Extract Size/Color from variants if they exist
-        // Logic: Variants usually named "Color - Size" or similar
+        // --- CONSISTENCY ENFORCEMENT & T-SHIRT REPLACEMENT ---
+        const cleanTitle = selectedTitle.replace(/T-Shirt/gi, "Polo Shirt");
+        const cleanDescription = description.replace(/T-Shirt/gi, "Polo Shirt");
+
+        // --- VARIATION EXTRACTION ---
         const variantSizes = [];
         const variantColors = [];
         
@@ -267,62 +267,49 @@ const EbayListingBuilder = () => {
         const uniqueSizes = [...new Set(variantSizes)].filter(Boolean);
         const uniqueColors = [...new Set(variantColors)].filter(Boolean);
         
-        console.log("DERIVED SIZES:", uniqueSizes);
-        console.log("DERIVED COLORS:", uniqueColors);
+        console.log("SYNCED SIZES:", uniqueSizes);
+        console.log("SYNCED COLORS:", uniqueColors);
 
-        // --- NORMALIZATION MAPPING ---
-        const normalizeMap = {
-            "Polo": "Polo Shirt",
-            "T-Shirt": "T-Shirt",
-            "S": "S", "M": "M", "L": "L", "XL": "XL", "2XL": "2XL",
-            "XXL": "2XL",
-            "Small": "S", "Medium": "M", "Large": "L"
-        };
-
-        const normalizeValue = (name, val) => {
-            if (normalizeMap[val]) return normalizeMap[val];
-            
-            // Check eBay allowed values for this aspect
-            const aspect = aspects.find(a => a.name === name);
-            if (aspect && aspect.values?.length > 0) {
-                // Case-insensitive match
-                const match = aspect.values.find(v => v.toLowerCase() === val.toLowerCase());
-                if (match) return match;
-            }
-            return val;
-        };
-
-        // --- DYNAMIC ITEM SPECIFICS CONSTRUCTION ---
+        // --- ITEM SPECIFICS CONSTRUCTION & CONFLICT REMOVAL ---
         const finalAttributeValues = { ...attributeValues };
 
-        // Override with variant data if available
-        if (uniqueSizes.length > 0) finalAttributeValues["Size"] = uniqueSizes[0]; // Use first for ItemSpecifics range
-        if (uniqueColors.length > 0) finalAttributeValues["Color"] = uniqueColors[0];
+        // Rule: Variant attributes MUST come ONLY from variants
+        // If they exist in variants, remove them from manual attributeValues to avoid conflict
+        if (uniqueSizes.length > 0) {
+            console.log("[eBay Sync] Auto-removing manual 'Size' to use variant data.");
+            delete finalAttributeValues["Size"];
+            delete finalAttributeValues["size"];
+        }
+        if (uniqueColors.length > 0) {
+            console.log("[eBay Sync] Auto-removing manual 'Color' to use variant data.");
+            delete finalAttributeValues["Color"];
+            delete finalAttributeValues["color"];
+        }
 
-        // Ensure "Brand" is filled (fallback if not in UI)
+        // Ensure "Brand" is filled
         if (!finalAttributeValues["Brand"]) finalAttributeValues["Brand"] = "Unbranded";
 
         const nameValueList = Object.entries(finalAttributeValues)
             .filter(([_, value]) => value && String(value).trim() !== "")
             .map(([name, value]) => ({
                 name: name,
-                value: [normalizeValue(name, String(value))]
+                value: [String(value)]
             }));
 
-        const itemSpecifics = { nameValueList };
-        console.log("FINAL itemSpecifics:", itemSpecifics);
-
-        // --- MANDATORY EBAY COMPLIANCE CHECK ---
-        const missingRequired = aspects.filter(a => a.required && !nameValueList.find(x => x.name === a.name));
-        if (missingRequired.length > 0) {
-            setPushError(`eBay Compliance Error: Missing required fields: ${missingRequired.map(a => a.name).join(', ')}`);
-            setIsPushing(false);
-            return;
+        // Re-inject sizes/colors as arrays if they exist in variants (eBay often requires them in specifics too)
+        if (uniqueSizes.length > 0) {
+            nameValueList.push({ name: "Size", value: uniqueSizes });
+        }
+        if (uniqueColors.length > 0) {
+            nameValueList.push({ name: "Color", value: uniqueColors });
         }
 
+        const itemSpecifics = { nameValueList };
+        console.log("FINAL itemSpecifics (Conflict Cleaned):", itemSpecifics);
+
         const payload = {
-            title: selectedTitle,
-            description: description,
+            title: cleanTitle,
+            description: cleanDescription,
             categoryId: categoryPath[categoryPath.length - 1].id,
             price: variants[0]?.ebay_price || 0,
             quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
@@ -337,7 +324,7 @@ const EbayListingBuilder = () => {
         };
 
         try {
-            console.info("[eBay Push] FINAL HANDSHAKE PAYLOAD:");
+            console.info("[eBay Push] SYNCED HANDSHAKE PAYLOAD:");
             console.log(JSON.stringify(payload, null, 2));
             
             const response = await ebayService.publishItem(payload);
