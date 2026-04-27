@@ -250,31 +250,72 @@ const EbayListingBuilder = () => {
             return;
         }
 
-        // --- DYNAMIC ITEM SPECIFICS VALIDATION ---
-        const missingRequired = aspects.filter(a => a.required && !attributeValues[a.name]);
-        if (missingRequired.length > 0) {
-            const fieldNames = missingRequired.map(a => a.name).join(', ');
-            setPushError(`Specification Error: Missing required fields: ${fieldNames}`);
-            setIsPushing(false);
-            return;
-        }
+        // --- VARIATION EXTRACTION & SYNC ---
+        console.log("VARIANTS:", variants);
+        
+        // Extract Size/Color from variants if they exist
+        // Logic: Variants usually named "Color - Size" or similar
+        const variantSizes = [];
+        const variantColors = [];
+        
+        variants.forEach(v => {
+            const parts = v.name.split('-').map(p => p.trim());
+            if (parts.length >= 1) variantColors.push(parts[0]);
+            if (parts.length >= 2) variantSizes.push(parts[1]);
+        });
 
-        // --- PAYLOAD CONSTRUCTION ---
-        // Construct itemSpecifics dynamically based on current attributeValues
-        // Requirement: nameValueList: [ { name: string, value: string[] } ]
-        const nameValueList = Object.entries(attributeValues)
+        const uniqueSizes = [...new Set(variantSizes)].filter(Boolean);
+        const uniqueColors = [...new Set(variantColors)].filter(Boolean);
+        
+        console.log("DERIVED SIZES:", uniqueSizes);
+        console.log("DERIVED COLORS:", uniqueColors);
+
+        // --- NORMALIZATION MAPPING ---
+        const normalizeMap = {
+            "Polo": "Polo Shirt",
+            "T-Shirt": "T-Shirt",
+            "S": "S", "M": "M", "L": "L", "XL": "XL", "2XL": "2XL",
+            "XXL": "2XL",
+            "Small": "S", "Medium": "M", "Large": "L"
+        };
+
+        const normalizeValue = (name, val) => {
+            if (normalizeMap[val]) return normalizeMap[val];
+            
+            // Check eBay allowed values for this aspect
+            const aspect = aspects.find(a => a.name === name);
+            if (aspect && aspect.values?.length > 0) {
+                // Case-insensitive match
+                const match = aspect.values.find(v => v.toLowerCase() === val.toLowerCase());
+                if (match) return match;
+            }
+            return val;
+        };
+
+        // --- DYNAMIC ITEM SPECIFICS CONSTRUCTION ---
+        const finalAttributeValues = { ...attributeValues };
+
+        // Override with variant data if available
+        if (uniqueSizes.length > 0) finalAttributeValues["Size"] = uniqueSizes[0]; // Use first for ItemSpecifics range
+        if (uniqueColors.length > 0) finalAttributeValues["Color"] = uniqueColors[0];
+
+        // Ensure "Brand" is filled (fallback if not in UI)
+        if (!finalAttributeValues["Brand"]) finalAttributeValues["Brand"] = "Unbranded";
+
+        const nameValueList = Object.entries(finalAttributeValues)
             .filter(([_, value]) => value && String(value).trim() !== "")
             .map(([name, value]) => ({
                 name: name,
-                value: [String(value)] // MUST BE ARRAY
+                value: [normalizeValue(name, String(value))]
             }));
 
         const itemSpecifics = { nameValueList };
+        console.log("FINAL itemSpecifics:", itemSpecifics);
 
-        // MANDATORY VALIDATION: Ensure Color is present
-        // Requirement: System must throw error if Color is missing in payload
-        if (!nameValueList.find(x => x.name === "Color")) {
-            setPushError("Specification Error: 'Color' is missing in payload. This is required for your category.");
+        // --- MANDATORY EBAY COMPLIANCE CHECK ---
+        const missingRequired = aspects.filter(a => a.required && !nameValueList.find(x => x.name === a.name));
+        if (missingRequired.length > 0) {
+            setPushError(`eBay Compliance Error: Missing required fields: ${missingRequired.map(a => a.name).join(', ')}`);
             setIsPushing(false);
             return;
         }
@@ -292,11 +333,11 @@ const EbayListingBuilder = () => {
                 price: v.ebay_price,
                 inventory: v.inventory
             })),
-            itemSpecifics: itemSpecifics // NEW STRUCTURE: { nameValueList: [...] }
+            itemSpecifics: itemSpecifics
         };
 
         try {
-            console.info("[eBay Push] FINAL PAYLOAD PRE-SYNC:");
+            console.info("[eBay Push] FINAL HANDSHAKE PAYLOAD:");
             console.log(JSON.stringify(payload, null, 2));
             
             const response = await ebayService.publishItem(payload);
