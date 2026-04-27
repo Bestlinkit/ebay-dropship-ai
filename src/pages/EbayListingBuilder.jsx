@@ -219,17 +219,12 @@ const EbayListingBuilder = () => {
             const data = await ebayService.getItemAspects(categoryId);
             setAspects(data);
             
-            // Auto-fill attributes
+            // Clean initialization without hardcoding
             const initialValues = {};
             data.forEach(aspect => {
-                if (aspect.name.toLowerCase() === 'brand') initialValues[aspect.name] = 'Unbranded';
-                if (aspect.name.toLowerCase() === 'color' && variants[0]?.name?.includes('/')) {
-                    // Extract color from variant name if possible
-                    initialValues[aspect.name] = variants[0].name.split('/')[0].trim();
-                }
-                // Fallback: If it's required, ensure it has a placeholder
-                if (aspect.required && !initialValues[aspect.name]) {
-                    initialValues[aspect.name] = aspect.values[0] || "";
+                // Only pre-fill if there's exactly one recommended value
+                if (aspect.values?.length === 1) {
+                    initialValues[aspect.name] = aspect.values[0];
                 }
             });
             setAttributeValues(initialValues);
@@ -244,63 +239,6 @@ const EbayListingBuilder = () => {
         setAttributeValues(prev => ({ ...prev, [name]: value }));
     };
 
-    const buildItemSpecifics = (product, categoryAspects) => {
-        const itemSpecifics = { ...attributeValues };
-        const autoFilled = {};
-
-        const extractBrandFromTitle = (title) => {
-            if (!title) return null;
-            // Simple logic: first word if it looks like a brand (e.g. capitalized, not 'New', 'Large')
-            const words = title.split(' ');
-            const commonWords = ['New', 'Large', 'Small', 'Mini', 'Hot', 'Best'];
-            if (words[0] && !commonWords.includes(words[0])) return words[0];
-            return null;
-        };
-
-        categoryAspects.forEach(aspect => {
-            const name = aspect.name;
-            if (aspect.required && !itemSpecifics[name]) {
-                let value = null;
-
-                // Try mapping from product
-                if (name === "Brand") {
-                    value = product.brand || product.vendor || extractBrandFromTitle(product.title) || "Unbranded";
-                } else if (name === "Size") {
-                    value = product.size || product.variants?.[0]?.size;
-                } else if (name === "Color") {
-                    value = product.color || product.variants?.[0]?.color;
-                } else if (name === "Department") {
-                    // Try to infer from category path
-                    const pathString = categoryPath.map(c => c.name).join(' ');
-                    if (pathString.includes('Women')) value = "Women";
-                    else if (pathString.includes('Men')) value = "Men";
-                    else if (pathString.includes('Kids')) value = "Kids";
-                    else value = "Men";
-                } else {
-                    // Try case-insensitive product lookup
-                    value = product[name.toLowerCase()] || product[name] || null;
-                }
-
-                // FINAL FALLBACK
-                if (!value) {
-                    value = aspect.values?.[0] || "Not Specified";
-                }
-
-                itemSpecifics[name] = value;
-                autoFilled[name] = value;
-            }
-        });
-
-        if (Object.keys(autoFilled).length > 0) {
-            console.log("AUTO-FILLED ASPECTS:", autoFilled);
-        }
-
-        return Object.entries(itemSpecifics).map(([Name, Value]) => ({
-            name: Name,
-            value: String(Value)
-        }));
-    };
-
     const handlePushToEbay = async () => {
         setPushError(null);
         setIsPushing(true);
@@ -312,12 +250,23 @@ const EbayListingBuilder = () => {
             return;
         }
 
+        // --- DYNAMIC ITEM SPECIFICS VALIDATION ---
+        const missingRequired = aspects.filter(a => a.required && !attributeValues[a.name]);
+        if (missingRequired.length > 0) {
+            const fieldNames = missingRequired.map(a => a.name).join(', ');
+            setPushError(`Specification Error: Missing required fields: ${fieldNames}`);
+            setIsPushing(false);
+            return;
+        }
+
         // --- PAYLOAD CONSTRUCTION ---
-        const finalItemSpecifics = buildItemSpecifics({
-            title: selectedTitle,
-            description: description,
-            variants: variants
-        }, aspects);
+        // Construct itemSpecifics dynamically based on current attributeValues
+        const finalItemSpecifics = Object.entries(attributeValues)
+            .filter(([_, value]) => value && value.trim() !== "")
+            .map(([name, value]) => ({
+                name: name,
+                value: value
+            }));
 
         const payload = {
             title: selectedTitle,

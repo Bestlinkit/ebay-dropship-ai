@@ -109,6 +109,17 @@ class EbayTradingService {
         <ShippingServiceCost>0.00</ShippingServiceCost>
       </ShippingServiceOptions>
     </ShippingDetails>
+
+    ${itemData.itemSpecifics ? `
+    <ItemSpecifics>
+      ${itemData.itemSpecifics.map(spec => `
+        <NameValueList>
+          <Name>${this.escapeXml(spec.name)}</Name>
+          <Value>${this.escapeXml(spec.value)}</Value>
+        </NameValueList>
+      `).join('')}
+    </ItemSpecifics>
+    ` : ''}
   </Item>`;
 
         return this.callTradingAPI('AddItem', xmlBody);
