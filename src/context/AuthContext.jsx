@@ -75,7 +75,7 @@ export function AuthProvider({ children }) {
                         // Permanent Bridge: Auto-Refresh Logic (eBay)
                         if (data?.ebay_refresh_token && (!data?.ebayToken || (data?.ebay_token_expiry && new Date(data.ebay_token_expiry) < new Date()))) {
                             try {
-                                const { default: ebayTrading } = await import('../services/ebay_trading');
+                                const { default: ebayTrading } = await import('../services/ebay');
                                 const { updateDoc } = await import('firebase/firestore');
                                 const refreshData = await ebayTrading.refreshEbayToken(data.ebay_refresh_token);
                                 if (refreshData?.access_token) {

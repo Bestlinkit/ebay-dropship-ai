@@ -21,7 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
-import ebayTrading from '../services/ebay_trading';
+import ebayTrading from '../services/ebay';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';

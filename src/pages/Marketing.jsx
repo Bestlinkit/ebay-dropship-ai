@@ -31,7 +31,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import ebayTrading from '../services/ebay_trading';
+import ebayTrading from '../services/ebay';
 import aiService from '../services/ai';
 import { useAuth } from '../context/AuthContext';
 

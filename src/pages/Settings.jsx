@@ -74,7 +74,7 @@ const Settings = () => {
   const handleTestBridge = async () => {
     setIsTestingBridge(true);
     try {
-        const { default: ebayTrading } = await import('../services/ebay_trading');
+        const { default: ebayTrading } = await import('../services/ebay');
         const token = import.meta.env.VITE_EBAY_USER_TOKEN;
         const name = await ebayTrading.getUserProfile(token);
         

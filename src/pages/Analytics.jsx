@@ -40,7 +40,7 @@ import {
   RadialLinearScale
 } from 'chart.js';
 import { cn } from '../lib/utils';
-import ebayTrading from '../services/ebay_trading';
+import ebayTrading from '../services/ebay';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 

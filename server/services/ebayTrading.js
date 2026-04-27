@@ -126,6 +126,62 @@ class EbayTradingService {
         return this.callTradingAPI('GetMyeBaySelling', xmlBody);
     }
 
+    async getUser() {
+        return this.callTradingAPI('GetUser', '<DetailLevel>ReturnAll</DetailLevel>');
+    }
+
+    async getActiveListings() {
+        const xmlBody = `
+  <ActiveList>
+    <Include>true</Include>
+    <Pagination>
+      <EntriesPerPage>100</EntriesPerPage>
+      <PageNumber>1</PageNumber>
+    </Pagination>
+  </ActiveList>`;
+        return this.callTradingAPI('GetMyeBaySelling', xmlBody);
+    }
+
+    async getOrders() {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        const xmlBody = `
+  <NumberOfDays>30</NumberOfDays>
+  <OrderRole>Seller</OrderRole>
+  <OrderStatus>Completed</OrderStatus>`;
+        return this.callTradingAPI('GetOrders', xmlBody);
+    }
+
+    async getItem(itemId) {
+        const xmlBody = `<ItemID>${itemId}</ItemID><DetailLevel>ReturnAll</DetailLevel>`;
+        return this.callTradingAPI('GetItem', xmlBody);
+    }
+
+    async reviseItem(itemId, itemData) {
+        let itemXml = `<ItemID>${itemId}</ItemID>`;
+        if (itemData.title) itemXml += `<Title>${this.escapeXml(itemData.title)}</Title>`;
+        if (itemData.price) itemXml += `<StartPrice currency="USD">${itemData.price}</StartPrice>`;
+        if (itemData.description) itemXml += `<Description><![CDATA[${itemData.description}]]></Description>`;
+        if (itemData.quantity) itemXml += `<Quantity>${itemData.quantity}</Quantity>`;
+        
+        const xmlBody = `<Item>${itemXml}</Item>`;
+        return this.callTradingAPI('ReviseItem', xmlBody);
+    }
+
+    async refreshAccessToken(refreshToken) {
+        const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
+        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+            `grant_type=refresh_token&refresh_token=${refreshToken}&scope=https://api.ebay.com/oauth/api_scope/sell.account.readonly https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.inventory.readonly`, 
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${auth}`
+                }
+            }
+        );
+        return response.data;
+    }
+
     escapeXml(unsafe) {
         return unsafe.replace(/[<>&"']/g, (c) => {
             switch (c) {

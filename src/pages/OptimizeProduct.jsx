@@ -24,7 +24,7 @@ import 'react-quill/dist/quill.snow.css';
 import { cn } from '../lib/utils';
 import aiService from '../services/ai';
 import ebayService from '../services/ebay';
-import ebayTrading from '../services/ebay_trading';
+const ebayTrading = ebayService; // Bridge for legacy code
 import sourcingService from '../services/sourcing';
 import NanoBanana from '../components/NanoBanana';
 import ProfitMaximizer from '../components/ProfitMaximizer';

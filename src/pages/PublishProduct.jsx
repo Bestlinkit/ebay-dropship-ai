@@ -10,7 +10,7 @@ import {
   ExternalLink,
   Globe
 } from 'lucide-react';
-import ebayTrading from '../services/ebay_trading';
+import ebayTrading from '../services/ebay';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 

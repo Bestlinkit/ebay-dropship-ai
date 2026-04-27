@@ -34,7 +34,7 @@ import {
 import { Line } from 'react-chartjs-2';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import ebayTrading from '../services/ebay_trading';
+import ebayTrading from '../services/ebay';
 import { cn } from '../lib/utils';
 
 ChartJS.register(
