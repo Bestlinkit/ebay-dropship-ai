@@ -304,8 +304,19 @@ const EbayListingBuilder = () => {
             nameValueList.push({ name: "Color", value: uniqueColors });
         }
 
-        const itemSpecifics = { nameValueList };
-        console.log("FINAL itemSpecifics (Conflict Cleaned):", itemSpecifics);
+        // --- TAXONOMY FILTERING (NO INVALID FIELDS) ---
+        // Only include aspects that are actually returned by the Taxonomy API for this category
+        const validAspectNames = aspects.map(a => a.name);
+        console.log("VALID ASPECT NAMES FOR CATEGORY:", validAspectNames);
+
+        const filteredNameValueList = nameValueList.filter(x => {
+            const isValid = validAspectNames.includes(x.name);
+            if (!isValid) console.warn(`[eBay Sync] Removing invalid aspect: ${x.name}`);
+            return isValid;
+        });
+
+        const itemSpecifics = { nameValueList: filteredNameValueList };
+        console.log("FINAL itemSpecifics (Taxonomy Filtered):", itemSpecifics);
 
         const payload = {
             title: cleanTitle,
