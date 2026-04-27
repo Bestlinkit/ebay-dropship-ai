@@ -159,9 +159,34 @@ class EbayTradingService {
     }
 
     async getBusinessPolicies() {
-        // Business Policies are managed via the Account API (REST) or SellerProfiles (Trading)
-        // We use GetSellerProfiles for Trading API compatibility
-        return this.callTradingAPI('GetSellerProfiles', '');
+        // Business Policies are managed via the Account API (REST)
+        // This requires User Token
+        try {
+            const headers = { 'Authorization': `Bearer ${this.token}` };
+            
+            const [fRes, pRes, rRes] = await Promise.all([
+                axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US', { headers }),
+                axios.get('https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=EBAY_US', { headers }),
+                axios.get('https://api.ebay.com/sell/account/v1/return_policy?marketplace_id=EBAY_US', { headers })
+            ]);
+
+            return {
+                success: true,
+                fulfillment: (fRes.data.fulfillmentPolicies || []).map(p => ({ fulfillmentPolicyId: p.fulfillmentPolicyId, name: p.name })),
+                payment: (pRes.data.paymentPolicies || []).map(p => ({ paymentPolicyId: p.paymentPolicyId, name: p.name })),
+                return: (rRes.data.returnPolicies || []).map(p => ({ returnPolicyId: p.returnPolicyId, name: p.name }))
+            };
+        } catch (e) {
+            console.error("[eBay Account API] Policy Fetch Failed:", e.response?.data || e.message);
+            // Fallback to empty if not opted in or API fails
+            return {
+                success: false,
+                isNotOptedIn: true,
+                fulfillment: [],
+                payment: [],
+                return: []
+            };
+        }
     }
 
     async getOrders() {

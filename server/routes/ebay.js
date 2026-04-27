@@ -115,40 +115,8 @@ router.get('/user', async (req, res) => {
  */
 router.get('/policies', async (req, res) => {
     try {
-        const responseXml = await ebayTrading.getBusinessPolicies();
-        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
-
-        if (ack === 'Success' || ack === 'Warning') {
-            const profiles = [];
-            const profileRegex = /<SellerProfile>(.*?)<\/SellerProfile>/gs;
-            let match;
-
-            while ((match = profileRegex.exec(responseXml)) !== null) {
-                const profileXml = match[1];
-                const id = profileXml.match(/<ProfileID>(.*?)<\/ProfileID>/)?.[1];
-                const name = profileXml.match(/<ProfileName>(.*?)<\/ProfileName>/)?.[1];
-                const type = profileXml.match(/<ProfileType>(.*?)<\/ProfileType>/)?.[1];
-                
-                profiles.push({ id, name, type });
-            }
-
-            res.json({
-                success: true,
-                fulfillment: profiles.filter(p => p.type === 'SHIPPING').map(p => ({ fulfillmentPolicyId: p.id, name: p.name })),
-                payment: profiles.filter(p => p.type === 'PAYMENT').map(p => ({ paymentPolicyId: p.id, name: p.name })),
-                return: profiles.filter(p => p.type === 'RETURN_POLICY').map(p => ({ returnPolicyId: p.id, name: p.name }))
-            });
-        } else {
-            const isNotOptedIn = responseXml.includes("21919456"); 
-            res.json({
-                success: false,
-                isNotOptedIn: isNotOptedIn,
-                error: "Business Policies not found or account not opted in.",
-                fulfillment: [],
-                payment: [],
-                return: []
-            });
-        }
+        const data = await ebayTrading.getBusinessPolicies();
+        res.json(data);
     } catch (err) {
         console.error("[eBay Route] Policy Fetch Failed:", err.message);
         res.status(500).json({
