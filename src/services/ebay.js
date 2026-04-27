@@ -104,24 +104,7 @@ class eBayService {
     }
   }
 
-  /**
-   * 🛡️ GET BUSINESS POLICIES
-   */
-  async getBusinessPolicies() {
-    try {
-      const response = await axios.get(`${this.backendUrl}/api/ebay/policies`);
-      return response.data;
-    } catch (e) {
-      console.error("[eBay Service] Policy Fetch Failed:", e.message);
-      return {
-        success: false,
-        fulfillment: [],
-        payment: [],
-        return: [],
-        error: e.message
-      };
-    }
-  }
+  // REMOVED: getBusinessPolicies (Legacy Mode Only)
 
   // --- MARKET DISCOVERY (Browse & Taxonomy APIs) ---
 

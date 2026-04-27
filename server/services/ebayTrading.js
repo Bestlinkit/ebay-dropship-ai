@@ -67,11 +67,9 @@ class EbayTradingService {
     }
 
     /**
-     * AddItem using LEGACY or Business Policy structure
+     * AddItem using LEGACY structure (Direct inline details)
      */
     async addItem(itemData) {
-        const hasPolicies = itemData.paymentPolicyId && itemData.shippingPolicyId && itemData.returnPolicyId;
-        
         const xmlBody = `
   <Item>
     <Title>${this.escapeXml(itemData.title)}</Title>
@@ -92,19 +90,6 @@ class EbayTradingService {
     </PictureDetails>
     <PostalCode>${itemData.postalCode || '95125'}</PostalCode>
     
-    ${hasPolicies ? `
-    <SellerProfiles>
-      <SellerPaymentProfile>
-        <PaymentProfileID>${itemData.paymentPolicyId}</PaymentProfileID>
-      </SellerPaymentProfile>
-      <SellerShippingProfile>
-        <ShippingProfileID>${itemData.shippingPolicyId}</ShippingProfileID>
-      </SellerShippingProfile>
-      <SellerReturnProfile>
-        <ReturnProfileID>${itemData.returnPolicyId}</ReturnProfileID>
-      </SellerReturnProfile>
-    </SellerProfiles>
-    ` : `
     <PaymentMethods>PayPal</PaymentMethods>
     <PayPalEmailAddress>${itemData.paypalEmail || 'support@geonoyc.com'}</PayPalEmailAddress>
     
@@ -124,7 +109,6 @@ class EbayTradingService {
         <ShippingServiceCost>0.00</ShippingServiceCost>
       </ShippingServiceOptions>
     </ShippingDetails>
-    `}
   </Item>`;
 
         return this.callTradingAPI('AddItem', xmlBody);
@@ -156,45 +140,6 @@ class EbayTradingService {
     </Pagination>
   </ActiveList>`;
         return this.callTradingAPI('GetMyeBaySelling', xmlBody);
-    }
-
-    async getBusinessPolicies() {
-        console.log("[Policy] Fetching Business Policies from Account API...");
-        try {
-            const headers = { 'Authorization': `Bearer ${this.token}` };
-            
-            console.log("[Policy] Fetching Fulfillment...");
-            const fRes = await axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US', { headers });
-            
-            console.log("[Policy] Fetching Payment...");
-            const pRes = await axios.get('https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=EBAY_US', { headers });
-            
-            console.log("[Policy] Fetching Return...");
-            const rRes = await axios.get('https://api.ebay.com/sell/account/v1/return_policy?marketplace_id=EBAY_US', { headers });
-
-            console.log("[Policy] All policies fetched successfully.");
-
-            return {
-                success: true,
-                fulfillment: (fRes.data.fulfillmentPolicies || []).map(p => ({ fulfillmentPolicyId: p.fulfillmentPolicyId, name: p.name })),
-                payment: (pRes.data.paymentPolicies || []).map(p => ({ paymentPolicyId: p.paymentPolicyId, name: p.name })),
-                return: (rRes.data.returnPolicies || []).map(p => ({ returnPolicyId: p.returnPolicyId, name: p.name }))
-            };
-        } catch (e) {
-            const errorData = e.response?.data;
-            const isAccessDenied = errorData?.errors?.some(err => err.errorId === 1100);
-            
-            console.error("[Policy] Fetch Failed:", errorData || e.message);
-            
-            return {
-                success: false,
-                isNotOptedIn: isAccessDenied || true,
-                error: isAccessDenied ? "Access Denied: Please ensure Business Policies are enabled in your eBay account." : (errorData?.errors?.[0]?.message || e.message),
-                fulfillment: [],
-                payment: [],
-                return: []
-            };
-        }
     }
 
     async getOrders() {

@@ -109,25 +109,7 @@ router.get('/user', async (req, res) => {
     }
 });
 
-/**
- * 🛡️ GET BUSINESS POLICIES
- * GET /api/ebay/policies
- */
-router.get('/policies', async (req, res) => {
-    try {
-        const data = await ebayTrading.getBusinessPolicies();
-        res.json(data);
-    } catch (err) {
-        console.error("[eBay Route] Policy Fetch Failed:", err.message);
-        res.status(500).json({
-            success: false,
-            error: err.message,
-            fulfillment: [],
-            payment: [],
-            return: []
-        });
-    }
-});
+// REMOVED: /policies (Legacy Mode Only)
 
 /**
  * 📋 GET ACTIVE LISTINGS
