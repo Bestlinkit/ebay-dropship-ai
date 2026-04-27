@@ -246,10 +246,12 @@ class EbayTradingService {
                 id: item.itemId,
                 title: item.title,
                 price: parseFloat(item.price?.value || "0"),
-                image: item.image?.imageUrl,
+                image_url: item.image?.imageUrl,
+                thumbnail: item.image?.imageUrl,
                 url: item.itemWebUrl,
                 condition: item.condition,
-                category: item.categories?.[0]?.categoryName,
+                categoryId: item.categories?.[0]?.categoryId || "0",
+                categoryName: item.categories?.[0]?.categoryName,
                 totalFound: response.data.total
             }));
         } catch (e) {

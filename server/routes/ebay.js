@@ -53,7 +53,9 @@ router.get('/account', async (req, res) => {
         const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
         
         if (ack === 'Success' || ack === 'Warning') {
-            const totalActive = responseXml.match(/<TotalActiveListings>(.*?)<\/TotalActiveListings>/)?.[1] || "0";
+            const activeListMatch = responseXml.match(/<ActiveList>(.*?)<\/ActiveList>/s);
+            const activeListXml = activeListMatch ? activeListMatch[1] : responseXml;
+            const totalActive = activeListXml.match(/<TotalNumberOfEntries>(.*?)<\/TotalNumberOfEntries>/)?.[1] || "0";
             res.json({
                 success: true,
                 activeListings: parseInt(totalActive),
