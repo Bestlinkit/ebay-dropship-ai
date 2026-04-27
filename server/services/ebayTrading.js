@@ -229,8 +229,9 @@ class EbayTradingService {
 
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
         try {
+            console.log("[eBay Auth] Fetching fresh App Token (Client Credentials)...");
             const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
-                'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
+                'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/commerce.taxonomy.readonly',
                 {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -240,9 +241,10 @@ class EbayTradingService {
             );
             this.appToken = response.data.access_token;
             this.appTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
+            console.log("[eBay Auth] App Token success. Expiry:", new Date(this.appTokenExpiry).toISOString());
             return this.appToken;
         } catch (e) {
-            console.error("[eBay Auth] App Token Failure:", e.message);
+            console.error("[eBay Auth] App Token Failure:", e.response?.data || e.message);
             return null;
         }
     }
@@ -316,6 +318,7 @@ class EbayTradingService {
             });
             return response.data.categoryTreeId || "0";
         } catch (e) {
+            console.error("[eBay Taxonomy] Tree ID Fetch Failure:", e.response?.data || e.message);
             return "0";
         }
     }
@@ -324,15 +327,19 @@ class EbayTradingService {
         const token = await this.getAppToken();
         if (!token) return [];
         try {
+            console.log(`[eBay Taxonomy] Fetching Root Nodes for Tree: ${treeId}`);
             const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            return (response.data.rootCategoryNode?.childCategoryTreeNodes || []).map(n => ({
+            const nodes = response.data.rootCategoryNode?.childCategoryTreeNodes || [];
+            console.log(`[eBay Taxonomy] Found ${nodes.length} root nodes.`);
+            return nodes.map(n => ({
                 id: n.category.categoryId,
                 name: n.category.categoryName,
                 isLeaf: n.leafCategoryTreeNode
             }));
         } catch (e) {
+            console.error("[eBay Taxonomy] Top Categories Fetch Failure:", e.response?.data || e.message);
             return [];
         }
     }
