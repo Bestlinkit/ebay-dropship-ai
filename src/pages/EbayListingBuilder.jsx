@@ -180,25 +180,35 @@ const EbayListingBuilder = () => {
 
     const handleSelectCategory = async (cat) => {
         console.log("[Category] User Selected:", cat.name, "ID:", cat.id);
+        
+        // 🛡️ RESET PRODUCT STATE ON CATEGORY CHANGE (Requirement 2)
+        // This prevents cross-category contamination (e.g. keeping apparel titles for electronics)
+        setSelectedTitle("");
+        setDescription("");
+        setTags([]);
+        setAttributeValues({});
+        setAspects([]);
+        setIsLeafSelected(false);
+
         const newPath = [...categoryPath, cat];
         setCategoryPath(newPath);
         
         if (cat.isLeaf) {
-            console.log("[Category] Leaf reached. Triggering REGENERATION...");
+            console.log("[Category] Leaf reached. Preparing for REGENERATION...");
             setIsLeafSelected(true);
             setCurrentLevelCategories([]);
             
-            // 🚀 TRIGGER REGENERATION BASED ON CATEGORY
-            handleRegenerateContent(cat.name);
-            
-            loadItemAspects(cat.id);
+            // 🚀 REGENERATION GUARD (Requirement 5)
+            // Wait for aspects to load before triggering regeneration to ensure full taxonomy alignment
+            loadItemAspects(cat.id).then(() => {
+                handleRegenerateContent(cat.name);
+            });
         } else {
             setIsLoadingCategories(true);
             try {
                 const subs = await ebayService.getSubCategories(cat.id, categoryTreeId);
                 console.log("[Category] Sub-nodes Loaded:", subs.length);
                 setCurrentLevelCategories(subs);
-                setIsLeafSelected(false);
             } catch (err) {
                 console.error("[Category] Sub-node Load Error:", err);
             } finally {
@@ -208,18 +218,32 @@ const EbayListingBuilder = () => {
     };
 
     const handleRegenerateContent = async (categoryName) => {
+        if (!categoryName) return;
         setIsOptimizing(true);
         try {
+            // NORMALIZE INPUTS (Requirement 3)
+            const inputTitle = typeof selectedTitle === 'string' ? selectedTitle : (cjProduct?.title || "");
+            const inputDesc = typeof description === 'string' ? description : (cjProduct?.description || "");
+
             const result = await optimizeListing({
-                title: cjProduct?.title,
-                description: cjProduct?.description
+                title: inputTitle,
+                description: inputDesc
             }, categoryName);
 
-            if (result.success) {
+            if (result.success && result.data) {
                 setOptimizedData(result.data);
-                setSelectedTitle(result.data.titles[0]);
-                setDescription(result.data.description);
-                setTags(result.data.tags);
+                
+                // 🛡️ NORMALIZE OUTPUTS (Requirement 3)
+                const newTitle = result.data.titles?.[0];
+                const newDesc = result.data.description;
+
+                // Extraction guard: ensure we get strings
+                const safeTitle = typeof newTitle === 'string' ? newTitle : (typeof newTitle === 'object' ? newTitle.text : "");
+                const safeDesc = typeof newDesc === 'string' ? newDesc : (typeof newDesc === 'object' ? newDesc.text : "");
+
+                if (safeTitle) setSelectedTitle(safeTitle);
+                if (safeDesc) setDescription(safeDesc);
+                if (Array.isArray(result.data.tags)) setTags(result.data.tags);
             }
         } catch (err) {
             console.error("Regeneration Failed:", err);
@@ -301,8 +325,17 @@ const EbayListingBuilder = () => {
         const leafCategory = categoryPath[categoryPath.length - 1];
 
         // --- CONSISTENCY ENFORCEMENT & T-SHIRT REPLACEMENT ---
-        const cleanTitle = selectedTitle.replace(/T-Shirt/gi, "Polo Shirt");
-        const cleanDescription = description.replace(/T-Shirt/gi, "Polo Shirt");
+        // 🛡️ STRICT TYPE GUARDS (Requirement 1)
+        let cleanTitle = typeof selectedTitle === 'string' ? selectedTitle : String(selectedTitle || "");
+        let cleanDescription = typeof description === 'string' ? description : String(description || "");
+
+        // 🛡️ DEFENSIVE FALLBACK (Requirement 4)
+        try {
+            cleanTitle = cleanTitle.replace(/T-Shirt/gi, "Polo Shirt");
+            cleanDescription = cleanDescription.replace(/T-Shirt/gi, "Polo Shirt");
+        } catch (e) {
+            console.error("[Normalizer] String operation failed, skipping T-Shirt replacement:", e.message);
+        }
 
         // --- VARIATION DATA PREPARATION ---
         const variantSizes = [];

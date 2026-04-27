@@ -64,12 +64,17 @@ function deduplicateWords(text) {
  * 1. PRODUCT CLASSIFICATION
  */
 function classifyProduct(title, description, forcedCategoryName = null) {
-    const text = (title + " " + (description || "")).toLowerCase();
+    // 🛡️ TYPE GUARD (Requirement 1)
+    const safeTitle = typeof title === 'string' ? title : String(title || "");
+    const safeDescription = typeof description === 'string' ? description : String(description || "");
+    const safeForced = typeof forcedCategoryName === 'string' ? forcedCategoryName : null;
+
+    const text = (safeTitle + " " + (safeDescription || "")).toLowerCase();
     let key = "apparel";
     
     // Use forcedCategoryName if provided to map to our internal config keys
-    if (forcedCategoryName) {
-        const lowerForced = forcedCategoryName.toLowerCase();
+    if (safeForced) {
+        const lowerForced = safeForced.toLowerCase();
         if (lowerForced.includes('skin') || lowerForced.includes('beauty') || lowerForced.includes('bath')) key = "skincare";
         else if (lowerForced.includes('jewelry') || lowerForced.includes('neck') || lowerForced.includes('ring')) key = "jewelry";
         else if (lowerForced.includes('shoe') || lowerForced.includes('footwear')) key = "shoes";
@@ -83,7 +88,7 @@ function classifyProduct(title, description, forcedCategoryName = null) {
 
     const config = CATEGORY_LOCKED_MAP[key] || CATEGORY_LOCKED_MAP["apparel"];
     
-    const primaryWords = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
+    const primaryWords = safeTitle.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
         .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w)).slice(0, 3);
     
     const primaryKeyword = primaryWords.length > 0 ? primaryWords.join(' ') : config.product_type.toLowerCase();
@@ -102,7 +107,11 @@ function classifyProduct(title, description, forcedCategoryName = null) {
  * 2. KEYWORD EXTRACTION
  */
 function extractKeywords(title, description) {
-    const text = (title + " " + (description || "")).toLowerCase();
+    // 🛡️ TYPE GUARD (Requirement 1)
+    const safeTitle = typeof title === 'string' ? title : String(title || "");
+    const safeDescription = typeof description === 'string' ? description : String(description || "");
+
+    const text = (safeTitle + " " + (safeDescription || "")).toLowerCase();
     const words = text.replace(/[^a-z0-9 ]/g, ' ').split(/\s+/);
     const keywords = [];
     const seen = new Set();
