@@ -182,6 +182,100 @@ class EbayTradingService {
         return response.data;
     }
 
+    async getAppToken() {
+        if (this.appToken && this.appTokenExpiry > Date.now()) {
+            return this.appToken;
+        }
+
+        const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
+        try {
+            const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
+                'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Basic ${auth}`
+                    }
+                }
+            );
+            this.appToken = response.data.access_token;
+            this.appTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
+            return this.appToken;
+        } catch (e) {
+            console.error("[eBay Auth] App Token Failure:", e.message);
+            return null;
+        }
+    }
+
+    async searchProducts(query, options = {}) {
+        const token = await this.getAppToken();
+        if (!token) return [];
+
+        const params = {
+            q: query,
+            limit: options.limit || 12,
+            offset: options.offset || 0,
+            filter: []
+        };
+
+        if (options.categoryId) params.category_ids = options.categoryId;
+        if (options.minPrice || options.maxPrice) {
+            let priceFilter = 'price:[';
+            priceFilter += options.minPrice || '0';
+            priceFilter += '..';
+            priceFilter += options.maxPrice || '*';
+            priceFilter += ']';
+            params.filter.push(priceFilter);
+        }
+        if (options.condition) {
+            params.filter.push(`conditions:{${options.condition}}`);
+        }
+        
+        if (params.filter.length > 0) {
+            params.filter = params.filter.join(',');
+        } else {
+            delete params.filter;
+        }
+
+        try {
+            const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+                params,
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return (response.data?.itemSummaries || []).map(item => ({
+                id: item.itemId,
+                title: item.title,
+                price: parseFloat(item.price?.value || "0"),
+                image: item.image?.imageUrl,
+                url: item.itemWebUrl,
+                condition: item.condition,
+                category: item.categories?.[0]?.categoryName,
+                totalFound: response.data.total
+            }));
+        } catch (e) {
+            console.error("[eBay Search] API Error:", e.message);
+            return [];
+        }
+    }
+
+    async getCategorySuggestions(q) {
+        const token = await this.getAppToken();
+        if (!token) return [];
+
+        try {
+            const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions', {
+                params: { q },
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return (response.data?.categorySuggestions || []).map(s => ({
+                id: s.category?.categoryId,
+                name: s.category?.categoryName
+            }));
+        } catch (e) {
+            return [];
+        }
+    }
+
     escapeXml(unsafe) {
         return unsafe.replace(/[<>&"']/g, (c) => {
             switch (c) {

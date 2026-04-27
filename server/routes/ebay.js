@@ -195,6 +195,38 @@ router.post('/refresh', async (req, res) => {
     }
 });
 
+/**
+ * 🔍 SEARCH PRODUCTS (Browse API)
+ * GET /api/ebay/search
+ */
+router.get('/search', async (req, res) => {
+    try {
+        const results = await ebayTrading.searchProducts(req.query.q, {
+            categoryId: req.query.categoryId,
+            minPrice: req.query.minPrice,
+            maxPrice: req.query.maxPrice,
+            limit: req.query.limit,
+            offset: req.query.offset
+        });
+        res.json(results);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * 🏷️ CATEGORY SUGGESTIONS
+ * GET /api/ebay/categories
+ */
+router.get('/categories', async (req, res) => {
+    try {
+        const results = await ebayTrading.getCategorySuggestions(req.query.q);
+        res.json(results);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // REMOVED: /policies (Account not opted in, legacy AddItem used instead)
 
 module.exports = router;

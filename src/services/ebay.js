@@ -104,11 +104,43 @@ class eBayService {
     }
   }
 
-  // --- TAXONOMY & SEARCH (Direct REST for non-sensitive data if needed, or bridged) ---
+  // --- MARKET DISCOVERY (Browse & Taxonomy APIs) ---
+
+  async searchProducts(query, options = {}) {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/search`, {
+        params: { q: query, ...options }
+      });
+      return response.data;
+    } catch (e) {
+      console.error("[eBay Discovery] Search Failed:", e.message);
+      return [];
+    }
+  }
+
+  async getCategorySuggestions(keyword) {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/categories`, {
+        params: { q: keyword }
+      });
+      return response.data;
+    } catch (e) {
+      console.error("[eBay Discovery] Category Fetch Failed:", e.message);
+      return [];
+    }
+  }
+
+  async fetchTrendingProducts(categoryId = null) {
+    // Trending is often just a search with no query or high-volume keywords
+    return this.searchProducts('trending', { categoryId, limit: 10 });
+  }
+
+  async getAutocompleteSuggestions(q) {
+    // Autocomplete can be bridged to categories or a dedicated endpoint
+    return this.getCategorySuggestions(q).then(cats => cats.map(c => c.name));
+  }
 
   async getSubCategories(parentId) {
-    // For now, we'll return a basic set or bridge it if critical.
-    // In a full implementation, this would also be a backend route to avoid exposing App Token.
     return [
         { id: '1', name: 'General', isLeaf: true }
     ];
