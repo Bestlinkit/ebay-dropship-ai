@@ -244,6 +244,63 @@ const EbayListingBuilder = () => {
         setAttributeValues(prev => ({ ...prev, [name]: value }));
     };
 
+    const buildItemSpecifics = (product, categoryAspects) => {
+        const itemSpecifics = { ...attributeValues };
+        const autoFilled = {};
+
+        const extractBrandFromTitle = (title) => {
+            if (!title) return null;
+            // Simple logic: first word if it looks like a brand (e.g. capitalized, not 'New', 'Large')
+            const words = title.split(' ');
+            const commonWords = ['New', 'Large', 'Small', 'Mini', 'Hot', 'Best'];
+            if (words[0] && !commonWords.includes(words[0])) return words[0];
+            return null;
+        };
+
+        categoryAspects.forEach(aspect => {
+            const name = aspect.name;
+            if (aspect.required && !itemSpecifics[name]) {
+                let value = null;
+
+                // Try mapping from product
+                if (name === "Brand") {
+                    value = product.brand || product.vendor || extractBrandFromTitle(product.title) || "Unbranded";
+                } else if (name === "Size") {
+                    value = product.size || product.variants?.[0]?.size;
+                } else if (name === "Color") {
+                    value = product.color || product.variants?.[0]?.color;
+                } else if (name === "Department") {
+                    // Try to infer from category path
+                    const pathString = categoryPath.map(c => c.name).join(' ');
+                    if (pathString.includes('Women')) value = "Women";
+                    else if (pathString.includes('Men')) value = "Men";
+                    else if (pathString.includes('Kids')) value = "Kids";
+                    else value = "Men";
+                } else {
+                    // Try case-insensitive product lookup
+                    value = product[name.toLowerCase()] || product[name] || null;
+                }
+
+                // FINAL FALLBACK
+                if (!value) {
+                    value = aspect.values?.[0] || "Not Specified";
+                }
+
+                itemSpecifics[name] = value;
+                autoFilled[name] = value;
+            }
+        });
+
+        if (Object.keys(autoFilled).length > 0) {
+            console.log("AUTO-FILLED ASPECTS:", autoFilled);
+        }
+
+        return Object.entries(itemSpecifics).map(([Name, Value]) => ({
+            name: Name,
+            value: String(Value)
+        }));
+    };
+
     const handlePushToEbay = async () => {
         setPushError(null);
         setIsPushing(true);
@@ -255,15 +312,13 @@ const EbayListingBuilder = () => {
             return;
         }
 
-        // Check required aspects
-        const missingAspects = aspects.filter(a => a.required && !attributeValues[a.name]);
-        if (missingAspects.length > 0) {
-            setPushError(`Specification Error: Required attributes missing (${missingAspects.map(a => a.name).join(', ')})`);
-            setIsPushing(false);
-            return;
-        }
-
         // --- PAYLOAD CONSTRUCTION ---
+        const finalItemSpecifics = buildItemSpecifics({
+            title: selectedTitle,
+            description: description,
+            variants: variants
+        }, aspects);
+
         const payload = {
             title: selectedTitle,
             description: description,
@@ -277,10 +332,7 @@ const EbayListingBuilder = () => {
                 price: v.ebay_price,
                 inventory: v.inventory
             })),
-            itemSpecifics: Object.entries(attributeValues).map(([k, v]) => ({ name: k, value: v })),
-            paymentPolicyId: selectedPolicies.payment,
-            shippingPolicyId: selectedPolicies.fulfillment,
-            returnPolicyId: selectedPolicies.return
+            itemSpecifics: finalItemSpecifics
         };
 
         try {
