@@ -254,7 +254,7 @@ const EbayListingBuilder = () => {
         const cleanTitle = selectedTitle.replace(/T-Shirt/gi, "Polo Shirt");
         const cleanDescription = description.replace(/T-Shirt/gi, "Polo Shirt");
 
-        // --- VARIATION EXTRACTION ---
+        // --- VARIATION DATA PREPARATION ---
         const variantSizes = [];
         const variantColors = [];
         
@@ -266,57 +266,44 @@ const EbayListingBuilder = () => {
 
         const uniqueSizes = [...new Set(variantSizes)].filter(Boolean);
         const uniqueColors = [...new Set(variantColors)].filter(Boolean);
-        
-        console.log("SYNCED SIZES:", uniqueSizes);
-        console.log("SYNCED COLORS:", uniqueColors);
 
-        // --- ITEM SPECIFICS CONSTRUCTION & CONFLICT REMOVAL ---
+        // --- ITEM SPECIFICS & VARIATION SEPARATION ---
         const finalAttributeValues = { ...attributeValues };
 
-        // Rule: Variant attributes MUST come ONLY from variants
-        // If they exist in variants, remove them from manual attributeValues to avoid conflict
-        if (uniqueSizes.length > 0) {
-            console.log("[eBay Sync] Auto-removing manual 'Size' to use variant data.");
+        // 1. HARD BLOCK "Type"
+        delete finalAttributeValues["Type"];
+        delete finalAttributeValues["type"];
+
+        // 2. FORCE "Size Type" to "Regular" (Taxonomy compliant)
+        finalAttributeValues["Size Type"] = "Regular";
+
+        // 3. SEPARATION RULE: If variants exist, REMOVE Size/Color from itemSpecifics
+        const hasVariants = variants.length > 0;
+        if (hasVariants) {
             delete finalAttributeValues["Size"];
             delete finalAttributeValues["size"];
-        }
-        if (uniqueColors.length > 0) {
-            console.log("[eBay Sync] Auto-removing manual 'Color' to use variant data.");
             delete finalAttributeValues["Color"];
             delete finalAttributeValues["color"];
         }
 
-        // Ensure "Brand" is filled
+        // 4. Ensure "Brand" is filled
         if (!finalAttributeValues["Brand"]) finalAttributeValues["Brand"] = "Unbranded";
 
+        // 5. TAXONOMY FILTERING (Whitelisted aspects only)
+        const validAspectNames = aspects.map(a => a.name);
         const nameValueList = Object.entries(finalAttributeValues)
-            .filter(([_, value]) => value && String(value).trim() !== "")
+            .filter(([name, value]) => validAspectNames.includes(name) && value && String(value).trim() !== "")
             .map(([name, value]) => ({
                 name: name,
                 value: [String(value)]
             }));
 
-        // Re-inject sizes/colors as arrays if they exist in variants (eBay often requires them in specifics too)
-        if (uniqueSizes.length > 0) {
-            nameValueList.push({ name: "Size", value: uniqueSizes });
-        }
-        if (uniqueColors.length > 0) {
-            nameValueList.push({ name: "Color", value: uniqueColors });
-        }
+        const itemSpecifics = { nameValueList };
 
-        // --- TAXONOMY FILTERING (NO INVALID FIELDS) ---
-        // Only include aspects that are actually returned by the Taxonomy API for this category
-        const validAspectNames = aspects.map(a => a.name);
-        console.log("VALID ASPECT NAMES FOR CATEGORY:", validAspectNames);
-
-        const filteredNameValueList = nameValueList.filter(x => {
-            const isValid = validAspectNames.includes(x.name);
-            if (!isValid) console.warn(`[eBay Sync] Removing invalid aspect: ${x.name}`);
-            return isValid;
-        });
-
-        const itemSpecifics = { nameValueList: filteredNameValueList };
-        console.log("FINAL itemSpecifics (Taxonomy Filtered):", itemSpecifics);
+        // 6. VARIATION SPECIFICS SET (The range of available dimensions)
+        const variationSpecificsSet = [];
+        if (uniqueColors.length > 0) variationSpecificsSet.push({ name: "Color", value: uniqueColors });
+        if (uniqueSizes.length > 0) variationSpecificsSet.push({ name: "Size", value: uniqueSizes });
 
         const payload = {
             title: cleanTitle,
@@ -325,12 +312,21 @@ const EbayListingBuilder = () => {
             price: variants[0]?.ebay_price || 0,
             quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
             images: selectedImages,
-            variants: variants.map(v => ({
-                name: v.name,
-                sku: v.sku,
-                price: v.ebay_price,
-                inventory: v.inventory
-            })),
+            variationSpecificsSet: variationSpecificsSet,
+            variants: variants.map(v => {
+                const parts = v.name.split('-').map(p => p.trim());
+                const specifics = [];
+                if (parts[0]) specifics.push({ name: "Color", value: parts[0] });
+                if (parts[1]) specifics.push({ name: "Size", value: parts[1] });
+                
+                return {
+                    name: v.name,
+                    sku: v.sku,
+                    price: v.ebay_price,
+                    inventory: v.inventory,
+                    specifics: specifics
+                };
+            }),
             itemSpecifics: itemSpecifics
         };
 

@@ -77,14 +77,43 @@ class EbayTradingService {
     <PrimaryCategory>
       <CategoryID>${itemData.categoryId}</CategoryID>
     </PrimaryCategory>
+    ${itemData.variants && itemData.variants.length > 0 ? `
+    <Variations>
+      <VariationSpecificsSet>
+        ${(itemData.variationSpecificsSet || []).map(set => `
+          <NameValueList>
+            <Name>${this.escapeXml(set.name)}</Name>
+            ${set.value.map(val => `<Value>${this.escapeXml(val)}</Value>`).join('')}
+          </NameValueList>
+        `).join('')}
+      </VariationSpecificsSet>
+      ${itemData.variants.map(v => `
+        <Variation>
+          <SKU>${this.escapeXml(v.sku)}</SKU>
+          <StartPrice currency="USD">${v.price}</StartPrice>
+          <Quantity>${v.inventory}</Quantity>
+          <VariationSpecifics>
+            ${(v.specifics || []).map(s => `
+              <NameValueList>
+                <Name>${this.escapeXml(s.name)}</Name>
+                <Value>${this.escapeXml(s.value)}</Value>
+              </NameValueList>
+            `).join('')}
+          </VariationSpecifics>
+        </Variation>
+      `).join('')}
+    </Variations>
+    ` : `
     <StartPrice currency="USD">${itemData.price}</StartPrice>
+    <Quantity>${itemData.quantity || '1'}</Quantity>
+    `}
+
     <ConditionID>${itemData.conditionId || '1000'}</ConditionID>
     <Country>${itemData.country || 'US'}</Country>
     <Currency>${itemData.currency || 'USD'}</Currency>
     <DispatchTimeMax>3</DispatchTimeMax>
     <ListingDuration>${itemData.duration || 'GTC'}</ListingDuration>
     <ListingType>FixedPriceItem</ListingType>
-    <Quantity>${itemData.quantity || '1'}</Quantity>
     <PictureDetails>
       ${(itemData.images || []).map(url => `<PictureURL>${this.escapeXml(url)}</PictureURL>`).join('')}
     </PictureDetails>
