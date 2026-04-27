@@ -47,7 +47,10 @@ class EbayTradingService {
         console.log('--- END REQUEST ---\n');
 
         try {
-            const response = await axios.post(this.endpoint, fullXml, { headers });
+            const response = await axios.post(this.endpoint, fullXml, { 
+                headers,
+                timeout: 30000 // 30s timeout
+            });
             
             console.log(`\n--- EBAY TRADING RESPONSE [${callName}] ---`);
             console.log(response.data);
@@ -55,6 +58,19 @@ class EbayTradingService {
 
             return response.data;
         } catch (error) {
+            // SIMPLE RETRY ONCE
+            if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+                console.warn(`[eBay Trading] ${callName} timed out. Retrying once...`);
+                try {
+                    const retryResponse = await axios.post(this.endpoint, fullXml, { 
+                        headers,
+                        timeout: 60000 // 60s for retry
+                    });
+                    return retryResponse.data;
+                } catch (retryError) {
+                    throw retryError;
+                }
+            }
             console.error(`\n--- EBAY TRADING ERROR [${callName}] ---`);
             if (error.response) {
                 console.error('Status:', error.response.status);
@@ -236,7 +252,8 @@ class EbayTradingService {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'Authorization': `Basic ${auth}`
-                    }
+                    },
+                    timeout: 10000 // 10s timeout
                 }
             );
             this.appToken = response.data.access_token;
@@ -244,7 +261,17 @@ class EbayTradingService {
             console.log("[eBay Auth] App Token success. Expiry:", new Date(this.appTokenExpiry).toISOString());
             return this.appToken;
         } catch (e) {
-            console.error("[eBay Auth] App Token Failure:", e.response?.data || e.message);
+            console.error("[eBay Auth] App Token Failure (Client Credentials):", e.response?.data || e.message);
+            
+            // FALLBACK: Try using the User Token if it's an OAuth token
+            const tokenType = this.token ? (this.token.startsWith('v^1.1') ? 'OAuth' : 'Auth\'n\'Auth') : 'NONE';
+            console.log(`[eBay Auth] Current User Token Type: ${tokenType}`);
+
+            if (tokenType === 'OAuth') {
+                console.log("[eBay Auth] Falling back to OAuth User Token for application-level call...");
+                return this.token;
+            }
+            
             return null;
         }
     }
@@ -324,39 +351,73 @@ class EbayTradingService {
     }
 
     async getTopCategories(treeId) {
-        const token = await this.getAppToken();
-        if (!token) return [];
+        // Since REST Taxonomy API is timing out (504), we fallback to Trading API GetCategories
+        console.log(`[eBay Trading] Fetching Top Categories via GetCategories (Trading API)...`);
+        
+        const xmlBody = `
+            <CategorySiteID>0</CategorySiteID>
+            <DetailLevel>ReturnAll</DetailLevel>
+            <LevelLimit>1</LevelLimit>
+        `;
+        
         try {
-            console.log(`[eBay Taxonomy] Fetching Root Nodes for Tree: ${treeId}`);
-            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const nodes = response.data.rootCategoryNode?.childCategoryTreeNodes || [];
-            console.log(`[eBay Taxonomy] Found ${nodes.length} root nodes.`);
-            return nodes.map(n => ({
-                id: n.category.categoryId,
-                name: n.category.categoryName,
-                isLeaf: n.leafCategoryTreeNode
-            }));
+            const response = await this.callTradingAPI('GetCategories', xmlBody);
+            
+            // Robust regex parsing for XML response
+            const categories = [];
+            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>(?:[\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
+            
+            let match;
+            while ((match = regex.exec(response)) !== null) {
+                const id = match[1];
+                const name = match[2].replace(/&amp;/g, '&');
+                const isLeaf = match[3] === "true";
+                
+                // Skip root or redundant nodes
+                if (id === "0" || name.toLowerCase().includes("root")) continue;
+                
+                categories.push({ id, name, isLeaf });
+            }
+            
+            console.log(`[eBay Trading] Found ${categories.length} categories via Trading API.`);
+            return categories;
         } catch (e) {
-            console.error("[eBay Taxonomy] Top Categories Fetch Failure:", e.response?.data || e.message);
+            console.error("[eBay Trading] GetCategories Failure:", e.message);
             return [];
         }
     }
 
-    async getSubCategories(categoryId, treeId) {
-        const token = await this.getAppToken();
-        if (!token) return [];
+    async getSubCategories(parentId, treeId) {
+        console.log(`[eBay Trading] Fetching Sub-Categories for Parent ${parentId} (Trading API)...`);
+        
+        const xmlBody = `
+            <CategoryParent>${parentId}</CategoryParent>
+            <DetailLevel>ReturnAll</DetailLevel>
+            <LevelLimit>2</LevelLimit>
+        `;
+        
         try {
-            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${categoryId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            return (response.data.categorySubtreeNode?.childCategoryTreeNodes || []).map(n => ({
-                id: n.category.categoryId,
-                name: n.category.categoryName,
-                isLeaf: n.leafCategoryTreeNode
-            }));
+            const response = await this.callTradingAPI('GetCategories', xmlBody);
+            const categories = [];
+            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>[\s\S]*?<CategoryLevel>(\d+)<\/CategoryLevel>(?:[\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
+            
+            let match;
+            while ((match = regex.exec(response)) !== null) {
+                const id = match[1];
+                const name = match[2].replace(/&amp;/g, '&');
+                const level = match[3];
+                const isLeaf = match[4] === "true";
+
+                // Skip the parent node itself
+                if (id === parentId) continue;
+                
+                categories.push({ id, name, isLeaf });
+            }
+            
+            console.log(`[eBay Trading] Found ${categories.length} sub-categories via Trading API.`);
+            return categories;
         } catch (e) {
+            console.error("[eBay Trading] GetSubCategories Failure:", e.message);
             return [];
         }
     }
