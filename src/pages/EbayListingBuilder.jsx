@@ -162,27 +162,30 @@ const EbayListingBuilder = () => {
     }, [activeTab]);
 
     const loadInitialCategories = async () => {
+        console.log("[Category] Starting Initial Load...");
         setIsLoadingCategories(true);
         try {
-            // 🌳 Fetch dynamic Tree ID first
             const treeId = await ebayService.getCategoryTreeId();
+            console.log("[Category] Tree ID Received:", treeId);
             setCategoryTreeId(treeId);
 
             const root = await ebayService.getTopCategories(treeId);
+            console.log("[Category] Root Nodes Received:", root.length);
             setCurrentLevelCategories(root);
         } catch (err) {
-            console.error("Failed to load root categories:", err);
+            console.error("[Category] Root Load Error:", err);
         } finally {
             setIsLoadingCategories(false);
         }
     };
 
     const handleSelectCategory = async (cat) => {
-        console.log("SELECTED CATEGORY ID:", cat.id);
+        console.log("[Category] User Selected:", cat.name, "ID:", cat.id);
         const newPath = [...categoryPath, cat];
         setCategoryPath(newPath);
         
         if (cat.isLeaf) {
+            console.log("[Category] Leaf reached. Loading Aspects...");
             setIsLeafSelected(true);
             setCurrentLevelCategories([]);
             loadItemAspects(cat.id);
@@ -190,11 +193,11 @@ const EbayListingBuilder = () => {
             setIsLoadingCategories(true);
             try {
                 const subs = await ebayService.getSubCategories(cat.id, categoryTreeId);
+                console.log("[Category] Sub-nodes Loaded:", subs.length);
                 setCurrentLevelCategories(subs);
                 setIsLeafSelected(false);
             } catch (err) {
-                console.error("Subcategory Load Fault:", err);
-                // DO NOT RESET UI - Keep current selection available
+                console.error("[Category] Sub-node Load Error:", err);
             } finally {
                 setIsLoadingCategories(false);
             }
@@ -202,6 +205,7 @@ const EbayListingBuilder = () => {
     };
 
     const resetCategory = () => {
+        console.log("[Category] Resetting Selection Tree.");
         setCategoryPath([]);
         setIsLeafSelected(false);
         loadInitialCategories();
@@ -209,20 +213,28 @@ const EbayListingBuilder = () => {
 
     // --- POLICIES LOGIC ---
     const loadPolicies = async () => {
+        console.log("[Policy] Syncing Business Policies...");
         setIsLoadingPolicies(true);
         try {
             const data = await ebayService.getBusinessPolicies();
+            console.log("[Policy] Sync Response Received:", data);
+            
+            if (data.success) {
+                console.log(`[Policy] Success: F(${data.fulfillment?.length}) P(${data.payment?.length}) R(${data.return?.length})`);
+            } else {
+                console.warn("[Policy] Sync partial failure or not opted in:", data.error);
+            }
+
             setPolicies(data);
             setPolicyError(data.isError ? (data.error || "Failed to sync with eBay account") : null);
             
-            // Default select first available
             setSelectedPolicies({
-                fulfillment: data.fulfillment[0]?.fulfillmentPolicyId || "",
-                payment: data.payment[0]?.paymentPolicyId || "",
-                return: data.return[0]?.returnPolicyId || ""
+                fulfillment: data.fulfillment?.[0]?.fulfillmentPolicyId || "",
+                payment: data.payment?.[0]?.paymentPolicyId || "",
+                return: data.return?.[0]?.returnPolicyId || ""
             });
         } catch (err) {
-            console.error("Policy Load Fault:", err);
+            console.error("[Policy] Sync Critical Error:", err);
         } finally {
             setIsLoadingPolicies(false);
         }

@@ -159,16 +159,20 @@ class EbayTradingService {
     }
 
     async getBusinessPolicies() {
-        // Business Policies are managed via the Account API (REST)
-        // This requires User Token
+        console.log("[Policy] Fetching Business Policies from Account API...");
         try {
             const headers = { 'Authorization': `Bearer ${this.token}` };
             
-            const [fRes, pRes, rRes] = await Promise.all([
-                axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US', { headers }),
-                axios.get('https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=EBAY_US', { headers }),
-                axios.get('https://api.ebay.com/sell/account/v1/return_policy?marketplace_id=EBAY_US', { headers })
-            ]);
+            console.log("[Policy] Fetching Fulfillment...");
+            const fRes = await axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US', { headers });
+            
+            console.log("[Policy] Fetching Payment...");
+            const pRes = await axios.get('https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=EBAY_US', { headers });
+            
+            console.log("[Policy] Fetching Return...");
+            const rRes = await axios.get('https://api.ebay.com/sell/account/v1/return_policy?marketplace_id=EBAY_US', { headers });
+
+            console.log("[Policy] All policies fetched successfully.");
 
             return {
                 success: true,
@@ -177,11 +181,15 @@ class EbayTradingService {
                 return: (rRes.data.returnPolicies || []).map(p => ({ returnPolicyId: p.returnPolicyId, name: p.name }))
             };
         } catch (e) {
-            console.error("[eBay Account API] Policy Fetch Failed:", e.response?.data || e.message);
-            // Fallback to empty if not opted in or API fails
+            const errorData = e.response?.data;
+            const isAccessDenied = errorData?.errors?.some(err => err.errorId === 1100);
+            
+            console.error("[Policy] Fetch Failed:", errorData || e.message);
+            
             return {
                 success: false,
-                isNotOptedIn: true,
+                isNotOptedIn: isAccessDenied || true,
+                error: isAccessDenied ? "Access Denied: Please ensure Business Policies are enabled in your eBay account." : (errorData?.errors?.[0]?.message || e.message),
                 fulfillment: [],
                 payment: [],
                 return: []
