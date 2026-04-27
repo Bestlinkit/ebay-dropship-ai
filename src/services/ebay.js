@@ -159,10 +159,50 @@ class eBayService {
     return this.getCategorySuggestions(q).then(cats => cats.map(c => c.name));
   }
 
-  async getSubCategories(parentId) {
-    return [
-        { id: '1', name: 'General', isLeaf: true }
-    ];
+  async getCategoryTreeId() {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/category-tree`);
+      return response.data;
+    } catch (e) {
+      console.error("[Taxonomy] Tree ID Fetch Failed:", e.message);
+      return "0";
+    }
+  }
+
+  async getTopCategories(treeId = "0") {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/categories-root`, {
+        params: { treeId }
+      });
+      return response.data;
+    } catch (e) {
+      console.error("[Taxonomy] Root Categories Failed:", e.message);
+      return [];
+    }
+  }
+
+  async getSubCategories(parentId, treeId = "0") {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/categories-sub/${parentId}`, {
+        params: { treeId }
+      });
+      return response.data;
+    } catch (e) {
+      console.error("[Taxonomy] Sub-Categories Failed:", e.message);
+      return [];
+    }
+  }
+
+  async getItemAspects(categoryId, treeId = "0") {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/aspects/${categoryId}`, {
+        params: { treeId }
+      });
+      return response.data;
+    } catch (e) {
+      console.error("[Taxonomy] Aspect Fetch Failed:", e.message);
+      return [];
+    }
   }
 
   async getCompetitorInsights(keyword) {

@@ -283,4 +283,57 @@ router.get('/categories', async (req, res) => {
 
 // REMOVED: /policies (Account not opted in, legacy AddItem used instead)
 
+/**
+ * 🌳 GET CATEGORY TREE ID
+ */
+router.get('/category-tree', async (req, res) => {
+    try {
+        const treeId = await ebayTrading.getCategoryTreeId();
+        res.json(treeId);
+    } catch (err) {
+        res.json("0");
+    }
+});
+
+/**
+ * 📂 GET TOP CATEGORIES
+ */
+router.get('/categories-root', async (req, res) => {
+    try {
+        const treeId = req.query.treeId || "0";
+        const cats = await ebayTrading.getTopCategories(treeId);
+        res.json(cats);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
+/**
+ * 📂 GET SUB-CATEGORIES
+ */
+router.get('/categories-sub/:id', async (req, res) => {
+    try {
+        const parentId = req.params.id;
+        const treeId = req.query.treeId || "0";
+        const cats = await ebayTrading.getSubCategories(parentId, treeId);
+        res.json(cats);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
+/**
+ * 🏷️ GET ITEM ASPECTS
+ */
+router.get('/aspects/:id', async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+        const treeId = req.query.treeId || "0";
+        const aspects = await ebayTrading.getItemAspects(categoryId, treeId);
+        res.json(aspects);
+    } catch (err) {
+        res.json([]);
+    }
+});
+
 module.exports = router;

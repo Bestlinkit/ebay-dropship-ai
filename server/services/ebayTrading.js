@@ -289,10 +289,73 @@ class EbayTradingService {
         }
     }
 
+    async getCategoryTreeId() {
+        const token = await this.getAppToken();
+        if (!token) return "0";
+        try {
+            const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=EBAY_US', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return response.data.categoryTreeId || "0";
+        } catch (e) {
+            return "0";
+        }
+    }
+
+    async getTopCategories(treeId) {
+        const token = await this.getAppToken();
+        if (!token) return [];
+        try {
+            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return (response.data.rootCategoryNode?.childCategoryTreeNodes || []).map(n => ({
+                id: n.category.categoryId,
+                name: n.category.categoryName,
+                isLeaf: n.leafCategoryTreeNode
+            }));
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async getSubCategories(categoryId, treeId) {
+        const token = await this.getAppToken();
+        if (!token) return [];
+        try {
+            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${categoryId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return (response.data.categorySubtreeNode?.childCategoryTreeNodes || []).map(n => ({
+                id: n.category.categoryId,
+                name: n.category.categoryName,
+                isLeaf: n.leafCategoryTreeNode
+            }));
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async getItemAspects(categoryId, treeId = "0") {
+        const token = await this.getAppToken();
+        if (!token) return [];
+        try {
+            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_item_aspects_for_category?category_id=${categoryId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return (response.data.aspects || []).map(a => ({
+                name: a.localizedAspectName,
+                required: a.aspectConstraint?.aspectRequired || false,
+                values: (a.aspectValues || []).map(v => v.localizedValue)
+            }));
+        } catch (e) {
+            return [];
+        }
+    }
+
     async getCategorySuggestions(q) {
         const token = await this.getAppToken();
         if (!token) return [];
-
         try {
             const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions', {
                 params: { q },
