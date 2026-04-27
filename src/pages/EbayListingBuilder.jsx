@@ -184,9 +184,13 @@ const EbayListingBuilder = () => {
         setCategoryPath(newPath);
         
         if (cat.isLeaf) {
-            console.log("[Category] Leaf reached. Loading Aspects...");
+            console.log("[Category] Leaf reached. Triggering REGENERATION...");
             setIsLeafSelected(true);
             setCurrentLevelCategories([]);
+            
+            // 🚀 TRIGGER REGENERATION BASED ON CATEGORY
+            handleRegenerateContent(cat.name);
+            
             loadItemAspects(cat.id);
         } else {
             setIsLoadingCategories(true);
@@ -200,6 +204,27 @@ const EbayListingBuilder = () => {
             } finally {
                 setIsLoadingCategories(false);
             }
+        }
+    };
+
+    const handleRegenerateContent = async (categoryName) => {
+        setIsOptimizing(true);
+        try {
+            const result = await optimizeListing({
+                title: cjProduct?.title,
+                description: cjProduct?.description
+            }, categoryName);
+
+            if (result.success) {
+                setOptimizedData(result.data);
+                setSelectedTitle(result.data.titles[0]);
+                setDescription(result.data.description);
+                setTags(result.data.tags);
+            }
+        } catch (err) {
+            console.error("Regeneration Failed:", err);
+        } finally {
+            setIsOptimizing(false);
         }
     };
 
@@ -217,13 +242,19 @@ const EbayListingBuilder = () => {
         setIsLoadingAspects(true);
         try {
             const data = await ebayService.getItemAspects(categoryId);
-            setAspects(data);
             
-            // Clean initialization without hardcoding
+            // 🛡️ Filter out Size/Color if variants exist (Conflict Prevention)
+            const hasVariants = variants.length > 0;
+            const filteredData = hasVariants 
+                ? data.filter(a => !['Size', 'Color'].includes(a.name))
+                : data;
+
+            setAspects(filteredData);
+            
+            // Initialize required aspects
             const initialValues = {};
-            data.forEach(aspect => {
-                // Only pre-fill if there's exactly one recommended value
-                if (aspect.values?.length === 1) {
+            filteredData.forEach(aspect => {
+                if (aspect.required && aspect.values?.length > 0) {
                     initialValues[aspect.name] = aspect.values[0];
                 }
             });
@@ -243,12 +274,31 @@ const EbayListingBuilder = () => {
         setPushError(null);
         setIsPushing(true);
 
-        // --- FINAL VALIDATION GATE ---
-        if (!isLeafSelected) {
-            setPushError("Selection Error: Final category must be a leaf node.");
+        // --- 🛡️ PRE-SUBMIT VALIDATION LAYER ---
+        const validations = [
+            { check: !isLeafSelected, msg: "Category not fully selected." },
+            { check: !selectedTitle, msg: "Title is missing." },
+            { check: variants.length === 0, msg: "No variants defined." },
+            { check: variants.some(v => v.ebay_price <= 0), msg: "Price must be greater than zero." },
+            { check: variants.some(v => v.inventory <= 0), msg: "Quantity must be greater than zero." },
+            { check: selectedImages.length === 0, msg: "At least one image is required." }
+        ];
+
+        // Check required aspects
+        aspects.filter(a => a.required).forEach(a => {
+            if (!attributeValues[a.name]) {
+                validations.push({ check: true, msg: `Missing required aspect: ${a.name}` });
+            }
+        });
+
+        const error = validations.find(v => v.check);
+        if (error) {
+            setPushError(`Validation Blocked: ${error.msg}`);
             setIsPushing(false);
             return;
         }
+
+        const leafCategory = categoryPath[categoryPath.length - 1];
 
         // --- CONSISTENCY ENFORCEMENT & T-SHIRT REPLACEMENT ---
         const cleanTitle = selectedTitle.replace(/T-Shirt/gi, "Polo Shirt");
@@ -483,7 +533,7 @@ const EbayListingBuilder = () => {
 
                             {optimizedData && (
                                 <div className="space-y-12 animate-in fade-in duration-700">
-                                    {/* AUTO CATEGORY MATCH */}
+                                    {/* AUTO CATEGORY MATCH (SUGGESTION ONLY) */}
                                     {optimizedData.category && (
                                         <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
                                             <div className="flex items-center gap-4">
@@ -491,11 +541,11 @@ const EbayListingBuilder = () => {
                                                     <ShieldCheck size={20} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Auto-Matched Category</p>
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Market Recommendation (Suggestion)</p>
                                                     <p className="text-sm font-bold text-slate-900 uppercase">{optimizedData.category.name}</p>
                                                 </div>
                                             </div>
-                                            <span className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase">Verified Match</span>
+                                            <span className="px-4 py-2 bg-slate-100 text-slate-600 rounded-full text-[9px] font-black uppercase">Taxonomy Hint</span>
                                         </div>
                                     )}
 
@@ -971,6 +1021,9 @@ const EbayListingBuilder = () => {
                                                         {aspect.name} 
                                                         {aspect.required && <span className="text-rose-500 ml-1">*</span>}
                                                     </label>
+                                                    {aspect.required && (
+                                                        <span className="text-[8px] font-black bg-rose-50 text-rose-500 px-2 py-0.5 rounded-full uppercase">Required</span>
+                                                    )}
                                                 </div>
                                                 <div className="relative">
                                                     {aspect.values?.length > 0 ? (
@@ -979,23 +1032,26 @@ const EbayListingBuilder = () => {
                                                             onChange={(e) => handleAttributeChange(aspect.name, e.target.value)}
                                                             className={cn(
                                                                 "w-full p-5 bg-slate-50 border-2 rounded-2xl text-xs font-bold text-slate-900 outline-none transition-all shadow-sm",
-                                                                aspect.required && !attributeValues[aspect.name] ? "border-rose-100" : "border-slate-100 focus:border-slate-950"
+                                                                aspect.required && !attributeValues[aspect.name] ? "border-rose-100 ring-4 ring-rose-500/5" : "border-slate-100 focus:border-slate-950"
                                                             )}
                                                         >
-                                                            <option value="">Select Value...</option>
+                                                            <option value="">Select Allowed Value...</option>
                                                             {aspect.values.map(val => <option key={val} value={val}>{val}</option>)}
                                                         </select>
                                                     ) : (
-                                                        <input 
-                                                            type="text"
-                                                            value={attributeValues[aspect.name] || ""}
-                                                            onChange={(e) => handleAttributeChange(aspect.name, e.target.value)}
-                                                            className={cn(
-                                                                "w-full p-5 bg-slate-50 border-2 rounded-2xl text-xs font-bold text-slate-900 outline-none transition-all shadow-sm",
-                                                                aspect.required && !attributeValues[aspect.name] ? "border-rose-100" : "border-slate-100 focus:border-slate-950"
-                                                            )}
-                                                            placeholder={`Enter ${aspect.name}...`}
-                                                        />
+                                                        <div className="space-y-2">
+                                                            <input 
+                                                                type="text"
+                                                                value={attributeValues[aspect.name] || ""}
+                                                                onChange={(e) => handleAttributeChange(aspect.name, e.target.value)}
+                                                                className={cn(
+                                                                    "w-full p-5 bg-slate-50 border-2 rounded-2xl text-xs font-bold text-slate-900 outline-none transition-all shadow-sm",
+                                                                    aspect.required && !attributeValues[aspect.name] ? "border-rose-100 ring-4 ring-rose-500/5" : "border-slate-100 focus:border-slate-950"
+                                                                )}
+                                                                placeholder={aspect.required ? `Enter Required ${aspect.name}...` : `Enter ${aspect.name}...`}
+                                                            />
+                                                            <p className="text-[8px] font-bold text-slate-400 uppercase px-2 italic">Note: No restricted values provided by eBay Taxonomy</p>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>

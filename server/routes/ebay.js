@@ -279,7 +279,7 @@ router.get('/aspects/:id', async (req, res) => {
     try {
         const categoryId = req.params.id;
         const treeId = req.query.treeId || "0";
-        const aspects = await ebayTrading.getItemAspects(categoryId, treeId);
+        const aspects = await ebayTrading.getItemAspectsForCategory(categoryId, treeId);
         res.json(aspects);
     } catch (err) {
         res.json([]);

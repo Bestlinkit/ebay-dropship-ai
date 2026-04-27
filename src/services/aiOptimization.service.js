@@ -3,7 +3,7 @@
  * Uses the new 'data' wrapper contract.
  */
 
-export async function optimizeListing(snapshot) {
+export async function optimizeListing(snapshot, category = null) {
   const BRIDGE_BASE = 'http://localhost:3001';
   
   try {
@@ -14,7 +14,8 @@ export async function optimizeListing(snapshot) {
       },
       body: JSON.stringify({ 
         title: snapshot.title,
-        description: snapshot.description 
+        description: snapshot.description,
+        category: category
       }),
     });
 

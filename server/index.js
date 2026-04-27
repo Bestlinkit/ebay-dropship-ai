@@ -502,12 +502,12 @@ const seoEngine = require('./services/seoEngine');
 
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE v16.0 (FINAL CLEANUP)");
-    const { title, description } = req.body;
+    console.log("SEO ENGINE v16.1 (CATEGORY-AWARE)");
+    const { title, description, category } = req.body;
 
     try {
-        // STEP 1: CLASSIFICATION
-        const classification = seoEngine.classifyProduct(title, description);
+        // STEP 1: CLASSIFICATION (Priority: Forced Category > AI Guess)
+        const classification = seoEngine.classifyProduct(title, description, category);
         
         // STEP 2: EXTRACTION
         const keywords = seoEngine.extractKeywords(title, description);

@@ -422,19 +422,25 @@ class EbayTradingService {
         }
     }
 
-    async getItemAspects(categoryId, treeId = "0") {
+    async getItemAspectsForCategory(categoryId, treeId = "0") {
         const token = await this.getAppToken();
         if (!token) return [];
         try {
+            console.log(`[eBay Taxonomy] Fetching Aspects for Category: ${categoryId}`);
             const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_item_aspects_for_category?category_id=${categoryId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            
+            // Map to a cleaner structure for the frontend
             return (response.data.aspects || []).map(a => ({
                 name: a.localizedAspectName,
                 required: a.aspectConstraint?.aspectRequired || false,
+                usage: a.aspectConstraint?.aspectUsage || 'OPTIONAL',
+                dataType: a.aspectConstraint?.itemToAspectCardinality === 'MULTI' ? 'MULTIVALUE' : 'STRING',
                 values: (a.aspectValues || []).map(v => v.localizedValue)
             }));
         } catch (e) {
+            console.error("[eBay Taxonomy] Aspects Fetch Failure:", e.response?.data || e.message);
             return [];
         }
     }

@@ -63,17 +63,25 @@ function deduplicateWords(text) {
 /**
  * 1. PRODUCT CLASSIFICATION
  */
-function classifyProduct(title, description) {
+function classifyProduct(title, description, forcedCategoryName = null) {
     const text = (title + " " + (description || "")).toLowerCase();
     let key = "apparel";
     
-    
-    if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) key = "skincare";
-    else if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry') || text.includes('pendant')) key = "jewelry";
-    else if (text.includes('shoe') || text.includes('sneaker') || text.includes('boot') || text.includes('footwear')) key = "shoes";
-    else if (text.includes('shirt') || text.includes('apparel') || text.includes('clothing')) key = "apparel";
+    // Use forcedCategoryName if provided to map to our internal config keys
+    if (forcedCategoryName) {
+        const lowerForced = forcedCategoryName.toLowerCase();
+        if (lowerForced.includes('skin') || lowerForced.includes('beauty') || lowerForced.includes('bath')) key = "skincare";
+        else if (lowerForced.includes('jewelry') || lowerForced.includes('neck') || lowerForced.includes('ring')) key = "jewelry";
+        else if (lowerForced.includes('shoe') || lowerForced.includes('footwear')) key = "shoes";
+        else if (lowerForced.includes('shirt') || lowerForced.includes('cloth') || lowerForced.includes('apparel')) key = "apparel";
+    } else {
+        if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) key = "skincare";
+        else if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry') || text.includes('pendant')) key = "jewelry";
+        else if (text.includes('shoe') || text.includes('sneaker') || text.includes('boot') || text.includes('footwear')) key = "shoes";
+        else if (text.includes('shirt') || text.includes('apparel') || text.includes('clothing')) key = "apparel";
+    }
 
-    const config = CATEGORY_LOCKED_MAP[key];
+    const config = CATEGORY_LOCKED_MAP[key] || CATEGORY_LOCKED_MAP["apparel"];
     
     const primaryWords = title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
         .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w)).slice(0, 3);
@@ -81,12 +89,12 @@ function classifyProduct(title, description) {
     const primaryKeyword = primaryWords.length > 0 ? primaryWords.join(' ') : config.product_type.toLowerCase();
 
     return {
-        product_type: config.product_type,
-        category: config.name,
+        product_type: forcedCategoryName ? forcedCategoryName.split('>').pop().trim() : config.product_type,
+        category: forcedCategoryName || config.name,
         benefits: config.benefits,
         config: config,
         primary_keyword: primaryKeyword,
-        confidence: 0.9
+        confidence: 1.0
     };
 }
 
