@@ -61,15 +61,19 @@ class EbayTradingService {
     getAuthorizationUrl() {
         const scopes = 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access';
         
-        // Manual string construction for absolute control (Space = %20)
         const baseUrl = 'https://auth.ebay.com/oauth2/authorize';
-        const clientId = this.appName.trim();
-        const ruName = this.ruName.trim();
+        const clientId = (this.appName || "").trim();
+        const ruName = (this.ruName || "").trim();
         const encodedScopes = encodeURIComponent(scopes);
 
-        const url = `${baseUrl}?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(ruName)}&scope=${encodedScopes}`;
+        console.log("[eBay Auth] Using ClientID:", clientId);
+        console.log("[eBay Auth] Using RUName:", ruName);
+
+        // Standard format: client_id, response_type, redirect_uri, scope
+        // Some environments prefer RUName NOT encoded if it contains no special chars
+        const url = `${baseUrl}?client_id=${clientId}&response_type=code&redirect_uri=${ruName}&scope=${encodedScopes}`;
         
-        console.log("[eBay Auth] FINAL AUTH URL (MANUAL):", url);
+        console.log("[eBay Auth] FINAL AUTH URL (STRICT):", url);
         return url;
     }
 
