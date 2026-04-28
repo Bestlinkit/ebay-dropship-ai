@@ -416,32 +416,52 @@ class EbayTradingService {
     async getCategory(categoryId, treeId = "0") {
         console.log(`[eBay Taxonomy] Fetching Category Info for: ${categoryId}...`);
         const token = await this.getAppToken();
-        if (!token) return null;
+        if (!token) {
+            console.error("[eBay Taxonomy] Failed to obtain App Token.");
+            return null;
+        }
 
         try {
             const response = await this.callWithRetry(async () => {
                 return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${categoryId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
                     timeout: 15000
                 });
             });
 
-            const node = response.data?.categorySubtreeNode;
-            if (!node) return null;
+            // 🛡️ Log Raw Response for Debugging (Requirement 2)
+            console.log(`[eBay Taxonomy] Raw Response for ${categoryId}:`, JSON.stringify(response.data).substring(0, 500) + "...");
+
+            // eBay can return categorySubtreeNode or categoryTreeNode depending on the specific call/version
+            const node = response.data?.categorySubtreeNode || response.data?.categoryTreeNode;
+            
+            if (!node) {
+                console.warn(`[eBay Taxonomy] No node found in response for Category ${categoryId}`);
+                return null;
+            }
 
             return {
-                id: node.category.categoryId,
-                name: node.category.categoryName,
-                leafCategoryTreeNode: node.leafCategory || false,
-                children: (node.children || []).map(c => ({
-                    id: c.category.categoryId,
-                    name: c.category.categoryName,
-                    leafCategoryTreeNode: c.leafCategory || false
+                id: node.category?.categoryId || categoryId,
+                categoryId: node.category?.categoryId || categoryId,
+                name: node.category?.categoryName || "Unknown",
+                leafCategoryTreeNode: node.leafCategory || node.leafCategoryTreeNode || false,
+                children: (node.children || node.childCategoryTreeNodes || []).map(c => ({
+                    id: c.category?.categoryId || c.categoryId,
+                    categoryId: c.category?.categoryId || c.categoryId,
+                    name: c.category?.categoryName || c.categoryName,
+                    leafCategoryTreeNode: c.leafCategory || c.leafCategoryTreeNode || false
                 }))
             };
         } catch (err) {
-            console.error("[eBay Taxonomy] GetCategory Failed:", err.message);
-            return null;
+            if (err.response) {
+                console.error("[eBay Taxonomy] API Error:", err.response.status, err.response.data);
+            } else {
+                console.error("[eBay Taxonomy] GetCategory Failed:", err.message);
+            }
+            throw err; // Re-throw to let route handler decide status
         }
     }
 
