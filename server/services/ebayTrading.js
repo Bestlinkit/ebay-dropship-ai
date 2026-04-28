@@ -105,7 +105,7 @@ class EbayTradingService {
         ${(itemData.variationSpecificsSet || []).map(set => `
           <NameValueList>
             <Name>${this.escapeXml(set.name)}</Name>
-            ${set.value.map(val => `<Value>${this.escapeXml(val)}</Value>`).join('')}
+            ${(set.values || []).map(val => `<Value>${this.escapeXml(val)}</Value>`).join('')}
           </NameValueList>
         `).join('')}
       </VariationSpecificsSet>
@@ -115,10 +115,10 @@ class EbayTradingService {
           <StartPrice currency="USD">${v.price}</StartPrice>
           <Quantity>${v.inventory}</Quantity>
           <VariationSpecifics>
-            ${(v.specifics || []).map(s => `
+            ${Object.entries(v.specifics || {}).map(([name, value]) => `
               <NameValueList>
-                <Name>${this.escapeXml(s.name)}</Name>
-                <Value>${this.escapeXml(s.value)}</Value>
+                <Name>${this.escapeXml(name)}</Name>
+                <Value>${this.escapeXml(value)}</Value>
               </NameValueList>
             `).join('')}
           </VariationSpecifics>

@@ -340,6 +340,30 @@ const EbayListingBuilder = () => {
             }
 
             // 🔴 6. FINAL PAYLOAD (CLEAN + VALID)
+            const variationSpecificsSet = [];
+            if (variants.length > 0) {
+                const colorValues = new Set();
+                const sizeValues = new Set();
+                
+                variants.forEach(v => {
+                    const parts = v.name.split('-').map(p => p.trim());
+                    if (parts[0]) colorValues.add(parts[0]);
+                    if (parts[1]) sizeValues.add(parts[1]);
+                });
+
+                if (colorValues.size > 0) {
+                    variationSpecificsSet.push({ name: "Color", values: Array.from(colorValues) });
+                }
+                if (sizeValues.size > 0) {
+                    variationSpecificsSet.push({ name: "Size", values: Array.from(sizeValues) });
+                }
+            }
+
+            // Validation: Multi-variant check
+            if (variants.length > 1 && variationSpecificsSet.length === 0) {
+                throw new Error("Invalid variation setup: missing variationSpecificsSet (Color/Size attributes)");
+            }
+
             const payload = {
                 title: selectedTitle,
                 description: description,
@@ -348,19 +372,19 @@ const EbayListingBuilder = () => {
                 quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
                 images: selectedImages,
                 itemSpecifics: { nameValueList },
+                variationSpecificsSet: variationSpecificsSet,
                 variants: variants.map(v => {
                     const parts = v.name.split('-').map(p => p.trim());
-                    const specifics = [];
-                    // Simple heuristic for variants if they follow "Color - Size" pattern
-                    if (parts[0]) specifics.push({ name: "Color", value: parts[0] });
-                    if (parts[1]) specifics.push({ name: "Size", value: parts[1] });
+                    const specifics = {};
+                    if (parts[0]) specifics["Color"] = parts[0];
+                    if (parts[1]) specifics["Size"] = parts[1];
                     
                     return {
                         name: v.name,
                         sku: v.sku,
                         price: v.ebay_price,
                         inventory: v.inventory,
-                        specifics: specifics
+                        specifics: specifics // Key-Value Object as required
                     };
                 })
             };
