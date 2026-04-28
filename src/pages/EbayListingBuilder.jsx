@@ -389,7 +389,7 @@ const EbayListingBuilder = () => {
                 })
             };
 
-            console.info("[eBay Push] Final Listing Payload (No Policies):", payload);
+            console.info("[eBay Push] Final Listing Payload:", payload);
             
             const response = await ebayService.publishItem(payload);
             

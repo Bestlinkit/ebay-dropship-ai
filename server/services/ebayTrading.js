@@ -129,8 +129,12 @@ class EbayTradingService {
     }
 
     async addItem(itemData) {
-        // Fetch Policies first
-        const policies = await this.getBusinessPolicies();
+        // Use profiles from payload (attached in route) or fetch if missing
+        const policies = itemData.sellerProfiles ? {
+            fulfillmentPolicyId: itemData.sellerProfiles.sellerShippingProfile.shippingProfileId,
+            returnPolicyId: itemData.sellerProfiles.sellerReturnProfile.returnProfileId,
+            paymentPolicyId: itemData.sellerProfiles.sellerPaymentProfile.paymentProfileId
+        } : await this.getBusinessPolicies();
 
         const xmlBody = `
   <Item>

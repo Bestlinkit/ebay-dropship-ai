@@ -11,7 +11,30 @@ router.post('/list', async (req, res) => {
     try {
         const itemData = req.body;
         console.log(`[eBay Route] Listing attempt for: ${itemData.title}`);
-        console.log("INCOMING PAYLOAD:", JSON.stringify(itemData, null, 2));
+        
+        // 🔥 Step 1 — FORCE policy fetch inside listing route
+        const policies = await ebayTrading.getBusinessPolicies();
+        
+        // ✅ Step 2 — FORCE attach to payload
+        itemData.sellerProfiles = {
+            sellerShippingProfile: {
+                shippingProfileId: policies.fulfillmentPolicyId
+            },
+            sellerReturnProfile: {
+                returnProfileId: policies.returnPolicyId
+            },
+            sellerPaymentProfile: {
+                paymentProfileId: policies.paymentPolicyId
+            }
+        };
+
+        // 🚨 Step 3 — HARD FAIL if missing
+        if (!itemData.sellerProfiles.sellerShippingProfile.shippingProfileId) {
+            throw new Error("sellerProfiles NOT attached — blocking request");
+        }
+
+        // ✅ Step 4 — LOG FINAL payload (CRITICAL)
+        console.log("FINAL PAYLOAD WITH POLICIES:", JSON.stringify(itemData, null, 2));
         
         const responseXml = await ebayTrading.addItem(itemData);
         
@@ -38,8 +61,7 @@ router.post('/list', async (req, res) => {
         console.error("[eBay Route] CRITICAL LISTING ERROR:", err);
         res.status(500).json({
             success: false,
-            message: 'Internal Server Error during listing',
-            error: err.message,
+            message: err.message || 'Internal Server Error during listing',
             stack: err.stack
         });
     }
