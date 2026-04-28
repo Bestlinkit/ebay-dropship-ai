@@ -1,4 +1,4 @@
-// --- SEO INTELLIGENCE ENGINE v16.0 (FINAL CLEANUP PATCH) ---
+// --- SEO INTELLIGENCE ENGINE v17.0 (STRICT MODE) ---
 
 const STOPWORDS = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'best', 'premium', 'high-quality', 'excellent', 'great', 'information', 'professional', 'supplier', 'factory', 'china', 'daily', 'high quality', 'limited edition', 'top rated', 'great value', 'quality', 'daily use']);
 
@@ -7,41 +7,6 @@ const GARBAGE_TOKENS = new Set(['pbproduct', 'br', 'nbsp', 'undefined', 'null', 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
 
 const UNRELATED_PRODUCTS = new Set(['pbproduct', 'br', 'nbsp', 'description', 'information']);
-
-const CATEGORY_LOCKED_MAP = {
-    'skincare': {
-        name: 'Health & Beauty > Skin Care > Body Scrubs',
-        product_type: 'Body Scrub',
-        benefits: ['Smooth Skin', 'Even Tone', 'Radiant Glow', 'Deep Clean'],
-        outcomes: ['Silky Texture', 'Youthful Glow', 'Healthy Skin'],
-        intent_keywords: ['exfoliating', 'hydrating', 'cleansing', 'moisturizing'],
-        fallback_tags: ["exfoliating body scrub", "moisturizing body scrub", "skin brightening scrub", "natural body exfoliator", "hydrating skin scrub"]
-    },
-    'apparel': {
-        name: 'Clothing, Shoes & Accessories > Men\'s Clothing > T-Shirts',
-        product_type: 'T-Shirt',
-        benefits: ['Breathable', 'Lightweight', 'Soft Cotton', 'Comfortable'],
-        outcomes: ['Casual Style', 'Everyday Wear', 'Slim Fit'],
-        intent_keywords: ['cotton', 'breathable', 'casual', 'apparel'],
-        fallback_tags: ["soft cotton t-shirt", "breathable casual tee", "short sleeve shirt", "comfortable daily top", "slim fit apparel"]
-    },
-    'jewelry': {
-        name: 'Jewelry & Watches > Fine Jewelry > Necklaces',
-        product_type: 'Necklace',
-        benefits: ['Elegant', 'Luxurious', 'Handcrafted', 'High Shine'],
-        outcomes: ['Statement Piece', 'Timeless Gift', 'Sophisticated Look'],
-        intent_keywords: ['elegant', 'luxury', 'handcrafted', 'jewelry'],
-        fallback_tags: ["elegant silver necklace", "luxury jewelry pendant", "handcrafted chain gift", "sophisticated accessory", "timeless jewelry piece"]
-    },
-    'shoes': {
-        name: 'Clothing, Shoes & Accessories > Men\'s Shoes > Casual Shoes',
-        product_type: 'Shoes',
-        benefits: ['Ergonomic', 'Lightweight', 'Breathable', 'Durable'],
-        outcomes: ['Stylish Walk', 'Daily Comfort', 'Perfect Fit'],
-        intent_keywords: ['comfortable', 'handmade', 'leather', 'walking'],
-        fallback_tags: ["handmade men shoes", "comfortable leather footwear", "casual walking shoes", "durable mens sneakers", "stylish breathable shoes"]
-    }
-};
 
 /**
  * Helper: Deduplicate words in a string
@@ -61,26 +26,22 @@ function deduplicateWords(text) {
 }
 
 /**
- * Helper: Extract hard attributes from text for generic products
+ * Helper: Extract hard attributes from text for products
  */
 function extractHardAttributes(text) {
     const attrs = { material: '', size: '', color: '', usage: '' };
     
-    // Materials
     const materials = ['ceramic', 'glass', 'wood', 'metal', 'stainless steel', 'plastic', 'leather', 'cotton', 'polyester', 'nylon', 'silicone', 'aluminum', 'copper', 'linen', 'canvas'];
     const matMatch = materials.find(m => text.includes(m));
     if (matMatch) attrs.material = matMatch.charAt(0).toUpperCase() + matMatch.slice(1);
 
-    // Size/Capacity (e.g., 300ml, 12oz, 15cm)
     const sizeMatch = text.match(/\b(\d+(?:\.\d+)?\s*(ml|oz|cm|inch|mm|kg|g|lb|L|liter|gallon|fl oz))\b/i);
     if (sizeMatch) attrs.size = sizeMatch[1].toLowerCase();
 
-    // Color
     const colors = ['red', 'blue', 'green', 'black', 'white', 'pink', 'gold', 'silver', 'brown', 'grey', 'gray', 'purple', 'yellow', 'orange', 'beige', 'clear', 'transparent', 'multicolor'];
     const colMatch = colors.find(c => text.includes(` ${c} `) || text.startsWith(`${c} `) || text.endsWith(` ${c}`));
     if (colMatch) attrs.color = colMatch.trim().charAt(0).toUpperCase() + colMatch.trim().slice(1);
     
-    // Usage
     const usages = ['home', 'office', 'outdoor', 'kitchen', 'bathroom', 'travel', 'car', 'garden', 'gym', 'sports', 'party'];
     const usageMatch = usages.filter(u => text.includes(u)).slice(0, 2);
     if (usageMatch.length > 0) {
@@ -91,75 +52,40 @@ function extractHardAttributes(text) {
 }
 
 /**
- * 1. PRODUCT CLASSIFICATION
+ * 1. STRICT PRODUCT CLASSIFICATION
  */
 function classifyProduct(title, description, forcedCategoryName = null) {
-    // 🛡️ TYPE GUARD (Requirement 1)
     const safeTitle = typeof title === 'string' ? title : String(title || "");
     const safeDescription = typeof description === 'string' ? description : String(description || "");
     const safeForced = typeof forcedCategoryName === 'string' ? forcedCategoryName : null;
 
     const text = (safeTitle + " " + (safeDescription || "")).toLowerCase();
     
-    let matchedKey = null;
-    
-    // Use forcedCategoryName if provided to map to our internal config keys
-    if (safeForced) {
-        const lowerForced = safeForced.toLowerCase();
-        if (lowerForced.includes('skin') || lowerForced.includes('beauty') || lowerForced.includes('bath')) matchedKey = "skincare";
-        else if (lowerForced.includes('jewelry') || lowerForced.includes('neck') || lowerForced.includes('ring')) matchedKey = "jewelry";
-        else if (lowerForced.includes('shoe') || lowerForced.includes('footwear')) matchedKey = "shoes";
-        else if (lowerForced.includes('shirt') || lowerForced.includes('cloth') || lowerForced.includes('apparel')) matchedKey = "apparel";
-    } else {
-        if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) matchedKey = "skincare";
-        else if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry') || text.includes('pendant')) matchedKey = "jewelry";
-        else if (text.includes('shoe') || text.includes('sneaker') || text.includes('boot') || text.includes('footwear')) matchedKey = "shoes";
-        else if (text.includes('shirt') || text.includes('apparel') || text.includes('clothing')) matchedKey = "apparel";
-    }
-
+    // Extract PRIMARY_KEYWORD strictly from original title (e.g. "coffee mug")
     const primaryWords = safeTitle.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
-        .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w)).slice(0, 3);
+        .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w));
+    
+    const primaryKeyword = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ') : safeTitle.substring(0, 30);
         
-    // Lock product identity (Requirement 1)
+    // Lock product identity (IMMUTABLE)
     let product_type;
     if (safeForced) {
+        // Use eBay category as the ONLY source of truth
         product_type = safeForced.split('>').pop().trim();
     } else {
-        product_type = matchedKey ? CATEGORY_LOCKED_MAP[matchedKey].product_type : (primaryWords.length > 0 ? primaryWords.join(' ') : "Item");
-    }
-    const typeLower = product_type.toLowerCase();
-
-    let config;
-    if (matchedKey) {
-        config = CATEGORY_LOCKED_MAP[matchedKey];
-    } else {
-        // Extract Hard Attributes for GENERIC_CONFIG (Requirement 3)
-        const attrs = extractHardAttributes(text);
-        const keyAttributes = [attrs.material, attrs.color, attrs.size].filter(Boolean);
-        const attributeStr = keyAttributes.length > 0 ? keyAttributes.join(' ') : 'Premium';
-        const usageStr = attrs.usage ? `for ${attrs.usage}` : 'for Daily Use';
-        
-        config = {
-            name: safeForced || "Uncategorized",
-            product_type: product_type,
-            benefits: keyAttributes.length > 0 ? keyAttributes : ['High Quality', 'Durable'],
-            outcomes: [usageStr, 'Perfect Gift', 'Great Value'],
-            intent_keywords: keyAttributes.map(k => k.toLowerCase()).concat(['new']),
-            fallback_tags: [`${attributeStr.toLowerCase()} ${typeLower}`, `${typeLower} ${usageStr.toLowerCase()}`].map(t => t.substring(0, 80)),
-            is_dynamic: true,
-            extracted_attrs: attrs
-        };
+        // Safe fallback rule: If product_type cannot be determined -> use original product title
+        product_type = primaryKeyword;
     }
 
-    const primaryKeyword = primaryWords.length > 0 ? primaryWords.join(' ') : config.product_type.toLowerCase();
+    // Extract Hard Attributes
+    const attrs = extractHardAttributes(text);
 
     return {
         product_type: product_type,
-        category: safeForced || config.name,
-        benefits: config.benefits,
-        config: config,
+        category: safeForced || "Uncategorized",
         primary_keyword: primaryKeyword,
-        confidence: matchedKey ? 1.0 : 0.8
+        original_title: safeTitle,
+        extracted_attrs: attrs
     };
 }
 
@@ -167,7 +93,6 @@ function classifyProduct(title, description, forcedCategoryName = null) {
  * 2. KEYWORD EXTRACTION
  */
 function extractKeywords(title, description) {
-    // 🛡️ TYPE GUARD (Requirement 1)
     const safeTitle = typeof title === 'string' ? title : String(title || "");
     const safeDescription = typeof description === 'string' ? description : String(description || "");
 
@@ -187,219 +112,166 @@ function extractKeywords(title, description) {
 }
 
 /**
- * 3. TITLE GENERATION (v16.0 Deduplicated & Enhanced)
+ * 3. STRICT TITLE GENERATION
  */
 function generatePremiumTitles(keywords, classification) {
-    const { primary_keyword, benefits, config, product_type } = classification;
-    const intent = config.intent_keywords;
-    const outcome = config.outcomes[0];
+    const { primary_keyword, product_type, extracted_attrs, original_title } = classification;
+    const attrs = extracted_attrs;
+    const keyAttr = [attrs.material, attrs.color, attrs.size].filter(Boolean).join(' ');
+    const useCase = attrs.usage ? `for ${attrs.usage}` : '';
     
-    let templates = [];
+    const baseTitle = `${primary_keyword} ${product_type}`.trim();
+    
+    // Generate strictly using product_type and extracted attributes
+    let templates = [
+        `${baseTitle} ${keyAttr} ${useCase}`.trim().replace(/\s+/g, ' '),
+        `${attrs.material || ''} ${baseTitle} ${attrs.size || ''} ${useCase}`.trim().replace(/\s+/g, ' '),
+        `${baseTitle} - ${keyAttr || ''} ${useCase}`.trim().replace(/\s+/g, ' ')
+    ].filter(t => t.length > 0);
+    
+    if (templates.length === 0) templates.push(original_title);
 
-    if (product_type === "Body Scrub") {
-        // Specialized Structure: [Function] + Body Scrub + [Benefit] + [Optional: Skin Care]
-        templates = [
-            `${intent[0]} Body Scrub ${benefits[0]} Skin Care`,
-            `${intent[1]} Body Scrub for ${benefits[1]}`,
-            `${intent[2]} Body Scrub - ${benefits[2]}`
-        ];
-    } else if (config.is_dynamic) {
-        // Generic Structure: [Core Product Name] + [Key Attribute] + [Use Case]
-        const attrs = config.extracted_attrs;
-        const keyAttr = [attrs.material, attrs.color, attrs.size].filter(Boolean).join(' ');
-        const useCase = attrs.usage ? `for ${attrs.usage}` : '';
-        
-        // Use primary keywords alongside product type
-        const baseTitle = `${primary_keyword} ${product_type}`;
-        
-        templates = [
-            `${baseTitle} ${keyAttr} ${useCase}`.trim().replace(/\s+/g, ' '),
-            `${attrs.material || 'Quality'} ${baseTitle} ${attrs.size || ''} ${useCase}`.trim().replace(/\s+/g, ' '),
-            `${baseTitle} - ${keyAttr || 'Premium'} ${useCase}`.trim().replace(/\s+/g, ' ')
-        ];
-    } else {
-        templates = [
-            `${primary_keyword} ${product_type} - ${intent[0]} & ${outcome}`,
-            `${benefits[0]} ${primary_keyword} ${product_type} for ${outcome}`,
-            `${primary_keyword} ${product_type} with ${benefits[1]} formula`
-        ];
-    }
-
-    const type = product_type.toLowerCase();
+    const primaryLower = primary_keyword.toLowerCase();
 
     return templates.map((t, i) => {
-        let text = deduplicateWords(t.replace(/\s+/g, ' ').trim());
-        
-        // Block-list: Must NOT start with "Bath Scrub Body"
-        if (text.toLowerCase().startsWith("bath scrub body")) {
-            text = text.replace(/Bath Scrub Body/i, "Exfoliating Body Scrub");
-        }
-
+        let text = deduplicateWords(t);
         text = text.substring(0, 80);
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         
         let score = 95 - (i * 3);
         
-        // Strict Validation: Must include product type
-        if (!capitalized.toLowerCase().includes(type)) score -= 30;
-        
-        // Must include 1 function keyword (skip for dynamic)
-        if (!config.is_dynamic && intent && intent.length > 0) {
-            const hasFunction = intent.some(f => capitalized.toLowerCase().includes(f));
-            if (!hasFunction) score -= 20;
-        }
+        // Soft penalty here, strict rejection handled in validation gate
+        if (!capitalized.toLowerCase().includes(primaryLower)) score -= 30;
 
         return { text: capitalized, score: score };
     });
 }
 
 /**
- * 4. TAG GENERATION (v16.0 Natural Buyer Queries)
+ * 4. STRICT TAG GENERATION
  */
 function generateTags(keywords, classification) {
-    const { product_type, config } = classification;
+    const { product_type, extracted_attrs, primary_keyword } = classification;
     const finalTags = new Set();
-    const type = product_type.toLowerCase();
+    const typeLower = product_type.toLowerCase();
+    const primaryLower = primary_keyword.toLowerCase();
     
     const candidateTags = [];
 
-    // Build candidates from keywords and classification intent
+    // Build candidates strictly anchored to product_type and primary_keyword
     keywords.forEach(k => {
-        config.intent_keywords.forEach(intent => {
-            candidateTags.push(`${intent} ${k} ${type}`);
-            candidateTags.push(`${k} ${type}`);
-            candidateTags.push(`${intent} ${type}`);
-        });
+        candidateTags.push(`${k} ${typeLower}`);
+        candidateTags.push(`${k} ${primaryLower}`);
     });
-
-    // Add fallback tags
-    config.fallback_tags.forEach(t => candidateTags.push(t.toLowerCase()));
+    if (extracted_attrs.material) candidateTags.push(`${extracted_attrs.material} ${typeLower}`);
+    if (extracted_attrs.usage) candidateTags.push(`${typeLower} for ${extracted_attrs.usage}`);
+    
+    // Add exact matches
+    candidateTags.push(typeLower);
+    candidateTags.push(primaryLower);
 
     for (let tag of candidateTags) {
         if (finalTags.size >= 10) break;
 
-        // 1. Lowercase
         tag = tag.toLowerCase().trim();
-
-        // 2. Word Count (2-4 words)
         const words = tag.split(/\s+/);
-        if (words.length < 2 || words.length > 4) continue;
-
-        // 3. Reject Filler/Garbage
+        if (words.length > 4) continue;
         if (words.some(w => GARBAGE_TOKENS.has(w))) continue;
+        
+        // RULE: ALL tags MUST include product_type keyword (or primary_keyword as safe anchor)
+        if (!tag.includes(typeLower) && !tag.includes(primaryLower)) continue;
 
-        // 4. Deduplicate words within tag
-        const uniqueWords = Array.from(new Set(words));
-        if (uniqueWords.length !== words.length) continue; // Reject if duplicated words in tag
-
-        // 5. Human Search Test (Heuristic: Must contain product type or key intent)
-        const hasCoreNoun = tag.includes(type);
-        if (!hasCoreNoun) continue;
-
-        // 6. Global Similarity Filter (Remove mirrored or overly similar tags)
-        const sortedTag = uniqueWords.sort().join(' ');
-        let isDuplicate = false;
-        for (let existing of finalTags) {
-            const existingSorted = existing.split(' ').sort().join(' ');
-            if (existingSorted === sortedTag) {
-                isDuplicate = true;
-                break;
-            }
-        }
-
-        if (!isDuplicate) {
-            finalTags.add(tag);
+        finalTags.add(tag);
+    }
+    
+    // RULE: Ensure PRIMARY_KEYWORD appears in at least 2 tags
+    const resultTags = Array.from(finalTags);
+    let primaryCount = resultTags.filter(t => t.includes(primaryLower)).length;
+    while (primaryCount < 2 && resultTags.length < 10) {
+        const synth = `${primaryLower} ${typeLower}`.substring(0, 30);
+        if (!resultTags.includes(synth)) {
+            resultTags.push(synth);
+            primaryCount++;
+        } else {
+            break;
         }
     }
 
-    return Array.from(finalTags).slice(0, 8);
+    return resultTags.slice(0, 10);
 }
 
 /**
- * 5. DESCRIPTION
+ * 5. DESCRIPTION GENERATION
  */
 function generateDescription(html, classification) {
-    const { product_type, category, config } = classification;
-    let output = `Product Overview:\nThis ${config.is_dynamic ? 'high-quality' : 'professional'} ${product_type} is engineered for ${config.is_dynamic ? 'daily use' : 'high-performance results'}.\n\n`;
+    const { product_type, category, extracted_attrs } = classification;
+    let output = `Product Overview:\nThis high-quality ${product_type} is engineered for daily use.\n\n`;
     
-    if (config.is_dynamic) {
-        const attrs = config.extracted_attrs;
-        const features = [];
-        if (attrs.material) features.push(`Made with durable ${attrs.material}`);
-        if (attrs.size) features.push(`Convenient size/capacity: ${attrs.size}`);
-        if (attrs.color) features.push(`Color profile: ${attrs.color}`);
-        if (attrs.usage) features.push(`Ideal for ${attrs.usage}`);
-        if (features.length === 0) features.push('Premium quality construction', 'Versatile design');
-        
-        output += `Key Features:\n- ${features.join('\n- ')}\n\n`;
-        output += `Ideal For:\nPerfect for daily use and various applications.\n\n`;
-    } else {
-        output += `Key Benefits:\n- ${classification.benefits.join('\n- ')}\n\n`;
-        output += `How to Use:\nApply to target area. Massage thoroughly. Rinse or remove as directed.\n\n`;
-    }
+    const features = [];
+    if (extracted_attrs.material) features.push(`Made with durable ${extracted_attrs.material}`);
+    if (extracted_attrs.size) features.push(`Convenient size/capacity: ${extracted_attrs.size}`);
+    if (extracted_attrs.color) features.push(`Color profile: ${extracted_attrs.color}`);
+    if (extracted_attrs.usage) features.push(`Ideal for ${extracted_attrs.usage}`);
+    if (features.length === 0) features.push('Premium quality construction', 'Versatile design');
     
+    output += `Key Features:\n- ${features.join('\n- ')}\n\n`;
+    output += `Ideal For:\nPerfect for daily use and various applications.\n\n`;
     output += `Specifications:\n- Type: ${product_type}\n- Category: ${category}`;
     return output;
 }
 
 /**
- * 6. RECOVERY SYSTEM (v16.0 Final Cleanup)
+ * 6. STRICT RECOVERY SYSTEM
  */
 function recoverSEO(output, classification) {
-    console.log("🚀 SEO FINAL CLEANUP RECOVERY (v16.0)");
-    const { product_type, config, primary_keyword } = classification;
-    const type = product_type.toLowerCase();
+    console.log("🚀 SEO STRICT MODE RECOVERY TRIGGERED");
+    const { product_type, original_title, primary_keyword, extracted_attrs } = classification;
+    const typeLower = product_type.toLowerCase();
+    const primaryLower = primary_keyword.toLowerCase();
 
-    // 1. Title Deduplication
-    output.titles = output.titles.map(t => ({
-        text: deduplicateWords(t.text),
-        score: t.score
-    }));
-
-    // 2. Tag Intent Check (70% Intent Rule)
-    const intentWords = [type, ...config.intent_keywords];
-    let intentCount = output.tags.filter(t => intentWords.some(iw => t.toLowerCase().includes(iw))).length;
+    // Fallback rule: Safe title = [Original Product Name] + key attributes
+    const keyAttr = [extracted_attrs.material, extracted_attrs.color, extracted_attrs.size].filter(Boolean).join(' ');
+    const safeTitle = `${original_title} ${keyAttr}`.substring(0, 80).trim();
     
-    if (intentCount / output.tags.length < 0.7 || output.tags.length < 5) {
-        output.tags = config.fallback_tags.map(t => t.toLowerCase());
-    }
+    output.titles = [{ text: safeTitle, score: 100 }];
 
-    // Filter vague/garbage tokens from tags
-    output.tags = output.tags.filter(t => {
-        const words = t.split(' ');
-        return !words.some(w => GARBAGE_TOKENS.has(w.toLowerCase()));
-    });
-
+    // Fallback tags: MUST include product_type
+    const fallbackTags = [
+        typeLower,
+        primaryLower,
+        `${keyAttr} ${typeLower}`,
+        `${primaryLower} ${typeLower}`,
+        `${extracted_attrs.material || 'quality'} ${typeLower}`
+    ].map(t => t.toLowerCase().trim()).filter(t => t.length > 0 && t !== ' ' && (t.includes(typeLower) || t.includes(primaryLower)));
+    
+    output.tags = fallbackTags.slice(0, 5);
     return output;
 }
 
 /**
- * 7. FINAL VALIDATION GATE (ZERO-BLOCK)
+ * 7. HARD VALIDATION GATE (CRITICAL)
  */
 function validateAndRecover(output, classification) {
-    const type = classification.product_type.toLowerCase();
-    const config = classification.config;
-    const intentKeywords = config.intent_keywords;
+    const typeLower = classification.product_type.toLowerCase();
+    const primaryLower = classification.primary_keyword.toLowerCase();
 
-    // 1. Strict Title Validation
-    const titlesValid = output.titles.every(t => {
+    // 1. Hard Validation: If generated_title does NOT include primary_keyword -> REJECT
+    const titlesValid = output.titles.length > 0 && output.titles.every(t => {
         const lower = t.text.toLowerCase();
-        const hasType = lower.includes(type);
-        const hasIntent = intentKeywords.some(ik => lower.includes(ik));
-        return hasType && hasIntent;
+        return lower.includes(primaryLower) || lower.includes(typeLower);
     });
 
-    // 2. Strict Tag Validation
-    const tagsValid = output.tags.every(tag => {
-        const words = tag.split(' ');
-        const isCorrectLength = words.length >= 2 && words.length <= 4;
-        const noGarbage = !words.some(w => GARBAGE_TOKENS.has(w.toLowerCase()));
-        const isLowercase = tag === tag.toLowerCase();
-        return isCorrectLength && noGarbage && isLowercase;
-    }) && output.tags.length >= 5;
+    // 2. Strict Tag Validation: ALL tags MUST include product_type keyword (or primary_keyword)
+    const tagsValid = output.tags.length > 0 && output.tags.every(tag => {
+        const lower = tag.toLowerCase();
+        return lower.includes(typeLower) || lower.includes(primaryLower);
+    });
+    
+    // 3. Keyword anchor enforcement: Ensure PRIMARY_KEYWORD appears in at least 2 tags
+    const primaryTagCount = output.tags.filter(t => t.toLowerCase().includes(primaryLower)).length;
 
-    if (!titlesValid || !tagsValid) {
-        console.warn("⚠️ SEO VALIDATION FAILED - TRIGGERING RECOVERY");
+    if (!titlesValid || !tagsValid || primaryTagCount < 2) {
+        console.warn("⚠️ STRICT SEO VALIDATION FAILED - TRIGGERING SAFE FALLBACK");
         return { 
             valid: true, 
             recovered: true, 

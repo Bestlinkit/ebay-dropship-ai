@@ -221,9 +221,9 @@ const EbayListingBuilder = () => {
         if (!categoryName) return;
         setIsOptimizing(true);
         try {
-            // NORMALIZE INPUTS (Requirement 3)
-            const inputTitle = typeof selectedTitle === 'string' ? selectedTitle : (cjProduct?.title || "");
-            const inputDesc = typeof description === 'string' ? description : (cjProduct?.description || "");
+            // ALWAYS USE RAW ORIGINAL PRODUCT TITLE (Requirement 8)
+            const inputTitle = cjProduct?.title || "";
+            const inputDesc = cjProduct?.description || "";
 
             const result = await optimizeListing({
                 title: inputTitle,
