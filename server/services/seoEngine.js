@@ -76,7 +76,22 @@ function classifyProduct(title, description) {
         .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !usages.has(w) && !materials.has(w) && !colors.has(w));
     
     // The pure core noun phrase is the product_type
-    const product_type = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ').replace(/\b(\w)\b/g, '').trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : safeTitle.substring(0, 30);
+    let product_type = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ') : "";
+
+    // BUG FIX: If product_type is empty because the noun was a material (e.g. "Glass"), use the material as product_type
+    if (!product_type) {
+        const materialWords = safeTitle.toLowerCase().split(' ').filter(w => materials.has(w));
+        if (materialWords.length > 0) product_type = materialWords[0];
+    }
+
+    // FINAL FALLBACK: If still empty, use the last non-garbage word
+    if (!product_type) {
+        const words = safeTitle.split(' ').filter(w => !GARBAGE_TOKENS.has(w.toLowerCase()));
+        product_type = words.length > 0 ? words[words.length - 1] : safeTitle.substring(0, 20);
+    }
+
+    // Capitalize
+    product_type = product_type.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').trim();
 
     // Extract Hard Attributes
     const attrs = extractHardAttributes(text);
@@ -148,11 +163,26 @@ function generatePremiumTitles(keywords, classification) {
     let template2 = `${additionalFeature || attrs.material || ''} ${coreProduct} ${attrs.color || ''} ${attrs.size || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' ');
     let template3 = `${attrs.material || ''} ${coreProduct} ${attrs.size || ''} ${keyFeature} ${useCaseStr}`.trim().replace(/\s+/g, ' ');
 
-    let templates = [template1, template2, template3].filter(t => t.length > 0);
-    
-    const primaryLower = primary_keyword.toLowerCase();
+    // DEFAULT PADDING: If title is too short, add descriptive synonyms to avoid fallback
+    const padTitles = (titles) => {
+        return titles.map(t => {
+            let padded = t;
+            if (padded.length < 50) {
+                const synonyms = ["Premium Quality", "Home Decor", "Kitchenware", "Tableware", "Office Essential", "Practical Design", "Durable Material"];
+                for (let syn of synonyms) {
+                    if (padded.length + syn.length + 3 <= 80 && !padded.toLowerCase().includes(syn.toLowerCase())) {
+                        padded += ` - ${syn}`;
+                    }
+                    if (padded.length >= 60) break;
+                }
+            }
+            return padded;
+        });
+    };
 
-    return templates.map((t, i) => {
+    let finalTemplates = padTitles([template1, template2, template3]).filter(t => t.length > 0);
+    
+    return finalTemplates.map((t, i) => {
         let text = deduplicateWords(t);
         text = text.substring(0, 80).trim();
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

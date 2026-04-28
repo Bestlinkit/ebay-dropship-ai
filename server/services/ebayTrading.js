@@ -247,7 +247,7 @@ class EbayTradingService {
         try {
             console.log("[eBay Auth] Fetching fresh App Token (Client Credentials)...");
             const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
-                'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/commerce.taxonomy.readonly',
+                'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
                 {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
