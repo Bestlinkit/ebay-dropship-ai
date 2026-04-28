@@ -93,8 +93,14 @@ class EbayTradingService {
      */
     async getBusinessPolicies() {
         console.log("[eBay Policies] Starting policy resolution...");
-        const token = await this.getAppToken();
-        if (!token) throw new Error("Authentication failed for policies");
+        
+        // IMPORTANT: Must use USER TOKEN for Account API, not App Token
+        const isOAuth = this.token && this.token.startsWith('v^1.1');
+        if (!isOAuth) {
+            throw new Error("Business Policies require an OAuth User Token. Please check your EBAY_USER_TOKEN.");
+        }
+
+        const token = this.token;
 
         try {
             const [fulfillRes, returnRes, paymentRes] = await Promise.all([
