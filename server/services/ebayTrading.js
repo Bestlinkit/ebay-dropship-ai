@@ -21,12 +21,18 @@ class EbayTradingService {
 
     constructor() {
         this.endpoint = 'https://api.ebay.com/ws/api.dll';
+        this.restBaseUrl = 'https://api.ebay.com';
         this.siteId = process.env.EBAY_SITE_ID || '0';
         this.compatibilityLevel = '1355';
         this.token = process.env.EBAY_USER_TOKEN || process.env.VITE_EBAY_USER_TOKEN;
         this.devName = process.env.EBAY_DEV_ID || process.env.VITE_EBAY_DEV_ID;
         this.appName = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
+
+        console.log("[eBay Service] Initialized");
+        console.log("[eBay Service] REST Base:", this.restBaseUrl);
+        console.log("[eBay Service] Trading Endpoint:", this.endpoint);
+        console.log("[eBay Service] Token Prefix:", this.token ? this.token.substring(0, 20) : "MISSING");
     }
 
     async callTradingAPI(callName, xmlBody, siteId = null) {
@@ -108,9 +114,9 @@ class EbayTradingService {
         try {
             console.log("[eBay Policies] Requesting Fulfillment, Return, and Payment policies...");
             const [fulfillRes, returnRes, paymentRes] = await Promise.all([
-                axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy', { headers: { 'Authorization': `Bearer ${token}` } }),
-                axios.get('https://api.ebay.com/sell/account/v1/return_policy', { headers: { 'Authorization': `Bearer ${token}` } }),
-                axios.get('https://api.ebay.com/sell/account/v1/payment_policy', { headers: { 'Authorization': `Bearer ${token}` } })
+                axios.get(`${this.restBaseUrl}/sell/account/v1/fulfillment_policy`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                axios.get(`${this.restBaseUrl}/sell/account/v1/return_policy`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                axios.get(`${this.restBaseUrl}/sell/account/v1/payment_policy`, { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
             // 🔍 Log raw response (Requirement: Log raw response)
