@@ -370,29 +370,30 @@ class EbayTradingService {
             treeId = await this.getCategoryTreeId();
         }
 
-        console.log(`[eBay Taxonomy] Fetching Subtree for Real Tree ${treeId}...`);
+        console.log(`[eBay Taxonomy] Fetching FULL Tree for ${treeId} to get Root Nodes...`);
         const token = await this.getAppToken();
         if (!token) return { treeId, children: [] };
 
         try {
             const response = await this.callWithRetry(async () => {
-                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=0`, {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
                     headers: { 
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 15000
+                    timeout: 25000 // Full tree can be large
                 });
             });
 
-            // 🛡️ Resilience: eBay sometimes wraps responses differently
-            const rootData = response.data;
-            const node = rootData.categorySubtreeNode || rootData.categoryTreeNode || rootData;
-            const children = node.children || node.childCategoryTreeNodes || [];
-            
-            console.log("ROOT CHILDREN COUNT:", children.length);
+            if (!response.data || !response.data.rootCategoryNode) {
+                console.error("[eBay Taxonomy] Full Tree Response missing rootCategoryNode");
+                return { treeId, children: [] };
+            }
 
-            const mappedChildren = children.map(c => ({
+            const rootChildren = response.data.rootCategoryNode.childCategoryTreeNodes || [];
+            console.log("ROOT COUNT:", rootChildren.length);
+
+            const mappedChildren = rootChildren.map(c => ({
                 id: c.category?.categoryId || c.categoryId,
                 categoryId: c.category?.categoryId || c.categoryId,
                 name: c.category?.categoryName || c.categoryName || "Unknown",
@@ -405,7 +406,10 @@ class EbayTradingService {
                 children: mappedChildren
             };
         } catch (err) {
-            console.error("[eBay Taxonomy] Root Load Failure:", err.response?.data || err.message);
+            if (err.response?.status === 401) {
+                console.error("[eBay Taxonomy] TOKEN EXPIRED (401)");
+            }
+            console.error("[eBay Taxonomy] Full Tree Root Load Failure:", err.response?.data || err.message);
             return { treeId, children: [] };
         }
     }
