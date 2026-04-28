@@ -219,12 +219,45 @@ router.get('/search', async (req, res) => {
 });
 
 /**
+ * 🏷️ CATEGORY SUGGESTIONS & ROOT (UNIFIED)
+ * GET /api/ebay/categories
+ */
+router.get('/categories', async (req, res) => {
+    try {
+        const { q, treeId } = req.query;
+        
+        // If query 'q' exists, it's a search
+        if (q) {
+            console.log(`[Route] Category Suggestions for: ${q}`);
+            const results = await ebayTrading.getCategorySuggestions(q);
+            return res.json(results);
+        }
+
+        // Otherwise, it's a root load
+        console.log("[Route] Loading Root Categories...");
+        const rootData = await ebayTrading.getTopCategories(treeId);
+        res.json(rootData);
+    } catch (err) {
+        const status = err.response?.status || 500;
+        const message = err.response?.data?.errors?.[0]?.message || err.message;
+        console.error(`[Route] Root Category API Fault (${status}):`, message);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+/**
  * 📂 GET CATEGORY DETAILS (ONE-WAY FLOW)
  */
 router.get('/categories/:id', async (req, res) => {
     try {
         const categoryId = req.params.id;
-        const treeId = req.query.treeId || "0";
+        const { treeId } = req.query;
+        
+        if (!treeId) {
+            console.error("[Route] Missing treeId for category detail lookup.");
+            return res.status(400).json({ success: false, error: "Missing treeId" });
+        }
+
         const cat = await ebayTrading.getCategory(categoryId, treeId);
         
         if (!cat) {
@@ -236,50 +269,20 @@ router.get('/categories/:id', async (req, res) => {
     } catch (err) {
         const status = err.response?.status || 500;
         const message = err.response?.data?.errors?.[0]?.message || err.message;
+        
+        if (status === 401) {
+            console.error("[Route] EBAY TOKEN EXPIRED OR INVALID (401)");
+            return res.status(401).json({ success: false, error: "Invalid or expired token" });
+        }
+
         console.error(`[Route] Category API Fault (${status}):`, message);
         res.status(status).json({ success: false, error: message });
     }
 });
 
-/**
- * 🏷️ CATEGORY SUGGESTIONS
- * GET /api/ebay/categories
- */
-router.get('/categories', async (req, res) => {
-    try {
-        const results = await ebayTrading.getCategorySuggestions(req.query.q);
-        res.json(results);
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
 // REMOVED: /policies (Account not opted in, legacy AddItem used instead)
 
-/**
- * 🌳 GET CATEGORY TREE ID
- */
-router.get('/category-tree', async (req, res) => {
-    try {
-        const treeId = await ebayTrading.getCategoryTreeId();
-        res.json(treeId);
-    } catch (err) {
-        res.json("0");
-    }
-});
 
-/**
- * 📂 GET TOP CATEGORIES
- */
-router.get('/categories-root', async (req, res) => {
-    try {
-        const treeId = req.query.treeId || "0";
-        const cats = await ebayTrading.getTopCategories(treeId);
-        res.json(cats);
-    } catch (err) {
-        res.json([]);
-    }
-});
 
 
 

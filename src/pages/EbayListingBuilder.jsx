@@ -161,28 +161,29 @@ const EbayListingBuilder = () => {
         try {
             // Check cache first
             if (categoryCache.current.has('root')) {
-                setCurrentLevelCategories(categoryCache.current.get('root'));
+                const cached = categoryCache.current.get('root');
+                setCurrentLevelCategories(cached.children);
+                setCategoryTreeId(cached.treeId);
                 setIsLoadingCategories(false);
                 return;
             }
 
-            const treeId = await ebayService.getCategoryTreeId();
-            setCategoryTreeId(treeId);
-
-            const root = await ebayService.getTopCategories(treeId);
+            const data = await ebayService.getTopCategories();
             
-            if (!root || root.length === 0) throw new Error("Empty root nodes");
+            if (!data.children || data.children.length === 0) {
+                console.error("[Category] Root categories empty — API failure");
+                return;
+            }
 
-            categoryCache.current.set('root', root);
-            setCurrentLevelCategories(root);
+            console.log("[Category] Root loaded successfully. Tree ID:", data.treeId);
+            setCategoryTreeId(data.treeId);
+            categoryCache.current.set('root', data);
+            setCurrentLevelCategories(data.children);
         } catch (err) {
             console.error("[Category] Root Load Error:", err);
             if (retryCount < 2) {
                 console.log(`[Category] Retrying root load (${retryCount + 1})...`);
                 setTimeout(() => loadInitialCategories(retryCount + 1), 1000);
-            } else if (categoryCache.current.has('root')) {
-                // Fallback to cache even if stale
-                setCurrentLevelCategories(categoryCache.current.get('root'));
             }
         } finally {
             setIsLoadingCategories(false);
@@ -192,22 +193,28 @@ const EbayListingBuilder = () => {
     const handleSelectCategory = async (cat, retryCount = 0) => {
         const MAX_RETRIES = 2;
         if (retryCount >= MAX_RETRIES) {
-            console.error("[Category] Max retries reached");
+            console.error("[Category] Max retries reached for:", cat.name);
             return;
         }
 
-        console.log("[Category] Selection Attempt:", cat.name, "ID:", cat.id);
+        console.log("[Category] Selection Attempt:", cat.name, "ID:", cat.id, "Tree:", categoryTreeId);
         setIsLoadingCategories(true);
 
         try {
             // ✅ Fetch Category Details (Including leaf status and children)
+            // Strictly use treeId as per Requirement 4
             const response = await fetch(`http://localhost:3001/api/ebay/categories/${cat.id}?treeId=${categoryTreeId}`);
-            const data = await response.json();
-
-            if (!data) {
-                console.error("[Category] No data returned for ID:", cat.id);
-                return;
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error("[Category] API Error:", response.status, errorData.error);
+                if (response.status === 401) {
+                    alert("eBay Token Expired. Please refresh or reconnect.");
+                }
+                throw new Error(errorData.error || "Failed to fetch category");
             }
+
+            const data = await response.json();
 
             const newPath = [...categoryPath, { id: data.id, name: data.name }];
             setCategoryPath(newPath);
@@ -235,9 +242,9 @@ const EbayListingBuilder = () => {
                 })));
             }
         } catch (err) {
-            console.error("[Category] Fetch failed:", err);
+            console.error("[Category] Fetch failed:", err.message);
             if (retryCount < MAX_RETRIES) {
-                console.log(`[Category] Retrying... (${retryCount + 1})`);
+                console.log(`[Category] Retrying selection... (${retryCount + 1})`);
                 setTimeout(() => handleSelectCategory(cat, retryCount + 1), 1000);
             }
         } finally {

@@ -142,25 +142,27 @@ class eBayService {
     return this.getCategorySuggestions(q).then(cats => cats.map(c => c.name));
   }
 
-  async getCategoryTreeId() {
+  async getTopCategories(treeId = null) {
     try {
-      const response = await axios.get(`${this.backendUrl}/api/ebay/category-tree`);
-      return response.data;
-    } catch (e) {
-      console.error("[Taxonomy] Tree ID Fetch Failed:", e.message);
-      return "0";
-    }
-  }
-
-  async getTopCategories(treeId = "0") {
-    try {
-      const response = await axios.get(`${this.backendUrl}/api/ebay/categories-root`, {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/categories`, {
         params: { treeId }
       });
+      // Response is { treeId, children }
       return response.data;
     } catch (e) {
       console.error("[Taxonomy] Root Categories Failed:", e.message);
-      return [];
+      return { treeId: "0", children: [] };
+    }
+  }
+
+  async getCategoryTreeId() {
+    // Tree ID is now usually returned by getTopCategories, 
+    // but keeping a fallback for standalone check
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/categories`);
+      return response.data.treeId || "0";
+    } catch (e) {
+      return "0";
     }
   }
 

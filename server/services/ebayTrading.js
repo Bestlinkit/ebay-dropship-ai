@@ -347,47 +347,63 @@ class EbayTradingService {
     }
 
     async getCategoryTreeId() {
+        console.log("[eBay Taxonomy] Fetching Default Tree ID...");
         const token = await this.getAppToken();
         if (!token) return "0";
         try {
             const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=EBAY_US', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            return response.data.categoryTreeId || "0";
+            const treeId = response.data.categoryTreeId || "0";
+            console.log("TREE ID:", treeId);
+            return treeId;
         } catch (e) {
             console.error("[eBay Taxonomy] Tree ID Fetch Failure:", e.response?.data || e.message);
             return "0";
         }
     }
 
-    async getTopCategories(treeId = "0") {
-        console.log(`[eBay Taxonomy] Fetching Top Categories for Tree ${treeId}...`);
+    async getTopCategories(providedTreeId = null) {
+        let treeId = providedTreeId;
+        if (!treeId || treeId === "0") {
+            treeId = await this.getCategoryTreeId();
+        }
+
+        console.log(`[eBay Taxonomy] Fetching Root Subtree for Tree ${treeId}...`);
         const token = await this.getAppToken();
-        if (!token) return [];
+        if (!token) return { treeId, children: [] };
 
         try {
             const response = await this.callWithRetry(async () => {
                 return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=0`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
                     timeout: 15000
                 });
             });
 
-            // The root call to get_category_subtree(0) returns the top level nodes in the 'children' array
-            // response.data IS the CategorySubtreeNode
-            const rootNode = response.data?.categorySubtreeNode || response.data;
+            const rootNode = response.data?.categorySubtreeNode || response.data?.categoryTreeNode || response.data;
             const children = rootNode?.children || rootNode?.childCategoryTreeNodes || [];
-            console.log(`[eBay Taxonomy] Found ${children.length} root categories.`);
             
-            return children.map(c => ({
+            console.log("ROOT CHILDREN COUNT:", children.length);
+
+            const mappedChildren = children.map(c => ({
                 id: c.category?.categoryId || c.categoryId,
-                name: c.category?.categoryName || c.categoryName,
+                categoryId: c.category?.categoryId || c.categoryId,
+                name: c.category?.categoryName || c.categoryName || "Unknown",
                 leafCategoryTreeNode: c.leafCategory || c.leafCategoryTreeNode || false,
                 children: c.children || c.childCategoryTreeNodes || []
             }));
+
+            return {
+                treeId: treeId,
+                children: mappedChildren
+            };
         } catch (err) {
-            console.warn("[eBay Taxonomy] REST Top Categories Failed. Falling back to Trading API...");
-            return this.getTopCategoriesTradingFallback();
+            console.error("[eBay Taxonomy] Root Category Failure:", err.response?.data || err.message);
+            return { treeId, children: [] };
         }
     }
 
