@@ -502,26 +502,39 @@ const seoEngine = require('./services/seoEngine');
 
 
 app.post('/api/ai/optimize', async (req, res) => {
-    console.log("SEO ENGINE v16.1 (CATEGORY-AWARE)");
+    console.log("\n🚀 SEO ENGINE v17.1 (STRICT EXECUTION ORDER)");
     const { title, description, category } = req.body;
 
     try {
-        // STEP 1: CLASSIFICATION (Priority: Forced Category > AI Guess)
-        const classification = seoEngine.classifyProduct(title, description, category);
+        // STEP 1: LOCK PRODUCT IDENTITY FIRST (BEFORE SEO)
+        const original_title = title || "";
+        let locked_product_type;
         
-        // STEP 2: EXTRACTION
-        const keywords = seoEngine.extractKeywords(title, description);
-        
-        // STEP 3 & 4: GENERATION
-        let finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
-        
-        // STEP 6: DESCRIPTION
-        const cleanDesc = seoEngine.generateDescription(description, classification, keywords);
+        if (category) {
+            locked_product_type = category.split('>').pop().trim();
+        } else {
+            locked_product_type = original_title.split(' ').slice(0, 4).join(' '); // Safe fallback to start of title
+        }
 
-        // STEP 7: TAGS
+        console.log("--- SEO DEBUG LOG ---");
+        console.log("1. Original Title:", original_title);
+        console.log("2. Detected Product Type:", locked_product_type);
+
+        // STEP 2: PASS LOCKED IDENTITY TO ENGINE
+        const classification = seoEngine.classifyProduct(title, description, category, locked_product_type);
+        
+        // STEP 4: VALIDATE AT ENTRY POINT
+        if (classification.product_type.toLowerCase() !== locked_product_type.toLowerCase()) {
+            console.error(`🛑 REJECTED: Engine attempted to mutate identity from [${locked_product_type}] to [${classification.product_type}]`);
+            throw new Error("Product Identity Mutation Blocked");
+        }
+        
+        const keywords = seoEngine.extractKeywords(title, description);
+        let finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
+        const cleanDesc = seoEngine.generateDescription(description, classification);
         let tags = seoEngine.generateTags(keywords, classification);
 
-        // STEP 8: ZERO-BLOCK RECOVERY GATE (v14.0)
+        // FINAL VALIDATION GATE
         const gate = seoEngine.validateAndRecover({
             titles: finalTitles,
             tags: tags
@@ -529,14 +542,28 @@ app.post('/api/ai/optimize', async (req, res) => {
 
         const finalOutput = gate.data;
 
+        // STEP 5: HARD FAILSAFE (FINAL GUARD)
+        // If the best title does not contain the locked_product_type, force fallback
+        let safeTitles = finalOutput.titles;
+        const bestTitle = safeTitles[0].text.toLowerCase();
+        
+        if (!bestTitle.includes(locked_product_type.toLowerCase()) && !bestTitle.includes(classification.primary_keyword.toLowerCase())) {
+            console.warn(`🛑 HARD FAILSAFE TRIGGERED: Final title [${safeTitles[0].text}] missing locked product type.`);
+            const keyAttr = [classification.extracted_attrs.material, classification.extracted_attrs.color, classification.extracted_attrs.size].filter(Boolean).join(' ');
+            safeTitles = [{ text: `${original_title} ${keyAttr}`.substring(0, 80).trim(), score: 100 }];
+        }
+
+        console.log("3. Final Generated Title:", safeTitles[0].text);
+        console.log("---------------------\n");
+
         return res.json({
             success: true,
             data: {
                 category: { id: "0", name: classification.category },
-                titles: finalOutput.titles,
+                titles: safeTitles,
                 tags: finalOutput.tags,
                 description: cleanDesc,
-                recovered: gate.recovered
+                recovered: gate.recovered || (!bestTitle.includes(locked_product_type.toLowerCase()) && !bestTitle.includes(classification.primary_keyword.toLowerCase()))
             }
         });
     } catch (err) {

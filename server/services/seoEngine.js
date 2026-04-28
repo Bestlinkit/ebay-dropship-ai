@@ -54,7 +54,7 @@ function extractHardAttributes(text) {
 /**
  * 1. STRICT PRODUCT CLASSIFICATION
  */
-function classifyProduct(title, description, forcedCategoryName = null) {
+function classifyProduct(title, description, forcedCategoryName = null, locked_product_type = null) {
     const safeTitle = typeof title === 'string' ? title : String(title || "");
     const safeDescription = typeof description === 'string' ? description : String(description || "");
     const safeForced = typeof forcedCategoryName === 'string' ? forcedCategoryName : null;
@@ -68,13 +68,15 @@ function classifyProduct(title, description, forcedCategoryName = null) {
     const primaryKeyword = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ') : safeTitle.substring(0, 30);
         
     // Lock product identity (IMMUTABLE)
-    let product_type;
-    if (safeForced) {
-        // Use eBay category as the ONLY source of truth
-        product_type = safeForced.split('>').pop().trim();
-    } else {
-        // Safe fallback rule: If product_type cannot be determined -> use original product title
-        product_type = primaryKeyword;
+    let product_type = locked_product_type;
+    
+    // Safety fallback just in case it wasn't passed
+    if (!product_type) {
+        if (safeForced) {
+            product_type = safeForced.split('>').pop().trim();
+        } else {
+            product_type = primaryKeyword;
+        }
     }
 
     // Extract Hard Attributes
