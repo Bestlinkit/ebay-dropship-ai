@@ -58,11 +58,16 @@ router.post('/list', async (req, res) => {
             });
         }
     } catch (err) {
-        console.error("LISTING ERROR:", err);
-        res.status(500).json({
-            success: false,
-            error: err.message,
-            stack: err.stack
+        console.error("FULL EBAY ERROR:", {
+            status: err.response?.status,
+            data: err.response?.data,
+            headers: err.response?.headers
+        });
+        
+        return res.status(err.response?.status || 500).json({
+            error: "EBAY_API_ERROR",
+            details: err.response?.data || err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     }
 });
