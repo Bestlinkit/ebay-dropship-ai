@@ -73,6 +73,7 @@ const EbayListingBuilder = () => {
     const [policyError, setPolicyError] = useState(null);
 
     // 🏷️ ITEM SPECIFICS STATE (TAB 5)
+    const [aspects, setAspects] = useState([]);
     const [attributeValues, setAttributeValues] = useState({});
     const [isLoadingAspects, setIsLoadingAspects] = useState(false);
     const [manualCategoryId, setManualCategoryId] = useState("");
@@ -272,10 +273,22 @@ const EbayListingBuilder = () => {
 
     // --- ITEM ASPECTS LOGIC ---
     const loadItemAspects = async (categoryId) => {
+        if (typeof setAspects !== "function") {
+            console.error("[Aspects] setAspects is undefined. State recovery failed.");
+            return;
+        }
+
         setIsLoadingAspects(true);
         try {
+            console.log(`[Aspects] Loading for Category: ${categoryId}`);
             const data = await ebayService.getItemAspects(categoryId);
             
+            if (!data || !Array.isArray(data)) {
+                console.warn("[Aspects] Received empty or invalid data from API.");
+                setAspects([]);
+                return;
+            }
+
             // 🛡️ Filter out Size/Color if variants exist (Conflict Prevention)
             const hasVariants = variants.length > 0;
             const filteredData = hasVariants 
@@ -293,7 +306,8 @@ const EbayListingBuilder = () => {
             });
             setAttributeValues(initialValues);
         } catch (err) {
-            console.error("Aspect Load Fault:", err);
+            console.error("[Aspects] Load Fault:", err);
+            setAspects([]);
         } finally {
             setIsLoadingAspects(false);
         }
