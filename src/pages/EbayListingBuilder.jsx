@@ -73,9 +73,9 @@ const EbayListingBuilder = () => {
     const [policyError, setPolicyError] = useState(null);
 
     // 🏷️ ITEM SPECIFICS STATE (TAB 5)
-    const [aspects, setAspects] = useState([]);
     const [attributeValues, setAttributeValues] = useState({});
     const [isLoadingAspects, setIsLoadingAspects] = useState(false);
+    const [manualCategoryId, setManualCategoryId] = useState("");
     const [pushError, setPushError] = useState(null);
     const [isPushing, setIsPushing] = useState(false);
     const [pushSuccess, setPushSuccess] = useState(false);
@@ -197,8 +197,7 @@ const EbayListingBuilder = () => {
     const handleSelectCategory = async (cat, retryCount = 0) => {
         console.log("[Category] User Selected:", cat.name, "ID:", cat.id);
         
-        // 🛡️ NO LONGER RESETTING PRODUCT STATE (Manual Persistence Requirement)
-        // Attribute values and aspects still reset to ensure taxonomy alignment
+        // 🛡️ RESET STATE ON CATEGORY CHANGE
         setAttributeValues({});
         setAspects([]);
         setIsLeafSelected(false);
@@ -211,31 +210,43 @@ const EbayListingBuilder = () => {
             setIsLeafSelected(true);
             setCurrentLevelCategories([]);
             loadItemAspects(cat.id);
-            // ❌ handleRegenerateContent REMOVED (Manual Only Requirement)
         } else {
             setIsLoadingCategories(true);
             try {
                 // Check cache first
                 const cacheKey = `sub_${cat.id}`;
                 if (categoryCache.current.has(cacheKey)) {
-                    setCurrentLevelCategories(categoryCache.current.get(cacheKey));
+                    const cached = categoryCache.current.get(cacheKey);
+                    console.log("[Category] Using Cached Subs:", cached.length);
+                    setCurrentLevelCategories(cached);
                     setIsLoadingCategories(false);
                     return;
                 }
 
+                console.log("[Category] Fetching Subs from API...");
                 const subs = await ebayService.getSubCategories(cat.id, categoryTreeId);
                 
-                if (!subs || subs.length === 0) throw new Error("Empty sub-categories");
-
-                categoryCache.current.set(cacheKey, subs);
-                setCurrentLevelCategories(subs);
+                console.log("[Category] API Response Received. Count:", subs?.length || 0);
+                
+                if (!subs || subs.length === 0) {
+                    console.warn("[Category] Received EMPTY sub-categories for parent:", cat.id);
+                    // 🚨 NO LONGER THROWING ERROR - Prevent Infinite Loop
+                    // Instead, we treat this node as a leaf if no children are found
+                    setIsLeafSelected(true);
+                    setCurrentLevelCategories([]);
+                    loadItemAspects(cat.id);
+                } else {
+                    categoryCache.current.set(cacheKey, subs);
+                    setCurrentLevelCategories(subs);
+                }
             } catch (err) {
                 console.error("[Category] Sub-node Load Error:", err);
-                if (retryCount < 2) {
-                    console.log(`[Category] Retrying sub-category load (${retryCount + 1})...`);
+                // 🚨 MAX RETRY = 1 (Requirement)
+                if (retryCount < 1) {
+                    console.log(`[Category] Retrying sub-category load (Attempt 2)...`);
                     setTimeout(() => handleSelectCategory(cat, retryCount + 1), 1000);
                 } else {
-                    // Fail gracefully - don't block the UI
+                    console.error("[Category] Taxonomy failed after retry. Enabling manual fallback.");
                     setIsLoadingCategories(false);
                 }
             } finally {
@@ -866,8 +877,9 @@ const EbayListingBuilder = () => {
                                         <div className="flex flex-wrap items-center gap-3">
                                             {categoryPath.map((cat, i) => (
                                                 <React.Fragment key={cat.id}>
-                                                    <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-900 shadow-sm">
-                                                        {cat.name}
+                                                    <div className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-900 shadow-sm flex items-center gap-2">
+                                                        <span>{cat.name}</span>
+                                                        <span className="text-[9px] text-slate-400">({cat.id})</span>
                                                     </div>
                                                     {i < categoryPath.length - 1 && <ArrowRight size={12} className="text-slate-300" />}
                                                 </React.Fragment>
@@ -876,7 +888,7 @@ const EbayListingBuilder = () => {
                                     )}
 
                                     {/* Category Grid */}
-                                    {!isLeafSelected && (
+                                    {!isLeafSelected && currentLevelCategories.length > 0 && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                                             {isLoadingCategories ? (
                                                 Array(6).fill(0).map((_, i) => <div key={i} className="h-12 bg-white animate-pulse rounded-xl" />)
@@ -895,12 +907,44 @@ const EbayListingBuilder = () => {
                                         </div>
                                     )}
 
+                                    {/* MANUAL CATEGORY FALLBACK (Requirement 4) */}
+                                    {!isLeafSelected && !isLoadingCategories && currentLevelCategories.length === 0 && (
+                                        <div className="p-8 bg-rose-50 border border-rose-100 rounded-[2rem] space-y-6">
+                                            <div className="flex items-center gap-4 text-rose-600">
+                                                <AlertCircle size={24} />
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-black uppercase">Taxonomy Navigation Halt</p>
+                                                    <p className="text-xs font-medium text-rose-500">eBay returned no sub-categories for this path. You can manually enter the target Category ID below to proceed.</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-4">
+                                                <input 
+                                                    type="text"
+                                                    value={manualCategoryId}
+                                                    onChange={(e) => setManualCategoryId(e.target.value)}
+                                                    placeholder="Enter eBay Category ID..."
+                                                    className="flex-1 bg-white border-2 border-rose-100 rounded-xl px-6 py-4 text-sm font-bold outline-none focus:border-rose-400"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        if (manualCategoryId) {
+                                                            handleSelectCategory({ id: manualCategoryId, name: `Manual Input`, isLeaf: true });
+                                                        }
+                                                    }}
+                                                    className="px-10 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg"
+                                                >
+                                                    Inject ID
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {isLeafSelected && (
                                         <div className="flex items-center gap-4 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl">
                                             <CheckCircle2 size={20} className="text-emerald-500" />
                                             <div>
-                                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Leaf Node Selected</p>
-                                                <p className="text-xs font-bold text-emerald-900">ID: {categoryPath[categoryPath.length-1].id}</p>
+                                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Category Locked & Ready</p>
+                                                <p className="text-xs font-bold text-emerald-900">Final ID: {categoryPath[categoryPath.length-1].id}</p>
                                             </div>
                                         </div>
                                     )}

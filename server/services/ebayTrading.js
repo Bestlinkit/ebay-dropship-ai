@@ -360,39 +360,54 @@ class EbayTradingService {
         }
     }
 
-    async getTopCategories(treeId) {
-        // Since REST Taxonomy API is timing out (504), we fallback to Trading API GetCategories
-        console.log(`[eBay Trading] Fetching Top Categories via GetCategories (Trading API)...`);
-        
+    async getTopCategories(treeId = "0") {
+        console.log(`[eBay Taxonomy] Fetching Top Categories for Tree ${treeId}...`);
+        const token = await this.getAppToken();
+        if (!token) return [];
+
+        try {
+            const response = await this.callWithRetry(async () => {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=0`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    timeout: 15000
+                });
+            });
+
+            // The root call to get_category_subtree(0) returns the top level nodes in the 'children' array
+            const children = response.data?.categorySubtreeNode?.children || [];
+            console.log(`[eBay Taxonomy] Found ${children.length} root categories.`);
+            
+            return children.map(c => ({
+                id: c.category.categoryId,
+                name: c.category.categoryName,
+                isLeaf: c.leafCategory || false
+            }));
+        } catch (err) {
+            console.warn("[eBay Taxonomy] REST Top Categories Failed. Falling back to Trading API...");
+            return this.getTopCategoriesTradingFallback();
+        }
+    }
+
+    async getTopCategoriesTradingFallback() {
         const xmlBody = `
             <CategorySiteID>0</CategorySiteID>
-            <DetailLevel>ReturnAll</DetailLevel>
+            <DetailLevel>ReturnAll</LevelLimit>
             <LevelLimit>1</LevelLimit>
         `;
-        
         try {
             const response = await this.callTradingAPI('GetCategories', xmlBody);
-            
-            // Robust regex parsing for XML response (Non-greedy with optional tags)
             const categories = [];
             const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>([\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
-            
             let match;
             while ((match = regex.exec(response)) !== null) {
                 const id = match[1];
                 const name = match[2].replace(/&amp;/g, '&');
                 const isLeaf = match[4] === "true";
-                
-                // Skip root or redundant nodes
-                if (id === "0" || name.toLowerCase().includes("root")) continue;
-                
+                if (id === "0") continue;
                 categories.push({ id, name, isLeaf });
             }
-            
-            console.log(`[eBay Trading] Found ${categories.length} categories via Trading API.`);
             return categories;
         } catch (e) {
-            console.error("[eBay Trading] GetCategories Failure:", e.message);
             return [];
         }
     }
@@ -417,37 +432,59 @@ class EbayTradingService {
         }
     }
 
-    async getSubCategories(parentId, treeId) {
-        console.log(`[eBay Trading] Fetching Sub-Categories for Parent ${parentId} (Trading API)...`);
-        
+    async getSubCategories(parentId, treeId = "0") {
+        console.log(`[eBay Taxonomy] Fetching Sub-Categories for Parent ${parentId}...`);
+        const token = await this.getAppToken();
+        if (!token) return [];
+
+        try {
+            const response = await this.callWithRetry(async () => {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${parentId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    timeout: 15000
+                });
+            });
+
+            // Log raw response for debugging (Requirement 1)
+            console.log("[eBay Taxonomy] Raw Response for Parent", parentId, ":", JSON.stringify(response.data).substring(0, 500) + "...");
+
+            const children = response.data?.categorySubtreeNode?.children || [];
+            
+            if (children.length === 0) {
+                console.warn(`[eBay Taxonomy] Node ${parentId} returned 0 children.`);
+            }
+
+            return children.map(c => ({
+                id: c.category.categoryId,
+                name: c.category.categoryName,
+                isLeaf: c.leafCategory || false
+            }));
+        } catch (err) {
+            console.warn("[eBay Taxonomy] REST Sub-Categories Failed. Falling back to Trading API...");
+            return this.getSubCategoriesTradingFallback(parentId);
+        }
+    }
+
+    async getSubCategoriesTradingFallback(parentId) {
         const xmlBody = `
             <CategoryParent>${parentId}</CategoryParent>
             <DetailLevel>ReturnAll</DetailLevel>
             <LevelLimit>2</LevelLimit>
         `;
-        
         try {
             const response = await this.callTradingAPI('GetCategories', xmlBody);
             const categories = [];
-            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>([\s\S]*?<CategoryLevel>(\d+)<\/CategoryLevel>)?([\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
-            
+            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>([\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
             let match;
             while ((match = regex.exec(response)) !== null) {
                 const id = match[1];
                 const name = match[2].replace(/&amp;/g, '&');
-                // const level = match[4];
-                const isLeaf = match[6] === "true";
-
-                // Skip the parent node itself
+                const isLeaf = match[4] === "true";
                 if (id === parentId) continue;
-                
                 categories.push({ id, name, isLeaf });
             }
-            
-            console.log(`[eBay Trading] Found ${categories.length} sub-categories via Trading API.`);
             return categories;
         } catch (e) {
-            console.error("[eBay Trading] GetSubCategories Failure:", e.message);
             return [];
         }
     }
