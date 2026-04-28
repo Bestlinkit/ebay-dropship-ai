@@ -259,6 +259,20 @@ router.get('/categories-root', async (req, res) => {
 });
 
 /**
+ * 📂 GET CATEGORY DETAILS (ONE-WAY FLOW)
+ */
+router.get('/categories/:id', async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+        const treeId = req.query.treeId || "0";
+        const cat = await ebayTrading.getCategory(categoryId, treeId);
+        res.json(cat);
+    } catch (err) {
+        res.status(404).json({ success: false, error: "Category not found" });
+    }
+});
+
+/**
  * 📂 GET SUB-CATEGORIES
  */
 router.get('/categories-sub/:id', async (req, res) => {

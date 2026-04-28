@@ -39,7 +39,7 @@ const EbayListingBuilder = () => {
         { id: 1, name: "Title & Description", icon: <Sparkles size={18} /> },
         { id: 2, name: "Pricing & Variants", icon: <DollarSign size={18} /> },
         { id: 3, name: "Images", icon: <ImageIcon size={18} /> },
-        { id: 4, name: "Category & Policies", icon: <ShieldCheck size={18} /> },
+        { id: 4, name: "Category", icon: <ShieldCheck size={18} /> },
         { id: 5, name: "Review & Publish", icon: <Send size={18} /> },
     ];
 
@@ -60,17 +60,7 @@ const EbayListingBuilder = () => {
     const [availableImages, setAvailableImages] = useState([]);
     const [selectedImages, setSelectedImages] = useState([]);
     
-    // 📂 CATEGORY & POLICIES STATE (TAB 4)
-    const [categoryPath, setCategoryPath] = useState([]); // Array of {id, name}
-    const [categoryTreeId, setCategoryTreeId] = useState("0");
-    const [currentLevelCategories, setCurrentLevelCategories] = useState([]);
-    const [isLeafSelected, setIsLeafSelected] = useState(false);
     const [isLoadingCategories, setIsLoadingCategories] = useState(false);
-    
-    const [policies, setPolicies] = useState({ fulfillment: [], payment: [], return: [] });
-    const [selectedPolicies, setSelectedPolicies] = useState({ fulfillment: "", payment: "", return: "" });
-    const [isLoadingPolicies, setIsLoadingPolicies] = useState(false);
-    const [policyError, setPolicyError] = useState(null);
 
     // 🏷️ ITEM SPECIFICS STATE (TAB 5)
     const [aspects, setAspects] = useState([]);
@@ -81,8 +71,12 @@ const EbayListingBuilder = () => {
     const [isPushing, setIsPushing] = useState(false);
     const [pushSuccess, setPushSuccess] = useState(false);
 
-    // 🛡️ POLICY HELPERS
-    const arePoliciesEmpty = policies.fulfillment.length === 0 && policies.payment.length === 0 && policies.return.length === 0;
+    // 📂 CATEGORY STATE (ONE-WAY FLOW)
+    const [categoryPath, setCategoryPath] = useState([]);
+    const [categoryTreeId, setCategoryTreeId] = useState("0");
+    const [currentLevelCategories, setCurrentLevelCategories] = useState([]);
+    const [isLeafSelected, setIsLeafSelected] = useState(false);
+    const [selectedCategoryId, setSelectedCategoryId] = useState("");
 
     // Initialize Variants from CJ Product
     useEffect(() => {
@@ -196,63 +190,58 @@ const EbayListingBuilder = () => {
     };
 
     const handleSelectCategory = async (cat, retryCount = 0) => {
-        console.log("[Category] User Selected:", cat.name, "ID:", cat.id);
-        
-        // 🛡️ RESET STATE ON CATEGORY CHANGE
-        setAttributeValues({});
-        setAspects([]);
-        setIsLeafSelected(false);
+        const MAX_RETRIES = 2;
+        if (retryCount >= MAX_RETRIES) {
+            console.error("[Category] Max retries reached");
+            return;
+        }
 
-        const newPath = [...categoryPath, cat];
-        setCategoryPath(newPath);
-        
-        if (cat.isLeaf) {
-            console.log("[Category] Leaf reached. Selection complete.");
-            setIsLeafSelected(true);
-            setCurrentLevelCategories([]);
-            loadItemAspects(cat.id);
-        } else {
-            setIsLoadingCategories(true);
-            try {
-                // Check cache first
-                const cacheKey = `sub_${cat.id}`;
-                if (categoryCache.current.has(cacheKey)) {
-                    const cached = categoryCache.current.get(cacheKey);
-                    console.log("[Category] Using Cached Subs:", cached.length);
-                    setCurrentLevelCategories(cached);
-                    setIsLoadingCategories(false);
+        console.log("[Category] Selection Attempt:", cat.name, "ID:", cat.id);
+        setIsLoadingCategories(true);
+
+        try {
+            // ✅ Fetch Category Details (Including leaf status and children)
+            const response = await fetch(`http://localhost:3001/api/ebay/categories/${cat.id}?treeId=${categoryTreeId}`);
+            const data = await response.json();
+
+            if (!data) {
+                console.error("[Category] No data returned for ID:", cat.id);
+                return;
+            }
+
+            const newPath = [...categoryPath, { id: data.id, name: data.name }];
+            setCategoryPath(newPath);
+
+            // ✅ ONLY trust the eBay leafCategoryTreeNode flag
+            if (data.leafCategoryTreeNode === true) {
+                console.log("[Category] Verified LEAF node reached.");
+                setIsLeafSelected(true);
+                setSelectedCategoryId(data.id);
+                setCurrentLevelCategories([]);
+                loadItemAspects(data.id);
+            } else {
+                console.log("[Category] Internal node. Children count:", data.children?.length || 0);
+                
+                if (!data.children || data.children.length === 0) {
+                    console.warn("[Category] Empty children — NOT a leaf node. Blocking navigation.");
                     return;
                 }
 
-                console.log("[Category] Fetching Subs from API...");
-                const subs = await ebayService.getSubCategories(cat.id, categoryTreeId);
-                
-                console.log("[Category] API Response Received. Count:", subs?.length || 0);
-                
-                if (!subs || subs.length === 0) {
-                    console.warn("[Category] Received EMPTY sub-categories for parent:", cat.id);
-                    // 🚨 NO LONGER THROWING ERROR - Prevent Infinite Loop
-                    // Instead, we treat this node as a leaf if no children are found
-                    setIsLeafSelected(true);
-                    setCurrentLevelCategories([]);
-                    loadItemAspects(cat.id);
-                } else {
-                    categoryCache.current.set(cacheKey, subs);
-                    setCurrentLevelCategories(subs);
-                }
-            } catch (err) {
-                console.error("[Category] Sub-node Load Error:", err);
-                // 🚨 MAX RETRY = 1 (Requirement)
-                if (retryCount < 1) {
-                    console.log(`[Category] Retrying sub-category load (Attempt 2)...`);
-                    setTimeout(() => handleSelectCategory(cat, retryCount + 1), 1000);
-                } else {
-                    console.error("[Category] Taxonomy failed after retry. Enabling manual fallback.");
-                    setIsLoadingCategories(false);
-                }
-            } finally {
-                setIsLoadingCategories(false);
+                setIsLeafSelected(false);
+                setCurrentLevelCategories(data.children.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    leafCategoryTreeNode: c.leafCategoryTreeNode
+                })));
             }
+        } catch (err) {
+            console.error("[Category] Fetch failed:", err);
+            if (retryCount < MAX_RETRIES) {
+                console.log(`[Category] Retrying... (${retryCount + 1})`);
+                setTimeout(() => handleSelectCategory(cat, retryCount + 1), 1000);
+            }
+        } finally {
+            setIsLoadingCategories(false);
         }
     };
 
@@ -274,39 +263,38 @@ const EbayListingBuilder = () => {
     // --- ITEM ASPECTS LOGIC ---
     const loadItemAspects = async (categoryId) => {
         if (typeof setAspects !== "function") {
-            console.error("[Aspects] setAspects is undefined. State recovery failed.");
+            console.error("[Aspects] setAspects is undefined.");
             return;
         }
 
         setIsLoadingAspects(true);
         try {
-            console.log(`[Aspects] Loading for Category: ${categoryId}`);
+            console.log(`[Aspects] Loading ONLY on leaf: ${categoryId}`);
             const data = await ebayService.getItemAspects(categoryId);
             
-            if (!data || !Array.isArray(data)) {
-                console.warn("[Aspects] Received empty or invalid data from API.");
+            if (Array.isArray(data)) {
+                // 🛡️ Filter out Size/Color if variants exist (Conflict Prevention)
+                const hasVariants = variants.length > 0;
+                const filteredData = hasVariants 
+                    ? data.filter(a => !['Size', 'Color'].includes(a.name))
+                    : data;
+
+                setAspects(filteredData);
+                
+                // Initialize required aspects
+                const initialValues = {};
+                filteredData.forEach(aspect => {
+                    if (aspect.required && aspect.values?.length > 0) {
+                        initialValues[aspect.name] = aspect.values[0];
+                    }
+                });
+                setAttributeValues(initialValues);
+            } else {
+                console.warn("[Aspects] Invalid format received from API.");
                 setAspects([]);
-                return;
             }
-
-            // 🛡️ Filter out Size/Color if variants exist (Conflict Prevention)
-            const hasVariants = variants.length > 0;
-            const filteredData = hasVariants 
-                ? data.filter(a => !['Size', 'Color'].includes(a.name))
-                : data;
-
-            setAspects(filteredData);
-            
-            // Initialize required aspects
-            const initialValues = {};
-            filteredData.forEach(aspect => {
-                if (aspect.required && aspect.values?.length > 0) {
-                    initialValues[aspect.name] = aspect.values[0];
-                }
-            });
-            setAttributeValues(initialValues);
         } catch (err) {
-            console.error("[Aspects] Load Fault:", err);
+            console.error("[Aspects] Failed to load aspects:", err);
             setAspects([]);
         } finally {
             setIsLoadingAspects(false);
@@ -321,134 +309,67 @@ const EbayListingBuilder = () => {
         setPushError(null);
         setIsPushing(true);
 
-        // --- 🛡️ PRE-SUBMIT VALIDATION LAYER ---
-        const validations = [
-            { check: !isLeafSelected, msg: "Category not fully selected." },
-            { check: !selectedTitle, msg: "Title is missing." },
-            { check: variants.length === 0, msg: "No variants defined." },
-            { check: variants.some(v => v.ebay_price <= 0), msg: "Price must be greater than zero." },
-            { check: variants.some(v => v.inventory <= 0), msg: "Quantity must be greater than zero." },
-            { check: selectedImages.length === 0, msg: "At least one image is required." }
-        ];
-
-        // Check required aspects
-        aspects.filter(a => a.required).forEach(a => {
-            if (!attributeValues[a.name]) {
-                validations.push({ check: true, msg: `Missing required aspect: ${a.name}` });
+        try {
+            // 🔴 7. VALIDATION BEFORE SUBMIT
+            if (!selectedCategoryId) throw new Error("Missing category selection. Please drill down to a leaf category.");
+            if (!selectedTitle || selectedTitle.length < 10) throw new Error("Invalid title. Must be at least 10 characters.");
+            if (!variants || variants.length === 0 || !variants[0].ebay_price || variants[0].ebay_price <= 0) {
+                throw new Error("Invalid price or missing variants.");
             }
-        });
+            if (!selectedImages || selectedImages.length === 0) throw new Error("Missing images. Please select at least one image.");
 
-        const error = validations.find(v => v.check);
-        if (error) {
-            setPushError(`Validation Blocked: ${error.msg}`);
-            setIsPushing(false);
-            return;
-        }
+            // Prepare Item Specifics (Aspects)
+            const validAspectNames = aspects.map(a => a.name);
+            const nameValueList = Object.entries(attributeValues)
+                .filter(([name, value]) => validAspectNames.includes(name) && value && String(value).trim() !== "")
+                .map(([name, value]) => ({
+                    name: name,
+                    value: [String(value)]
+                }));
 
-        const leafCategory = categoryPath[categoryPath.length - 1];
+            // Force Brand to Unbranded if missing
+            if (!attributeValues["Brand"]) {
+                nameValueList.push({ name: "Brand", value: ["Unbranded"] });
+            }
 
-        // --- CONSISTENCY ENFORCEMENT & T-SHIRT REPLACEMENT ---
-        // 🛡️ STRICT TYPE GUARDS (Requirement 1)
-        let cleanTitle = typeof selectedTitle === 'string' ? selectedTitle : String(selectedTitle || "");
-        let cleanDescription = typeof description === 'string' ? description : String(description || "");
+            // 🔴 6. FINAL PAYLOAD (CLEAN + VALID)
+            const payload = {
+                title: selectedTitle,
+                description: description,
+                categoryId: selectedCategoryId,
+                price: variants[0].ebay_price,
+                quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
+                images: selectedImages,
+                itemSpecifics: { nameValueList },
+                variants: variants.map(v => {
+                    const parts = v.name.split('-').map(p => p.trim());
+                    const specifics = [];
+                    // Simple heuristic for variants if they follow "Color - Size" pattern
+                    if (parts[0]) specifics.push({ name: "Color", value: parts[0] });
+                    if (parts[1]) specifics.push({ name: "Size", value: parts[1] });
+                    
+                    return {
+                        name: v.name,
+                        sku: v.sku,
+                        price: v.ebay_price,
+                        inventory: v.inventory,
+                        specifics: specifics
+                    };
+                })
+            };
 
-        // 🛡️ DEFENSIVE FALLBACK (Requirement 4)
-        try {
-            cleanTitle = cleanTitle.replace(/T-Shirt/gi, "Polo Shirt");
-            cleanDescription = cleanDescription.replace(/T-Shirt/gi, "Polo Shirt");
-        } catch (e) {
-            console.error("[Normalizer] String operation failed, skipping T-Shirt replacement:", e.message);
-        }
-
-        // --- VARIATION DATA PREPARATION ---
-        const variantSizes = [];
-        const variantColors = [];
-        
-        variants.forEach(v => {
-            const parts = v.name.split('-').map(p => p.trim());
-            if (parts.length >= 1) variantColors.push(parts[0]);
-            if (parts.length >= 2) variantSizes.push(parts[1]);
-        });
-
-        const uniqueSizes = [...new Set(variantSizes)].filter(Boolean);
-        const uniqueColors = [...new Set(variantColors)].filter(Boolean);
-
-        // --- ITEM SPECIFICS & VARIATION SEPARATION ---
-        const finalAttributeValues = { ...attributeValues };
-
-        // 1. HARD BLOCK "Type"
-        delete finalAttributeValues["Type"];
-        delete finalAttributeValues["type"];
-
-        // 2. FORCE "Size Type" to "Regular" (Taxonomy compliant)
-        finalAttributeValues["Size Type"] = "Regular";
-
-        // 3. SEPARATION RULE: If variants exist, REMOVE Size/Color from itemSpecifics
-        const hasVariants = variants.length > 0;
-        if (hasVariants) {
-            delete finalAttributeValues["Size"];
-            delete finalAttributeValues["size"];
-            delete finalAttributeValues["Color"];
-            delete finalAttributeValues["color"];
-        }
-
-        // 4. Ensure "Brand" is filled
-        if (!finalAttributeValues["Brand"]) finalAttributeValues["Brand"] = "Unbranded";
-
-        // 5. TAXONOMY FILTERING (Whitelisted aspects only)
-        const validAspectNames = aspects.map(a => a.name);
-        const nameValueList = Object.entries(finalAttributeValues)
-            .filter(([name, value]) => validAspectNames.includes(name) && value && String(value).trim() !== "")
-            .map(([name, value]) => ({
-                name: name,
-                value: [String(value)]
-            }));
-
-        const itemSpecifics = { nameValueList };
-
-        // 6. VARIATION SPECIFICS SET (The range of available dimensions)
-        const variationSpecificsSet = [];
-        if (uniqueColors.length > 0) variationSpecificsSet.push({ name: "Color", value: uniqueColors });
-        if (uniqueSizes.length > 0) variationSpecificsSet.push({ name: "Size", value: uniqueSizes });
-
-        const payload = {
-            title: cleanTitle,
-            description: cleanDescription,
-            categoryId: categoryPath[categoryPath.length - 1].id,
-            price: variants[0]?.ebay_price || 0,
-            quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
-            images: selectedImages,
-            variationSpecificsSet: variationSpecificsSet,
-            variants: variants.map(v => {
-                const parts = v.name.split('-').map(p => p.trim());
-                const specifics = [];
-                if (parts[0]) specifics.push({ name: "Color", value: parts[0] });
-                if (parts[1]) specifics.push({ name: "Size", value: parts[1] });
-                
-                return {
-                    name: v.name,
-                    sku: v.sku,
-                    price: v.ebay_price,
-                    inventory: v.inventory,
-                    specifics: specifics
-                };
-            }),
-            itemSpecifics: itemSpecifics
-        };
-
-        try {
-            console.info("[eBay Push] SYNCED HANDSHAKE PAYLOAD:");
-            console.log(JSON.stringify(payload, null, 2));
+            console.info("[eBay Push] Final Listing Payload (No Policies):", payload);
             
             const response = await ebayService.publishItem(payload);
             
             if (response.success) {
                 setPushSuccess(true);
             } else {
-                setPushError(response.error || "Bridge Fault: Sync rejected by eBay.");
+                setPushError(response.error || "eBay rejected the listing. Check category/aspects.");
             }
         } catch (err) {
-            setPushError(`Bridge Fault: ${err.message}`);
+            console.error("[Push Error]", err.message);
+            setPushError(err.message);
         } finally {
             setIsPushing(false);
         }
@@ -860,7 +781,7 @@ const EbayListingBuilder = () => {
                                             : "bg-slate-950 text-white hover:bg-indigo-600"
                                     )}
                                 >
-                                    Category & Policies <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    Category Selection <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                                 </button>
                             </div>
                         </div>
@@ -869,8 +790,8 @@ const EbayListingBuilder = () => {
                     {activeTab === 4 && (
                         <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
                             <div className="space-y-1">
-                                <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Category & Policies</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select target market and store policies</p>
+                                <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Category Selection</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select the most accurate target market for your product</p>
                             </div>
 
                             {/* HIERARCHICAL CATEGORY SELECTION */}
@@ -914,7 +835,7 @@ const EbayListingBuilder = () => {
                                                         className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl text-left hover:border-slate-950 transition-all group"
                                                     >
                                                         <span className="text-[11px] font-bold text-slate-700">{cat.name}</span>
-                                                        {!cat.isLeaf && <ArrowRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />}
+                                                        {!cat.leafCategoryTreeNode && <ArrowRight size={14} className="text-slate-300 group-hover:translate-x-1 transition-transform" />}
                                                     </button>
                                                 ))
                                             )}
@@ -942,7 +863,7 @@ const EbayListingBuilder = () => {
                                                 <button 
                                                     onClick={() => {
                                                         if (manualCategoryId) {
-                                                            handleSelectCategory({ id: manualCategoryId, name: `Manual Input`, isLeaf: true });
+                                                            handleSelectCategory({ id: manualCategoryId, name: `Manual Input`, leafCategoryTreeNode: true });
                                                         }
                                                     }}
                                                     className="px-10 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg"

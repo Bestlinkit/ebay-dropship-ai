@@ -380,7 +380,8 @@ class EbayTradingService {
             return children.map(c => ({
                 id: c.category.categoryId,
                 name: c.category.categoryName,
-                isLeaf: c.leafCategory || false
+                leafCategoryTreeNode: c.leafCategory || false,
+                children: c.children || []
             }));
         } catch (err) {
             console.warn("[eBay Taxonomy] REST Top Categories Failed. Falling back to Trading API...");
@@ -409,6 +410,38 @@ class EbayTradingService {
             return categories;
         } catch (e) {
             return [];
+        }
+    }
+
+    async getCategory(categoryId, treeId = "0") {
+        console.log(`[eBay Taxonomy] Fetching Category Info for: ${categoryId}...`);
+        const token = await this.getAppToken();
+        if (!token) return null;
+
+        try {
+            const response = await this.callWithRetry(async () => {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${categoryId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    timeout: 15000
+                });
+            });
+
+            const node = response.data?.categorySubtreeNode;
+            if (!node) return null;
+
+            return {
+                id: node.category.categoryId,
+                name: node.category.categoryName,
+                leafCategoryTreeNode: node.leafCategory || false,
+                children: (node.children || []).map(c => ({
+                    id: c.category.categoryId,
+                    name: c.category.categoryName,
+                    leafCategoryTreeNode: c.leafCategory || false
+                }))
+            };
+        } catch (err) {
+            console.error("[eBay Taxonomy] GetCategory Failed:", err.message);
+            return null;
         }
     }
 
@@ -457,7 +490,7 @@ class EbayTradingService {
             return children.map(c => ({
                 id: c.category.categoryId,
                 name: c.category.categoryName,
-                isLeaf: c.leafCategory || false
+                leafCategoryTreeNode: c.leafCategory || false
             }));
         } catch (err) {
             console.warn("[eBay Taxonomy] REST Sub-Categories Failed. Falling back to Trading API...");
