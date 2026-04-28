@@ -6,7 +6,7 @@ const GARBAGE_TOKENS = new Set([
     'pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 
     'information', 'description', 'people', 'applicable', 'various', 'available', 
     'type', 'standard', 'specifications', 'simple', 'style', 'transparent', 
-    'fashion', 'creative', 'modern', 'new', 'beautiful', 'cute', 'mini', 'portable', 'hot', 'style', 'design', 'nice', 'good', 'quality'
+    'fashion', 'creative', 'modern', 'new', 'beautiful', 'cute', 'mini', 'portable', 'hot', 'style', 'design', 'nice', 'good', 'quality', 'premium'
 ]);
 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
@@ -126,13 +126,27 @@ function generatePremiumTitles(keywords, classification) {
         coreProduct = primary_keyword; 
     }
 
-    const keyFeature = [attrs.size, attrs.color].filter(Boolean).join(' ');
-    const useCaseStr = attrs.usage ? `for ${attrs.usage}` : '';
+    // Must include key feature / size / material
+    // For now, if "heat resistant" or "borosilicate" is found in original text, let's try to pass it as a key feature?
+    // Since the system currently extracts material and size, let's use them as key features.
     
-    // Build titles following strict structure: [Material] + [Product Type] + [Key Feature] + [Use Case] + [Extra]
-    let template1 = `${attrs.material || ''} ${coreProduct} ${keyFeature} ${useCaseStr} Premium Set`.trim().replace(/\s+/g, ' ');
-    let template2 = `${attrs.material || ''} ${coreProduct} ${keyFeature} ${useCaseStr} Quality Design`.trim().replace(/\s+/g, ' ');
-    let template3 = `${coreProduct} ${attrs.material || ''} ${keyFeature} ${useCaseStr} Durable Set`.trim().replace(/\s+/g, ' ');
+    // Check original title for additional key features like "heat resistant", "borosilicate", "durable"
+    const originalTextLower = classification.original_title.toLowerCase();
+    let additionalFeature = "";
+    if (originalTextLower.includes("heat resistant")) additionalFeature = "Heat Resistant";
+    else if (originalTextLower.includes("borosilicate")) additionalFeature = "Borosilicate";
+    else if (originalTextLower.includes("durable")) additionalFeature = "Durable";
+    else if (originalTextLower.includes("clear")) additionalFeature = "Clear";
+
+    const keyFeature = [additionalFeature, attrs.color].filter(Boolean).join(' ');
+    
+    // Default use case if missing
+    let useCaseStr = attrs.usage ? `for ${attrs.usage}` : 'for Home & Office';
+    
+    // Build titles strictly: [Material] + [Product Type] + [Key Feature] + [Size] + [Use Case]
+    let template1 = `${attrs.material || ''} ${coreProduct} ${keyFeature} ${attrs.size || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' ');
+    let template2 = `${additionalFeature || attrs.material || ''} ${coreProduct} ${attrs.color || ''} ${attrs.size || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' ');
+    let template3 = `${attrs.material || ''} ${coreProduct} ${attrs.size || ''} ${keyFeature} ${useCaseStr}`.trim().replace(/\s+/g, ' ');
 
     let templates = [template1, template2, template3].filter(t => t.length > 0);
     
@@ -154,26 +168,32 @@ function generatePremiumTitles(keywords, classification) {
  * Rule: Each tag must include product_type. NO random words. NO repetition.
  */
 function generateTags(keywords, classification) {
-    const { product_type, extracted_attrs } = classification;
+    const { product_type, extracted_attrs, original_title } = classification;
     const finalTags = new Set();
     
     let coreProduct = product_type.toLowerCase();
+    const originalTextLower = original_title.toLowerCase();
     
     // EVERY tag must include product_type or close variation. NO random words.
     finalTags.add(coreProduct);
     if (extracted_attrs.material) finalTags.add(`${extracted_attrs.material} ${coreProduct}`.toLowerCase());
     if (extracted_attrs.size) finalTags.add(`${extracted_attrs.size} ${coreProduct}`.toLowerCase());
     if (extracted_attrs.color) finalTags.add(`${extracted_attrs.color} ${coreProduct}`.toLowerCase());
+    
+    // Check specific keywords for better tags
+    if (originalTextLower.includes("transparent")) finalTags.add(`transparent ${coreProduct}`);
+    if (originalTextLower.includes("heat resistant")) finalTags.add(`heat resistant ${coreProduct}`);
+    if (originalTextLower.includes("borosilicate")) finalTags.add(`borosilicate ${coreProduct}`);
+    
     finalTags.add(`${coreProduct} set`);
-    finalTags.add(`clear ${coreProduct}`); // specific addition based on user rule
+    finalTags.add(`clear ${extracted_attrs.material || 'glass'} ${coreProduct.split(' ').pop()}`.toLowerCase());
 
     const resultTags = Array.from(finalTags)
         .map(t => deduplicateWords(t).trim())
-        .filter(t => t.length > 0 && t.length <= 40 && t.includes(coreProduct)); // STRICT REQUIREMENT
+        .filter(t => t.length > 0 && t.length <= 40 && t.includes(coreProduct.split(' ').pop())); // Ensure core noun exists
 
-    // Ensure 6-10 tags safely
-    if (resultTags.length < 6) resultTags.push(`quality ${coreProduct}`);
-    if (resultTags.length < 6) resultTags.push(`premium ${coreProduct}`);
+    // Ensure 6-10 tags safely without using vague words
+    if (resultTags.length < 6 && extracted_attrs.usage) resultTags.push(`${coreProduct} for ${extracted_attrs.usage}`.toLowerCase());
 
     return resultTags.slice(0, 10);
 }
@@ -216,8 +236,8 @@ function recoverSEO(output, classification) {
     const typeLower = product_type.toLowerCase();
     const fallbackTags = [
         typeLower,
-        `${extracted_attrs.material || 'premium'} ${typeLower}`,
-        `${extracted_attrs.size || 'quality'} ${typeLower}`,
+        `${extracted_attrs.material || 'clear'} ${typeLower}`,
+        `${extracted_attrs.size || 'durable'} ${typeLower}`,
         `${typeLower} set`
     ].map(t => deduplicateWords(t.toLowerCase().trim())).filter(t => t.length > 0 && t.length <= 40);
     
