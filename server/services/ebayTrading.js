@@ -103,19 +103,19 @@ class EbayTradingService {
                 axios.get('https://api.ebay.com/sell/account/v1/payment_policy', { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
-            const fulfillmentPolicies = fulfillRes.data.fulfillmentPolicies || [];
-            const returnPolicies = returnRes.data.returnPolicies || [];
-            const paymentPolicies = paymentRes.data.paymentPolicies || [];
+            const shipData = fulfillRes.data;
+            const returnData = returnRes.data;
+            const payData = paymentRes.data;
 
-            console.log("[eBay Policies] Resolution Success:", {
-                shipping: fulfillmentPolicies.length,
-                returns: returnPolicies.length,
-                payments: paymentPolicies.length
-            });
+            console.log("POLICIES:", { shipData, returnData, payData });
 
-            if (fulfillmentPolicies.length === 0) throw new Error("No eBay shipping policies found. Required for listing.");
-            if (returnPolicies.length === 0) throw new Error("No eBay return policies found. Required for listing.");
-            if (paymentPolicies.length === 0) throw new Error("No eBay payment policies found. Required for listing.");
+            const fulfillmentPolicies = shipData.fulfillmentPolicies || [];
+            const returnPolicies = returnData.returnPolicies || [];
+            const paymentPolicies = payData.paymentPolicies || [];
+
+            if (fulfillmentPolicies.length === 0) throw new Error("No shipping policies");
+            if (returnPolicies.length === 0) throw new Error("No return policies");
+            if (paymentPolicies.length === 0) throw new Error("No payment policies");
 
             return {
                 fulfillmentPolicyId: fulfillmentPolicies[0].fulfillmentPolicyId,
@@ -123,7 +123,7 @@ class EbayTradingService {
                 paymentPolicyId: paymentPolicies[0].paymentPolicyId
             };
         } catch (e) {
-            console.error("[eBay Policies] RESOLUTION ERROR:", e.response?.data || e.message);
+            console.error("POLICY FETCH ERROR:", e.response?.data || e.message);
             throw e;
         }
     }

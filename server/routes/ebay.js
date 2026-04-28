@@ -58,10 +58,10 @@ router.post('/list', async (req, res) => {
             });
         }
     } catch (err) {
-        console.error("[eBay Route] CRITICAL LISTING ERROR:", err);
+        console.error("LISTING ERROR:", err);
         res.status(500).json({
             success: false,
-            message: err.message || 'Internal Server Error during listing',
+            error: err.message,
             stack: err.stack
         });
     }
