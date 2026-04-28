@@ -59,21 +59,17 @@ class EbayTradingService {
     }
 
     getAuthorizationUrl() {
-        const scopes = 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access';
+        // 🛡️ HARDCODED PRODUCTION HANDSHAKE (No Placeholders)
+        const client_id = 'georgett-GeonoycA-PRD-a6c135696-f0481c4a';
+        const redirect_uri = 'Geonoyc_App_Auth';
+        const scope = 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access';
         
-        const baseUrl = 'https://auth.ebay.com/oauth2/authorize';
-        const clientId = (this.appName || "").trim();
-        const ruName = (this.ruName || "").trim();
-        const encodedScopes = encodeURIComponent(scopes);
-
-        console.log("[eBay Auth] Using ClientID:", clientId);
-        console.log("[eBay Auth] Using RUName:", ruName);
-
-        // Standard format: client_id, response_type, redirect_uri, scope
-        // Some environments prefer RUName NOT encoded if it contains no special chars
-        const url = `${baseUrl}?client_id=${clientId}&response_type=code&redirect_uri=${ruName}&scope=${encodedScopes}`;
+        const url = `https://auth.ebay.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
         
-        console.log("[eBay Auth] FINAL AUTH URL (STRICT):", url);
+        console.log("\n[!!!] CRITICAL: FINAL EBAY AUTH URL");
+        console.log(url);
+        console.log("------------------------------------\n");
+
         return url;
     }
 

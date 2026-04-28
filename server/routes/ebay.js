@@ -365,6 +365,7 @@ router.get('/aspects/:id', async (req, res) => {
  */
 router.get('/auth', (req, res) => {
     const url = ebayTrading.getAuthorizationUrl();
+    console.log("[ROUTER] Redirecting user to:", url);
     res.redirect(url);
 });
 
