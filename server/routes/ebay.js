@@ -219,6 +219,29 @@ router.get('/search', async (req, res) => {
 });
 
 /**
+ * 📂 GET CATEGORY DETAILS (ONE-WAY FLOW)
+ */
+router.get('/categories/:id', async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+        const treeId = req.query.treeId || "0";
+        const cat = await ebayTrading.getCategory(categoryId, treeId);
+        
+        if (!cat) {
+            console.warn(`[Route] Category ${categoryId} not found or empty response.`);
+            return res.status(404).json({ success: false, error: "Category not found" });
+        }
+
+        res.json(cat);
+    } catch (err) {
+        const status = err.response?.status || 500;
+        const message = err.response?.data?.errors?.[0]?.message || err.message;
+        console.error(`[Route] Category API Fault (${status}):`, message);
+        res.status(status).json({ success: false, error: message });
+    }
+});
+
+/**
  * 🏷️ CATEGORY SUGGESTIONS
  * GET /api/ebay/categories
  */
@@ -258,28 +281,7 @@ router.get('/categories-root', async (req, res) => {
     }
 });
 
-/**
- * 📂 GET CATEGORY DETAILS (ONE-WAY FLOW)
- */
-router.get('/categories/:id', async (req, res) => {
-    try {
-        const categoryId = req.params.id;
-        const treeId = req.query.treeId || "0";
-        const cat = await ebayTrading.getCategory(categoryId, treeId);
-        
-        if (!cat) {
-            console.warn(`[Route] Category ${categoryId} not found or empty response.`);
-            return res.status(404).json({ success: false, error: "Category not found" });
-        }
 
-        res.json(cat);
-    } catch (err) {
-        const status = err.response?.status || 500;
-        const message = err.response?.data?.errors?.[0]?.message || err.message;
-        console.error(`[Route] Category API Fault (${status}):`, message);
-        res.status(status).json({ success: false, error: message });
-    }
-});
 
 /**
  * 📂 GET SUB-CATEGORIES
