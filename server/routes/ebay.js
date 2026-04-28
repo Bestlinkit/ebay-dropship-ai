@@ -387,8 +387,12 @@ router.get('/callback', async (req, res) => {
             </html>
         `);
     } catch (err) {
-        console.error("[OAuth Callback] Error:", err.response?.data || err.message);
-        res.status(500).send("Authentication failed");
+        const errorDetails = err.response?.data || err.message;
+        console.error("[OAuth Callback] Error:", errorDetails);
+        res.status(500).json({
+            error: "Authentication failed",
+            details: errorDetails
+        });
     }
 });
 

@@ -31,6 +31,10 @@ class EbayTradingService {
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
         this.ruName = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
 
+        if (!this.ruName) {
+            console.warn("[eBay Service] WARNING: EBAY_RUNAME is missing! OAuth flow will fail.");
+        }
+
         console.log("[eBay Service] Initialized");
         console.log("[eBay Service] REST Base:", this.restBaseUrl);
         console.log("[eBay Service] Trading Endpoint:", this.endpoint);
@@ -68,8 +72,16 @@ class EbayTradingService {
 
     async exchangeCodeForToken(code) {
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
+        
+        const params = new URLSearchParams();
+        params.append('grant_type', 'authorization_code');
+        params.append('code', code);
+        params.append('redirect_uri', this.ruName);
+
+        console.log("[eBay Auth] Exchanging code for token with RUName:", this.ruName);
+        
         const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
-            `grant_type=authorization_code&code=${code}&redirect_uri=${this.ruName}`,
+            params.toString(),
             {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -351,8 +363,14 @@ class EbayTradingService {
 
     async refreshAccessToken(refreshToken) {
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
+        
+        const params = new URLSearchParams();
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', refreshToken);
+        params.append('scope', 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access');
+
         const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
-            `grant_type=refresh_token&refresh_token=${refreshToken}&scope=https://api.ebay.com/oauth/api_scope/sell.account.readonly https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.inventory.readonly`, 
+            params.toString(), 
             {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

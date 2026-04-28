@@ -2,7 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const crypto = require('crypto');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +26,14 @@ const EPROLO_SECRET = process.env.EPROLO_SECRET || process.env.VITE_EPROLO_API_S
 // Startup Integrity Log with Masking
 console.log("EPROLO_APP_KEY:", EPROLO_APP_KEY ? `LOADED (****${EPROLO_APP_KEY.slice(-4)}) ✅` : "MISSING ❌");
 console.log("EPROLO_SECRET:", EPROLO_SECRET ? `LOADED (****${EPROLO_SECRET.slice(-4)}) ✅` : "MISSING ❌");
+
+// eBay Config Injection
+const EBAY_APP_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
+const EBAY_CERT_ID = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
+const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
+
+console.log("EBAY_APP_ID:", EBAY_APP_ID ? `LOADED (****${EBAY_APP_ID.slice(-4)}) ✅` : "MISSING ❌");
+console.log("EBAY_RUNAME:", EBAY_RUNAME ? `LOADED (${EBAY_RUNAME}) ✅` : "MISSING ❌");
 
 app.post('/api/eprolo/search', async (req, res) => {
     try {
