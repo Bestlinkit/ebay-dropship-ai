@@ -61,6 +61,36 @@ function deduplicateWords(text) {
 }
 
 /**
+ * Helper: Extract hard attributes from text for generic products
+ */
+function extractHardAttributes(text) {
+    const attrs = { material: '', size: '', color: '', usage: '' };
+    
+    // Materials
+    const materials = ['ceramic', 'glass', 'wood', 'metal', 'stainless steel', 'plastic', 'leather', 'cotton', 'polyester', 'nylon', 'silicone', 'aluminum', 'copper', 'linen', 'canvas'];
+    const matMatch = materials.find(m => text.includes(m));
+    if (matMatch) attrs.material = matMatch.charAt(0).toUpperCase() + matMatch.slice(1);
+
+    // Size/Capacity (e.g., 300ml, 12oz, 15cm)
+    const sizeMatch = text.match(/\b(\d+(?:\.\d+)?\s*(ml|oz|cm|inch|mm|kg|g|lb|L|liter|gallon|fl oz))\b/i);
+    if (sizeMatch) attrs.size = sizeMatch[1].toLowerCase();
+
+    // Color
+    const colors = ['red', 'blue', 'green', 'black', 'white', 'pink', 'gold', 'silver', 'brown', 'grey', 'gray', 'purple', 'yellow', 'orange', 'beige', 'clear', 'transparent', 'multicolor'];
+    const colMatch = colors.find(c => text.includes(` ${c} `) || text.startsWith(`${c} `) || text.endsWith(` ${c}`));
+    if (colMatch) attrs.color = colMatch.trim().charAt(0).toUpperCase() + colMatch.trim().slice(1);
+    
+    // Usage
+    const usages = ['home', 'office', 'outdoor', 'kitchen', 'bathroom', 'travel', 'car', 'garden', 'gym', 'sports', 'party'];
+    const usageMatch = usages.filter(u => text.includes(u)).slice(0, 2);
+    if (usageMatch.length > 0) {
+        attrs.usage = usageMatch.map(u => u.charAt(0).toUpperCase() + u.slice(1)).join(' & ');
+    }
+    
+    return attrs;
+}
+
+/**
  * 1. PRODUCT CLASSIFICATION
  */
 function classifyProduct(title, description, forcedCategoryName = null) {
@@ -70,36 +100,66 @@ function classifyProduct(title, description, forcedCategoryName = null) {
     const safeForced = typeof forcedCategoryName === 'string' ? forcedCategoryName : null;
 
     const text = (safeTitle + " " + (safeDescription || "")).toLowerCase();
-    let key = "apparel";
+    
+    let matchedKey = null;
     
     // Use forcedCategoryName if provided to map to our internal config keys
     if (safeForced) {
         const lowerForced = safeForced.toLowerCase();
-        if (lowerForced.includes('skin') || lowerForced.includes('beauty') || lowerForced.includes('bath')) key = "skincare";
-        else if (lowerForced.includes('jewelry') || lowerForced.includes('neck') || lowerForced.includes('ring')) key = "jewelry";
-        else if (lowerForced.includes('shoe') || lowerForced.includes('footwear')) key = "shoes";
-        else if (lowerForced.includes('shirt') || lowerForced.includes('cloth') || lowerForced.includes('apparel')) key = "apparel";
+        if (lowerForced.includes('skin') || lowerForced.includes('beauty') || lowerForced.includes('bath')) matchedKey = "skincare";
+        else if (lowerForced.includes('jewelry') || lowerForced.includes('neck') || lowerForced.includes('ring')) matchedKey = "jewelry";
+        else if (lowerForced.includes('shoe') || lowerForced.includes('footwear')) matchedKey = "shoes";
+        else if (lowerForced.includes('shirt') || lowerForced.includes('cloth') || lowerForced.includes('apparel')) matchedKey = "apparel";
     } else {
-        if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) key = "skincare";
-        else if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry') || text.includes('pendant')) key = "jewelry";
-        else if (text.includes('shoe') || text.includes('sneaker') || text.includes('boot') || text.includes('footwear')) key = "shoes";
-        else if (text.includes('shirt') || text.includes('apparel') || text.includes('clothing')) key = "apparel";
+        if (text.includes('scrub') || text.includes('skin') || text.includes('turmeric')) matchedKey = "skincare";
+        else if (text.includes('necklace') || text.includes('ring') || text.includes('jewelry') || text.includes('pendant')) matchedKey = "jewelry";
+        else if (text.includes('shoe') || text.includes('sneaker') || text.includes('boot') || text.includes('footwear')) matchedKey = "shoes";
+        else if (text.includes('shirt') || text.includes('apparel') || text.includes('clothing')) matchedKey = "apparel";
     }
 
-    const config = CATEGORY_LOCKED_MAP[key] || CATEGORY_LOCKED_MAP["apparel"];
-    
     const primaryWords = safeTitle.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
         .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w)).slice(0, 3);
-    
+        
+    // Lock product identity (Requirement 1)
+    let product_type;
+    if (safeForced) {
+        product_type = safeForced.split('>').pop().trim();
+    } else {
+        product_type = matchedKey ? CATEGORY_LOCKED_MAP[matchedKey].product_type : (primaryWords.length > 0 ? primaryWords.join(' ') : "Item");
+    }
+    const typeLower = product_type.toLowerCase();
+
+    let config;
+    if (matchedKey) {
+        config = CATEGORY_LOCKED_MAP[matchedKey];
+    } else {
+        // Extract Hard Attributes for GENERIC_CONFIG (Requirement 3)
+        const attrs = extractHardAttributes(text);
+        const keyAttributes = [attrs.material, attrs.color, attrs.size].filter(Boolean);
+        const attributeStr = keyAttributes.length > 0 ? keyAttributes.join(' ') : 'Premium';
+        const usageStr = attrs.usage ? `for ${attrs.usage}` : 'for Daily Use';
+        
+        config = {
+            name: safeForced || "Uncategorized",
+            product_type: product_type,
+            benefits: keyAttributes.length > 0 ? keyAttributes : ['High Quality', 'Durable'],
+            outcomes: [usageStr, 'Perfect Gift', 'Great Value'],
+            intent_keywords: keyAttributes.map(k => k.toLowerCase()).concat(['new']),
+            fallback_tags: [`${attributeStr.toLowerCase()} ${typeLower}`, `${typeLower} ${usageStr.toLowerCase()}`].map(t => t.substring(0, 80)),
+            is_dynamic: true,
+            extracted_attrs: attrs
+        };
+    }
+
     const primaryKeyword = primaryWords.length > 0 ? primaryWords.join(' ') : config.product_type.toLowerCase();
 
     return {
-        product_type: forcedCategoryName ? forcedCategoryName.split('>').pop().trim() : config.product_type,
-        category: forcedCategoryName || config.name,
+        product_type: product_type,
+        category: safeForced || config.name,
         benefits: config.benefits,
         config: config,
         primary_keyword: primaryKeyword,
-        confidence: 1.0
+        confidence: matchedKey ? 1.0 : 0.8
     };
 }
 
@@ -143,6 +203,20 @@ function generatePremiumTitles(keywords, classification) {
             `${intent[1]} Body Scrub for ${benefits[1]}`,
             `${intent[2]} Body Scrub - ${benefits[2]}`
         ];
+    } else if (config.is_dynamic) {
+        // Generic Structure: [Core Product Name] + [Key Attribute] + [Use Case]
+        const attrs = config.extracted_attrs;
+        const keyAttr = [attrs.material, attrs.color, attrs.size].filter(Boolean).join(' ');
+        const useCase = attrs.usage ? `for ${attrs.usage}` : '';
+        
+        // Use primary keywords alongside product type
+        const baseTitle = `${primary_keyword} ${product_type}`;
+        
+        templates = [
+            `${baseTitle} ${keyAttr} ${useCase}`.trim().replace(/\s+/g, ' '),
+            `${attrs.material || 'Quality'} ${baseTitle} ${attrs.size || ''} ${useCase}`.trim().replace(/\s+/g, ' '),
+            `${baseTitle} - ${keyAttr || 'Premium'} ${useCase}`.trim().replace(/\s+/g, ' ')
+        ];
     } else {
         templates = [
             `${primary_keyword} ${product_type} - ${intent[0]} & ${outcome}`,
@@ -169,9 +243,11 @@ function generatePremiumTitles(keywords, classification) {
         // Strict Validation: Must include product type
         if (!capitalized.toLowerCase().includes(type)) score -= 30;
         
-        // Must include 1 function keyword
-        const hasFunction = intent.some(f => capitalized.toLowerCase().includes(f));
-        if (!hasFunction) score -= 20;
+        // Must include 1 function keyword (skip for dynamic)
+        if (!config.is_dynamic && intent && intent.length > 0) {
+            const hasFunction = intent.some(f => capitalized.toLowerCase().includes(f));
+            if (!hasFunction) score -= 20;
+        }
 
         return { text: capitalized, score: score };
     });
@@ -243,10 +319,25 @@ function generateTags(keywords, classification) {
  * 5. DESCRIPTION
  */
 function generateDescription(html, classification) {
-    const { product_type, category } = classification;
-    let output = `Product Overview:\nThis professional ${product_type} is engineered for high-performance results.\n\n`;
-    output += `Key Benefits:\n- ${classification.benefits.join('\n- ')}\n\n`;
-    output += `How to Use:\nApply to target area. Massage thoroughly. Rinse or remove as directed.\n\n`;
+    const { product_type, category, config } = classification;
+    let output = `Product Overview:\nThis ${config.is_dynamic ? 'high-quality' : 'professional'} ${product_type} is engineered for ${config.is_dynamic ? 'daily use' : 'high-performance results'}.\n\n`;
+    
+    if (config.is_dynamic) {
+        const attrs = config.extracted_attrs;
+        const features = [];
+        if (attrs.material) features.push(`Made with durable ${attrs.material}`);
+        if (attrs.size) features.push(`Convenient size/capacity: ${attrs.size}`);
+        if (attrs.color) features.push(`Color profile: ${attrs.color}`);
+        if (attrs.usage) features.push(`Ideal for ${attrs.usage}`);
+        if (features.length === 0) features.push('Premium quality construction', 'Versatile design');
+        
+        output += `Key Features:\n- ${features.join('\n- ')}\n\n`;
+        output += `Ideal For:\nPerfect for daily use and various applications.\n\n`;
+    } else {
+        output += `Key Benefits:\n- ${classification.benefits.join('\n- ')}\n\n`;
+        output += `How to Use:\nApply to target area. Massage thoroughly. Rinse or remove as directed.\n\n`;
+    }
+    
     output += `Specifications:\n- Type: ${product_type}\n- Category: ${category}`;
     return output;
 }
