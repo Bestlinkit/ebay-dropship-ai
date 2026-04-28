@@ -374,14 +374,16 @@ class EbayTradingService {
             });
 
             // The root call to get_category_subtree(0) returns the top level nodes in the 'children' array
-            const children = response.data?.categorySubtreeNode?.children || [];
+            // response.data IS the CategorySubtreeNode
+            const rootNode = response.data?.categorySubtreeNode || response.data;
+            const children = rootNode?.children || rootNode?.childCategoryTreeNodes || [];
             console.log(`[eBay Taxonomy] Found ${children.length} root categories.`);
             
             return children.map(c => ({
-                id: c.category.categoryId,
-                name: c.category.categoryName,
-                leafCategoryTreeNode: c.leafCategory || false,
-                children: c.children || []
+                id: c.category?.categoryId || c.categoryId,
+                name: c.category?.categoryName || c.categoryName,
+                leafCategoryTreeNode: c.leafCategory || c.leafCategoryTreeNode || false,
+                children: c.children || c.childCategoryTreeNodes || []
             }));
         } catch (err) {
             console.warn("[eBay Taxonomy] REST Top Categories Failed. Falling back to Trading API...");
@@ -435,18 +437,18 @@ class EbayTradingService {
             // 🛡️ Log Raw Response for Debugging (Requirement 2)
             console.log(`[eBay Taxonomy] Raw Response for ${categoryId}:`, JSON.stringify(response.data).substring(0, 500) + "...");
 
-            // eBay can return categorySubtreeNode or categoryTreeNode depending on the specific call/version
-            const node = response.data?.categorySubtreeNode || response.data?.categoryTreeNode;
+            // eBay can return the node directly or wrapped in categorySubtreeNode/categoryTreeNode
+            const node = response.data?.categorySubtreeNode || response.data?.categoryTreeNode || response.data;
             
-            if (!node) {
+            if (!node || (!node.category && !node.categoryId)) {
                 console.warn(`[eBay Taxonomy] No node found in response for Category ${categoryId}`);
                 return null;
             }
 
             return {
-                id: node.category?.categoryId || categoryId,
-                categoryId: node.category?.categoryId || categoryId,
-                name: node.category?.categoryName || "Unknown",
+                id: node.category?.categoryId || node.categoryId || categoryId,
+                categoryId: node.category?.categoryId || node.categoryId || categoryId,
+                name: node.category?.categoryName || node.categoryName || "Unknown",
                 leafCategoryTreeNode: node.leafCategory || node.leafCategoryTreeNode || false,
                 children: (node.children || node.childCategoryTreeNodes || []).map(c => ({
                     id: c.category?.categoryId || c.categoryId,
@@ -501,16 +503,17 @@ class EbayTradingService {
             // Log raw response for debugging (Requirement 1)
             console.log("[eBay Taxonomy] Raw Response for Parent", parentId, ":", JSON.stringify(response.data).substring(0, 500) + "...");
 
-            const children = response.data?.categorySubtreeNode?.children || [];
+            const node = response.data?.categorySubtreeNode || response.data;
+            const children = node?.children || node?.childCategoryTreeNodes || [];
             
             if (children.length === 0) {
                 console.warn(`[eBay Taxonomy] Node ${parentId} returned 0 children.`);
             }
 
             return children.map(c => ({
-                id: c.category.categoryId,
-                name: c.category.categoryName,
-                leafCategoryTreeNode: c.leafCategory || false
+                id: c.category?.categoryId || c.categoryId,
+                name: c.category?.categoryName || c.categoryName,
+                leafCategoryTreeNode: c.leafCategory || c.leafCategoryTreeNode || false
             }));
         } catch (err) {
             console.warn("[eBay Taxonomy] REST Sub-Categories Failed. Falling back to Trading API...");
