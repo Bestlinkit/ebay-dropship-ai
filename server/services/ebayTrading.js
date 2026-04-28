@@ -2,6 +2,23 @@
 const axios = require('axios');
 
 class EbayTradingService {
+    async callWithRetry(fn, retries = 3, delay = 1000) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                return await fn();
+            } catch (err) {
+                const isRetryable = err.response?.status >= 500 || err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+                if (isRetryable && i < retries - 1) {
+                    console.warn(`[eBay Retry] Attempt ${i + 1} failed. Retrying in ${delay}ms...`);
+                    await new Promise(res => setTimeout(res, delay));
+                    delay *= 2; // Exponential backoff
+                    continue;
+                }
+                throw err;
+            }
+        }
+    }
+
     constructor() {
         this.endpoint = 'https://api.ebay.com/ws/api.dll';
         this.siteId = process.env.EBAY_SITE_ID || '0';
@@ -47,30 +64,19 @@ class EbayTradingService {
         console.log('--- END REQUEST ---\n');
 
         try {
-            const response = await axios.post(this.endpoint, fullXml, { 
-                headers,
-                timeout: 30000 // 30s timeout
-            });
-            
-            console.log(`\n--- EBAY TRADING RESPONSE [${callName}] ---`);
-            console.log(response.data);
-            console.log('--- END RESPONSE ---\n');
+            return await this.callWithRetry(async () => {
+                const response = await axios.post(this.endpoint, fullXml, { 
+                    headers,
+                    timeout: 45000 // 45s default timeout
+                });
+                
+                console.log(`\n--- EBAY TRADING RESPONSE [${callName}] ---`);
+                console.log(response.data.substring(0, 500) + '...'); // Log snippet to avoid flooding
+                console.log('--- END RESPONSE ---\n');
 
-            return response.data;
+                return response.data;
+            });
         } catch (error) {
-            // SIMPLE RETRY ONCE
-            if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
-                console.warn(`[eBay Trading] ${callName} timed out. Retrying once...`);
-                try {
-                    const retryResponse = await axios.post(this.endpoint, fullXml, { 
-                        headers,
-                        timeout: 60000 // 60s for retry
-                    });
-                    return retryResponse.data;
-                } catch (retryError) {
-                    throw retryError;
-                }
-            }
             console.error(`\n--- EBAY TRADING ERROR [${callName}] ---`);
             if (error.response) {
                 console.error('Status:', error.response.status);
@@ -245,21 +251,22 @@ class EbayTradingService {
 
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
         try {
-            console.log("[eBay Auth] Fetching fresh App Token (Client Credentials)...");
-            const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
-                'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
-                {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Authorization': `Basic ${auth}`
-                    },
-                    timeout: 10000 // 10s timeout
-                }
-            );
-            this.appToken = response.data.access_token;
-            this.appTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
-            console.log("[eBay Auth] App Token success. Expiry:", new Date(this.appTokenExpiry).toISOString());
-            return this.appToken;
+            return await this.callWithRetry(async () => {
+                const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
+                    'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
+                    {
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Authorization': `Basic ${auth}`
+                        },
+                        timeout: 15000 // Increased timeout
+                    }
+                );
+                this.appToken = response.data.access_token;
+                this.appTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
+                console.log("[eBay Auth] App Token success. Expiry:", new Date(this.appTokenExpiry).toISOString());
+                return this.appToken;
+            });
         } catch (e) {
             console.error("[eBay Auth] App Token Failure (Client Credentials):", e.response?.data || e.message);
             
@@ -311,12 +318,15 @@ class EbayTradingService {
         }
 
         try {
-            const response = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
-                params,
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
-                }
+            const response = await this.callWithRetry(async () => {
+                return await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search', {
+                    params,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    },
+                    timeout: 15000 // Increased timeout
+                });
             });
             return (response.data?.itemSummaries || []).map(item => ({
                 id: item.itemId,
@@ -363,15 +373,15 @@ class EbayTradingService {
         try {
             const response = await this.callTradingAPI('GetCategories', xmlBody);
             
-            // Robust regex parsing for XML response
+            // Robust regex parsing for XML response (Non-greedy with optional tags)
             const categories = [];
-            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>(?:[\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
+            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>([\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
             
             let match;
             while ((match = regex.exec(response)) !== null) {
                 const id = match[1];
                 const name = match[2].replace(/&amp;/g, '&');
-                const isLeaf = match[3] === "true";
+                const isLeaf = match[4] === "true";
                 
                 // Skip root or redundant nodes
                 if (id === "0" || name.toLowerCase().includes("root")) continue;
@@ -383,6 +393,26 @@ class EbayTradingService {
             return categories;
         } catch (e) {
             console.error("[eBay Trading] GetCategories Failure:", e.message);
+            return [];
+        }
+    }
+
+    async getCategorySuggestions(q) {
+        const token = await this.getAppToken();
+        if (!token) return [];
+        try {
+            const response = await this.callWithRetry(async () => {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(q)}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    timeout: 10000
+                });
+            });
+            return (response.data.categorySuggestions || []).map(s => ({
+                id: s.category.categoryId,
+                name: s.category.categoryName
+            }));
+        } catch (e) {
+            console.error("[eBay Taxonomy] Category Suggestions Failure:", e.response?.data || e.message);
             return [];
         }
     }
@@ -399,14 +429,14 @@ class EbayTradingService {
         try {
             const response = await this.callTradingAPI('GetCategories', xmlBody);
             const categories = [];
-            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>[\s\S]*?<CategoryLevel>(\d+)<\/CategoryLevel>(?:[\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
+            const regex = /<Category>[\s\S]*?<CategoryID>(\d+)<\/CategoryID>[\s\S]*?<CategoryName>(.*?)<\/CategoryName>([\s\S]*?<CategoryLevel>(\d+)<\/CategoryLevel>)?([\s\S]*?<LeafCategory>(true|false)<\/LeafCategory>)?/g;
             
             let match;
             while ((match = regex.exec(response)) !== null) {
                 const id = match[1];
                 const name = match[2].replace(/&amp;/g, '&');
-                const level = match[3];
-                const isLeaf = match[4] === "true";
+                // const level = match[4];
+                const isLeaf = match[6] === "true";
 
                 // Skip the parent node itself
                 if (id === parentId) continue;
