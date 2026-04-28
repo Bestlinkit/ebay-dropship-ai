@@ -43,13 +43,13 @@ const EbayListingBuilder = () => {
         { id: 5, name: "Review & Publish", icon: <Send size={18} /> },
     ];
 
-    // AI OPTIMIZATION STATE (TAB 1 ONLY)
-    const [optimizedData, setOptimizedData] = useState(null);
     const [selectedTitle, setSelectedTitle] = useState(cjProduct?.title || "");
     const [description, setDescription] = useState(cjProduct?.description || "");
     const [tags, setTags] = useState([]);
     const [isOptimizing, setIsOptimizing] = useState(false);
-    const [optimizationError, setOptimizationError] = useState(null);
+
+    // 📂 CATEGORY CACHE (Taxonomy Fix)
+    const categoryCache = React.useRef(new Map());
 
     // 💰 PRICING & VARIANTS STATE (TAB 2)
     const [variants, setVariants] = useState([]);
@@ -160,32 +160,45 @@ const EbayListingBuilder = () => {
         }
     }, [activeTab]);
 
-    const loadInitialCategories = async () => {
+    const loadInitialCategories = async (retryCount = 0) => {
         console.log("[Category] Starting Initial Load...");
         setIsLoadingCategories(true);
         try {
+            // Check cache first
+            if (categoryCache.current.has('root')) {
+                setCurrentLevelCategories(categoryCache.current.get('root'));
+                setIsLoadingCategories(false);
+                return;
+            }
+
             const treeId = await ebayService.getCategoryTreeId();
-            console.log("[Category] Tree ID Received:", treeId);
             setCategoryTreeId(treeId);
 
             const root = await ebayService.getTopCategories(treeId);
-            console.log("[Category] Root Nodes Received:", root.length);
+            
+            if (!root || root.length === 0) throw new Error("Empty root nodes");
+
+            categoryCache.current.set('root', root);
             setCurrentLevelCategories(root);
         } catch (err) {
             console.error("[Category] Root Load Error:", err);
+            if (retryCount < 2) {
+                console.log(`[Category] Retrying root load (${retryCount + 1})...`);
+                setTimeout(() => loadInitialCategories(retryCount + 1), 1000);
+            } else if (categoryCache.current.has('root')) {
+                // Fallback to cache even if stale
+                setCurrentLevelCategories(categoryCache.current.get('root'));
+            }
         } finally {
             setIsLoadingCategories(false);
         }
     };
 
-    const handleSelectCategory = async (cat) => {
+    const handleSelectCategory = async (cat, retryCount = 0) => {
         console.log("[Category] User Selected:", cat.name, "ID:", cat.id);
         
-        // 🛡️ RESET PRODUCT STATE ON CATEGORY CHANGE (Requirement 2)
-        // This prevents cross-category contamination (e.g. keeping apparel titles for electronics)
-        setSelectedTitle("");
-        setDescription("");
-        setTags([]);
+        // 🛡️ NO LONGER RESETTING PRODUCT STATE (Manual Persistence Requirement)
+        // Attribute values and aspects still reset to ensure taxonomy alignment
         setAttributeValues({});
         setAspects([]);
         setIsLeafSelected(false);
@@ -194,62 +207,47 @@ const EbayListingBuilder = () => {
         setCategoryPath(newPath);
         
         if (cat.isLeaf) {
-            console.log("[Category] Leaf reached. Preparing for REGENERATION...");
+            console.log("[Category] Leaf reached. Selection complete.");
             setIsLeafSelected(true);
             setCurrentLevelCategories([]);
-            
-            // 🚀 REGENERATION GUARD (Requirement 5)
-            // Wait for aspects to load before triggering regeneration to ensure full taxonomy alignment
-            loadItemAspects(cat.id).then(() => {
-                handleRegenerateContent(cat.name);
-            });
+            loadItemAspects(cat.id);
+            // ❌ handleRegenerateContent REMOVED (Manual Only Requirement)
         } else {
             setIsLoadingCategories(true);
             try {
+                // Check cache first
+                const cacheKey = `sub_${cat.id}`;
+                if (categoryCache.current.has(cacheKey)) {
+                    setCurrentLevelCategories(categoryCache.current.get(cacheKey));
+                    setIsLoadingCategories(false);
+                    return;
+                }
+
                 const subs = await ebayService.getSubCategories(cat.id, categoryTreeId);
-                console.log("[Category] Sub-nodes Loaded:", subs.length);
+                
+                if (!subs || subs.length === 0) throw new Error("Empty sub-categories");
+
+                categoryCache.current.set(cacheKey, subs);
                 setCurrentLevelCategories(subs);
             } catch (err) {
                 console.error("[Category] Sub-node Load Error:", err);
+                if (retryCount < 2) {
+                    console.log(`[Category] Retrying sub-category load (${retryCount + 1})...`);
+                    setTimeout(() => handleSelectCategory(cat, retryCount + 1), 1000);
+                } else {
+                    // Fail gracefully - don't block the UI
+                    setIsLoadingCategories(false);
+                }
             } finally {
                 setIsLoadingCategories(false);
             }
         }
     };
 
-    const handleRegenerateContent = async (categoryName) => {
-        if (!categoryName) return;
-        setIsOptimizing(true);
-        try {
-            // ALWAYS USE RAW ORIGINAL PRODUCT TITLE (Requirement 8)
-            const inputTitle = cjProduct?.title || "";
-            const inputDesc = cjProduct?.description || "";
-
-            const result = await optimizeListing({
-                title: inputTitle,
-                description: inputDesc
-            }, categoryName);
-
-            if (result.success && result.data) {
-                setOptimizedData(result.data);
-                
-                // 🛡️ NORMALIZE OUTPUTS (Requirement 3)
-                const newTitle = result.data.titles?.[0];
-                const newDesc = result.data.description;
-
-                // Extraction guard: ensure we get strings
-                const safeTitle = typeof newTitle === 'string' ? newTitle : (typeof newTitle === 'object' ? newTitle.text : "");
-                const safeDesc = typeof newDesc === 'string' ? newDesc : (typeof newDesc === 'object' ? newDesc.text : "");
-
-                if (safeTitle) setSelectedTitle(safeTitle);
-                if (safeDesc) setDescription(safeDesc);
-                if (Array.isArray(result.data.tags)) setTags(result.data.tags);
-            }
-        } catch (err) {
-            console.error("Regeneration Failed:", err);
-        } finally {
-            setIsOptimizing(false);
-        }
+    // handleRegenerateContent REMOVED - Manual Inputs Only v1.0
+    const handleSEOOptimize = () => {
+        // Mocked or removed in manual mode
+        console.log("SEO Optimization disabled. Manual input mode active.");
     };
 
     const resetCategory = () => {
@@ -430,44 +428,6 @@ const EbayListingBuilder = () => {
             setIsPushing(false);
         }
     };
-    const handleSEOOptimize = async () => {
-        if (!cjProduct) return;
-        setIsOptimizing(true);
-        setOptimizationError(null);
-
-        try {
-            const response = await fetch('http://localhost:3001/api/ai/optimize', {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: cjProduct.title,
-                    description: cjProduct.description
-                }),
-            });
-
-            const result = await response.json();
-            
-            if (result.success) {
-                const seoData = result.data || {};
-                setOptimizedData(seoData);
-                setTags(seoData.tags || []);
-                setDescription(seoData.description || cjProduct.description || "");
-                
-                if (seoData.titles?.length > 0) {
-                    const firstTitle = typeof seoData.titles[0] === 'object' ? seoData.titles[0].text : seoData.titles[0];
-                    setSelectedTitle(firstTitle);
-                }
-            } else {
-                setOptimizationError(`Optimization Rejected: ${result.reason || "Context Lock Fault"}`);
-            }
-        } catch (err) {
-            console.error("SEO Build Fault:", err);
-            setOptimizationError("Bridge Timeout. Using Deterministic Baseline.");
-        } finally {
-            setIsOptimizing(false);
-        }
-    };
-
     const handleRemoveTag = (tagToRemove) => {
         setTags(prev => prev.filter(t => t !== tagToRemove));
     };
@@ -531,193 +491,126 @@ const EbayListingBuilder = () => {
                         <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Market Intelligence</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Generate optimized titles based on real demand</p>
+                                    <h3 className="text-2xl font-black text-slate-950 italic uppercase tracking-tighter">Listing Builder</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Manual Content Control Mode Active</p>
                                 </div>
-                                {!optimizedData && !isOptimizing && (
-                                    <button 
-                                        onClick={handleSEOOptimize}
-                                        className="px-8 py-4 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-slate-800 transition-all shadow-lg"
-                                    >
-                                        <Sparkles size={16} /> Run Market Optimizer
-                                    </button>
-                                )}
                             </div>
 
-                            {isOptimizing && (
-                                <div className="py-20 flex flex-col items-center justify-center gap-6">
-                                    <RefreshCw size={48} className="text-indigo-600 animate-spin" />
-                                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 animate-pulse">Scraping eBay Demand Data...</p>
-                                </div>
-                            )}
-
-                            {optimizationError && (
-                                <div className="p-10 bg-rose-50 border-2 border-rose-100 rounded-[2.5rem] flex flex-col items-center gap-6 text-center">
-                                    <AlertCircle size={40} className="text-rose-500" />
-                                    <div className="space-y-2">
-                                        <h4 className="text-lg font-black text-rose-900 uppercase">Optimization Warning</h4>
-                                        <p className="text-sm font-medium text-rose-600">{optimizationError}</p>
+                            <div className="space-y-12 animate-in fade-in duration-700">
+                                {/* CJ PRODUCT REFERENCE DATA */}
+                                <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-3xl flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
+                                            <Sparkles size={20} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">CJ Product Reference</p>
+                                            <p className="text-sm font-bold text-slate-900 truncate max-w-md">{cjProduct?.title}</p>
+                                        </div>
                                     </div>
-                                    <button onClick={handleSEOOptimize} className="px-12 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 shadow-xl">
-                                        Retry Market Handshake
-                                    </button>
+                                    <span className="px-4 py-2 bg-indigo-100 text-indigo-600 rounded-full text-[9px] font-black uppercase">Read-Only Source</span>
                                 </div>
-                            )}
 
-                            {optimizedData && (
-                                <div className="space-y-12 animate-in fade-in duration-700">
-                                    {/* AUTO CATEGORY MATCH (SUGGESTION ONLY) */}
-                                    {optimizedData.category && (
-                                        <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm">
-                                                    <ShieldCheck size={20} />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Market Recommendation (Suggestion)</p>
-                                                    <p className="text-sm font-bold text-slate-900 uppercase">{optimizedData.category.name}</p>
-                                                </div>
-                                            </div>
-                                            <span className="px-4 py-2 bg-slate-100 text-slate-600 rounded-full text-[9px] font-black uppercase">Taxonomy Hint</span>
+                                {/* SELECTED TITLE (MANUAL OVERRIDE) */}
+                                <div className="space-y-6 p-10 bg-slate-50 border border-slate-100 rounded-[2.5rem]">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-slate-400">
+                                            <Trophy size={16} className="text-indigo-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Primary eBay Title</span>
                                         </div>
-                                    )}
-
-                                    {/* SELECTED TITLE (MANUAL OVERRIDE) */}
-                                    <div className="space-y-6 p-10 bg-slate-50 border border-slate-100 rounded-[2.5rem]">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3 text-slate-400">
-                                                <Trophy size={16} className="text-indigo-500" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Primary eBay Title</span>
-                                            </div>
-                                            <div className={cn(
-                                                "px-3 py-1 rounded-md text-[9px] font-black uppercase",
-                                                selectedTitle.length > 80 ? "bg-rose-100 text-rose-600" : "bg-slate-200 text-slate-600"
-                                            )}>
-                                                {selectedTitle.length} / 80 CHARS
-                                            </div>
+                                        <div className={cn(
+                                            "px-3 py-1 rounded-md text-[9px] font-black uppercase",
+                                            selectedTitle.length > 80 ? "bg-rose-100 text-rose-600" : "bg-slate-200 text-slate-600"
+                                        )}>
+                                            {selectedTitle.length} / 80 CHARS
                                         </div>
-                                        <input 
-                                            type="text"
-                                            value={selectedTitle}
-                                            onChange={(e) => setSelectedTitle(e.target.value)}
-                                            className={cn(
-                                                "w-full p-6 bg-white border-2 rounded-2xl text-sm font-bold text-slate-900 outline-none transition-all shadow-sm focus:ring-4 ring-indigo-500/5",
-                                                selectedTitle.length > 80 ? "border-rose-400" : "border-slate-200 focus:border-slate-950"
-                                            )}
-                                            placeholder="Select a ranked option below or type your custom title here..."
-                                        />
-                                        {selectedTitle.length > 80 && (
-                                            <p className="text-[9px] font-black text-rose-500 uppercase flex items-center gap-2 px-2">
-                                                <AlertCircle size={12} /> Title exceeds eBay character limit (80)
-                                            </p>
+                                    </div>
+                                    <input 
+                                        type="text"
+                                        value={selectedTitle}
+                                        onChange={(e) => setSelectedTitle(e.target.value)}
+                                        className={cn(
+                                            "w-full p-6 bg-white border-2 rounded-2xl text-sm font-bold text-slate-900 outline-none transition-all shadow-sm focus:ring-4 ring-indigo-500/5",
+                                            selectedTitle.length > 80 ? "border-rose-400" : "border-slate-200 focus:border-slate-950"
                                         )}
-                                    </div>
+                                        placeholder="Enter your custom eBay title here..."
+                                    />
+                                    {selectedTitle.length > 80 && (
+                                        <p className="text-[9px] font-black text-rose-500 uppercase flex items-center gap-2 px-2">
+                                            <AlertCircle size={12} /> Title exceeds eBay character limit (80)
+                                        </p>
+                                    )}
+                                </div>
 
-                                    {/* RANKED TITLE OPTIONS */}
-                                    <div className="space-y-6">
+                                {/* DESCRIPTION EDITOR (PLAIN TEXT MODE) */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3 text-slate-400 px-2">
                                             <Sparkles size={16} />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Market-Driven Recommendations</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Listing Description</span>
                                         </div>
-                                        <div className="grid gap-4">
-                                            {optimizedData.titles?.map((t, i) => {
-                                                const titleText = typeof t === 'string' ? t : (t.text || "Untitled Title");
-                                                const titleScore = typeof t === 'object' ? t.score : (optimizedData.scores?.[i] || 70);
-                                                return (
-                                                    <button
-                                                        key={i}
-                                                        onClick={() => setSelectedTitle(titleText)}
-                                                        className={cn(
-                                                            "w-full p-6 rounded-2xl border-2 text-left transition-all relative group",
-                                                            selectedTitle === titleText ? "border-slate-950 bg-slate-50/50" : "border-slate-100 hover:border-slate-200"
-                                                        )}
-                                                    >
-                                                        <div className="flex items-start justify-between mb-2">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-[10px] font-black text-slate-400">SCORE</span>
-                                                                <span className={cn(
-                                                                    "text-[10px] font-black px-2 py-0.5 rounded",
-                                                                    titleScore > 80 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                                                                )}>
-                                                                    {titleScore}/100
-                                                                </span>
-                                                            </div>
-                                                            {i === 0 && (
-                                                                <div className="flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[9px] font-black uppercase">
-                                                                    <Trophy size={10} /> Recommended
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-[14px] font-bold text-slate-900 pr-20">{titleText}</p>
-                                                        <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                                                            {selectedTitle === titleText && <CheckCircle2 size={20} className="text-slate-950" />}
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                        <span className="text-[9px] font-black text-slate-300 uppercase">Raw Text Mode</span>
                                     </div>
+                                    
+                                    <textarea
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="w-full h-80 p-8 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] text-sm font-medium text-slate-600 leading-relaxed focus:border-indigo-500 focus:bg-white outline-none transition-all custom-scrollbar whitespace-pre-wrap"
+                                        placeholder="Write your listing description here..."
+                                    />
+                                </div>
 
-                                    {/* DESCRIPTION EDITOR (PLAIN TEXT MODE) */}
-                                    <div className="space-y-6">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3 text-slate-400">
-                                                <Sparkles size={16} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Listing Description</span>
-                                            </div>
-                                            <span className="text-[9px] font-black text-slate-300 uppercase">Raw Text Mode</span>
+                                {/* SEO TAGS (MANUAL ENTRY) */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 text-slate-400 px-2">
+                                            <ImageIcon size={16} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Search Keywords (Tags)</span>
                                         </div>
-                                        
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            className="w-full h-80 p-8 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] text-sm font-medium text-slate-600 leading-relaxed focus:border-indigo-500 focus:bg-white outline-none transition-all custom-scrollbar whitespace-pre-wrap"
-                                            placeholder="Write your listing description here..."
+                                        <span className="text-[9px] font-black text-slate-300 uppercase">{tags.length} TAGS ACTIVE</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4 px-2">
+                                        <input 
+                                            type="text"
+                                            placeholder="Add tag and press Enter..."
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = e.target.value.trim();
+                                                    if (val && !tags.includes(val)) {
+                                                        setTags([...tags, val]);
+                                                        e.target.value = '';
+                                                    }
+                                                }
+                                            }}
+                                            className="flex-1 bg-white border border-slate-200 rounded-xl px-5 py-4 text-xs font-bold text-slate-900 outline-none focus:border-indigo-500 transition-all"
                                         />
                                     </div>
 
-                                    {/* SEO TAGS */}
-                                    <div className="space-y-6">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3 text-slate-400">
-                                                <ImageIcon size={16} />
-                                                <span className="text-[10px] font-black uppercase tracking-widest">Generated SEO Tags</span>
+                                    <div className="flex flex-wrap gap-3 px-2">
+                                        {tags?.map((tag, i) => (
+                                            <div key={i} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-tight group hover:border-slate-400 transition-all">
+                                                {tag}
+                                                <button onClick={() => setTags(tags.filter(t => t !== tag))} className="text-slate-300 hover:text-rose-500 transition-colors">
+                                                    <X size={12} />
+                                                </button>
                                             </div>
-                                            <span className="text-[9px] font-black text-slate-300 uppercase">{tags.length} TAGS GENERATED</span>
-                                        </div>
-                                        <div className="flex flex-wrap gap-3">
-                                            {tags?.map((tag, i) => (
-                                                <div key={i} className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-tight group hover:border-slate-400 transition-all">
-                                                    {tag}
-                                                    <button onClick={() => handleRemoveTag(tag)} className="text-slate-300 hover:text-rose-500 transition-colors">
-                                                        <X size={12} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-10 flex justify-end">
-                                        <button onClick={() => setActiveTab(2)} className="px-12 py-5 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-4 hover:bg-indigo-600 transition-all shadow-xl group">
-                                            Pricing & Variants <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                        </button>
+                                        ))}
+                                        {tags.length === 0 && (
+                                            <p className="text-[10px] font-bold text-slate-300 uppercase italic py-2">No tags added. Type above to start.</p>
+                                        )}
                                     </div>
                                 </div>
-                            )}
 
-                            {!optimizedData && !isOptimizing && !optimizationError && (
-                                <div className="py-32 flex flex-col items-center justify-center gap-8 border-2 border-dashed border-slate-100 rounded-[3rem]">
-                                    <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center text-slate-200">
-                                        <Sparkles size={40} />
-                                    </div>
-                                    <div className="text-center space-y-2">
-                                        <h4 className="text-lg font-black text-slate-900 uppercase">Ready for Optimization</h4>
-                                        <p className="text-sm font-medium text-slate-400">Click the button above to generate AI content for this product.</p>
-                                    </div>
+                                <div className="pt-10 flex justify-end">
+                                    <button onClick={() => setActiveTab(2)} className="px-12 py-5 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-4 hover:bg-indigo-600 transition-all shadow-xl group">
+                                        Pricing & Variants <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    </button>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )}
+
 
                     {activeTab === 2 && (
                         <div className="space-y-10 animate-in slide-in-from-right-4 duration-500">
