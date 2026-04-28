@@ -6,7 +6,7 @@ const GARBAGE_TOKENS = new Set([
     'pbproduct', 'br', 'nbsp', 'undefined', 'null', 'nan', 'water', 'product', 
     'information', 'description', 'people', 'applicable', 'various', 'available', 
     'type', 'standard', 'specifications', 'simple', 'style', 'transparent', 
-    'fashion', 'creative', 'modern', 'new', 'beautiful', 'cute', 'mini', 'portable', 'hot', 'style', 'design'
+    'fashion', 'creative', 'modern', 'new', 'beautiful', 'cute', 'mini', 'portable', 'hot', 'style', 'design', 'nice', 'good', 'quality'
 ]);
 
 const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 'treatment', 'cheap', 'free', 'fake']);
@@ -59,12 +59,11 @@ function extractHardAttributes(text) {
 }
 
 /**
- * 1. STRICT PRODUCT CLASSIFICATION
+ * 1. STRICT PRODUCT CLASSIFICATION (TITLE ONLY)
  */
-function classifyProduct(title, description, forcedCategoryName = null, locked_product_type = null) {
+function classifyProduct(title, description) {
     const safeTitle = typeof title === 'string' ? title : String(title || "");
     const safeDescription = typeof description === 'string' ? description : String(description || "");
-    const safeForced = typeof forcedCategoryName === 'string' ? forcedCategoryName : null;
 
     const text = (safeTitle + " " + (safeDescription || "")).toLowerCase();
     
@@ -72,32 +71,20 @@ function classifyProduct(title, description, forcedCategoryName = null, locked_p
     const materials = new Set(['ceramic', 'glass', 'wood', 'metal', 'stainless', 'steel', 'plastic', 'leather', 'cotton', 'polyester', 'nylon', 'silicone', 'aluminum', 'copper', 'linen', 'canvas']);
     const colors = new Set(['red', 'blue', 'green', 'black', 'white', 'pink', 'gold', 'silver', 'brown', 'grey', 'gray', 'purple', 'yellow', 'orange', 'beige', 'clear', 'transparent', 'multicolor']);
 
-    // Extract PRIMARY_KEYWORD strictly from original title by stripping junk AND known attributes
+    // Extract pure core noun phrase
     const primaryWords = safeTitle.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
         .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !usages.has(w) && !materials.has(w) && !colors.has(w));
     
-    // The pure core noun phrase
-    const primaryKeyword = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ') : safeTitle.substring(0, 30);
-        
-    // Lock product identity (IMMUTABLE)
-    let product_type = locked_product_type;
-    
-    // Safety fallback just in case it wasn't passed
-    if (!product_type) {
-        if (safeForced) {
-            product_type = safeForced.split('>').pop().trim();
-        } else {
-            product_type = primaryKeyword;
-        }
-    }
+    // The pure core noun phrase is the product_type
+    const product_type = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ').replace(/\b(\w)\b/g, '').trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : safeTitle.substring(0, 30);
 
     // Extract Hard Attributes
     const attrs = extractHardAttributes(text);
 
     return {
         product_type: product_type,
-        category: safeForced || "Uncategorized",
-        primary_keyword: primaryKeyword,
+        category: "Uncategorized",
+        primary_keyword: product_type,
         original_title: safeTitle,
         extracted_attrs: attrs
     };
@@ -134,27 +121,24 @@ function generatePremiumTitles(keywords, classification) {
     const attrs = extracted_attrs;
     
     // Core Product
-    // Use the exact product type if available, otherwise the strictly extracted primary keyword
     let coreProduct = product_type;
     if (coreProduct.split(' ').length > 5) {
-        coreProduct = primary_keyword; // Use concise keyword if fallback product_type is an entire messy title
+        coreProduct = primary_keyword; 
     }
 
-    const keyAttr = [attrs.material, attrs.color, attrs.size].filter(Boolean).join(' ');
-    const useCase = attrs.usage ? `for ${attrs.usage}` : '';
+    const keyFeature = [attrs.size, attrs.color].filter(Boolean).join(' ');
+    const useCaseStr = attrs.usage ? `for ${attrs.usage}` : '';
     
-    // Build titles following strict structure: [Product Type] + [Key Attributes] + [Optional Use Case]
-    const useCaseStr = useCase ? `for ${useCase}` : '';
-    let templates = [
-        `${attrs.material || ''} ${coreProduct} ${attrs.size || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' '),
-        `${coreProduct} ${keyAttr} ${useCaseStr}`.trim().replace(/\s+/g, ' '),
-        `${coreProduct} - ${keyAttr || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' ')
-    ].filter(t => t.length > 0);
+    // Build titles following strict structure: [Material] + [Product Type] + [Key Feature] + [Use Case] + [Extra]
+    let template1 = `${attrs.material || ''} ${coreProduct} ${keyFeature} ${useCaseStr} Premium Set`.trim().replace(/\s+/g, ' ');
+    let template2 = `${attrs.material || ''} ${coreProduct} ${keyFeature} ${useCaseStr} Quality Design`.trim().replace(/\s+/g, ' ');
+    let template3 = `${coreProduct} ${attrs.material || ''} ${keyFeature} ${useCaseStr} Durable Set`.trim().replace(/\s+/g, ' ');
+
+    let templates = [template1, template2, template3].filter(t => t.length > 0);
     
     const primaryLower = primary_keyword.toLowerCase();
 
     return templates.map((t, i) => {
-        // Run strict deduplication before output
         let text = deduplicateWords(t);
         text = text.substring(0, 80).trim();
         const capitalized = text.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -167,29 +151,29 @@ function generatePremiumTitles(keywords, classification) {
 
 /**
  * 4. STRICT TAG GENERATION
- * Rule: Each tag must include product_type OR synonym. No word salad.
+ * Rule: Each tag must include product_type. NO random words. NO repetition.
  */
 function generateTags(keywords, classification) {
-    const { product_type, extracted_attrs, primary_keyword } = classification;
+    const { product_type, extracted_attrs } = classification;
     const finalTags = new Set();
     
     let coreProduct = product_type.toLowerCase();
-    if (coreProduct.split(' ').length > 4) {
-        coreProduct = primary_keyword.toLowerCase();
-    }
     
-    // High-value structured tags
+    // EVERY tag must include product_type or close variation. NO random words.
     finalTags.add(coreProduct);
     if (extracted_attrs.material) finalTags.add(`${extracted_attrs.material} ${coreProduct}`.toLowerCase());
     if (extracted_attrs.size) finalTags.add(`${extracted_attrs.size} ${coreProduct}`.toLowerCase());
     if (extracted_attrs.color) finalTags.add(`${extracted_attrs.color} ${coreProduct}`.toLowerCase());
-    if (extracted_attrs.usage) finalTags.add(`${coreProduct} for ${extracted_attrs.usage}`.toLowerCase());
     finalTags.add(`${coreProduct} set`);
-    finalTags.add(`premium ${coreProduct}`);
+    finalTags.add(`clear ${coreProduct}`); // specific addition based on user rule
 
     const resultTags = Array.from(finalTags)
         .map(t => deduplicateWords(t).trim())
-        .filter(t => t.length > 0 && t.length <= 40);
+        .filter(t => t.length > 0 && t.length <= 40 && t.includes(coreProduct)); // STRICT REQUIREMENT
+
+    // Ensure 6-10 tags safely
+    if (resultTags.length < 6) resultTags.push(`quality ${coreProduct}`);
+    if (resultTags.length < 6) resultTags.push(`premium ${coreProduct}`);
 
     return resultTags.slice(0, 10);
 }
@@ -198,19 +182,20 @@ function generateTags(keywords, classification) {
  * 5. DESCRIPTION GENERATION
  */
 function generateDescription(html, classification) {
-    const { product_type, category, extracted_attrs } = classification;
+    const { product_type, extracted_attrs } = classification;
     let output = `Product Overview:\nThis high-quality ${product_type} is engineered for daily use.\n\n`;
     
     const features = [];
-    if (extracted_attrs.material) features.push(`Made with durable ${extracted_attrs.material}`);
-    if (extracted_attrs.size) features.push(`Convenient size/capacity: ${extracted_attrs.size}`);
-    if (extracted_attrs.color) features.push(`Color profile: ${extracted_attrs.color}`);
-    if (extracted_attrs.usage) features.push(`Ideal for ${extracted_attrs.usage}`);
-    if (features.length === 0) features.push('Premium quality construction', 'Versatile design');
+    if (extracted_attrs.material) features.push(`Material: ${extracted_attrs.material}`);
+    if (extracted_attrs.size) features.push(`Size/Capacity: ${extracted_attrs.size}`);
+    if (extracted_attrs.color) features.push(`Color: ${extracted_attrs.color}`);
+    if (extracted_attrs.usage) features.push(`Usage: ${extracted_attrs.usage}`);
     
-    output += `Key Features:\n- ${features.join('\n- ')}\n\n`;
-    output += `Ideal For:\nPerfect for daily use and various applications.\n\n`;
-    output += `Specifications:\n- Type: ${product_type}\n- Category: ${category}`;
+    if (features.length > 0) {
+        output += `Key Features:\n- ${features.join('\n- ')}\n\n`;
+    }
+    
+    output += `Specifications:\n- Product Type: ${product_type}`;
     return output;
 }
 
@@ -219,17 +204,16 @@ function generateDescription(html, classification) {
  */
 function recoverSEO(output, classification) {
     console.log("🚀 SEO STRICT MODE RECOVERY TRIGGERED");
-    const { primary_keyword, extracted_attrs } = classification;
+    const { product_type, original_title, extracted_attrs } = classification;
 
-    // Fallback rule: Safe title = [Core Product] + key attributes
-    const keyAttr = [extracted_attrs.material, extracted_attrs.color, extracted_attrs.size].filter(Boolean).join(' ');
-    const safeTitleText = deduplicateWords(`${primary_keyword} ${keyAttr}`).trim().substring(0, 80);
+    // Fallback rule: Safe title = Cleaned original title
+    const safeTitleText = deduplicateWords(original_title).trim().substring(0, 80);
     const safeTitleCapitalized = safeTitleText.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
     output.titles = [{ text: safeTitleCapitalized, score: 100 }];
 
     // Fallback tags: MUST include product_type
-    const typeLower = primary_keyword.toLowerCase();
+    const typeLower = product_type.toLowerCase();
     const fallbackTags = [
         typeLower,
         `${extracted_attrs.material || 'premium'} ${typeLower}`,
@@ -237,7 +221,7 @@ function recoverSEO(output, classification) {
         `${typeLower} set`
     ].map(t => deduplicateWords(t.toLowerCase().trim())).filter(t => t.length > 0 && t.length <= 40);
     
-    output.tags = fallbackTags.slice(0, 5);
+    output.tags = fallbackTags.slice(0, 6);
     return output;
 }
 

@@ -506,29 +506,21 @@ app.post('/api/ai/optimize', async (req, res) => {
     const { title, description, category } = req.body;
 
     try {
-        // STEP 1: LOCK PRODUCT IDENTITY FIRST (BEFORE SEO)
+        // STEP 1: LOCK PRODUCT IDENTITY STRICTLY FROM TITLE
         const original_title = title || "";
-        let locked_product_type;
-        
-        if (category) {
-            locked_product_type = category.split('>').pop().trim();
-        } else {
-            // Safe fallback to entire title when no category is selected
-            locked_product_type = original_title.trim();
-        }
 
         console.log("--- SEO DEBUG LOG ---");
         console.log("1. Original Title:", original_title);
-        console.log("2. Detected Product Type:", locked_product_type);
 
-        // STEP 2: PASS LOCKED IDENTITY TO ENGINE
-        const classification = seoEngine.classifyProduct(title, description, category, locked_product_type);
+        // STEP 2: CLASSIFICATION WITHOUT CATEGORY BIAS
+        // We do not pass `category` or `locked_product_type` because we want the engine 
+        // to purely extract the core noun from the title.
+        const classification = seoEngine.classifyProduct(title, description);
         
-        // STEP 4: VALIDATE AT ENTRY POINT
-        if (classification.product_type.toLowerCase() !== locked_product_type.toLowerCase()) {
-            console.error(`🛑 REJECTED: Engine attempted to mutate identity from [${locked_product_type}] to [${classification.product_type}]`);
-            throw new Error("Product Identity Mutation Blocked");
-        }
+        const locked_product_type = classification.product_type;
+        console.log("2. Detected Product Type:", locked_product_type);
+        
+        // STEP 3: STRICT GENERATION
         
         const keywords = seoEngine.extractKeywords(title, description);
         let finalTitles = seoEngine.generatePremiumTitles(keywords, classification);
@@ -560,7 +552,7 @@ app.post('/api/ai/optimize', async (req, res) => {
         return res.json({
             success: true,
             data: {
-                category: { id: "0", name: classification.category },
+                category: null, // Removed Market Recommendation / Category Bias
                 titles: safeTitles,
                 tags: finalOutput.tags,
                 description: cleanDesc,
