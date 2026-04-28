@@ -89,9 +89,43 @@ class EbayTradingService {
     }
 
     /**
-     * AddItem using LEGACY structure (Direct inline details)
+     * 🛡️ BUSINESS POLICIES (REST API)
      */
+    async getBusinessPolicies() {
+        console.log("[eBay Policies] Fetching Business Policies...");
+        const token = await this.getAppToken();
+        if (!token) throw new Error("Authentication failed for policies");
+
+        try {
+            const [fulfillRes, returnRes, paymentRes] = await Promise.all([
+                axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy', { headers: { 'Authorization': `Bearer ${token}` } }),
+                axios.get('https://api.ebay.com/sell/account/v1/return_policy', { headers: { 'Authorization': `Bearer ${token}` } }),
+                axios.get('https://api.ebay.com/sell/account/v1/payment_policy', { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
+
+            const fulfillmentPolicies = fulfillRes.data.fulfillmentPolicies || [];
+            const returnPolicies = returnRes.data.returnPolicies || [];
+            const paymentPolicies = paymentRes.data.paymentPolicies || [];
+
+            if (fulfillmentPolicies.length === 0 || returnPolicies.length === 0 || paymentPolicies.length === 0) {
+                throw new Error("No eBay business policies found. Please create them in eBay account.");
+            }
+
+            return {
+                fulfillmentPolicyId: fulfillmentPolicies[0].fulfillmentPolicyId,
+                returnPolicyId: returnPolicies[0].returnPolicyId,
+                paymentPolicyId: paymentPolicies[0].paymentPolicyId
+            };
+        } catch (e) {
+            console.error("[eBay Policies] Fetch Failure:", e.response?.data || e.message);
+            throw e;
+        }
+    }
+
     async addItem(itemData) {
+        // Fetch Policies first (Requirement: Business Policies)
+        const policies = await this.getBusinessPolicies();
+
         const xmlBody = `
   <Item>
     <Title>${this.escapeXml(itemData.title)}</Title>
@@ -136,44 +170,35 @@ class EbayTradingService {
     <DispatchTimeMax>3</DispatchTimeMax>
     <ListingDuration>${itemData.duration || 'GTC'}</ListingDuration>
     <ListingType>FixedPriceItem</ListingType>
+    
+    <SellerProfiles>
+      <SellerShippingProfile>
+        <ShippingProfileID>${policies.fulfillmentPolicyId}</ShippingProfileID>
+      </SellerShippingProfile>
+      <SellerReturnProfile>
+        <ReturnProfileID>${policies.returnPolicyId}</ReturnProfileID>
+      </SellerReturnProfile>
+      <SellerPaymentProfile>
+        <PaymentProfileID>${policies.paymentPolicyId}</PaymentProfileID>
+      </SellerPaymentProfile>
+    </SellerProfiles>
+
     <PictureDetails>
       ${(itemData.images || []).map(url => `<PictureURL>${this.escapeXml(url)}</PictureURL>`).join('')}
     </PictureDetails>
     <PostalCode>${itemData.postalCode || '95125'}</PostalCode>
     
-    <PaymentMethods>PayPal</PaymentMethods>
-    <PayPalEmailAddress>${itemData.paypalEmail || 'support@geonoyc.com'}</PayPalEmailAddress>
-    
-    <ReturnPolicy>
-      <ReturnsAcceptedOption>ReturnsAccepted</ReturnsAcceptedOption>
-      <RefundOption>MoneyBack</RefundOption>
-      <ReturnsWithinOption>Days_30</ReturnsWithinOption>
-      <Description>30 day money back returns.</Description>
-      <ShippingCostPaidByOption>Buyer</ShippingCostPaidByOption>
-    </ReturnPolicy>
-    
-    <ShippingDetails>
-      <ShippingType>Flat</ShippingType>
-      <ShippingServiceOptions>
-        <ShippingServicePriority>1</ShippingServicePriority>
-        <ShippingService>USPSPriority</ShippingService>
-        <ShippingServiceCost>0.00</ShippingServiceCost>
-      </ShippingServiceOptions>
-    </ShippingDetails>
-
-    ${itemData.itemSpecifics?.nameValueList ? `
     <ItemSpecifics>
-      ${itemData.itemSpecifics.nameValueList.map(spec => `
+      ${(itemData.itemSpecifics?.nameValueList || []).map(is => `
         <NameValueList>
-          <Name>${this.escapeXml(spec.name)}</Name>
-          ${spec.value.map(val => `<Value>${this.escapeXml(val)}</Value>`).join('')}
+          <Name>${this.escapeXml(is.name)}</Name>
+          ${is.value.map(val => `<Value>${this.escapeXml(val)}</Value>`).join('')}
         </NameValueList>
       `).join('')}
     </ItemSpecifics>
-    ` : ''}
   </Item>`;
 
-        return this.callTradingAPI('AddItem', xmlBody);
+        return await this.callTradingAPI('AddFixedPriceItem', xmlBody);
     }
 
     async getMyeBaySelling() {
