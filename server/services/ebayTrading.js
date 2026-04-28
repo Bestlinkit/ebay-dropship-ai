@@ -347,18 +347,19 @@ class EbayTradingService {
     }
 
     async getCategoryTreeId() {
-        console.log("[eBay Taxonomy] Fetching Default Tree ID...");
+        console.log("[eBay Taxonomy] Resolving Real Default Tree ID...");
         const token = await this.getAppToken();
         if (!token) return "0";
         try {
+            // Marketplace ID is often required, defaulting to EBAY_US but can be dynamic
             const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=EBAY_US', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const treeId = response.data.categoryTreeId || "0";
-            console.log("TREE ID:", treeId);
+            const treeId = response.data.categoryTreeId;
+            console.log("REAL TREE ID:", treeId);
             return treeId;
         } catch (e) {
-            console.error("[eBay Taxonomy] Tree ID Fetch Failure:", e.response?.data || e.message);
+            console.error("[eBay Taxonomy] Tree ID Resolution Failed:", e.response?.data || e.message);
             return "0";
         }
     }
@@ -369,7 +370,7 @@ class EbayTradingService {
             treeId = await this.getCategoryTreeId();
         }
 
-        console.log(`[eBay Taxonomy] Fetching Root Subtree for Tree ${treeId}...`);
+        console.log(`[eBay Taxonomy] Fetching Subtree for Real Tree ${treeId}...`);
         const token = await this.getAppToken();
         if (!token) return { treeId, children: [] };
 
@@ -384,8 +385,10 @@ class EbayTradingService {
                 });
             });
 
-            const rootNode = response.data?.categorySubtreeNode || response.data?.categoryTreeNode || response.data;
-            const children = rootNode?.children || rootNode?.childCategoryTreeNodes || [];
+            // 🛡️ Resilience: eBay sometimes wraps responses differently
+            const rootData = response.data;
+            const node = rootData.categorySubtreeNode || rootData.categoryTreeNode || rootData;
+            const children = node.children || node.childCategoryTreeNodes || [];
             
             console.log("ROOT CHILDREN COUNT:", children.length);
 
@@ -402,7 +405,7 @@ class EbayTradingService {
                 children: mappedChildren
             };
         } catch (err) {
-            console.error("[eBay Taxonomy] Root Category Failure:", err.response?.data || err.message);
+            console.error("[eBay Taxonomy] Root Load Failure:", err.response?.data || err.message);
             return { treeId, children: [] };
         }
     }
