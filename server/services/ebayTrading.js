@@ -66,7 +66,7 @@ class EbayTradingService {
             'https://api.ebay.com/oauth/api_scope/offline_access'
         ].join(' ');
 
-        const url = `https://auth.ebay.com/oauth2/authorize?client_id=${this.appName}&redirect_uri=${this.ruName}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+        const url = `https://auth.ebay.com/oauth2/authorize?client_id=${this.appName}&redirect_uri=${encodeURIComponent(this.ruName)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
         return url;
     }
 
@@ -79,6 +79,7 @@ class EbayTradingService {
         params.append('redirect_uri', this.ruName);
 
         console.log("[eBay Auth] Exchanging code for token with RUName:", this.ruName);
+        console.log("[eBay Auth] Exchange Body:", params.toString().substring(0, 50) + "...");
         
         const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
             params.toString(),
