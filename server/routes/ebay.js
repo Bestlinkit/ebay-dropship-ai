@@ -11,6 +11,7 @@ router.post('/list', async (req, res) => {
     try {
         const itemData = req.body;
         console.log(`[eBay Route] Listing attempt for: ${itemData.title}`);
+        console.log("INCOMING PAYLOAD:", JSON.stringify(itemData, null, 2));
         
         const responseXml = await ebayTrading.addItem(itemData);
         
@@ -34,11 +35,12 @@ router.post('/list', async (req, res) => {
             });
         }
     } catch (err) {
-        console.error("[eBay Route] List Failed:", err.message);
+        console.error("[eBay Route] CRITICAL LISTING ERROR:", err);
         res.status(500).json({
             success: false,
             message: 'Internal Server Error during listing',
-            error: err.message
+            error: err.message,
+            stack: err.stack
         });
     }
 });

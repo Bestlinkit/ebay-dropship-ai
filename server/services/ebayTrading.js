@@ -92,7 +92,7 @@ class EbayTradingService {
      * 🛡️ BUSINESS POLICIES (REST API)
      */
     async getBusinessPolicies() {
-        console.log("[eBay Policies] Fetching Business Policies...");
+        console.log("[eBay Policies] Starting policy resolution...");
         const token = await this.getAppToken();
         if (!token) throw new Error("Authentication failed for policies");
 
@@ -107,9 +107,15 @@ class EbayTradingService {
             const returnPolicies = returnRes.data.returnPolicies || [];
             const paymentPolicies = paymentRes.data.paymentPolicies || [];
 
-            if (fulfillmentPolicies.length === 0 || returnPolicies.length === 0 || paymentPolicies.length === 0) {
-                throw new Error("No eBay business policies found. Please create them in eBay account.");
-            }
+            console.log("[eBay Policies] Resolution Success:", {
+                shipping: fulfillmentPolicies.length,
+                returns: returnPolicies.length,
+                payments: paymentPolicies.length
+            });
+
+            if (fulfillmentPolicies.length === 0) throw new Error("No eBay shipping policies found. Required for listing.");
+            if (returnPolicies.length === 0) throw new Error("No eBay return policies found. Required for listing.");
+            if (paymentPolicies.length === 0) throw new Error("No eBay payment policies found. Required for listing.");
 
             return {
                 fulfillmentPolicyId: fulfillmentPolicies[0].fulfillmentPolicyId,
@@ -117,13 +123,13 @@ class EbayTradingService {
                 paymentPolicyId: paymentPolicies[0].paymentPolicyId
             };
         } catch (e) {
-            console.error("[eBay Policies] Fetch Failure:", e.response?.data || e.message);
+            console.error("[eBay Policies] RESOLUTION ERROR:", e.response?.data || e.message);
             throw e;
         }
     }
 
     async addItem(itemData) {
-        // Fetch Policies first (Requirement: Business Policies)
+        // Fetch Policies first
         const policies = await this.getBusinessPolicies();
 
         const xmlBody = `
@@ -198,6 +204,7 @@ class EbayTradingService {
     </ItemSpecifics>
   </Item>`;
 
+        console.log("FINAL XML PAYLOAD (TRUNCATED):", xmlBody.substring(0, 1000) + "...");
         return await this.callTradingAPI('AddFixedPriceItem', xmlBody);
     }
 
