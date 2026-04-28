@@ -66,7 +66,16 @@ class EbayTradingService {
             'https://api.ebay.com/oauth/api_scope/offline_access'
         ].join(' ');
 
-        const url = `https://auth.ebay.com/oauth2/authorize?client_id=${this.appName}&redirect_uri=${encodeURIComponent(this.ruName)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+        const baseUrl = 'https://auth.ebay.com/oauth2/authorize';
+        const params = new URLSearchParams();
+        params.append('client_id', this.appName);
+        params.append('response_type', 'code');
+        params.append('redirect_uri', this.ruName);
+        params.append('scope', scopes);
+
+        // eBay requires spaces to be %20, not +
+        const url = `${baseUrl}?${params.toString().replace(/\+/g, '%20')}`;
+        console.log("[eBay Auth] Generated Auth URL:", url);
         return url;
     }
 
