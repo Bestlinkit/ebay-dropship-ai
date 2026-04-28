@@ -68,10 +68,15 @@ function classifyProduct(title, description, forcedCategoryName = null, locked_p
 
     const text = (safeTitle + " " + (safeDescription || "")).toLowerCase();
     
-    // Extract PRIMARY_KEYWORD strictly from original title (e.g. "coffee mug")
+    const usages = new Set(['home', 'office', 'outdoor', 'kitchen', 'bathroom', 'travel', 'car', 'garden', 'gym', 'sports', 'party', 'men', 'women', 'kids', 'baby']);
+    const materials = new Set(['ceramic', 'glass', 'wood', 'metal', 'stainless', 'steel', 'plastic', 'leather', 'cotton', 'polyester', 'nylon', 'silicone', 'aluminum', 'copper', 'linen', 'canvas']);
+    const colors = new Set(['red', 'blue', 'green', 'black', 'white', 'pink', 'gold', 'silver', 'brown', 'grey', 'gray', 'purple', 'yellow', 'orange', 'beige', 'clear', 'transparent', 'multicolor']);
+
+    // Extract PRIMARY_KEYWORD strictly from original title by stripping junk AND known attributes
     const primaryWords = safeTitle.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')
-        .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w));
+        .filter(w => w.length > 2 && !STOPWORDS.has(w) && !GARBAGE_TOKENS.has(w) && !usages.has(w) && !materials.has(w) && !colors.has(w));
     
+    // The pure core noun phrase
     const primaryKeyword = primaryWords.length > 0 ? primaryWords.slice(0, 3).join(' ') : safeTitle.substring(0, 30);
         
     // Lock product identity (IMMUTABLE)
@@ -138,11 +143,12 @@ function generatePremiumTitles(keywords, classification) {
     const keyAttr = [attrs.material, attrs.color, attrs.size].filter(Boolean).join(' ');
     const useCase = attrs.usage ? `for ${attrs.usage}` : '';
     
-    // Build titles following strict structure
+    // Build titles following strict structure: [Product Type] + [Key Attributes] + [Optional Use Case]
+    const useCaseStr = useCase ? `for ${useCase}` : '';
     let templates = [
-        `${coreProduct} ${keyAttr} ${useCase}`.trim().replace(/\s+/g, ' '),
-        `${attrs.material || ''} ${coreProduct} ${attrs.size || ''} ${useCase}`.trim().replace(/\s+/g, ' '),
-        `${coreProduct} - ${keyAttr || ''} ${useCase}`.trim().replace(/\s+/g, ' ')
+        `${attrs.material || ''} ${coreProduct} ${attrs.size || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' '),
+        `${coreProduct} ${keyAttr} ${useCaseStr}`.trim().replace(/\s+/g, ' '),
+        `${coreProduct} - ${keyAttr || ''} ${useCaseStr}`.trim().replace(/\s+/g, ' ')
     ].filter(t => t.length > 0);
     
     const primaryLower = primary_keyword.toLowerCase();
@@ -242,10 +248,10 @@ function validateAndRecover(output, classification) {
     const typeLower = classification.product_type.toLowerCase();
     const primaryLower = classification.primary_keyword.toLowerCase();
 
-    // 1. Hard Validation: If generated_title does NOT include primary_keyword -> REJECT
+    // 1. Hard Validation: If generated_title does NOT include primary_keyword OR length < 40 -> REJECT
     const titlesValid = output.titles.length > 0 && output.titles.every(t => {
         const lower = t.text.toLowerCase();
-        return lower.includes(primaryLower) || lower.includes(typeLower);
+        return (lower.includes(primaryLower) || lower.includes(typeLower)) && t.text.length >= 40;
     });
 
     // 2. Strict Tag Validation: ALL tags MUST include product_type keyword (or primary_keyword)
