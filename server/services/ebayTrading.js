@@ -1,5 +1,6 @@
 
 const axios = require('axios');
+const tokenManager = require('./tokenManager');
 
 class EbayTradingService {
     async callWithRetry(fn, retries = 3, delay = 1000) {
@@ -24,15 +25,62 @@ class EbayTradingService {
         this.restBaseUrl = 'https://api.ebay.com';
         this.siteId = process.env.EBAY_SITE_ID || '0';
         this.compatibilityLevel = '1355';
-        this.token = process.env.EBAY_USER_TOKEN || process.env.VITE_EBAY_USER_TOKEN;
+        this.token = tokenManager.getAccessToken() || process.env.EBAY_USER_TOKEN || process.env.VITE_EBAY_USER_TOKEN;
         this.devName = process.env.EBAY_DEV_ID || process.env.VITE_EBAY_DEV_ID;
         this.appName = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
+        this.ruName = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
 
         console.log("[eBay Service] Initialized");
         console.log("[eBay Service] REST Base:", this.restBaseUrl);
         console.log("[eBay Service] Trading Endpoint:", this.endpoint);
         console.log("[eBay Service] Token Prefix:", this.token ? this.token.substring(0, 20) : "MISSING");
+    }
+
+    async ensureToken() {
+        // Update this.token from manager in case it changed
+        this.token = tokenManager.getAccessToken() || this.token;
+
+        if (tokenManager.isExpired() && tokenManager.hasRefreshToken()) {
+            console.log("[eBay Auth] Access token expired or nearing expiry. Refreshing...");
+            try {
+                const data = await this.refreshAccessToken(tokenManager.getRefreshToken());
+                tokenManager.saveTokens(data);
+                this.token = data.access_token;
+                console.log("[eBay Auth] Token refreshed successfully.");
+            } catch (error) {
+                console.error("[eBay Auth] Auto-refresh failed:", error.response?.data || error.message);
+            }
+        }
+    }
+
+    getAuthorizationUrl() {
+        const scopes = [
+            'https://api.ebay.com/oauth/api_scope/sell.account',
+            'https://api.ebay.com/oauth/api_scope/sell.inventory',
+            'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
+            'https://api.ebay.com/oauth/api_scope/offline_access'
+        ].join(' ');
+
+        const url = `https://auth.ebay.com/oauth2/authorize?client_id=${this.appName}&redirect_uri=${this.ruName}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+        return url;
+    }
+
+    async exchangeCodeForToken(code) {
+        const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
+        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
+            `grant_type=authorization_code&code=${code}&redirect_uri=${this.ruName}`,
+            {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Basic ${auth}`
+                }
+            }
+        );
+
+        tokenManager.saveTokens(response.data);
+        this.token = response.data.access_token;
+        return response.data;
     }
 
     async callTradingAPI(callName, xmlBody, siteId = null) {

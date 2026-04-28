@@ -56,6 +56,10 @@ const Discovery = () => {
   const cacheRegistry = useRef(new Map());
   const navigate = useNavigate();
 
+  const handleConnectEbay = () => {
+    window.location.href = `${process.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`;
+  };
+
   // 1. DATA PULSE: Retrieve Categorization
   useEffect(() => {
     ebayService.getCategorySuggestions('top').then(setCategories);
@@ -171,6 +175,26 @@ const Discovery = () => {
   return (
     <div className="space-y-12 animate-in fade-in duration-700 pb-40 max-w-[1700px] mx-auto px-6 font-inter text-text-primary">
       
+      {/* 🔐 AUTHENTICATION BAR */}
+      <div className="flex items-center justify-between p-8 bg-gradient-to-r from-[#0F172A] to-[#1E293B] border border-white/5 rounded-[3rem] shadow-2xl">
+        <div className="flex items-center gap-6">
+          <div className="w-12 h-12 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center text-[#26abe3]">
+            <Shield size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black tracking-tight text-white">EBay Integration Status</h2>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Authorization Code Flow • offline_access</p>
+          </div>
+        </div>
+        <button
+          onClick={handleConnectEbay}
+          className="group flex items-center gap-3 px-8 py-4 bg-[#26abe3] hover:bg-blue-400 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg hover:shadow-blue-500/20 transform active:scale-95"
+        >
+          <Zap size={16} className="fill-slate-950" />
+          Connect eBay Account
+        </button>
+      </div>
+
       {/* 🚀 STAGE I: TOP PICKS (RANKED BY RELEVANCE) */}
       {topPicks.length > 0 && !loading && (
         <section className="space-y-8">

@@ -9,6 +9,7 @@ const ebayTrading = require('../services/ebayTrading');
  */
 router.post('/list', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const itemData = req.body;
         console.log(`[eBay Route] Listing attempt for: ${itemData.title}`);
         
@@ -77,6 +78,7 @@ router.post('/list', async (req, res) => {
  */
 router.get('/account', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const responseXml = await ebayTrading.getMyeBaySelling();
         const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
         
@@ -114,6 +116,7 @@ router.get('/account', async (req, res) => {
  */
 router.get('/user', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const responseXml = await ebayTrading.getUser();
         const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
         
@@ -153,6 +156,7 @@ router.get('/user', async (req, res) => {
  */
 router.get('/listings', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const responseXml = await ebayTrading.getActiveListings();
         const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
         
@@ -182,6 +186,7 @@ router.get('/listings', async (req, res) => {
  */
 router.get('/orders', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const responseXml = await ebayTrading.getOrders();
         const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
         
@@ -210,6 +215,7 @@ router.get('/orders', async (req, res) => {
  */
 router.post('/revise/:id', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const responseXml = await ebayTrading.reviseItem(req.params.id, req.body);
         const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
         if (ack === 'Success' || ack === 'Warning') {
@@ -260,6 +266,7 @@ router.get('/search', async (req, res) => {
  */
 router.get('/categories', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const { q, treeId } = req.query;
         
         // If query 'q' exists, it's a search
@@ -286,6 +293,7 @@ router.get('/categories', async (req, res) => {
  */
 router.get('/categories/:id', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const categoryId = req.params.id;
         const { treeId } = req.query;
         
@@ -327,6 +335,7 @@ router.get('/categories/:id', async (req, res) => {
  */
 router.get('/categories-sub/:id', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const parentId = req.params.id;
         const treeId = req.query.treeId || "0";
         const cats = await ebayTrading.getSubCategories(parentId, treeId);
@@ -341,12 +350,45 @@ router.get('/categories-sub/:id', async (req, res) => {
  */
 router.get('/aspects/:id', async (req, res) => {
     try {
+        await ebayTrading.ensureToken();
         const categoryId = req.params.id;
         const treeId = req.query.treeId || "0";
         const aspects = await ebayTrading.getItemAspectsForCategory(categoryId, treeId);
         res.json(aspects);
     } catch (err) {
         res.json([]);
+    }
+});
+
+/**
+ * 🔐 OAUTH AUTHENTICATION
+ */
+router.get('/auth', (req, res) => {
+    const url = ebayTrading.getAuthorizationUrl();
+    res.redirect(url);
+});
+
+router.get('/callback', async (req, res) => {
+    try {
+        const { code } = req.query;
+        if (!code) return res.status(400).send("Authorization code missing");
+        
+        await ebayTrading.exchangeCodeForToken(code);
+        res.send(`
+            <html>
+                <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #0f172a; color: white;">
+                    <div style="background: #1e293b; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center;">
+                        <h1 style="color: #26abe3;">Connection Successful!</h1>
+                        <p>Your eBay account is now linked with Geonoyc AI.</p>
+                        <p style="color: #94a3b8; font-size: 0.9rem;">You can close this window and return to the app.</p>
+                        <button onclick="window.close()" style="margin-top: 1rem; padding: 0.5rem 1.5rem; background: #26abe3; border: none; border-radius: 0.5rem; color: white; cursor: pointer; font-weight: bold;">Close Window</button>
+                    </div>
+                </body>
+            </html>
+        `);
+    } catch (err) {
+        console.error("[OAuth Callback] Error:", err.response?.data || err.message);
+        res.status(500).send("Authentication failed");
     }
 });
 
