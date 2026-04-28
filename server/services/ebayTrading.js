@@ -59,23 +59,17 @@ class EbayTradingService {
     }
 
     getAuthorizationUrl() {
-        const scopes = [
-            'https://api.ebay.com/oauth/api_scope/sell.account',
-            'https://api.ebay.com/oauth/api_scope/sell.inventory',
-            'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
-            'https://api.ebay.com/oauth/api_scope/offline_access'
-        ].join(' ');
-
+        const scopes = 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access';
+        
+        // Manual string construction for absolute control (Space = %20)
         const baseUrl = 'https://auth.ebay.com/oauth2/authorize';
-        const params = new URLSearchParams();
-        params.append('client_id', this.appName);
-        params.append('response_type', 'code');
-        params.append('redirect_uri', this.ruName);
-        params.append('scope', scopes);
+        const clientId = this.appName.trim();
+        const ruName = this.ruName.trim();
+        const encodedScopes = encodeURIComponent(scopes);
 
-        // eBay requires spaces to be %20, not +
-        const url = `${baseUrl}?${params.toString().replace(/\+/g, '%20')}`;
-        console.log("[eBay Auth] Generated Auth URL:", url);
+        const url = `${baseUrl}?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(ruName)}&scope=${encodedScopes}`;
+        
+        console.log("[eBay Auth] FINAL AUTH URL (MANUAL):", url);
         return url;
     }
 
