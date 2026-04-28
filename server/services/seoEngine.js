@@ -9,19 +9,16 @@ const MISLEADING_TOKENS = new Set(['facial', 'acid', 'ingredients', 'chemical', 
 const UNRELATED_PRODUCTS = new Set(['pbproduct', 'br', 'nbsp', 'description', 'information']);
 
 /**
- * Helper: Deduplicate words in a string
+ * Helper: Deduplicate consecutive words
  */
 function deduplicateWords(text) {
-    const words = text.split(' ');
-    const seen = new Set();
+    const words = text.split(/\s+/).filter(Boolean);
     const result = [];
-    words.forEach(w => {
-        const lower = w.toLowerCase();
-        if (!seen.has(lower) || w === '-') {
-            result.push(w);
-            seen.add(lower);
+    for (let i = 0; i < words.length; i++) {
+        if (i === 0 || words[i].toLowerCase() !== words[i-1].toLowerCase()) {
+            result.push(words[i]);
         }
-    });
+    }
     return result.join(' ');
 }
 
@@ -120,9 +117,24 @@ function generatePremiumTitles(keywords, classification) {
     const { primary_keyword, product_type, extracted_attrs, original_title } = classification;
     const attrs = extracted_attrs;
     const keyAttr = [attrs.material, attrs.color, attrs.size].filter(Boolean).join(' ');
-    const useCase = attrs.usage ? `for ${attrs.usage}` : '';
     
-    const baseTitle = `${primary_keyword} ${product_type}`.trim();
+    // Only append usage if the word doesn't already exist in the base strings
+    const baseType = product_type;
+    let useCase = '';
+    if (attrs.usage) {
+        // Prevent "Home Glass for Home"
+        const usageWords = attrs.usage.toLowerCase().split(' ');
+        const hasUsage = usageWords.every(w => baseType.toLowerCase().includes(w) || primary_keyword.toLowerCase().includes(w));
+        if (!hasUsage) {
+            useCase = `for ${attrs.usage}`;
+        }
+    }
+    
+    // Combine primary keyword and product type only if they don't heavily overlap
+    let baseTitle = baseType;
+    if (!baseType.toLowerCase().includes(primary_keyword.toLowerCase())) {
+        baseTitle = `${primary_keyword} ${baseType}`;
+    }
     
     // Generate strictly using product_type and extracted attributes
     let templates = [
@@ -168,16 +180,16 @@ function generateTags(keywords, classification) {
     if (extracted_attrs.material) candidateTags.push(`${extracted_attrs.material} ${typeLower}`);
     if (extracted_attrs.usage) candidateTags.push(`${typeLower} for ${extracted_attrs.usage}`);
     
-    // Add exact matches
-    candidateTags.push(typeLower);
-    candidateTags.push(primaryLower);
+    // Add exact matches safely (max 30 chars)
+    candidateTags.push(typeLower.substring(0, 30));
+    candidateTags.push(primaryLower.substring(0, 30));
 
     for (let tag of candidateTags) {
         if (finalTags.size >= 10) break;
 
-        tag = tag.toLowerCase().trim();
+        tag = deduplicateWords(tag.toLowerCase().trim());
         const words = tag.split(/\s+/);
-        if (words.length > 4) continue;
+        if (words.length > 5) continue;
         if (words.some(w => GARBAGE_TOKENS.has(w))) continue;
         
         // RULE: ALL tags MUST include product_type keyword (or primary_keyword as safe anchor)
@@ -189,14 +201,17 @@ function generateTags(keywords, classification) {
     // RULE: Ensure PRIMARY_KEYWORD appears in at least 2 tags
     const resultTags = Array.from(finalTags);
     let primaryCount = resultTags.filter(t => t.includes(primaryLower)).length;
-    while (primaryCount < 2 && resultTags.length < 10) {
-        const synth = `${primaryLower} ${typeLower}`.substring(0, 30);
+    
+    // Only synthesize if we have simple words to add
+    const fallbackWords = ["premium", "quality", "new", "best"];
+    let fallbackIdx = 0;
+    while (primaryCount < 2 && resultTags.length < 10 && fallbackIdx < fallbackWords.length) {
+        const synth = `${fallbackWords[fallbackIdx]} ${primaryLower}`.substring(0, 30);
         if (!resultTags.includes(synth)) {
             resultTags.push(synth);
             primaryCount++;
-        } else {
-            break;
         }
+        fallbackIdx++;
     }
 
     return resultTags.slice(0, 10);

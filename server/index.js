@@ -513,7 +513,8 @@ app.post('/api/ai/optimize', async (req, res) => {
         if (category) {
             locked_product_type = category.split('>').pop().trim();
         } else {
-            locked_product_type = original_title.split(' ').slice(0, 4).join(' '); // Safe fallback to start of title
+            // Safe fallback to entire title when no category is selected
+            locked_product_type = original_title.trim();
         }
 
         console.log("--- SEO DEBUG LOG ---");
