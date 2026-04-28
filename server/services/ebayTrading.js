@@ -94,34 +94,53 @@ class EbayTradingService {
     async getBusinessPolicies() {
         console.log("[eBay Policies] Starting policy resolution...");
         
-        // IMPORTANT: Must use USER TOKEN for Account API, not App Token
+        // 🔍 Log token diagnostic (Requirement: TOKEN BEING USED)
+        const tokenPrefix = this.token ? this.token.substring(0, 20) : "MISSING";
+        console.log("TOKEN BEING USED (Prefix):", tokenPrefix);
+
         const isOAuth = this.token && this.token.startsWith('v^1.1');
         if (!isOAuth) {
-            throw new Error("Business Policies require an OAuth User Token. Please check your EBAY_USER_TOKEN.");
+            throw new Error("Business Policies require a valid OAuth User Token (v^1.1). Current token is invalid or legacy.");
         }
 
         const token = this.token;
 
         try {
+            console.log("[eBay Policies] Requesting Fulfillment, Return, and Payment policies...");
             const [fulfillRes, returnRes, paymentRes] = await Promise.all([
                 axios.get('https://api.ebay.com/sell/account/v1/fulfillment_policy', { headers: { 'Authorization': `Bearer ${token}` } }),
                 axios.get('https://api.ebay.com/sell/account/v1/return_policy', { headers: { 'Authorization': `Bearer ${token}` } }),
                 axios.get('https://api.ebay.com/sell/account/v1/payment_policy', { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
+            // 🔍 Log raw response (Requirement: Log raw response)
+            console.log("RAW FULFILLMENT RESPONSE:", JSON.stringify(fulfillRes.data).substring(0, 500) + "...");
+
             const shipData = fulfillRes.data;
             const returnData = returnRes.data;
             const payData = paymentRes.data;
 
-            console.log("POLICIES:", { shipData, returnData, payData });
+            console.log("POLICIES SUMMARY:", { 
+                shipCount: shipData.fulfillmentPolicies?.length || 0, 
+                returnCount: returnData.returnPolicies?.length || 0, 
+                payCount: payData.paymentPolicies?.length || 0 
+            });
 
             const fulfillmentPolicies = shipData.fulfillmentPolicies || [];
             const returnPolicies = returnData.returnPolicies || [];
             const paymentPolicies = payData.paymentPolicies || [];
 
-            if (fulfillmentPolicies.length === 0) throw new Error("No shipping policies");
-            if (returnPolicies.length === 0) throw new Error("No return policies");
-            if (paymentPolicies.length === 0) throw new Error("No payment policies");
+            // ✅ Handle gracefully (Requirement: Handle gracefully instead of throwing 500)
+            if (fulfillmentPolicies.length === 0 || returnPolicies.length === 0 || paymentPolicies.length === 0) {
+                const missing = [];
+                if (fulfillmentPolicies.length === 0) missing.push("Shipping");
+                if (returnPolicies.length === 0) missing.push("Return");
+                if (paymentPolicies.length === 0) missing.push("Payment");
+                
+                const msg = `No business policies found on seller account for: ${missing.join(', ')}. Please create them in eBay Seller Hub.`;
+                console.warn(`[eBay Policies] ${msg}`);
+                throw new Error(msg);
+            }
 
             return {
                 fulfillmentPolicyId: fulfillmentPolicies[0].fulfillmentPolicyId,
@@ -129,6 +148,10 @@ class EbayTradingService {
                 paymentPolicyId: paymentPolicies[0].paymentPolicyId
             };
         } catch (e) {
+            // Enhanced logging for 403 Forbidden (Scope issues)
+            if (e.response?.status === 403) {
+                console.error("403 FORBIDDEN: Token likely lacks 'sell.account' or 'sell.fulfillment' scopes.");
+            }
             console.error("POLICY FETCH ERROR:", e.response?.data || e.message);
             throw e;
         }

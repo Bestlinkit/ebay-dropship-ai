@@ -57,17 +57,16 @@ router.post('/list', async (req, res) => {
                 raw: responseXml
             });
         }
-    } catch (err) {
+    } catch (error) {
         console.error("FULL EBAY ERROR:", {
-            status: err.response?.status,
-            data: err.response?.data,
-            headers: err.response?.headers
+            status: error.response?.status,
+            data: error.response?.data,
+            headers: error.response?.headers
         });
-        
-        return res.status(err.response?.status || 500).json({
+
+        return res.status(error.response?.status || 500).json({
             error: "EBAY_API_ERROR",
-            details: err.response?.data || err.message,
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+            details: error.response?.data || error.message
         });
     }
 });
@@ -96,11 +95,15 @@ router.get('/account', async (req, res) => {
                 raw: responseXml
             });
         }
-    } catch (err) {
-        console.error("[eBay Route] Account Fetch Failed:", err.message);
-        res.status(500).json({
+    } catch (error) {
+        console.error("[eBay Route] Account Fetch Failed:", {
+            status: error.response?.status,
+            data: error.response?.data,
+            headers: error.response?.headers
+        });
+        res.status(error.response?.status || 500).json({
             success: false,
-            error: err.message
+            error: error.response?.data || error.message
         });
     }
 });
@@ -129,11 +132,15 @@ router.get('/user', async (req, res) => {
                 raw: responseXml
             });
         }
-    } catch (err) {
-        console.error("[eBay Route] User Fetch Failed:", err.message);
-        res.status(500).json({
+    } catch (error) {
+        console.error("[eBay Route] User Fetch Failed:", {
+            status: error.response?.status,
+            data: error.response?.data,
+            headers: error.response?.headers
+        });
+        res.status(error.response?.status || 500).json({
             success: false,
-            error: err.message
+            error: error.response?.data || error.message
         });
     }
 });

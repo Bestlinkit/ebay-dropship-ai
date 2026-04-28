@@ -73,8 +73,12 @@ class eBayService {
         raw: response.data.raw
       };
     } catch (e) {
-      const errors = e.response?.data?.errors || [e.message];
-      return { success: false, error: errors[0], errors };
+      const errorDetail = e.response?.data?.details || e.response?.data?.error || e.message;
+      return { 
+        success: false, 
+        error: typeof errorDetail === 'string' ? errorDetail : JSON.stringify(errorDetail),
+        details: errorDetail 
+      };
     }
   }
 
