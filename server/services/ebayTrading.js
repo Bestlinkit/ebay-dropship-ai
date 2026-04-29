@@ -57,6 +57,7 @@ class EbayTradingService {
         
         console.log("[eBay Auth] Using EBAY_RUNAME for redirect_uri:", EBAY_RUNAME);
 
+        // 🛡️ HARDCODED BASE URL (Requirement: ONLY auth.ebay.com, NO auth2.ebay.com)
         const base = "https://auth.ebay.com/oauth2/authorize";
 
         const params = new URLSearchParams({
