@@ -365,7 +365,7 @@ router.get('/aspects/:id', async (req, res) => {
  */
 router.get('/auth', (req, res) => {
     const url = ebayTrading.getAuthorizationUrl();
-    console.log("[DEBUG] Generated OAuth URL for inspection:", JSON.stringify(url));
+    console.log("[DEBUG] Generated OAuth URL Length:", url.length);
     res.json({ oauthUrl: url });
 });
 

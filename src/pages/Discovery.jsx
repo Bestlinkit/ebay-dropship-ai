@@ -60,11 +60,18 @@ const Discovery = () => {
         try {
             const response = await fetch(`${process.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
             const data = await response.json();
+            const url = data.oauthUrl;
             console.log("----------------------------------------");
-            console.log("DEBUG: RECEIVED EBAY OAUTH URL");
-            console.log(JSON.stringify(data.oauthUrl));
+            console.log("DEBUG: RECEIVED EBAY OAUTH URL (Length:", url.length, ")");
+            console.log(url);
             console.log("----------------------------------------");
-            alert("Check browser console for the FULL OAuth URL string.");
+            
+            // Allow user to copy full string
+            window.prompt("Full OAuth URL (Copy this):", url);
+            
+            if (window.confirm("Proceed to eBay with this URL?")) {
+                window.location.href = url;
+            }
         } catch (error) {
             console.error("Failed to get auth URL:", error);
         }
