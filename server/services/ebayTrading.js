@@ -29,7 +29,7 @@ class EbayTradingService {
         this.devName = process.env.EBAY_DEV_ID || process.env.VITE_EBAY_DEV_ID;
         this.appName = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
-        this.ruName = 'Geonoyc_App_Auth';
+        this.ruName = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
 
         console.log("[eBay Service] Initialized with OAuth Architecture");
     }
@@ -52,9 +52,11 @@ class EbayTradingService {
     }
 
     getAuthorizationUrl() {
-        const EBAY_CLIENT_ID = 'georgett-GeonoycA-PRD-a6c135696-f0481c4a';
-        const EBAY_RUNAME = 'Geonoyc_App_Auth';
+        const EBAY_CLIENT_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
+        const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
         
+        console.log("[eBay Auth] Using EBAY_RUNAME for redirect_uri:", EBAY_RUNAME);
+
         const base = "https://auth.ebay.com/oauth2/authorize";
 
         const params = new URLSearchParams({
