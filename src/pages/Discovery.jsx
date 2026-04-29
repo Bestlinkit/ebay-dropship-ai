@@ -62,9 +62,9 @@ const Discovery = () => {
             const data = await response.json();
             console.log("----------------------------------------");
             console.log("DEBUG: RECEIVED EBAY OAUTH URL");
-            console.log(data.oauthUrl);
+            console.log(JSON.stringify(data.oauthUrl));
             console.log("----------------------------------------");
-            alert("Check console for OAuth URL");
+            alert("Check browser console for the FULL OAuth URL string.");
         } catch (error) {
             console.error("Failed to get auth URL:", error);
         }

@@ -67,7 +67,7 @@ class EbayTradingService {
         const url = `https://auth.ebay.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
         
         console.log("\n[!!!] CRITICAL: FINAL EBAY AUTH URL");
-        console.log(url);
+        console.log(JSON.stringify(url));
         console.log("------------------------------------\n");
 
         return url;
