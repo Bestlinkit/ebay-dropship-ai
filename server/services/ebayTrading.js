@@ -59,6 +59,7 @@ class EbayTradingService {
     }
 
     getAuthorizationUrl() {
+        console.trace("OAUTH URL BUILD");
         // 🛡️ HARDCODED PRODUCTION HANDSHAKE (No Placeholders)
         const client_id = 'georgett-GeonoycA-PRD-a6c135696-f0481c4a';
         const redirect_uri = 'Geonoyc_App_Auth';
@@ -72,11 +73,7 @@ class EbayTradingService {
             throw new Error('OAuth URL duplication detected');
         }
 
-        process.stdout.write("\n--- START RAW OAUTH URL ---\n");
-        process.stdout.write(oauthUrl + "\n");
-        process.stdout.write("--- END RAW OAUTH URL ---\n");
-        console.log("URL LENGTH:", oauthUrl.length);
-
+        console.log("FINAL URL:", oauthUrl);
         return oauthUrl;
     }
 

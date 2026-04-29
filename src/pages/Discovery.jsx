@@ -62,6 +62,8 @@ const Discovery = () => {
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
             
+            console.log("FRONTEND URL:", oauthUrl);
+            
             // Display raw URL in prompt for verification - NO LOGGING
             window.prompt("Verify Raw OAuth URL:", oauthUrl);
             
