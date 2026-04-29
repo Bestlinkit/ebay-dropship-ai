@@ -62,16 +62,14 @@ const Discovery = () => {
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
             
-            console.log("FRONTEND URL:", oauthUrl);
+            // Raw prompt for final verification
+            window.prompt("Final Validated OAuth URL (Copy if needed):", oauthUrl);
             
-            // Display raw URL in prompt for verification - NO LOGGING
-            window.prompt("Verify Raw OAuth URL:", oauthUrl);
-            
-            if (window.confirm("Navigate to eBay with this EXACT URL?")) {
+            if (window.confirm("Redirection to eBay will occur now. Proceed?")) {
                 window.location.href = oauthUrl;
             }
         } catch (error) {
-            console.error("Auth Fetch Error");
+            console.error("Critical Auth Fetch Error");
         }
     };
 

@@ -59,21 +59,32 @@ class EbayTradingService {
     }
 
     getAuthorizationUrl() {
-        console.trace("OAUTH URL BUILD");
-        // 🛡️ HARDCODED PRODUCTION HANDSHAKE (No Placeholders)
-        const client_id = 'georgett-GeonoycA-PRD-a6c135696-f0481c4a';
-        const redirect_uri = 'Geonoyc_App_Auth';
-        const scope = 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access';
+        const EBAY_CLIENT_ID = 'georgett-GeonoycA-PRD-a6c135696-f0481c4a';
+        const EBAY_RUNAME = 'Geonoyc_App_Auth';
         
-        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
-        
-        // 🛑 DUPLICATION GUARD (Requirement 3)
-        if (oauthUrl.includes('offline_accesshttps://auth.ebay.com')) {
-            console.error("[CRITICAL] OAuth URL Duplication Detected!");
-            throw new Error('OAuth URL duplication detected');
+        const base = "https://auth.ebay.com/oauth2/authorize";
+
+        const params = new URLSearchParams({
+            client_id: EBAY_CLIENT_ID,
+            response_type: "code",
+            redirect_uri: EBAY_RUNAME,
+            scope: [
+                "https://api.ebay.com/oauth/api_scope/sell.account",
+                "https://api.ebay.com/oauth/api_scope/sell.inventory",
+                "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+                "https://api.ebay.com/oauth/api_scope/offline_access"
+            ].join(" ")
+        });
+
+        const oauthUrl = `${base}?${params.toString()}`;
+
+        // 🛑 HARD GUARD: Prevent duplication
+        const matches = oauthUrl.match(/https:\/\/auth\.ebay\.com/g);
+        if (matches && matches.length > 1) {
+            throw new Error("OAuth URL duplication detected");
         }
 
-        console.log("FINAL URL:", oauthUrl);
+        console.log("CLEAN OAUTH URL:", oauthUrl);
         return oauthUrl;
     }
 
