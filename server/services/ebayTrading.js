@@ -55,37 +55,22 @@ class EbayTradingService {
         const EBAY_CLIENT_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
         
-        console.log("[eBay Auth] RuName Validation:", EBAY_RUNAME);
-
-        const base = "https://auth.ebay.com/oauth2/authorize";
-        
-        // STRICT SCOPE VALIDATION (Step 2)
-        const scopesList = [
+        // 1. HARDCODE ONLY these 4 scopes (no dynamic building)
+        const scopes = [
             "https://api.ebay.com/oauth/api_scope/sell.account",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
             "https://api.ebay.com/oauth/api_scope/offline_access"
         ];
-        
-        // Space-separated BEFORE encoding (Step 3)
-        const scopeString = scopesList.join(" ");
 
-        const params = new URLSearchParams();
-        params.append('client_id', EBAY_CLIENT_ID);
-        params.append('response_type', 'code');
-        params.append('redirect_uri', EBAY_RUNAME);
-        params.append('scope', scopeString);
+        // 2. Build scope string EXACTLY like this BEFORE encoding
+        const scope = scopes.join(" ");
 
-        // URL-encoded ONCE (Step 3)
-        // URLSearchParams encodes spaces as '+', we convert to '%20' as per eBay spec
-        const oauthUrl = `${base}?${params.toString().replace(/\+/g, '%20')}`;
+        // 3. Encode ONCE and 4. build URL manually (No URLSearchParams)
+        const base = "https://auth.ebay.com/oauth2/authorize";
+        const oauthUrl = `${base}?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodeURIComponent(scope)}`;
 
-        // Ensure NO duplication (Step 4)
-        if (oauthUrl.split('?').length > 2) {
-            throw new Error("CRITICAL: OAuth URL Duplication Detected");
-        }
-
-        // FULL RAW LOGGING (Step 5)
+        // 5. Log FINAL URL and VERIFY manually
         console.log("--- START RAW OAUTH URL ---");
         console.log(oauthUrl);
         console.log("--- END RAW OAUTH URL ---");
