@@ -55,53 +55,27 @@ class EbayTradingService {
         const EBAY_CLIENT_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
         
-        console.log("[eBay Auth] Using EBAY_RUNAME for redirect_uri:", EBAY_RUNAME);
+        console.log("[eBay Auth] Generating Authorization URL for RuName:", EBAY_RUNAME);
 
-        // 🛡️ HARDCODED BASE URL (Requirement: ONLY auth.ebay.com, NO auth2.ebay.com)
         const base = "https://auth.ebay.com/oauth2/authorize";
+        const scopes = [
+            "https://api.ebay.com/oauth/api_scope/sell.inventory",
+            "https://api.ebay.com/oauth/api_scope/sell.account",
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+            "https://api.ebay.com/oauth/api_scope/offline_access"
+        ].join(" ");
 
         const params = new URLSearchParams({
             client_id: EBAY_CLIENT_ID,
             response_type: "code",
             redirect_uri: EBAY_RUNAME,
-            scope: [
-                "https://api.ebay.com/oauth/api_scope",
-                "https://api.ebay.com/oauth/api_scope/sell.marketing.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.marketing",
-                "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.inventory",
-                "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.account",
-                "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-                "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.finances",
-                "https://api.ebay.com/oauth/api_scope/sell.payment.dispute",
-                "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.reputation",
-                "https://api.ebay.com/oauth/api_scope/sell.reputation.readonly",
-                "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription",
-                "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.stores",
-                "https://api.ebay.com/oauth/api_scope/sell.stores.readonly",
-                "https://api.ebay.com/oauth/api_scope/sell.edelivery",
-                "https://api.ebay.com/oauth/api_scope/commerce.vero",
-                "https://api.ebay.com/oauth/api_scope/sell.inventory.mapping",
-                "https://api.ebay.com/oauth/api_scope/commerce.message",
-                "https://api.ebay.com/oauth/api_scope/commerce.feedback",
-                "https://api.ebay.com/oauth/api_scope/offline_access"
-            ].join(" ")
+            scope: scopes
         });
 
+        // eBay requires space-separated scopes to be encoded as %20
         const oauthUrl = `${base}?${params.toString()}`.replace(/\+/g, '%20');
 
-        // 🛑 HARD GUARD: Prevent duplication
-        const matches = oauthUrl.match(/https:\/\/auth\.ebay\.com/g);
-        if (matches && matches.length > 1) {
-            throw new Error("OAuth URL duplication detected");
-        }
-
-        console.log("[eBay Auth] FINAL URL (Encoded):", oauthUrl);
+        console.log("[eBay Auth] PROPER OAUTH URL:", oauthUrl);
         return oauthUrl;
     }
 
@@ -406,30 +380,9 @@ class EbayTradingService {
         params.append('grant_type', 'refresh_token');
         params.append('refresh_token', refreshToken);
         params.append('scope', [
-            "https://api.ebay.com/oauth/api_scope",
-            "https://api.ebay.com/oauth/api_scope/sell.marketing.readonly",
-            "https://api.ebay.com/oauth/api_scope/sell.marketing",
-            "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
-            "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
             "https://api.ebay.com/oauth/api_scope/sell.account",
-            "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-            "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly",
-            "https://api.ebay.com/oauth/api_scope/sell.finances",
-            "https://api.ebay.com/oauth/api_scope/sell.payment.dispute",
-            "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
-            "https://api.ebay.com/oauth/api_scope/sell.reputation",
-            "https://api.ebay.com/oauth/api_scope/sell.reputation.readonly",
-            "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription",
-            "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription.readonly",
-            "https://api.ebay.com/oauth/api_scope/sell.stores",
-            "https://api.ebay.com/oauth/api_scope/sell.stores.readonly",
-            "https://api.ebay.com/oauth/api_scope/sell.edelivery",
-            "https://api.ebay.com/oauth/api_scope/commerce.vero",
-            "https://api.ebay.com/oauth/api_scope/sell.inventory.mapping",
-            "https://api.ebay.com/oauth/api_scope/commerce.message",
-            "https://api.ebay.com/oauth/api_scope/commerce.feedback",
             "https://api.ebay.com/oauth/api_scope/offline_access"
         ].join(" "));
 
