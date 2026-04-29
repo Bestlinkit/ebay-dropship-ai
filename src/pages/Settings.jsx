@@ -62,6 +62,7 @@ const Settings = () => {
 
   const [isTestingBridge, setIsTestingBridge] = useState(false);
   const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [isDeployingBridge, setIsDeployingBridge] = useState(false);
 
   const handleSave = () => {
     setLoading(true);
@@ -357,14 +358,32 @@ const Settings = () => {
                                     <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Establish a permanent 18-month link to prevent session expiration.</p>
                                 </div>
                                 <button 
-                                    onClick={() => {
-                                        const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${import.meta.env.VITE_EBAY_APP_ID}&redirect_uri=${import.meta.env.VITE_EBAY_RUNAME}&response_type=code&scope=https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.marketing https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.fulfillment`;
-                                        window.location.href = authUrl;
+                                    onClick={async () => {
+                                        setIsDeployingBridge(true);
+                                        try {
+                                            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
+                                            const data = await response.json();
+                                            if (data.oauthUrl) {
+                                                window.location.href = data.oauthUrl;
+                                            } else {
+                                                throw new Error("Missing OAuth URL");
+                                            }
+                                        } catch (err) {
+                                            toast.error("Secure Bridge Deployment Failed: " + err.message);
+                                            setIsDeployingBridge(false);
+                                        }
                                     }}
-                                    className="w-full btn-premium bg-white text-slate-900 h-16 rounded-2xl flex items-center justify-center gap-3 group hover:scale-[1.02] transition-all"
+                                    disabled={isDeployingBridge}
+                                    className="w-full btn-premium bg-white text-slate-900 h-16 rounded-2xl flex items-center justify-center gap-3 group hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <Shield size={20} className="text-primary-500" />
-                                    <span className="font-black uppercase tracking-widest text-xs">Deploy Permanent Bridge</span>
+                                    {isDeployingBridge ? (
+                                        <Loader2 className="animate-spin text-primary-500" size={20} />
+                                    ) : (
+                                        <Shield size={20} className="text-primary-500" />
+                                    )}
+                                    <span className="font-black uppercase tracking-widest text-xs">
+                                        {isDeployingBridge ? "Generating Secure Link..." : "Deploy Permanent Bridge"}
+                                    </span>
                                 </button>
                             </div>
                         </div>

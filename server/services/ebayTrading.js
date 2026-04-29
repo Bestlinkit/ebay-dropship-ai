@@ -65,9 +65,30 @@ class EbayTradingService {
             response_type: "code",
             redirect_uri: EBAY_RUNAME,
             scope: [
-                "https://api.ebay.com/oauth/api_scope/sell.account",
+                "https://api.ebay.com/oauth/api_scope",
+                "https://api.ebay.com/oauth/api_scope/sell.marketing.readonly",
+                "https://api.ebay.com/oauth/api_scope/sell.marketing",
+                "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
                 "https://api.ebay.com/oauth/api_scope/sell.inventory",
+                "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
+                "https://api.ebay.com/oauth/api_scope/sell.account",
+                "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
                 "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+                "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly",
+                "https://api.ebay.com/oauth/api_scope/sell.finances",
+                "https://api.ebay.com/oauth/api_scope/sell.payment.dispute",
+                "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
+                "https://api.ebay.com/oauth/api_scope/sell.reputation",
+                "https://api.ebay.com/oauth/api_scope/sell.reputation.readonly",
+                "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription",
+                "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription.readonly",
+                "https://api.ebay.com/oauth/api_scope/sell.stores",
+                "https://api.ebay.com/oauth/api_scope/sell.stores.readonly",
+                "https://api.ebay.com/oauth/api_scope/sell.edelivery",
+                "https://api.ebay.com/oauth/api_scope/commerce.vero",
+                "https://api.ebay.com/oauth/api_scope/sell.inventory.mapping",
+                "https://api.ebay.com/oauth/api_scope/commerce.message",
+                "https://api.ebay.com/oauth/api_scope/commerce.feedback",
                 "https://api.ebay.com/oauth/api_scope/offline_access"
             ].join(" ")
         });
@@ -384,7 +405,33 @@ class EbayTradingService {
         const params = new URLSearchParams();
         params.append('grant_type', 'refresh_token');
         params.append('refresh_token', refreshToken);
-        params.append('scope', 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access');
+        params.append('scope', [
+            "https://api.ebay.com/oauth/api_scope",
+            "https://api.ebay.com/oauth/api_scope/sell.marketing.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.marketing",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory",
+            "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.account",
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+            "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.finances",
+            "https://api.ebay.com/oauth/api_scope/sell.payment.dispute",
+            "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.reputation",
+            "https://api.ebay.com/oauth/api_scope/sell.reputation.readonly",
+            "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription",
+            "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.stores",
+            "https://api.ebay.com/oauth/api_scope/sell.stores.readonly",
+            "https://api.ebay.com/oauth/api_scope/sell.edelivery",
+            "https://api.ebay.com/oauth/api_scope/commerce.vero",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory.mapping",
+            "https://api.ebay.com/oauth/api_scope/commerce.message",
+            "https://api.ebay.com/oauth/api_scope/commerce.feedback",
+            "https://api.ebay.com/oauth/api_scope/offline_access"
+        ].join(" "));
 
         const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
             params.toString(), 
