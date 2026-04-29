@@ -72,7 +72,7 @@ class EbayTradingService {
             ].join(" ")
         });
 
-        const oauthUrl = `${base}?${params.toString()}`;
+        const oauthUrl = `${base}?${params.toString()}`.replace(/\+/g, '%20');
 
         // 🛑 HARD GUARD: Prevent duplication
         const matches = oauthUrl.match(/https:\/\/auth\.ebay\.com/g);
@@ -80,7 +80,7 @@ class EbayTradingService {
             throw new Error("OAuth URL duplication detected");
         }
 
-        console.log("CLEAN OAUTH URL:", oauthUrl);
+        console.log("[eBay Auth] FINAL URL (Encoded):", oauthUrl);
         return oauthUrl;
     }
 
