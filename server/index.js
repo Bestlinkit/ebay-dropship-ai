@@ -30,10 +30,11 @@ console.log("EPROLO_SECRET:", EPROLO_SECRET ? `LOADED (****${EPROLO_SECRET.slice
 // eBay Config Verification
 const EBAY_APP_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
 const EBAY_CERT_ID = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
-const EBAY_RUNAME = 'Geonoyc_App_Auth';
+const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
 
 console.log("EBAY_APP_ID:", EBAY_APP_ID ? `LOADED (****${EBAY_APP_ID.slice(-4)}) ✅` : "MISSING ❌");
 console.log("EBAY_CERT_ID:", EBAY_CERT_ID ? `LOADED (****${EBAY_CERT_ID.slice(-4)}) ✅` : "MISSING ❌");
+console.log("EBAY_RUNAME:", EBAY_RUNAME ? `LOADED (${EBAY_RUNAME}) ✅` : "MISSING ❌");
 
 app.post('/api/eprolo/search', async (req, res) => {
     try {
