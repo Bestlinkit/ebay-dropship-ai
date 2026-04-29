@@ -64,14 +64,20 @@ class EbayTradingService {
         const redirect_uri = 'Geonoyc_App_Auth';
         const scope = 'https://api.ebay.com/oauth/api_scope/sell.account https://api.ebay.com/oauth/api_scope/sell.inventory https://api.ebay.com/oauth/api_scope/sell.fulfillment https://api.ebay.com/oauth/api_scope/offline_access';
         
-        const url = `https://auth.ebay.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
+        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&scope=${encodeURIComponent(scope)}`;
         
-        process.stdout.write("\n--- START RAW OAUTH URL ---\n");
-        process.stdout.write(url + "\n");
-        process.stdout.write("--- END RAW OAUTH URL ---\n");
-        console.log("URL LENGTH:", url.length);
+        // 🛑 DUPLICATION GUARD (Requirement 3)
+        if (oauthUrl.includes('offline_accesshttps://auth.ebay.com')) {
+            console.error("[CRITICAL] OAuth URL Duplication Detected!");
+            throw new Error('OAuth URL duplication detected');
+        }
 
-        return url;
+        process.stdout.write("\n--- START RAW OAUTH URL ---\n");
+        process.stdout.write(oauthUrl + "\n");
+        process.stdout.write("--- END RAW OAUTH URL ---\n");
+        console.log("URL LENGTH:", oauthUrl.length);
+
+        return oauthUrl;
     }
 
     async exchangeCodeForToken(code) {
