@@ -25,33 +25,26 @@ class EbayTradingService {
         this.restBaseUrl = 'https://api.ebay.com';
         this.siteId = process.env.EBAY_SITE_ID || '0';
         this.compatibilityLevel = '1355';
-        this.token = tokenManager.getAccessToken() || process.env.EBAY_USER_TOKEN || process.env.VITE_EBAY_USER_TOKEN;
+        this.token = tokenManager.getAccessToken();
         this.devName = process.env.EBAY_DEV_ID || process.env.VITE_EBAY_DEV_ID;
         this.appName = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
-        this.ruName = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
+        this.ruName = 'Geonoyc_App_Auth';
 
-        if (!this.ruName) {
-            console.warn("[eBay Service] WARNING: EBAY_RUNAME is missing! OAuth flow will fail.");
-        }
-
-        console.log("[eBay Service] Initialized");
-        console.log("[eBay Service] REST Base:", this.restBaseUrl);
-        console.log("[eBay Service] Trading Endpoint:", this.endpoint);
-        console.log("[eBay Service] Token Prefix:", this.token ? this.token.substring(0, 20) : "MISSING");
+        console.log("[eBay Service] Initialized with OAuth Architecture");
     }
 
     async ensureToken() {
         // Update this.token from manager in case it changed
-        this.token = tokenManager.getAccessToken() || this.token;
+        this.token = tokenManager.getAccessToken();
 
         if (tokenManager.isExpired() && tokenManager.hasRefreshToken()) {
-            console.log("[eBay Auth] Access token expired or nearing expiry. Refreshing...");
+            console.log("[eBay Auth] Token expired. Initiating Auto-Refresh...");
             try {
                 const data = await this.refreshAccessToken(tokenManager.getRefreshToken());
                 tokenManager.saveTokens(data);
                 this.token = data.access_token;
-                console.log("[eBay Auth] Token refreshed successfully.");
+                console.log("[eBay Auth] Token auto-refreshed successfully.");
             } catch (error) {
                 console.error("[eBay Auth] Auto-refresh failed:", error.response?.data || error.message);
             }
@@ -115,7 +108,8 @@ class EbayTradingService {
     }
 
     async callTradingAPI(callName, xmlBody, siteId = null) {
-        const isOAuth = this.token.startsWith('v^1.1');
+        await this.ensureToken();
+        const isOAuth = this.token && this.token.startsWith('v^1.1');
         
         const headers = {
             'X-EBAY-API-CALL-NAME': callName,
@@ -177,6 +171,7 @@ class EbayTradingService {
      * 🛡️ BUSINESS POLICIES (REST API)
      */
     async getBusinessPolicies() {
+        await this.ensureToken();
         console.log("[eBay Policies] Starting policy resolution...");
         
         // 🔍 Log token diagnostic (Requirement: TOKEN BEING USED)
@@ -440,6 +435,7 @@ class EbayTradingService {
     }
 
     async searchProducts(query, options = {}) {
+        await this.ensureToken();
         const token = await this.getAppToken();
         if (!token) return [];
 
