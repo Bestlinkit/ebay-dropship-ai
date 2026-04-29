@@ -55,25 +55,20 @@ class EbayTradingService {
         const EBAY_CLIENT_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
         
-        // 1. HARDCODE ONLY these 4 scopes (no dynamic building)
-        const scopes = [
-            "https://api.ebay.com/oauth/api_scope/sell.account",
-            "https://api.ebay.com/oauth/api_scope/sell.inventory",
-            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-            "https://api.ebay.com/oauth/api_scope/offline_access"
-        ];
+        console.log("--- DEBUG OAUTH CONFIG ---");
+        console.log("CLIENT_ID:", EBAY_CLIENT_ID);
+        console.log("RUNAME:", EBAY_RUNAME);
 
-        // 2. Build scope string EXACTLY like this BEFORE encoding
-        const scope = scopes.join(" ");
+        // 1. Minimal Scope for Testing
+        const scope = encodeURIComponent("https://api.ebay.com/oauth/api_scope");
 
-        // 3. Encode ONCE and 4. build URL manually (No URLSearchParams)
-        const base = "https://auth.ebay.com/oauth2/authorize";
-        const oauthUrl = `${base}?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodeURIComponent(scope)}`;
+        // 2. Build URL EXACTLY as requested
+        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${scope}`;
 
-        // 5. Log FINAL URL and VERIFY manually
-        console.log("--- START RAW OAUTH URL ---");
+        // 4. Log FULL raw URL (no truncation)
+        console.log("--- FINAL RAW URL START ---");
         console.log(oauthUrl);
-        console.log("--- END RAW OAUTH URL ---");
+        console.log("--- FINAL RAW URL END ---");
 
         return oauthUrl;
     }
