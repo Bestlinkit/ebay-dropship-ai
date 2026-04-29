@@ -153,7 +153,7 @@ class EbayTradingService {
                 });
                 
                 console.log(`\n--- EBAY TRADING RESPONSE [${callName}] ---`);
-                console.log(response.data.substring(0, 500) + '...'); // Log snippet to avoid flooding
+                console.log(response.data.substring(0, 3000) + '...'); // Increased for better diagnostic visibility
                 console.log('--- END RESPONSE ---\n');
 
                 return response.data;

@@ -58,7 +58,7 @@ const Discovery = () => {
 
     const handleConnectEbay = async () => {
         try {
-            const response = await fetch(`${process.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
             

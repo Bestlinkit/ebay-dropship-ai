@@ -203,7 +203,7 @@ const EbayListingBuilder = () => {
         try {
             // ✅ Fetch Category Details (Including leaf status and children)
             // Strictly use treeId as per Requirement 4
-            const response = await fetch(`http://localhost:3001/api/ebay/categories/${cat.id}?treeId=${categoryTreeId}`);
+            const response = await fetch(`${ebayService.backendUrl}/api/ebay/categories/${cat.id}?treeId=${categoryTreeId}`);
             
             if (!response.ok) {
                 const errorData = await response.json();
