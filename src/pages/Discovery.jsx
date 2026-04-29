@@ -56,9 +56,19 @@ const Discovery = () => {
   const cacheRegistry = useRef(new Map());
   const navigate = useNavigate();
 
-  const handleConnectEbay = () => {
-    window.location.href = `${process.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`;
-  };
+    const handleConnectEbay = async () => {
+        try {
+            const response = await fetch(`${process.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
+            const data = await response.json();
+            console.log("----------------------------------------");
+            console.log("DEBUG: RECEIVED EBAY OAUTH URL");
+            console.log(data.oauthUrl);
+            console.log("----------------------------------------");
+            alert("Check console for OAuth URL");
+        } catch (error) {
+            console.error("Failed to get auth URL:", error);
+        }
+    };
 
   // 1. DATA PULSE: Retrieve Categorization
   useEffect(() => {
