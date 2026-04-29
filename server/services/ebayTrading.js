@@ -55,27 +55,41 @@ class EbayTradingService {
         const EBAY_CLIENT_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
         const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
         
-        console.log("[eBay Auth] Generating Authorization URL for RuName:", EBAY_RUNAME);
+        console.log("[eBay Auth] RuName Validation:", EBAY_RUNAME);
 
         const base = "https://auth.ebay.com/oauth2/authorize";
-        const scopes = [
-            "https://api.ebay.com/oauth/api_scope/sell.inventory",
+        
+        // STRICT SCOPE VALIDATION (Step 2)
+        const scopesList = [
             "https://api.ebay.com/oauth/api_scope/sell.account",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
             "https://api.ebay.com/oauth/api_scope/offline_access"
-        ].join(" ");
+        ];
+        
+        // Space-separated BEFORE encoding (Step 3)
+        const scopeString = scopesList.join(" ");
 
-        const params = new URLSearchParams({
-            client_id: EBAY_CLIENT_ID,
-            response_type: "code",
-            redirect_uri: EBAY_RUNAME,
-            scope: scopes
-        });
+        const params = new URLSearchParams();
+        params.append('client_id', EBAY_CLIENT_ID);
+        params.append('response_type', 'code');
+        params.append('redirect_uri', EBAY_RUNAME);
+        params.append('scope', scopeString);
 
-        // eBay requires space-separated scopes to be encoded as %20
-        const oauthUrl = `${base}?${params.toString()}`.replace(/\+/g, '%20');
+        // URL-encoded ONCE (Step 3)
+        // URLSearchParams encodes spaces as '+', we convert to '%20' as per eBay spec
+        const oauthUrl = `${base}?${params.toString().replace(/\+/g, '%20')}`;
 
-        console.log("[eBay Auth] PROPER OAUTH URL:", oauthUrl);
+        // Ensure NO duplication (Step 4)
+        if (oauthUrl.split('?').length > 2) {
+            throw new Error("CRITICAL: OAuth URL Duplication Detected");
+        }
+
+        // FULL RAW LOGGING (Step 5)
+        console.log("--- START RAW OAUTH URL ---");
+        console.log(oauthUrl);
+        console.log("--- END RAW OAUTH URL ---");
+
         return oauthUrl;
     }
 
@@ -380,8 +394,8 @@ class EbayTradingService {
         params.append('grant_type', 'refresh_token');
         params.append('refresh_token', refreshToken);
         params.append('scope', [
-            "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.account",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
             "https://api.ebay.com/oauth/api_scope/offline_access"
         ].join(" "));
