@@ -368,11 +368,23 @@ router.get('/auth', (req, res) => {
     res.json({ oauthUrl: url });
 });
 
+const usedCodes = new Set();
+
 router.post('/exchange-code', async (req, res) => {
     try {
         const { code } = req.body;
         if (!code) return res.status(400).json({ error: "Authorization code missing" });
         
+        if (usedCodes.has(code)) {
+            console.warn("[OAuth Exchange] Code already used, ignoring duplicate request.");
+            return res.status(400).json({ error: "Authorization code already used." });
+        }
+
+        usedCodes.add(code);
+        
+        // Clean up set periodically or based on size
+        if (usedCodes.size > 100) usedCodes.clear();
+
         const tokenData = await ebayTrading.exchangeCodeForToken(code);
         res.json(tokenData);
     } catch (err) {

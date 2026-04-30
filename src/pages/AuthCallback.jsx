@@ -8,9 +8,13 @@ const AuthCallback = () => {
   const [status, setStatus] = useState('syncing'); // 'syncing' | 'success' | 'error'
   const navigate = useNavigate();
   const location = useLocation();
+  const initialized = React.useRef(false);
 
   useEffect(() => {
     const handleAuth = async () => {
+      if (initialized.current) return;
+      initialized.current = true;
+      
       try {
         const query = new URLSearchParams(location.search);
         const code = query.get('code');
