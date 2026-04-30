@@ -368,6 +368,23 @@ router.get('/auth', (req, res) => {
     res.json({ oauthUrl: url });
 });
 
+router.post('/exchange-code', async (req, res) => {
+    try {
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ error: "Authorization code missing" });
+        
+        const tokenData = await ebayTrading.exchangeCodeForToken(code);
+        res.json(tokenData);
+    } catch (err) {
+        const errorDetails = err.response?.data || err.message;
+        console.error("[OAuth Exchange] Error:", errorDetails);
+        res.status(500).json({
+            error: "Token exchange failed",
+            details: errorDetails
+        });
+    }
+});
+
 router.get('/callback', async (req, res) => {
     try {
         const { code } = req.query;

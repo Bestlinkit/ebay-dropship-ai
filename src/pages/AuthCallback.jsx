@@ -23,22 +23,16 @@ const AuthCallback = () => {
             return;
         }
 
-        // Exchange code for token
-        const platformBase64 = btoa(`${import.meta.env.VITE_EBAY_APP_ID}:${import.meta.env.VITE_EBAY_CERT_ID}`);
-        
-        const response = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
+        // Exchange code for token via backend
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const response = await fetch(`${backendUrl}/api/ebay/exchange-code`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${platformBase64}`
+                'Content-Type': 'application/json'
             },
-            body: new URLSearchParams({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: import.meta.env.VITE_EBAY_RUNAME
-            })
+            body: JSON.stringify({ code })
         });
-
+        
         const data = await response.json();
 
         if (data.access_token) {
