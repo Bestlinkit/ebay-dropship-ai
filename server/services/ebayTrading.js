@@ -73,8 +73,8 @@ class EbayTradingService {
     }
 
     getAuthorizationUrl() {
-        const EBAY_CLIENT_ID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
-        const EBAY_RUNAME = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
+        const EBAY_CLIENT_ID = (process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID || '').trim();
+        const EBAY_RUNAME = (process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME || '').trim();
         
         console.log("--- DEBUG OAUTH CONFIG ---");
         console.log("CLIENT_ID:", EBAY_CLIENT_ID);
@@ -88,19 +88,20 @@ class EbayTradingService {
             "https://api.ebay.com/oauth/api_scope/offline_access"
         ];
         
-        const scope = scopes.join(" ");
-        console.log("SCOPE BEFORE ENCODE:", scope);
-        
-        const encodedScope = encodeURIComponent(scope);
+        const params = new URLSearchParams();
+        params.append('client_id', EBAY_CLIENT_ID);
+        params.append('response_type', 'code');
+        params.append('redirect_uri', EBAY_RUNAME);
+        params.append('scope', scopes.join(" "));
+        params.append('prompt', 'login consent');
 
-        // 2. Build URL manually to avoid URLSearchParams encoding issues
-        const oauthUrl = `${this.authBaseUrl}/oauth2/authorize?client_id=${EBAY_CLIENT_ID.trim()}&response_type=code&redirect_uri=${EBAY_RUNAME.trim()}&scope=${encodedScope}&prompt=login%20consent`;
+        const oauthUrl = `${this.authBaseUrl}/oauth2/authorize?${params.toString()}`;
 
-        console.log("--- GENERATED OAUTH URL ---");
+        console.log("--- GENERATED OAUTH URL (V2) ---");
         console.log(oauthUrl);
-        console.log("---------------------------");
+        console.log("---------------------------------");
 
-        return oauthUrl.trim();
+        return oauthUrl;
     }
 
     async exchangeCodeForToken(code) {
