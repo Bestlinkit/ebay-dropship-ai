@@ -61,7 +61,10 @@ class EbayTradingService {
 
         // 1. Scopes - Minimal set to isolate invalid_scope error
         const scopes = [
-            "https://api.ebay.com/oauth/api_scope"
+            "https://api.ebay.com/oauth/api_scope/sell.account",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory",
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+            "https://api.ebay.com/oauth/api_scope/offline_access"
         ];
         
         const scopeString = scopes.join(" ");
@@ -378,12 +381,13 @@ class EbayTradingService {
         const params = new URLSearchParams();
         params.append('grant_type', 'refresh_token');
         params.append('refresh_token', refreshToken);
-        params.append('scope', [
+        const scopes = [
             "https://api.ebay.com/oauth/api_scope/sell.account",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
             "https://api.ebay.com/oauth/api_scope/offline_access"
-        ].join(" "));
+        ];
+        params.append('scope', scopes.join(" "));
 
         const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
             params.toString(), 
