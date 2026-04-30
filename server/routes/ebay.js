@@ -35,35 +35,54 @@ router.post('/list', async (req, res) => {
             throw new Error("sellerProfiles NOT attached — blocking request");
         }
 
-        // ✅ Step 4 — LOG FINAL payload (CRITICAL)
-        console.log("FINAL PAYLOAD WITH POLICIES:", JSON.stringify(itemData, null, 2));
+        // ✅ Step 4 — ORCHESTRATE INVENTORY API FLOW
+        const sku = itemData.sku || `SKU-${Date.now()}`;
         
-        const responseXml = await ebayTrading.addItem(itemData);
-        
-        // Parse basic status from XML response
-        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
-        
-        if (ack === 'Success' || ack === 'Warning') {
-            const itemId = responseXml.match(/<ItemID>(.*?)<\/ItemID>/)?.[1];
-            res.json({
-                success: true,
-                itemId: itemId,
-                ack: ack,
-                raw: responseXml
-            });
-        } else {
-            const errors = [...responseXml.matchAll(/<LongMessage>(.*?)<\/LongMessage>/g)].map(m => m[1]);
-            res.status(400).json({
-                success: false,
-                errors: errors,
-                raw: responseXml
-            });
-        }
+        // 1. Create/Update Inventory Item
+        console.log(`[eBay Flow] 1/3: Creating inventory item for SKU: ${sku}`);
+        await ebayTrading.createOrReplaceInventoryItem(sku, {
+            title: itemData.title,
+            description: itemData.description,
+            images: itemData.images,
+            quantity: itemData.quantity,
+            aspects: itemData.itemSpecifics // Use itemSpecifics as aspects
+        });
+
+        // 2. Create Offer
+        console.log(`[eBay Flow] 2/3: Creating offer for SKU: ${sku}`);
+        const offerResponse = await ebayTrading.createOffer({
+            sku: sku,
+            quantity: itemData.quantity,
+            categoryId: itemData.categoryId,
+            description: itemData.description,
+            price: itemData.price,
+            fulfillmentPolicyId: policies.fulfillmentPolicyId,
+            returnPolicyId: policies.returnPolicyId,
+            paymentPolicyId: policies.paymentPolicyId
+        });
+
+        const offerId = offerResponse.data.offerId;
+        console.log(`[eBay Flow] Offer created: ${offerId}`);
+
+        // 3. Publish Offer
+        console.log(`[eBay Flow] 3/3: Publishing offer: ${offerId}`);
+        const publishResponse = await ebayTrading.publishOffer(offerId);
+        const itemId = publishResponse.data.listingId;
+
+        console.log(`[eBay Flow] SUCCESS! Listing ID: ${itemId}`);
+
+        res.json({
+            success: true,
+            itemId: itemId,
+            offerId: offerId,
+            ack: 'Success'
+        });
+
     } catch (error) {
         console.error("FULL EBAY ERROR:", {
             status: error.response?.status,
             data: error.response?.data,
-            headers: error.response?.headers
+            message: error.message
         });
 
         return res.status(error.response?.status || 500).json({

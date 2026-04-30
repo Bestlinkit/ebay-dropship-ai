@@ -883,6 +883,97 @@ class EbayTradingService {
     }
 
 
+    /**
+     * 📦 INVENTORY API: Create or Replace Inventory Item
+     */
+    async createOrReplaceInventoryItem(sku, data) {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item/${sku}`;
+        
+        const body = {
+            product: {
+                title: data.title,
+                description: data.description?.substring(0, 4000) || "",
+                imageUrls: data.images || [],
+                aspects: data.aspects || {}
+            },
+            condition: "NEW",
+            availability: {
+                shipToLocationAvailability: {
+                    quantity: parseInt(data.quantity || 1)
+                }
+            }
+        };
+
+        console.log(`[eBay Inventory] PUT Inventory Item: ${sku}`);
+        return await axios.put(url, body, {
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json',
+                'Content-Language': 'en-US',
+                'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+            }
+        });
+    }
+
+    /**
+     * 🏷️ INVENTORY API: Create Offer
+     */
+    async createOffer(data) {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/offer`;
+        
+        const body = {
+            sku: data.sku,
+            marketplaceId: "EBAY_US",
+            format: "FIXED_PRICE",
+            availableQuantity: parseInt(data.quantity || 1),
+            categoryId: data.categoryId,
+            listingDescription: data.description?.substring(0, 4000) || "",
+            listingPolicies: {
+                fulfillmentPolicyId: data.fulfillmentPolicyId,
+                returnPolicyId: data.returnPolicyId,
+                paymentPolicyId: data.paymentPolicyId
+            },
+            merchantLocationKey: data.merchantLocationKey || "default",
+            pricingSummary: {
+                price: {
+                    value: data.price.toString(),
+                    currency: "USD"
+                }
+            }
+        };
+
+        console.log("--- FINAL createOffer PAYLOAD SENT TO EBAY ---");
+        console.log(JSON.stringify(body, null, 2));
+        console.log("----------------------------------------------");
+
+        return await axios.post(url, body, {
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json',
+                'Content-Language': 'en-US',
+                'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+            }
+        });
+    }
+
+    /**
+     * 🚀 INVENTORY API: Publish Offer
+     */
+    async publishOffer(offerId) {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/offer/${offerId}/publish`;
+        
+        console.log(`[eBay Inventory] POST Publish Offer: ${offerId}`);
+        return await axios.post(url, {}, {
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+            }
+        });
+    }
+
     escapeXml(unsafe) {
         return unsafe.replace(/[<>&"']/g, (c) => {
             switch (c) {
