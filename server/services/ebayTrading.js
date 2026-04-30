@@ -71,7 +71,7 @@ class EbayTradingService {
         const encodedScope = encodeURIComponent(scopeString);
 
         // 2. Build URL manually to avoid URLSearchParams encoding issues
-        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}`;
+        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}&prompt=login`;
 
         // 3. Log FULL raw URL (no truncation)
         console.log("--- FINAL RAW URL START ---");
