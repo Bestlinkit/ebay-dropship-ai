@@ -62,11 +62,12 @@ const Discovery = () => {
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
             
-            // Raw prompt for final verification
-            window.prompt("Final Validated OAuth URL (Copy if needed):", oauthUrl);
+            console.log("[Auth] Final Redirect URL:", oauthUrl);
             
-            if (window.confirm("Redirection to eBay will occur now. Proceed?")) {
+            if (oauthUrl) {
                 window.location.href = oauthUrl;
+            } else {
+                console.error("[Auth] No OAuth URL received");
             }
         } catch (error) {
             console.error("Critical Auth Fetch Error");

@@ -90,7 +90,7 @@ class EbayTradingService {
         console.log(oauthUrl);
         console.log("--- FINAL RAW URL END ---");
 
-        return oauthUrl;
+        return oauthUrl.trim();
     }
 
     async exchangeCodeForToken(code) {
