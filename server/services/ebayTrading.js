@@ -83,8 +83,7 @@ class EbayTradingService {
         const scopes = [
             "https://api.ebay.com/oauth/api_scope/sell.account",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
-            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-            "https://api.ebay.com/oauth/api_scope/offline_access"
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
         ];
         
         const scopeString = scopes.join(" ");
@@ -431,8 +430,7 @@ class EbayTradingService {
                 const scopes = [
                     "https://api.ebay.com/oauth/api_scope/sell.account",
                     "https://api.ebay.com/oauth/api_scope/sell.inventory",
-                    "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-                    "https://api.ebay.com/oauth/api_scope/offline_access"
+                    "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
                 ];
                 params.append('scope', scopes.join(" "));
             }
