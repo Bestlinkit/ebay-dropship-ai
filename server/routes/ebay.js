@@ -102,13 +102,32 @@ router.post('/list', async (req, res) => {
         console.log(`[eBay Flow] 1/3: Creating inventory item for SKU: ${sku}`);
         await ebayTrading.createOrReplaceInventoryItem(sku, finalPayload.inventoryItem);
 
+        // 📍 Step 6 — RESOLVE MERCHANT LOCATION
+        console.log("[eBay Flow] Resolving merchant location...");
+        const locationData = await ebayTrading.getLocations();
+        let locationKey = "default";
+        
+        if (locationData.locations && locationData.locations.length > 0) {
+            locationKey = locationData.locations[0].merchantLocationKey;
+            console.log(`[eBay Flow] Using existing location: ${locationKey}`);
+        } else {
+            console.warn("[eBay Flow] No locations found. Attempting to create default...");
+            try {
+                await ebayTrading.createDefaultLocation();
+                locationKey = "default";
+            } catch (locErr) {
+                console.error("[eBay Flow] Could not create default location. Falling back to 'default' and hoping for the best.");
+            }
+        }
+
         // 2. Create Offer
         console.log(`[eBay Flow] 2/3: Creating offer for SKU: ${sku}`);
         const offerResponse = await ebayTrading.createOffer({
             ...finalPayload.offer,
+            merchantLocationKey: locationKey,
             fulfillmentPolicyId: policies.fulfillmentPolicyId,
-            returnPolicyId: policies.returnPolicyId,
-            paymentPolicyId: policies.paymentPolicyId
+            returnProfileId: policies.returnProfileId,
+            paymentProfileId: policies.paymentProfileId
         });
 
         const offerId = offerResponse.data.offerId;

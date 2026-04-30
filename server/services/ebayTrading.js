@@ -1001,6 +1001,64 @@ class EbayTradingService {
     }
 
     /**
+     * 📍 INVENTORY API: Get Merchant Locations
+     */
+    async getLocations() {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/location`;
+        try {
+            const response = await axios.get(url, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return response.data;
+        } catch (err) {
+            console.error("[eBay Inventory] Failed to get locations", err.response?.data || err.message);
+            return { locations: [] };
+        }
+    }
+
+    /**
+     * 📍 INVENTORY API: Create Default Location
+     */
+    async createDefaultLocation() {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/location/default`;
+        const body = {
+            location: {
+                address: {
+                    addressLine1: "123 Main St",
+                    city: "San Jose",
+                    stateOrProvince: "CA",
+                    postalCode: "95125",
+                    countryCode: "US"
+                }
+            },
+            locationWebUrl: "",
+            locationInstructions: "",
+            locationTypes: ["STORE"],
+            name: "Default Warehouse",
+            merchantLocationStatus: "ENABLED"
+        };
+
+        try {
+            console.log("[eBay Inventory] Creating default merchant location...");
+            const response = await axios.post(url, body, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return response.data;
+        } catch (err) {
+            console.error("[eBay Inventory] Failed to create location", err.response?.data || err.message);
+            throw err;
+        }
+    }
+
+    /**
      * 🚀 INVENTORY API: Publish Offer
      */
     async publishOffer(offerId) {
