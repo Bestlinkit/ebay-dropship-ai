@@ -72,6 +72,7 @@ class EbayTradingService {
         console.log("RUNAME:", EBAY_RUNAME);
 
         const scopes = [
+            "https://api.ebay.com/oauth/api_scope",
             "https://api.ebay.com/oauth/api_scope/sell.account",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
@@ -392,6 +393,7 @@ class EbayTradingService {
         params.append('grant_type', 'refresh_token');
         params.append('refresh_token', refreshToken);
         const scopes = [
+            "https://api.ebay.com/oauth/api_scope",
             "https://api.ebay.com/oauth/api_scope/sell.account",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
             "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
