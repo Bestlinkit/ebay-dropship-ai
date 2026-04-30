@@ -11,6 +11,7 @@ router.post('/list', async (req, res) => {
     try {
         await ebayTrading.ensureToken();
         const itemData = req.body;
+        console.log(`[eBay Route] HEARTBEAT - Starting listing flow for: ${itemData.title}`);
         console.log(`[eBay Route] Listing attempt for: ${itemData.title}`);
         
         // 🔥 Step 1 — FORCE policy fetch inside listing route

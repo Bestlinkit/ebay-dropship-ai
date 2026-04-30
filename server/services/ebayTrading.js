@@ -890,11 +890,16 @@ class EbayTradingService {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item/${sku}`;
         
+        // 🛡️ SAFETY MODE: Clean and cap all strings to prevent "Core Service" internal crashes
+        const clean = (str) => (str || "").replace(/[^\x20-\x7E]/g, '').trim();
+        const title = clean(data.title).substring(0, 80);
+        const description = clean(data.description || data.title || "No description available").substring(0, 4000);
+
         const body = {
             product: {
-                title: data.title,
-                description: data.description || "",
-                imageUrls: data.images || [],
+                title: title,
+                description: description,
+                imageUrls: (data.images || []).map(url => url.trim()).slice(0, 12),
                 aspects: data.aspects || {}
             },
             condition: "NEW",
@@ -935,7 +940,8 @@ class EbayTradingService {
             console.log(`[eBay Inventory] Inventory Item Success: ${sku} (Status: ${response.status})`);
             return response;
         } catch (err) {
-            console.error(`[eBay Inventory] Inventory Item Failed: ${sku}`, err.response?.data || err.message);
+            console.error(`[eBay Inventory] Inventory Item Failed: ${sku}`);
+            console.error(JSON.stringify(err.response?.data || err.message, null, 2));
             throw err;
         }
     }
@@ -947,13 +953,17 @@ class EbayTradingService {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/offer`;
         
+        // 🛡️ SAFETY MODE
+        const clean = (str) => (str || "").replace(/[^\x20-\x7E]/g, '').trim();
+        const description = clean(data.description || data.title || "No description available").substring(0, 4000);
+
         const body = {
             sku: data.sku,
             marketplaceId: "EBAY_US",
             format: "FIXED_PRICE",
             availableQuantity: parseInt(data.quantity || 1),
             categoryId: data.categoryId,
-            listingDescription: data.description?.substring(0, 4000) || "",
+            listingDescription: description,
             listingPolicies: {
                 fulfillmentPolicyId: data.fulfillmentPolicyId,
                 returnPolicyId: data.returnPolicyId,
