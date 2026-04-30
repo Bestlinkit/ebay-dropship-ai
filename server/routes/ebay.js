@@ -413,6 +413,12 @@ router.get('/callback', async (req, res) => {
         const { code } = req.query;
         if (!code) return res.status(400).send("Authorization code missing");
         
+        if (usedCodes.has(code)) {
+            console.warn(`[OAuth Callback] Code ${code.substring(0, 8)}... already used. Skipping exchange.`);
+            return res.send("Authorization already processed.");
+        }
+        
+        usedCodes.add(code);
         await ebayTrading.exchangeCodeForToken(code);
         res.send(`
             <html>
