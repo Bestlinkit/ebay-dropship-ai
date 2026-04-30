@@ -601,7 +601,8 @@ class EbayTradingService {
             return await this.callWithRetry(async () => {
                 return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
                     headers: { 
-                        'Authorization': `Bearer ${this.token}`,
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
                         'Content-Type': 'application/json'
                     },
                     timeout: 25000 
@@ -769,7 +770,10 @@ class EbayTradingService {
         try {
             const response = await this.callWithRetry(async () => {
                 return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${parentId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    },
                     timeout: 15000
                 });
             });
@@ -825,7 +829,10 @@ class EbayTradingService {
         try {
             console.log(`[eBay Taxonomy] Fetching Aspects for Category: ${categoryId}`);
             const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_item_aspects_for_category?category_id=${categoryId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
             });
             
             // Map to a cleaner structure for the frontend
