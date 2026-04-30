@@ -1,49 +1,29 @@
-const axios = require('axios');
-require('dotenv').config();
 
-async function testEbayHealth() {
-    const appId = process.env.EBAY_APP_ID;
-    const certId = process.env.EBAY_CERT_ID;
-    const auth = Buffer.from(`${appId}:${certId}`).toString('base64');
+const ebayTrading = require('./services/ebayTrading');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-    console.log("--- eBay Health Diagnostic ---");
-    console.log("App ID:", appId ? "LOADED" : "MISSING");
-    
+async function check() {
+    console.log("Checking token validity...");
     try {
-        console.log("1. Attempting Token Retrieval...");
-        const tokenRes = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
-            'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope', 
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${auth}`
-                },
-                timeout: 10000
-            }
-        );
-        const token = tokenRes.data.access_token;
-        console.log("✅ Token retrieved successfully.");
-
-        console.log("2. Attempting Product Search (Browse API)...");
-        try {
-            const searchRes = await axios.get('https://api.ebay.com/buy/browse/v1/item_summary/search?q=coffee&limit=3', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
-                },
-                timeout: 10000
-            });
-            console.log("✅ Search successful. Items found:", searchRes.data.total);
-        } catch (searchErr) {
-            console.error("❌ Search Failed:", searchErr.response?.status, searchErr.response?.data);
-            if (searchErr.response?.status >= 500) {
-                console.log("⚠️ This confirms eBay is having server-side issues (5xx).");
-            }
+        await ebayTrading.ensureToken();
+        const responseXml = await ebayTrading.getUser();
+        console.log("USER RESPONSE XML:", responseXml.substring(0, 500));
+        
+        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
+        console.log("ACK:", ack);
+        
+        if (ack === 'Success' || ack === 'Warning') {
+            console.log("TOKEN IS ACTIVE ✅");
+        } else {
+            console.log("TOKEN IS INVALID OR EXPIRED ❌");
         }
-
-    } catch (tokenErr) {
-        console.error("❌ Token Retrieval Failed:", tokenErr.response?.status, tokenErr.response?.data);
+    } catch (err) {
+        console.error("DIAGNOSTIC FAILED:", err.message);
+        if (err.response) {
+            console.error("RESPONSE DATA:", err.response.data);
+        }
     }
 }
 
-testEbayHealth();
+check();

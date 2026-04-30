@@ -58,13 +58,29 @@ const Discovery = () => {
 
     const handleConnectEbay = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            
+            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+            console.log(`[Auth] Fetching from: ${backendUrl}/api/ebay/auth`);
+
+            const response = await fetch(`${backendUrl}/api/ebay/auth`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+            
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
+            
+            if (!oauthUrl) throw new Error("No authorization URL received from server");
+
             console.log("OAUTH URL:", oauthUrl);
             window.location.assign(oauthUrl);
         } catch (error) {
-            console.error("Critical Auth Fetch Error");
+            console.error("Critical Auth Fetch Error:", error.message);
+            toast.error(`Connectivity Fault: ${error.message}. Ensure backend is running at ${import.meta.env.VITE_BACKEND_URL || 'localhost:3001'}`);
         }
     };
 

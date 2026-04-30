@@ -162,27 +162,44 @@ class EbayTradingService {
         console.log(fullXml);
         console.log('--- END REQUEST ---\n');
 
-        try {
+        const executeCall = async () => {
             return await this.callWithRetry(async () => {
                 const response = await axios.post(this.endpoint, fullXml, { 
                     headers,
-                    timeout: 45000 // 45s default timeout
+                    timeout: 45000 
                 });
                 
                 console.log(`\n--- EBAY TRADING RESPONSE [${callName}] ---`);
-                console.log(response.data.substring(0, 3000) + '...'); // Increased for better diagnostic visibility
+                console.log(response.data.substring(0, 3000) + '...');
                 console.log('--- END RESPONSE ---\n');
 
                 return response.data;
             });
+        };
+
+        try {
+            let responseData = await executeCall();
+            
+            // Check for IAF token expiration in the XML response
+            if (responseData.includes('Expired IAF token') || responseData.includes('21917053')) {
+                console.warn(`[eBay Trading] IAF Token expired detected in XML for ${callName}. Attempting recovery...`);
+                const refreshToken = tokenManager.getRefreshToken();
+                if (refreshToken) {
+                    const data = await this.refreshAccessToken(refreshToken);
+                    tokenManager.saveTokens(data);
+                    this.token = data.access_token;
+                    
+                    // Update headers and rebuild XML if necessary (though headers are usually enough)
+                    headers['X-EBAY-API-IAF-TOKEN'] = this.token;
+                    console.log("[eBay Trading] Retrying call with fresh token...");
+                    responseData = await executeCall();
+                }
+            }
+            
+            return responseData;
         } catch (error) {
             console.error(`\n--- EBAY TRADING ERROR [${callName}] ---`);
-            if (error.response) {
-                console.error('Status:', error.response.status);
-                console.error('Data:', error.response.data);
-            } else {
-                console.error('Message:', error.message);
-            }
+            // ... (rest of error logging)
             throw error;
         }
     }
@@ -558,17 +575,21 @@ class EbayTradingService {
         const token = await this.getAppToken();
         if (!token) return { treeId, children: [] };
 
-        try {
-            const response = await this.callWithRetry(async () => {
+        const executeTaxonomyCall = async () => {
+            return await this.callWithRetry(async () => {
                 return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
                     headers: { 
-                        'Authorization': `Bearer ${token}`,
+                        'Authorization': `Bearer ${this.token}`,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 25000 // Full tree can be large
+                    timeout: 25000 
                 });
             });
+        };
 
+        try {
+            let response = await executeTaxonomyCall();
+            
             if (!response.data || !response.data.rootCategoryNode) {
                 console.error("[eBay Taxonomy] Full Tree Response missing rootCategoryNode");
                 return { treeId, children: [] };
@@ -591,7 +612,31 @@ class EbayTradingService {
             };
         } catch (err) {
             if (err.response?.status === 401) {
-                console.error("[eBay Taxonomy] TOKEN EXPIRED (401)");
+                console.warn("[eBay Taxonomy] 401 Unauthorized detected. Refreshing token...");
+                const refreshToken = tokenManager.getRefreshToken();
+                if (refreshToken) {
+                    try {
+                        const data = await this.refreshAccessToken(refreshToken);
+                        tokenManager.saveTokens(data);
+                        this.token = data.access_token;
+                        console.log("[eBay Taxonomy] Retrying with fresh token...");
+                        const retryResponse = await executeTaxonomyCall();
+                        
+                        const rootChildren = retryResponse.data.rootCategoryNode.childCategoryTreeNodes || [];
+                        return {
+                            treeId: treeId,
+                            children: rootChildren.map(c => ({
+                                id: c.category?.categoryId || c.categoryId,
+                                categoryId: c.category?.categoryId || c.categoryId,
+                                name: c.category?.categoryName || c.categoryName || "Unknown",
+                                leafCategoryTreeNode: c.leafCategory || c.leafCategoryTreeNode || false,
+                                children: c.children || c.childCategoryTreeNodes || []
+                            }))
+                        };
+                    } catch (refreshErr) {
+                        console.error("[eBay Taxonomy] Recovery failed:", refreshErr.message);
+                    }
+                }
             }
             console.error("[eBay Taxonomy] Full Tree Root Load Failure:", err.response?.data || err.message);
             return { treeId, children: [] };

@@ -361,13 +361,27 @@ const Settings = () => {
                                     onClick={async () => {
                                         setIsDeployingBridge(true);
                                         try {
-                                            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
+                                            const controller = new AbortController();
+                                            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+                                            const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+                                            const response = await fetch(`${backendUrl}/api/ebay/auth`, {
+                                                signal: controller.signal
+                                            });
+                                            clearTimeout(timeoutId);
+
+                                            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+                                            
                                             const data = await response.json();
                                             const oauthUrl = data.oauthUrl;
+                                            
+                                            if (!oauthUrl) throw new Error("No authorization URL received from server");
+
                                             console.log("OAUTH URL:", oauthUrl);
                                             window.location.assign(oauthUrl);
                                         } catch (err) {
-                                            toast.error("Secure Bridge Deployment Failed: " + err.message);
+                                            console.error("Bridge Exchange Error:", err.message);
+                                            toast.error(`Connectivity Fault: ${err.message}. Ensure backend is running at ${import.meta.env.VITE_BACKEND_URL || 'localhost:3001'}`);
                                             setIsDeployingBridge(false);
                                         }
                                     }}
