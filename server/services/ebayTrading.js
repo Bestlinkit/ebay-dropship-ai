@@ -85,11 +85,6 @@ class EbayTradingService {
         // 2. Build URL manually to avoid URLSearchParams encoding issues
         const oauthUrl = `${this.authBaseUrl}/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}&prompt=login`;
 
-        // 3. Log FULL raw URL (no truncation)
-        console.log("--- FINAL RAW URL START ---");
-        console.log(oauthUrl);
-        console.log("--- FINAL RAW URL END ---");
-
         return oauthUrl.trim();
     }
 

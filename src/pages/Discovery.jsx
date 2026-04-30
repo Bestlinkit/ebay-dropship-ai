@@ -62,7 +62,7 @@ const Discovery = () => {
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
             
-            console.log("REDIRECTING TO:", oauthUrl);
+            console.log("REDIRECT:", oauthUrl);
             
             if (oauthUrl) {
                 window.location.href = oauthUrl;
