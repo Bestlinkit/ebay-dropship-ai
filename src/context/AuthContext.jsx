@@ -54,12 +54,13 @@ export function AuthProvider({ children }) {
                         const currentToken = docSnap.exists() ? docSnap.data().ebayToken : null;
                         
                         if (currentToken !== envToken) {
-                            await updateDoc(docRef, { 
+                            const { setDoc } = await import('firebase/firestore');
+                            await setDoc(docRef, { 
                                 ebayToken: envToken,
                                 ebay_linked_at: new Date().toISOString(),
                                 system_bridge: true,
                                 bridge_version: 'v1.1_live'
-                            });
+                            }, { merge: true });
                             console.log("[Identity Sync] Production Bridge Synchronized.");
                         }
                     } catch (e) {

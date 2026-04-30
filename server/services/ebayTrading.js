@@ -59,13 +59,21 @@ class EbayTradingService {
         console.log("CLIENT_ID:", EBAY_CLIENT_ID);
         console.log("RUNAME:", EBAY_RUNAME);
 
-        // 1. Minimal Scope for Testing
-        const scope = encodeURIComponent("https://api.ebay.com/oauth/api_scope");
+        // 1. Scopes - SPACE separated BEFORE encoding
+        const scopes = [
+            "https://api.ebay.com/oauth/api_scope/sell.account",
+            "https://api.ebay.com/oauth/api_scope/sell.inventory",
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+            "https://api.ebay.com/oauth/api_scope/offline_access"
+        ];
+        
+        const scopeString = scopes.join(" ");
+        const encodedScope = encodeURIComponent(scopeString);
 
-        // 2. Build URL EXACTLY as requested
-        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${scope}`;
+        // 2. Build URL manually to avoid URLSearchParams encoding issues
+        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}`;
 
-        // 4. Log FULL raw URL (no truncation)
+        // 3. Log FULL raw URL (no truncation)
         console.log("--- FINAL RAW URL START ---");
         console.log(oauthUrl);
         console.log("--- FINAL RAW URL END ---");

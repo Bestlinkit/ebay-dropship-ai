@@ -365,7 +365,7 @@ router.get('/aspects/:id', async (req, res) => {
  */
 router.get('/auth', (req, res) => {
     const url = ebayTrading.getAuthorizationUrl();
-    res.json({ url });
+    res.json({ oauthUrl: url });
 });
 
 router.get('/callback', async (req, res) => {
