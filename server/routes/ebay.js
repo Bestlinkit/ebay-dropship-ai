@@ -17,6 +17,7 @@ router.post('/list', async (req, res) => {
         const policies = await ebayTrading.getBusinessPolicies();
         
         // ✅ Step 2 — FORCE attach to payload
+        itemData.marketplaceId = "EBAY_US";
         itemData.sellerProfiles = {
             sellerShippingProfile: {
                 shippingProfileId: policies.fulfillmentPolicyId

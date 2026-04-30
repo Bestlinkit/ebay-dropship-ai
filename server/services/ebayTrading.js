@@ -139,6 +139,7 @@ class EbayTradingService {
             'X-EBAY-API-DEV-NAME': this.devName,
             'X-EBAY-API-APP-NAME': this.appName,
             'X-EBAY-API-CERT-NAME': this.certName,
+            'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
             'Content-Type': 'text/xml',
         };
 
@@ -369,6 +370,15 @@ class EbayTradingService {
       `).join('')}
     </ItemSpecifics>
   </Item>`;
+
+        console.log("FINAL LISTING DATA (JSON):", JSON.stringify({
+            marketplaceId: "EBAY_US",
+            title: itemData.title,
+            categoryId: itemData.categoryId,
+            price: itemData.price,
+            quantity: itemData.quantity,
+            policies: policies
+        }, null, 2));
 
         console.log("FINAL XML PAYLOAD (TRUNCATED):", xmlBody.substring(0, 1000) + "...");
         return await this.callTradingAPI('AddFixedPriceItem', xmlBody);
@@ -872,22 +882,6 @@ class EbayTradingService {
         }
     }
 
-    async getCategorySuggestions(q) {
-        const token = await this.getAppToken();
-        if (!token) return [];
-        try {
-            const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions', {
-                params: { q },
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            return (response.data?.categorySuggestions || []).map(s => ({
-                id: s.category?.categoryId,
-                name: s.category?.categoryName
-            }));
-        } catch (e) {
-            return [];
-        }
-    }
 
     escapeXml(unsafe) {
         return unsafe.replace(/[<>&"']/g, (c) => {
