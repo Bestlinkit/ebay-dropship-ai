@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
 import { 
   Search, 
   Target,

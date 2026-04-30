@@ -11,6 +11,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Request Logger (v18.1)
+app.use((req, res, next) => {
+    console.log(`\n[Server] INCOMING: ${req.method} ${req.url}`);
+    next();
+});
+
 
 // Helper: MD5 Signing
 const generateMD5 = (data) => {

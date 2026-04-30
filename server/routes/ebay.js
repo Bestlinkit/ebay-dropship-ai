@@ -377,8 +377,15 @@ router.get('/aspects/:id', async (req, res) => {
  * 🔐 OAUTH AUTHENTICATION
  */
 router.get('/auth', (req, res) => {
-    const url = ebayTrading.getAuthorizationUrl();
-    res.json({ oauthUrl: url });
+    console.log("[OAuth Route] Received request for Authorization URL");
+    try {
+        const url = ebayTrading.getAuthorizationUrl();
+        console.log("[OAuth Route] Generated URL successfully");
+        res.json({ oauthUrl: url });
+    } catch (err) {
+        console.error("[OAuth Route] Generation Error:", err.message);
+        res.status(500).json({ error: "Failed to generate auth URL" });
+    }
 });
 
 const usedCodes = new Set();
