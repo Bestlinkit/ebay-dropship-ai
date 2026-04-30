@@ -66,8 +66,10 @@ class EbayTradingService {
             "https://api.ebay.com/oauth/api_scope/offline_access"
         ];
         
-        const scopeString = scopes.join(" ");
-        const encodedScope = encodeURIComponent(scopeString);
+        const scope = scopes.join(" ");
+        console.log("SCOPE BEFORE ENCODE:", scope);
+        
+        const encodedScope = encodeURIComponent(scope);
 
         // 2. Build URL manually to avoid URLSearchParams encoding issues
         const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}&prompt=login`;
