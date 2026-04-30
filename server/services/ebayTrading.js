@@ -59,12 +59,9 @@ class EbayTradingService {
         console.log("CLIENT_ID:", EBAY_CLIENT_ID);
         console.log("RUNAME:", EBAY_RUNAME);
 
-        // 1. Scopes - SPACE separated BEFORE encoding
+        // 1. Scopes - Minimal set to isolate invalid_scope error
         const scopes = [
-            "https://api.ebay.com/oauth/api_scope/sell.account",
-            "https://api.ebay.com/oauth/api_scope/sell.inventory",
-            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-            "https://api.ebay.com/oauth/api_scope/offline_access"
+            "https://api.ebay.com/oauth/api_scope"
         ];
         
         const scopeString = scopes.join(" ");
