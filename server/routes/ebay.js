@@ -35,27 +35,44 @@ router.post('/list', async (req, res) => {
             throw new Error("sellerProfiles NOT attached — blocking request");
         }
 
-        // ✅ Step 4 — ORCHESTRATE INVENTORY API FLOW
+        // ✅ Step 4 — ORCHESTRATE INVENTORY API FLOW (EXPOSURE MODE)
         const sku = itemData.sku || `SKU-${Date.now()}`;
         
+        // Build debug payload for the user
+        const debugPayload = {
+            sku: sku,
+            inventoryItem: {
+                title: itemData.title,
+                description: itemData.description,
+                images: itemData.images,
+                quantity: itemData.quantity,
+                aspects: itemData.itemSpecifics
+            },
+            offer: {
+                sku: sku,
+                quantity: itemData.quantity,
+                categoryId: itemData.categoryId,
+                description: itemData.description,
+                price: itemData.price,
+                policies: {
+                    fulfillmentPolicyId: policies.fulfillmentPolicyId,
+                    returnPolicyId: policies.returnPolicyId,
+                    paymentPolicyId: policies.paymentPolicyId
+                }
+            }
+        };
+
+        console.log("=== DEBUG PAYLOAD FOR USER ===");
+        console.log(JSON.stringify(debugPayload, null, 2));
+
         // 1. Create/Update Inventory Item
         console.log(`[eBay Flow] 1/3: Creating inventory item for SKU: ${sku}`);
-        await ebayTrading.createOrReplaceInventoryItem(sku, {
-            title: itemData.title,
-            description: itemData.description,
-            images: itemData.images,
-            quantity: itemData.quantity,
-            aspects: itemData.itemSpecifics // Use itemSpecifics as aspects
-        });
+        await ebayTrading.createOrReplaceInventoryItem(sku, debugPayload.inventoryItem);
 
         // 2. Create Offer
         console.log(`[eBay Flow] 2/3: Creating offer for SKU: ${sku}`);
         const offerResponse = await ebayTrading.createOffer({
-            sku: sku,
-            quantity: itemData.quantity,
-            categoryId: itemData.categoryId,
-            description: itemData.description,
-            price: itemData.price,
+            ...debugPayload.offer,
             fulfillmentPolicyId: policies.fulfillmentPolicyId,
             returnPolicyId: policies.returnPolicyId,
             paymentPolicyId: policies.paymentPolicyId
@@ -75,7 +92,8 @@ router.post('/list', async (req, res) => {
             success: true,
             itemId: itemId,
             offerId: offerId,
-            ack: 'Success'
+            ack: 'Success',
+            debugPayload: debugPayload
         });
 
     } catch (error) {
@@ -87,7 +105,8 @@ router.post('/list', async (req, res) => {
 
         return res.status(error.response?.status || 500).json({
             error: "EBAY_API_ERROR",
-            details: error.response?.data || error.message
+            details: error.response?.data || error.message,
+            debugPayload: req.body // Return what we received
         });
     }
 });

@@ -890,15 +890,13 @@ class EbayTradingService {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item/${sku}`;
         
-        // 🔥 Sanitize aspects to prevent serialization errors
-        const sanitizedAspects = this.sanitizeAspects(data.aspects);
-
+        // 🚨 EXPOSURE MODE: Do not sanitize. Pass raw data to identify breakages.
         const body = {
             product: {
                 title: data.title,
-                description: data.description?.substring(0, 4000) || "",
+                description: data.description || "",
                 imageUrls: data.images || [],
-                aspects: sanitizedAspects
+                aspects: data.aspects || {}
             },
             condition: "NEW",
             availability: {
@@ -908,8 +906,8 @@ class EbayTradingService {
             }
         };
 
-        console.log(`[eBay Inventory] PUT Inventory Item: ${sku}`);
-        console.log("Sanitized Aspects:", JSON.stringify(sanitizedAspects));
+        console.log("=== EBAY Inventory: createOrReplaceInventoryItem REQUEST ===");
+        console.log(JSON.stringify(body, null, 2));
         try {
             const response = await axios.put(url, body, {
                 headers: {
