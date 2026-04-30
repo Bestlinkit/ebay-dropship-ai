@@ -90,8 +90,9 @@ class EbayTradingService {
         params.append('code', code);
         params.append('redirect_uri', this.ruName);
 
-        console.log("[eBay Auth] Exchanging code for token with RUName:", this.ruName);
-        console.log("[eBay Auth] Exchange Body:", params.toString().substring(0, 50) + "...");
+        console.log(`\n[OAuth Exchange] --- STARTING EXCHANGE ---`);
+        console.log(`[OAuth Exchange] Code: ${code.substring(0, 10)}...`);
+        console.log(`[OAuth Exchange] Using RUName: ${this.ruName}`);
         
         const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
             params.toString(),
@@ -102,7 +103,8 @@ class EbayTradingService {
                 }
             }
         );
-
+        
+        console.log(`[OAuth Exchange] --- SUCCESS: Token Obtained ---`);
         tokenManager.saveTokens(response.data);
         this.token = response.data.access_token;
         return response.data;
