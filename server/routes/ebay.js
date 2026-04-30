@@ -35,44 +35,68 @@ router.post('/list', async (req, res) => {
             throw new Error("sellerProfiles NOT attached — blocking request");
         }
 
-        // ✅ Step 4 — ORCHESTRATE INVENTORY API FLOW (EXPOSURE MODE)
+        // ✅ Step 4 — ENFORCE ASPECT CORRECTNESS & FAIL FAST
+        const rawAspects = itemData.itemSpecifics?.nameValueList || [];
+        console.log("RAW INPUT ASPECTS:", JSON.stringify(rawAspects, null, 2));
+
+        const sanitizedAspects = rawAspects.filter(item => {
+            const name = item?.Name || item?.name;
+            const value = item?.Value || item?.value;
+            
+            return (
+                item &&
+                name &&
+                Array.isArray(value) &&
+                value.length > 0 &&
+                value.every(v => v !== null && v !== undefined && v !== "")
+            );
+        });
+
+        console.log("FINAL ASPECTS PAYLOAD:", JSON.stringify(sanitizedAspects, null, 2));
+
+        // 🚨 FAIL FAST: If we lost any aspects during sanitization, it means input was broken
+        if (sanitizedAspects.length !== rawAspects.length) {
+            console.error(`[Validation] BLOCKING: Detected ${rawAspects.length - sanitizedAspects.length} invalid aspects.`);
+            const invalidItems = rawAspects.filter(item => !sanitizedAspects.includes(item));
+            
+            return res.status(400).json({
+                error: "INVALID_ASPECTS_DETECTED",
+                message: "Invalid aspects detected before eBay submission. No nulls or empty values allowed.",
+                invalidAspects: invalidItems,
+                rawInput: rawAspects
+            });
+        }
+
+        // ✅ Step 5 — ORCHESTRATE INVENTORY API FLOW (STRICT MODE)
         const sku = itemData.sku || `SKU-${Date.now()}`;
         
-        // Build debug payload for the user
-        const debugPayload = {
+        // Build payload for the user & service
+        const finalPayload = {
             sku: sku,
             inventoryItem: {
                 title: itemData.title,
                 description: itemData.description,
                 images: itemData.images,
                 quantity: itemData.quantity,
-                aspects: itemData.itemSpecifics
+                aspects: sanitizedAspects
             },
             offer: {
                 sku: sku,
                 quantity: itemData.quantity,
                 categoryId: itemData.categoryId,
                 description: itemData.description,
-                price: itemData.price,
-                policies: {
-                    fulfillmentPolicyId: policies.fulfillmentPolicyId,
-                    returnPolicyId: policies.returnPolicyId,
-                    paymentPolicyId: policies.paymentPolicyId
-                }
+                price: itemData.price
             }
         };
 
-        console.log("=== DEBUG PAYLOAD FOR USER ===");
-        console.log(JSON.stringify(debugPayload, null, 2));
-
         // 1. Create/Update Inventory Item
         console.log(`[eBay Flow] 1/3: Creating inventory item for SKU: ${sku}`);
-        await ebayTrading.createOrReplaceInventoryItem(sku, debugPayload.inventoryItem);
+        await ebayTrading.createOrReplaceInventoryItem(sku, finalPayload.inventoryItem);
 
         // 2. Create Offer
         console.log(`[eBay Flow] 2/3: Creating offer for SKU: ${sku}`);
         const offerResponse = await ebayTrading.createOffer({
-            ...debugPayload.offer,
+            ...finalPayload.offer,
             fulfillmentPolicyId: policies.fulfillmentPolicyId,
             returnPolicyId: policies.returnPolicyId,
             paymentPolicyId: policies.paymentPolicyId
@@ -86,14 +110,12 @@ router.post('/list', async (req, res) => {
         const publishResponse = await ebayTrading.publishOffer(offerId);
         const itemId = publishResponse.data.listingId;
 
-        console.log(`[eBay Flow] SUCCESS! Listing ID: ${itemId}`);
-
         res.json({
             success: true,
             itemId: itemId,
             offerId: offerId,
             ack: 'Success',
-            debugPayload: debugPayload
+            debugPayload: finalPayload
         });
 
     } catch (error) {
