@@ -364,7 +364,6 @@ const Settings = () => {
                                             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
                                             const data = await response.json();
                                             const oauthUrl = data.oauthUrl;
-                                            console.log("OAUTH URL:", oauthUrl);
                                             window.location.assign(oauthUrl);
                                         } catch (err) {
                                             toast.error("Secure Bridge Deployment Failed: " + err.message);

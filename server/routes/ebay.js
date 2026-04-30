@@ -234,10 +234,23 @@ router.post('/revise/:id', async (req, res) => {
  */
 router.post('/refresh', async (req, res) => {
     try {
-        const data = await ebayTrading.refreshAccessToken(req.body.refresh_token);
+        const refreshToken = req.body.refresh_token || ebayTrading.tokenManager.getRefreshToken();
+        console.log(`[eBay Refresh] Attempting refresh with token: ${refreshToken ? refreshToken.substring(0, 10) + '...' : 'MISSING'}`);
+        
+        if (!refreshToken) {
+            return res.status(400).json({ success: false, error: "No refresh token available. Re-authorization required." });
+        }
+
+        const data = await ebayTrading.refreshAccessToken(refreshToken);
         res.json(data);
     } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
+        const errorDetails = err.response?.data || err.message;
+        console.error("[eBay Refresh] Failed:", errorDetails);
+        res.status(500).json({ 
+            success: false, 
+            error: "Token refresh failed",
+            details: errorDetails
+        });
     }
 });
 

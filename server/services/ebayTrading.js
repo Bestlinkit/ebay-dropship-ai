@@ -40,6 +40,7 @@ class EbayTradingService {
         this.appName = appID;
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
         this.ruName = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
+        this.tokenManager = tokenManager;
 
         console.log(`[eBay Service] Initialized for ${this.isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
         console.log(`[eBay Service] Base URL: ${this.apiBaseUrl}`);
