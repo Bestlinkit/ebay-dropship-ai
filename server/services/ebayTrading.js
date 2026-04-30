@@ -21,17 +21,28 @@ class EbayTradingService {
     }
 
     constructor() {
-        this.endpoint = 'https://api.ebay.com/ws/api.dll';
-        this.restBaseUrl = 'https://api.ebay.com';
+        const appID = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID || '';
+        this.isSandbox = appID.includes('-SBX-');
+        
+        // Environment Base URLs
+        const domain = this.isSandbox ? 'sandbox.ebay.com' : 'ebay.com';
+        this.authBaseUrl = `https://auth.${domain}`;
+        this.apiBaseUrl = `https://api.${domain}`;
+        
+        this.endpoint = `${this.apiBaseUrl}/ws/api.dll`;
+        this.restBaseUrl = this.apiBaseUrl;
+        this.tokenUrl = `${this.apiBaseUrl}/identity/v1/oauth2/token`;
+        
         this.siteId = process.env.EBAY_SITE_ID || '0';
         this.compatibilityLevel = '1355';
         this.token = tokenManager.getAccessToken();
         this.devName = process.env.EBAY_DEV_ID || process.env.VITE_EBAY_DEV_ID;
-        this.appName = process.env.EBAY_APP_ID || process.env.VITE_EBAY_APP_ID;
+        this.appName = appID;
         this.certName = process.env.EBAY_CERT_ID || process.env.VITE_EBAY_CERT_ID;
         this.ruName = process.env.EBAY_RUNAME || process.env.VITE_EBAY_RUNAME;
 
-        console.log("[eBay Service] Initialized with OAuth Architecture");
+        console.log(`[eBay Service] Initialized for ${this.isSandbox ? 'SANDBOX' : 'PRODUCTION'}`);
+        console.log(`[eBay Service] Base URL: ${this.apiBaseUrl}`);
     }
 
     async ensureToken() {
@@ -72,7 +83,7 @@ class EbayTradingService {
         const encodedScope = encodeURIComponent(scope);
 
         // 2. Build URL manually to avoid URLSearchParams encoding issues
-        const oauthUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}&prompt=login`;
+        const oauthUrl = `${this.authBaseUrl}/oauth2/authorize?client_id=${EBAY_CLIENT_ID}&response_type=code&redirect_uri=${EBAY_RUNAME}&scope=${encodedScope}&prompt=login`;
 
         // 3. Log FULL raw URL (no truncation)
         console.log("--- FINAL RAW URL START ---");
@@ -94,7 +105,7 @@ class EbayTradingService {
         console.log(`[OAuth Exchange] Code: ${code.substring(0, 10)}...`);
         console.log(`[OAuth Exchange] Using RUName: ${this.ruName}`);
         
-        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
+        const response = await axios.post(this.tokenUrl,
             params.toString(),
             {
                 headers: {
@@ -392,7 +403,7 @@ class EbayTradingService {
         ];
         params.append('scope', scopes.join(" "));
 
-        const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token', 
+        const response = await axios.post(this.tokenUrl, 
             params.toString(), 
             {
                 headers: {
@@ -412,8 +423,8 @@ class EbayTradingService {
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
         try {
             return await this.callWithRetry(async () => {
-                const response = await axios.post('https://api.ebay.com/identity/v1/oauth2/token',
-                    'grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope',
+                const response = await axios.post(this.tokenUrl,
+                    `grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope`,
                     {
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
