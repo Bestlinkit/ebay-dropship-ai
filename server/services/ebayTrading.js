@@ -47,13 +47,22 @@ class EbayTradingService {
     }
 
     async ensureToken() {
-        // Update this.token from manager in case it changed
         this.token = tokenManager.getAccessToken();
+        const refreshToken = tokenManager.getRefreshToken();
+        
+        console.log(`[eBay Auth] Token Status - Access: ${this.token ? 'YES' : 'NO'}, Refresh: ${refreshToken ? 'YES' : 'NO'}`);
 
-        if (tokenManager.isExpired() && tokenManager.hasRefreshToken()) {
+        if (tokenManager.isExpired()) {
+            if (!refreshToken) {
+                console.log("[eBay Auth] Token expired but NO refresh token found. Skipping auto-refresh.");
+                return;
+            }
+
             console.log("[eBay Auth] Token expired. Initiating Auto-Refresh...");
+            console.log("REFRESH TOKEN:", refreshToken.substring(0, 10) + "...");
+
             try {
-                const data = await this.refreshAccessToken(tokenManager.getRefreshToken());
+                const data = await this.refreshAccessToken(refreshToken);
                 tokenManager.saveTokens(data);
                 this.token = data.access_token;
                 console.log("[eBay Auth] Token auto-refreshed successfully.");
@@ -387,6 +396,11 @@ class EbayTradingService {
     }
 
     async refreshAccessToken(refreshToken) {
+        if (!refreshToken) {
+            console.error("[eBay Auth] refreshAccessToken called with MISSING token");
+            throw new Error("No refresh token provided");
+        }
+        
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
         
         const params = new URLSearchParams();
