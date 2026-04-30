@@ -363,9 +363,10 @@ const Settings = () => {
                                         try {
                                             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
                                             const data = await response.json();
-                                            console.log("[Auth-Settings] Final Redirect URL:", data.oauthUrl);
-                                            if (data.oauthUrl) {
-                                                window.location.href = data.oauthUrl;
+                                            const oauthUrl = data.oauthUrl;
+                                            console.log("REDIRECTING TO:", oauthUrl);
+                                            if (oauthUrl) {
+                                                window.location.href = oauthUrl;
                                             } else {
                                                 throw new Error("Missing OAuth URL");
                                             }
