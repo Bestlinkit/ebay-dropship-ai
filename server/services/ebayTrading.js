@@ -890,7 +890,6 @@ class EbayTradingService {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item/${sku}`;
         
-        // 🚨 EXPOSURE MODE: Do not sanitize. Pass raw data to identify breakages.
         const body = {
             product: {
                 title: data.title,
@@ -906,8 +905,24 @@ class EbayTradingService {
             }
         };
 
-        console.log("=== EBAY Inventory: createOrReplaceInventoryItem REQUEST ===");
+        // 🛡️ FINAL SANITIZER: Ensure ZERO null values and correct schema
+        if (body.product.aspects) {
+            Object.keys(body.product.aspects).forEach(key => {
+                const val = body.product.aspects[key];
+                // Remove invalid, empty, or null-containing arrays
+                if (!val || !Array.isArray(val) || val.length === 0 || val.some(v => v == null || v === "")) {
+                    console.warn(`[eBay Sanitizer] Removing invalid aspect: ${key}`);
+                    delete body.product.aspects[key];
+                }
+            });
+            
+            // Explicitly ensure 'nameValueList' doesn't exist as a key (common migration error)
+            delete body.product.aspects.nameValueList;
+        }
+
+        console.log("=== FINAL EBAY PAYLOAD: createOrReplaceInventoryItem ===");
         console.log(JSON.stringify(body, null, 2));
+
         try {
             const response = await axios.put(url, body, {
                 headers: {

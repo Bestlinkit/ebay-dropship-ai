@@ -70,6 +70,14 @@ router.post('/list', async (req, res) => {
         // ✅ Step 5 — ORCHESTRATE INVENTORY API FLOW (STRICT MODE)
         const sku = itemData.sku || `SKU-${Date.now()}`;
         
+        // Convert sanitized array to eBay Inventory Object Format: { "Color": ["Red"] }
+        const aspectsObject = {};
+        sanitizedAspects.forEach(item => {
+            const name = item.Name || item.name;
+            const value = item.Value || item.value;
+            aspectsObject[name] = Array.isArray(value) ? value.map(v => v.toString()) : [value.toString()];
+        });
+
         // Build payload for the user & service
         const finalPayload = {
             sku: sku,
@@ -78,7 +86,7 @@ router.post('/list', async (req, res) => {
                 description: itemData.description,
                 images: itemData.images,
                 quantity: itemData.quantity,
-                aspects: sanitizedAspects
+                aspects: aspectsObject
             },
             offer: {
                 sku: sku,

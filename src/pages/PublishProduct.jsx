@@ -36,7 +36,12 @@ const PublishProduct = () => {
       setSuccess(true);
       toast.success("Successfully published to eBay!");
     } catch (error) {
-      toast.error("Failed to list item. Please check eBay API settings.");
+      console.error("=== EBAY LISTING FAILURE ===");
+      console.error("Error Object:", error);
+      if (error.response?.data) {
+        console.error("Backend Error Details:", error.response.data);
+      }
+      toast.error("Failed to list item. Check browser console for details.");
     } finally {
       setLoading(false);
     }
