@@ -890,12 +890,15 @@ class EbayTradingService {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item/${sku}`;
         
+        // 🔥 Sanitize aspects to prevent serialization errors
+        const sanitizedAspects = this.sanitizeAspects(data.aspects);
+
         const body = {
             product: {
                 title: data.title,
                 description: data.description?.substring(0, 4000) || "",
                 imageUrls: data.images || [],
-                aspects: data.aspects || {}
+                aspects: sanitizedAspects
             },
             condition: "NEW",
             availability: {
@@ -906,14 +909,22 @@ class EbayTradingService {
         };
 
         console.log(`[eBay Inventory] PUT Inventory Item: ${sku}`);
-        return await axios.put(url, body, {
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json',
-                'Content-Language': 'en-US',
-                'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
-            }
-        });
+        console.log("Sanitized Aspects:", JSON.stringify(sanitizedAspects));
+        try {
+            const response = await axios.put(url, body, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                    'Content-Language': 'en-US',
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
+            });
+            console.log(`[eBay Inventory] Inventory Item Success: ${sku} (Status: ${response.status})`);
+            return response;
+        } catch (err) {
+            console.error(`[eBay Inventory] Inventory Item Failed: ${sku}`, err.response?.data || err.message);
+            throw err;
+        }
     }
 
     /**
@@ -944,18 +955,26 @@ class EbayTradingService {
             }
         };
 
-        console.log("--- FINAL createOffer PAYLOAD SENT TO EBAY ---");
+        console.log("=== EBAY Inventory: createOffer REQUEST ===");
         console.log(JSON.stringify(body, null, 2));
-        console.log("----------------------------------------------");
 
-        return await axios.post(url, body, {
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json',
-                'Content-Language': 'en-US',
-                'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
-            }
-        });
+        try {
+            const response = await axios.post(url, body, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                    'Content-Language': 'en-US',
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
+            });
+            console.log("=== EBAY Inventory: createOffer RESPONSE ===");
+            console.log(JSON.stringify(response.data, null, 2));
+            return response;
+        } catch (err) {
+            console.error("=== EBAY Inventory: createOffer ERROR ===");
+            console.error(JSON.stringify(err.response?.data || err.message, null, 2));
+            throw err;
+        }
     }
 
     /**
@@ -966,12 +985,56 @@ class EbayTradingService {
         const url = `${this.restBaseUrl}/sell/inventory/v1/offer/${offerId}/publish`;
         
         console.log(`[eBay Inventory] POST Publish Offer: ${offerId}`);
-        return await axios.post(url, {}, {
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+        try {
+            const response = await axios.post(url, {}, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
+            });
+            console.log(`[eBay Inventory] Publish Success: ${offerId} (Listing ID: ${response.data.listingId})`);
+            return response;
+        } catch (err) {
+            console.error(`[eBay Inventory] Publish Failed: ${offerId}`, err.response?.data || err.message);
+            throw err;
+        }
+    }
+
+    sanitizeAspects(aspects) {
+        if (!aspects) return {};
+        const clean = {};
+        
+        // Handle legacy array format if passed from frontend
+        let source = aspects;
+        if (aspects.nameValueList && Array.isArray(aspects.nameValueList)) {
+            console.log("[eBay Sanitization] Converting nameValueList array to object...");
+            source = {};
+            aspects.nameValueList.forEach(item => {
+                if (item.Name && item.Name !== "null") {
+                    source[item.Name] = item.Value;
+                }
+            });
+        }
+
+        Object.entries(source).forEach(([name, value]) => {
+            // 1. Validate Name
+            if (!name || name === "null" || name === "undefined" || name === "") return;
+            
+            // 2. Convert to array (Inventory API requires array of strings)
+            let values = Array.isArray(value) ? value : [value];
+            
+            // 3. Filter invalid values
+            const cleanValues = values
+                .filter(v => v !== null && v !== undefined && v !== "" && v !== "null" && v !== "undefined")
+                .map(v => v.toString());
+            
+            if (cleanValues.length > 0) {
+                clean[name] = cleanValues;
             }
         });
+        
+        return clean;
     }
 
     escapeXml(unsafe) {
