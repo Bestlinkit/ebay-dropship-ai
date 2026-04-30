@@ -61,9 +61,8 @@ const Discovery = () => {
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001'}/api/ebay/auth`);
             const data = await response.json();
             const oauthUrl = data.oauthUrl;
-            
-            console.log("REDIRECT:", oauthUrl);
-            window.location.href = oauthUrl;
+            console.log("OAUTH URL:", oauthUrl);
+            window.location.assign(oauthUrl);
         } catch (error) {
             console.error("Critical Auth Fetch Error");
         }
