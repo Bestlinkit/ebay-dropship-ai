@@ -88,16 +88,14 @@ class EbayTradingService {
             "https://api.ebay.com/oauth/api_scope/offline_access"
         ];
         
-        const params = new URLSearchParams();
-        params.append('client_id', EBAY_CLIENT_ID);
-        params.append('response_type', 'code');
-        params.append('redirect_uri', EBAY_RUNAME);
-        params.append('scope', scopes.join(" "));
-        params.append('prompt', 'login consent');
+        const scopeString = scopes.join(" ");
+        const encodedScope = encodeURIComponent(scopeString);
+        const encodedRuName = encodeURIComponent(EBAY_RUNAME);
+        const encodedClientId = encodeURIComponent(EBAY_CLIENT_ID);
 
-        const oauthUrl = `${this.authBaseUrl}/oauth2/authorize?${params.toString()}`;
+        const oauthUrl = `${this.authBaseUrl}/oauth2/authorize?client_id=${encodedClientId}&response_type=code&redirect_uri=${encodedRuName}&scope=${encodedScope}&prompt=login%20consent`;
 
-        console.log("--- GENERATED OAUTH URL (V2) ---");
+        console.log("--- GENERATED OAUTH URL (V3) ---");
         console.log(oauthUrl);
         console.log("---------------------------------");
 
