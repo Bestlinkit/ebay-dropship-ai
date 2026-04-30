@@ -63,12 +63,7 @@ const Discovery = () => {
             const oauthUrl = data.oauthUrl;
             
             console.log("REDIRECT:", oauthUrl);
-            
-            if (oauthUrl) {
-                window.location.href = oauthUrl;
-            } else {
-                console.error("[Auth] No OAuth URL received");
-            }
+            window.location.href = oauthUrl;
         } catch (error) {
             console.error("Critical Auth Fetch Error");
         }

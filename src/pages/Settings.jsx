@@ -365,11 +365,7 @@ const Settings = () => {
                                             const data = await response.json();
                                             const oauthUrl = data.oauthUrl;
                                             console.log("REDIRECT:", oauthUrl);
-                                            if (oauthUrl) {
-                                                window.location.href = oauthUrl;
-                                            } else {
-                                                throw new Error("Missing OAuth URL");
-                                            }
+                                            window.location.href = oauthUrl;
                                         } catch (err) {
                                             toast.error("Secure Bridge Deployment Failed: " + err.message);
                                             setIsDeployingBridge(false);
