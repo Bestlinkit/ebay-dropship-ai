@@ -24,7 +24,6 @@ import {
   Loader2,
   ShoppingBag
 } from 'lucide-react';
-import { toast } from 'sonner';
 import ConnectModal from '../components/ConnectModal';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
