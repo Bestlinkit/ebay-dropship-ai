@@ -365,6 +365,7 @@ const EbayListingBuilder = () => {
             }
 
             const payload = {
+                marketplaceId: "EBAY_US",
                 title: selectedTitle,
                 description: description,
                 categoryId: selectedCategoryId,

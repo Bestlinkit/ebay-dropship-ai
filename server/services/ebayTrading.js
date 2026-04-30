@@ -224,11 +224,26 @@ class EbayTradingService {
         const token = this.token;
 
         try {
-            console.log("[eBay Policies] Requesting Fulfillment, Return, and Payment policies...");
+            console.log("[eBay Policies] Requesting Fulfillment, Return, and Payment policies for EBAY_US...");
             const [fulfillRes, returnRes, paymentRes] = await Promise.all([
-                axios.get(`${this.restBaseUrl}/sell/account/v1/fulfillment_policy`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                axios.get(`${this.restBaseUrl}/sell/account/v1/return_policy`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                axios.get(`${this.restBaseUrl}/sell/account/v1/payment_policy`, { headers: { 'Authorization': `Bearer ${token}` } })
+                axios.get(`${this.restBaseUrl}/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US`, { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    } 
+                }),
+                axios.get(`${this.restBaseUrl}/sell/account/v1/return_policy?marketplace_id=EBAY_US`, { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    } 
+                }),
+                axios.get(`${this.restBaseUrl}/sell/account/v1/payment_policy?marketplace_id=EBAY_US`, { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    } 
+                })
             ]);
 
             // 🔍 Log raw response (Requirement: Log raw response)
@@ -514,6 +529,7 @@ class EbayTradingService {
             q: query,
             limit: options.limit || 12,
             offset: options.offset || 0,
+            marketplace_ids: 'EBAY_US',
             filter: []
         };
 
@@ -576,7 +592,10 @@ class EbayTradingService {
         try {
             // Marketplace ID is often required, defaulting to EBAY_US but can be dynamic
             const response = await axios.get('https://api.ebay.com/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=EBAY_US', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
             });
             const treeId = response.data.categoryTreeId;
             console.log("REAL TREE ID:", treeId);
@@ -599,7 +618,7 @@ class EbayTradingService {
 
         const executeTaxonomyCall = async () => {
             return await this.callWithRetry(async () => {
-                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}`, {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}?marketplace_id=EBAY_US`, {
                     headers: { 
                         'Authorization': `Bearer ${token}`,
                         'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
@@ -700,9 +719,10 @@ class EbayTradingService {
 
         try {
             const response = await this.callWithRetry(async () => {
-                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${categoryId}`, {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${categoryId}&marketplace_id=EBAY_US`, {
                     headers: { 
                         'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US',
                         'Content-Type': 'application/json'
                     },
                     timeout: 15000
@@ -747,8 +767,11 @@ class EbayTradingService {
         if (!token) return [];
         try {
             const response = await this.callWithRetry(async () => {
-                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(q)}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(q)}&marketplace_id=EBAY_US`, {
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                    },
                     timeout: 10000
                 });
             });
@@ -769,7 +792,7 @@ class EbayTradingService {
 
         try {
             const response = await this.callWithRetry(async () => {
-                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${parentId}`, {
+                return await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_category_subtree?category_id=${parentId}&marketplace_id=EBAY_US`, {
                     headers: { 
                         'Authorization': `Bearer ${token}`,
                         'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
@@ -828,7 +851,7 @@ class EbayTradingService {
         if (!token) return [];
         try {
             console.log(`[eBay Taxonomy] Fetching Aspects for Category: ${categoryId}`);
-            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_item_aspects_for_category?category_id=${categoryId}`, {
+            const response = await axios.get(`https://api.ebay.com/commerce/taxonomy/v1/category_tree/${treeId}/get_item_aspects_for_category?category_id=${categoryId}&marketplace_id=EBAY_US`, {
                 headers: { 
                     'Authorization': `Bearer ${token}`,
                     'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
