@@ -420,28 +420,51 @@ class EbayTradingService {
         
         const auth = Buffer.from(`${this.appName}:${this.certName}`).toString('base64');
         
-        const params = new URLSearchParams();
-        params.append('grant_type', 'refresh_token');
-        params.append('refresh_token', refreshToken);
-        const scopes = [
-            "https://api.ebay.com/oauth/api_scope",
-            "https://api.ebay.com/oauth/api_scope/sell.account",
-            "https://api.ebay.com/oauth/api_scope/sell.inventory",
-            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
-            "https://api.ebay.com/oauth/api_scope/offline_access"
-        ];
-        params.append('scope', scopes.join(" "));
+        const performRefresh = async (includeScopes = true) => {
+            const params = new URLSearchParams();
+            params.append('grant_type', 'refresh_token');
+            params.append('refresh_token', refreshToken);
+            
+            if (includeScopes) {
+                const scopes = [
+                    "https://api.ebay.com/oauth/api_scope",
+                    "https://api.ebay.com/oauth/api_scope/sell.account",
+                    "https://api.ebay.com/oauth/api_scope/sell.inventory",
+                    "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+                    "https://api.ebay.com/oauth/api_scope/offline_access"
+                ];
+                params.append('scope', scopes.join(" "));
+            }
 
-        const response = await axios.post(this.tokenUrl, 
-            params.toString(), 
-            {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': `Basic ${auth}`
+            return await axios.post(this.tokenUrl, 
+                params.toString(), 
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Basic ${auth}`
+                    }
+                }
+            );
+        };
+
+        try {
+            console.log("[eBay Auth] Attempting refresh with full scopes...");
+            const response = await performRefresh(true);
+            return response.data;
+        } catch (err) {
+            if (err.response?.data?.error === 'invalid_scope') {
+                console.warn("[eBay Auth] Refresh with scopes failed (invalid_scope). Retrying WITHOUT scope parameter (Legacy Mode)...");
+                try {
+                    const response = await performRefresh(false);
+                    console.log("[eBay Auth] Legacy Refresh SUCCESS ✅");
+                    return response.data;
+                } catch (retryErr) {
+                    console.error("[eBay Auth] Legacy Refresh also failed:", retryErr.response?.data || retryErr.message);
+                    throw retryErr;
                 }
             }
-        );
-        return response.data;
+            throw err;
+        }
     }
 
     async getAppToken() {
