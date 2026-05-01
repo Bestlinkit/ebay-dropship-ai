@@ -1029,17 +1029,14 @@ class EbayTradingService {
         const body = {
             location: {
                 address: {
-                    addressLine1: "123 Main St",
+                    addressLine1: "2145 Hamilton Ave",
                     city: "San Jose",
                     stateOrProvince: "CA",
                     postalCode: "95125",
-                    countryCode: "US"
+                    country: "US"
                 }
             },
-            locationWebUrl: "",
-            locationInstructions: "",
-            locationTypes: ["STORE"],
-            name: "Default Warehouse",
+            locationTypes: ["WAREHOUSE"],
             merchantLocationStatus: "ENABLED"
         };
 
@@ -1053,7 +1050,8 @@ class EbayTradingService {
             });
             return response.data;
         } catch (err) {
-            console.error("[eBay Inventory] Failed to create location", err.response?.data || err.message);
+            console.error("[eBay Inventory] Failed to create location:");
+            console.error(JSON.stringify(err.response?.data || err.message, null, 2));
             throw err;
         }
     }
@@ -1116,6 +1114,50 @@ class EbayTradingService {
         });
         
         return clean;
+    }
+
+    /**
+     * 📦 INVENTORY API: Create or Replace Inventory Item Group
+     */
+    async createOrReplaceInventoryItemGroup(groupKey, data) {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item_group/${groupKey}`;
+        try {
+            console.log(`[eBay Inventory] PUT Inventory Item Group: ${groupKey}`);
+            return await axios.put(url, data, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                    'Content-Language': 'en-US'
+                }
+            });
+        } catch (err) {
+            console.error(`[eBay Inventory] Inventory Item Group Failed: ${groupKey}`);
+            console.error(JSON.stringify(err.response?.data || err.message, null, 2));
+            throw err;
+        }
+    }
+
+    /**
+     * 🚀 INVENTORY API: Publish Inventory Item Group
+     */
+    async publishInventoryItemGroup(groupKey) {
+        await this.ensureToken();
+        const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item_group/${groupKey}/publish_entities`;
+        try {
+            console.log(`[eBay Inventory] Publishing Group: ${groupKey}`);
+            return await axios.post(url, {}, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json',
+                    'X-EBAY-C-MARKETPLACE-ID': 'EBAY_US'
+                }
+            });
+        } catch (err) {
+            console.error(`[eBay Inventory] Publish Group Failed: ${groupKey}`);
+            console.error(JSON.stringify(err.response?.data || err.message, null, 2));
+            throw err;
+        }
     }
 
     escapeXml(unsafe) {

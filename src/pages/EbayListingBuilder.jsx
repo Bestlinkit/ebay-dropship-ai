@@ -339,31 +339,7 @@ const EbayListingBuilder = () => {
                 nameValueList.push({ name: "Brand", value: ["Unbranded"] });
             }
 
-            // 🔴 6. FINAL PAYLOAD (CLEAN + VALID)
-            const variationSpecificsSet = [];
-            if (variants.length > 0) {
-                const colorValues = new Set();
-                const sizeValues = new Set();
-                
-                variants.forEach(v => {
-                    const parts = v.name.split('-').map(p => p.trim());
-                    if (parts[0]) colorValues.add(parts[0]);
-                    if (parts[1]) sizeValues.add(parts[1]);
-                });
-
-                if (colorValues.size > 0) {
-                    variationSpecificsSet.push({ name: "Color", values: Array.from(colorValues) });
-                }
-                if (sizeValues.size > 0) {
-                    variationSpecificsSet.push({ name: "Size", values: Array.from(sizeValues) });
-                }
-            }
-
-            // Validation: Multi-variant check
-            if (variants.length > 1 && variationSpecificsSet.length === 0) {
-                throw new Error("Invalid variation setup: missing variationSpecificsSet (Color/Size attributes)");
-            }
-
+            // 🔴 6. FINAL PAYLOAD (SYNCHRONIZED WITH BACKEND)
             const payload = {
                 marketplaceId: "EBAY_US",
                 title: selectedTitle,
@@ -373,19 +349,30 @@ const EbayListingBuilder = () => {
                 quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
                 images: selectedImages,
                 itemSpecifics: { nameValueList },
-                variationSpecificsSet: variationSpecificsSet,
+                sku: productId || `PRD-${Date.now()}`,
                 variants: variants.map(v => {
                     const parts = v.name.split('-').map(p => p.trim());
-                    const specifics = {};
-                    if (parts[0]) specifics["Color"] = parts[0];
-                    if (parts[1]) specifics["Size"] = parts[1];
+                    const attributes = [];
+                    
+                    if (parts.length === 1) {
+                        // Guess Size or Color
+                        const val = parts[0];
+                        if (!isNaN(val) || val.match(/^[0-9.]+$/)) {
+                            attributes.push({ name: "Size", value: val });
+                        } else {
+                            attributes.push({ name: "Color", value: val });
+                        }
+                    } else {
+                        attributes.push({ name: "Color", value: parts[0] });
+                        attributes.push({ name: "Size", value: parts[1] });
+                    }
                     
                     return {
                         name: v.name,
                         sku: v.sku,
                         price: v.ebay_price,
-                        inventory: v.inventory,
-                        specifics: specifics // Key-Value Object as required
+                        quantity: v.inventory, // Backend expects 'quantity' or 'inventory'? (Check backend)
+                        attributes: attributes
                     };
                 })
             };
