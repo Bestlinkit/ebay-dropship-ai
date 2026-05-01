@@ -170,12 +170,18 @@ router.post('/list', async (req, res) => {
                 const groupResponse = await ebayTrading.createOrReplaceInventoryItemGroup(groupKey, {
                     inventoryItemGroupKey: groupKey,
                     variantSKUs: variantSkus,
-                    title: itemData.title,
-                    description: itemData.description,
-                    imageUrls: itemData.images,
-                    aspects: groupAspects,
-                    variantAspects: groupVariantAspects
+                    variesBy: {
+                        specifications: groupVariantAspects,
+                        aspectsImageVariesBy: groupVariantAspects.some(va => va.name === "Color") ? ["Color"] : []
+                    },
+                    product: {
+                        title: itemData.title,
+                        description: itemData.description,
+                        imageUrls: itemData.images,
+                        aspects: groupAspects
+                    }
                 });
+                logToFile(`SUCCESS: Created Group ${groupKey}`, groupResponse.data);
             } catch (err) {
                 logToFile(`FAILED: Group ${groupKey}`, err.response?.data || err.message);
                 throw err;

@@ -1151,9 +1151,16 @@ class EbayTradingService {
     async createOrReplaceInventoryItemGroup(groupKey, data) {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item_group/${groupKey}`;
-        // 🛡️ POLICY SANITIZATION
-        if (data.title) data.title = this.policySanitize(data.title).substring(0, 80);
-        if (data.description) data.description = this.policySanitize(data.description).substring(0, 4000);
+        
+        // 🛡️ POLICY SANITIZATION (Handle nested product object)
+        if (data.product) {
+            if (data.product.title) data.product.title = this.policySanitize(data.product.title).substring(0, 80);
+            if (data.product.description) data.product.description = this.policySanitize(data.product.description).substring(0, 4000);
+        } else {
+            // Fallback for flat structure if needed (though we should avoid it)
+            if (data.title) data.title = this.policySanitize(data.title).substring(0, 80);
+            if (data.description) data.description = this.policySanitize(data.description).substring(0, 4000);
+        }
 
         try {
             console.log(`[eBay Inventory] PUT Inventory Item Group: ${groupKey}`);
