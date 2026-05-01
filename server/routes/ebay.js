@@ -174,12 +174,10 @@ router.post('/list', async (req, res) => {
                         specifications: groupVariantAspects,
                         aspectsImageVariesBy: groupVariantAspects.some(va => va.name === "Color") ? ["Color"] : []
                     },
-                    product: {
-                        title: itemData.title,
-                        description: itemData.description,
-                        imageUrls: itemData.images,
-                        aspects: groupAspects
-                    }
+                    title: itemData.title,
+                    description: itemData.description,
+                    imageUrls: itemData.images,
+                    aspects: groupAspects
                 });
                 logToFile(`SUCCESS: Created Group ${groupKey}`, groupResponse.data);
             } catch (err) {
