@@ -1001,7 +1001,7 @@ class EbayTradingService {
             merchantLocationKey: data.merchantLocationKey || "default",
             pricingSummary: {
                 price: {
-                    value: data.price.toString(),
+                    value: (data.price || "0.00").toString(),
                     currency: "USD"
                 }
             }
