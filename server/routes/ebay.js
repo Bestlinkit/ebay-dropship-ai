@@ -186,11 +186,12 @@ router.post('/list', async (req, res) => {
             }
 
             // 3. Create Offers for EACH Variant
-            logToFile(`3/4: Creating offers for ${variantSkus.length} variants...`);
+            logToFile(`3/4: Creating and collecting offers for ${variantSkus.length} variants...`);
+            const offerIds = [];
             for (const variant of preparedVariants) {
                 const variantSku = variant.preparedSku;
                 try {
-                    await ebayTrading.createOffer({
+                    const offerResponse = await ebayTrading.createOffer({
                         sku: variantSku,
                         marketplaceId: "EBAY_US",
                         format: "FIXED_PRICE",
@@ -203,28 +204,37 @@ router.post('/list', async (req, res) => {
                         returnPolicyId: policies.returnPolicyId,
                         merchantLocationKey: locationKey
                     });
+                    if (offerResponse.data?.offerId) {
+                        offerIds.push(offerResponse.data.offerId);
+                        logToFile(`SUCCESS: Created offer ${offerResponse.data.offerId} for ${variantSku}`);
+                    }
                 } catch (err) {
                     logToFile(`FAILED: Offer for ${variantSku}`, err.response?.data || err.message);
                     throw err;
                 }
             }
 
-            // 4. Publish the Group
-            logToFile(`4/4: Publishing item group: ${groupKey}`);
-            try {
-                const publishResponse = await ebayTrading.publishInventoryItemGroup(groupKey);
-                logToFile(`SUCCESS: Published Group ${groupKey}`, publishResponse.data);
-                
-                return res.json({
-                    success: true,
-                    message: "Multi-variation listing published successfully",
-                    groupKey: groupKey,
-                    details: publishResponse.data
-                });
-            } catch (err) {
-                logToFile(`FAILED: Publishing Group ${groupKey}`, err.response?.data || err.message);
-                throw err;
+            // 4. Publish ALL Offers (This activates the group listing)
+            logToFile(`4/4: Publishing ${offerIds.length} offers for group ${groupKey}...`);
+            const publishResults = [];
+            for (const offerId of offerIds) {
+                try {
+                    const publishResponse = await ebayTrading.publishOffer(offerId);
+                    publishResults.push(publishResponse.data);
+                    logToFile(`SUCCESS: Published Offer ${offerId}`);
+                } catch (err) {
+                    logToFile(`FAILED: Publishing Offer ${offerId}`, err.response?.data || err.message);
+                    // We continue even if one fails to try and get as many up as possible
+                }
             }
+            
+            return res.json({
+                success: true,
+                message: "Multi-variation listing processed",
+                groupKey: groupKey,
+                publishedOffers: publishResults.length,
+                totalVariants: variantSkus.length
+            });
 
         } else {
             // SINGLE ITEM FLOW (Existing)
