@@ -239,33 +239,30 @@ const PublishProduct = () => {
                         </div>
                      </div>
                   </div>
-</div>
+               </div>
+               <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
+            </div>
 
-                 <button 
-                  onClick={handlePublish}
-                  disabled={loading}
-                  className="w-full btn-primary h-14 mt-10 shadow-lg shadow-primary/20 flex items-center justify-center gap-3 group"
-                 >
-                   {loading ? (
-                     <Loader2 className="animate-spin" />
-                   ) : (
-                     <>
-                        Ready to Launch
-                        <Rocket size={20} className="group-hover:-translate-y-1 transition-transform" />
-                     </>
-                   )}
-                 </button>
-              </div>
-              
-              {/* Abstract element */}
-              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-           </div>
+            <button 
+              onClick={handlePublish}
+              disabled={loading}
+              className="w-full btn-primary h-14 shadow-lg shadow-primary/20 flex items-center justify-center gap-3 group"
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <>
+                   Ready to Launch
+                   <Rocket size={20} className="group-hover:-translate-y-1 transition-transform" />
+                </>
+              )}
+            </button>
 
-           <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-xs text-slate-500 flex gap-3">
-              <AlertCircle className="shrink-0 text-amber-500" size={16} />
-              By clicking "Launch", you agree to eBay's selling policies. This listing will remain active until sold or cancelled.
-           </div>
-        </div>
+            <div className="p-6 bg-slate-50 border border-slate-200 rounded-3xl font-medium text-xs text-slate-500 flex gap-3">
+               <AlertCircle className="shrink-0 text-amber-500" size={16} />
+               By clicking "Launch", you agree to eBay's selling policies. This listing will remain active until sold or cancelled.
+            </div>
+         </div>
       </div>
     </div>
   );
