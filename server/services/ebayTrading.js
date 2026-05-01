@@ -1177,10 +1177,12 @@ class EbayTradingService {
      */
     async publishInventoryItemGroup(groupKey) {
         await this.ensureToken();
-        const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item_group/${groupKey}/publish_entities`;
+        const url = `${this.restBaseUrl}/sell/inventory/v1/publish_inventory_item_group`;
+        const body = { inventoryItemGroupKey: groupKey };
+        
         try {
             console.log(`[eBay Inventory] Publishing Group: ${groupKey}`);
-            return await axios.post(url, {}, {
+            return await axios.post(url, body, {
                 headers: {
                     'Authorization': `Bearer ${this.token}`,
                     'Content-Type': 'application/json',
