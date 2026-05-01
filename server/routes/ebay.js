@@ -2,6 +2,18 @@
 const express = require('express');
 const router = express.Router();
 const ebayTrading = require('../services/ebayTrading');
+const fs = require('fs');
+const path = require('path');
+
+// 🔍 DEBUG LOGGER: Writes exact eBay errors to a file for investigation
+const logToFile = (msg, data = null) => {
+    const timestamp = new Date().toISOString();
+    const logPath = path.join(__dirname, '../debug_listing.log');
+    let entry = `[${timestamp}] ${msg}\n`;
+    if (data) entry += `${JSON.stringify(data, null, 2)}\n`;
+    entry += `------------------------------------------\n`;
+    fs.appendFileSync(logPath, entry);
+};
 
 /**
  * 📦 LIST PRODUCT
@@ -103,19 +115,23 @@ router.post('/list', async (req, res) => {
         }
 
         // ✅ Step 6 — ORCHESTRATE INVENTORY API FLOW
-        const isMultiVariation = itemData.variants && Array.isArray(itemData.variants) && itemData.variants.length > 1;
+        const isMultiVariation = itemData.variants && Array.isArray(itemData.variants) && itemData.variants.length > 0;
         
         if (isMultiVariation) {
-            console.log(`[eBay Flow] 🛠️ MULTI-VARIATION DETECTED (${itemData.variants.length} variants)`);
+            logToFile(`STARTING MULTI-VARIATION FLOW: ${itemData.title}`, { sku: itemData.sku, variants: itemData.variants.length });
             const groupKey = itemData.sku || `GRP-${Date.now()}`;
-            const variantSkus = [];
+            
+            // 0. Pre-prepare variants with unique SKUs to ensure consistency across steps
+            const preparedVariants = itemData.variants.map((v, i) => ({
+                ...v,
+                preparedSku: `${v.sku || 'VAR'}-${i}-${Date.now()}`
+            }));
+            const variantSkus = preparedVariants.map(v => v.preparedSku);
 
             // 1. Create each variant as an individual inventory item
-            for (const variant of itemData.variants) {
-                const variantSku = variant.sku || `${groupKey}-${variant.id}`;
-                variantSkus.push(variantSku);
-
-                // Merge shared aspects with variant-specific ones
+            logToFile(`1/4: Creating ${preparedVariants.length} variant items...`);
+            for (const variant of preparedVariants) {
+                const variantSku = variant.preparedSku;
                 const variantAspects = { ...aspectsObject };
                 if (variant.attributes) {
                     variant.attributes.forEach(attr => {
@@ -123,110 +139,131 @@ router.post('/list', async (req, res) => {
                     });
                 }
 
-                console.log(`[eBay Flow] 1/4: Creating variant item: ${variantSku}`);
-                await ebayTrading.createOrReplaceInventoryItem(variantSku, {
-                    title: `${itemData.title} - ${variant.name || variantSku}`,
-                    description: itemData.description,
-                    images: variant.images && variant.images.length > 0 ? variant.images : itemData.images,
-                    quantity: variant.quantity || 1,
-                    aspects: variantAspects
-                });
+                try {
+                    await ebayTrading.createOrReplaceInventoryItem(variantSku, {
+                        title: `${itemData.title} - ${variant.name || variantSku}`,
+                        description: itemData.description,
+                        images: variant.images && variant.images.length > 0 ? variant.images : itemData.images,
+                        quantity: variant.quantity || 1,
+                        aspects: variantAspects
+                    });
+                } catch (err) {
+                    logToFile(`FAILED: Item ${variantSku}`, err.response?.data || err.message);
+                    throw err;
+                }
             }
 
             // 2. Create Inventory Item Group
-            console.log(`[eBay Flow] 2/4: Creating item group: ${groupKey}`);
-            
-            // Construct variantAspects (the selectable options on eBay)
-            const variantAspects = [
-                { name: "Size", values: [...new Set(itemData.variants.flatMap(v => v.attributes?.filter(a => a.name.toLowerCase() === 'size').map(a => a.value) || []))] },
-                { name: "Color", values: [...new Set(itemData.variants.flatMap(v => v.attributes?.filter(a => a.name.toLowerCase() === 'color').map(a => a.value) || []))] }
+            logToFile(`2/4: Creating item group: ${groupKey}`);
+            const groupVariantAspects = [
+                { name: "Size", values: [...new Set(preparedVariants.flatMap(v => v.attributes?.filter(a => a.name.toLowerCase() === 'size').map(a => a.value).filter(v => !!v) || []))] },
+                { name: "Color", values: [...new Set(preparedVariants.flatMap(v => v.attributes?.filter(a => a.name.toLowerCase() === 'color').map(a => a.value).filter(v => !!v) || []))] }
             ].filter(va => va.values.length > 0);
 
-            // Construct groupAspects (shared attributes that are NOT variations)
             const groupAspects = { ...aspectsObject };
-            variantAspects.forEach(va => {
+            groupVariantAspects.forEach(va => {
                 delete groupAspects[va.name];
                 delete groupAspects[va.name.toLowerCase()];
             });
 
-            await ebayTrading.createOrReplaceInventoryItemGroup(groupKey, {
-                inventoryItemGroupKey: groupKey,
-                variantSKUs: variantSkus,
-                title: itemData.title,
-                description: itemData.description,
-                imageUrls: itemData.images,
-                aspects: groupAspects,
-                variantAspects: variantAspects
-            });
+            try {
+                const groupResponse = await ebayTrading.createOrReplaceInventoryItemGroup(groupKey, {
+                    inventoryItemGroupKey: groupKey,
+                    variantSKUs: variantSkus,
+                    title: itemData.title,
+                    description: itemData.description,
+                    imageUrls: itemData.images,
+                    aspects: groupAspects,
+                    variantAspects: groupVariantAspects
+                });
+            } catch (err) {
+                logToFile(`FAILED: Group ${groupKey}`, err.response?.data || err.message);
+                throw err;
+            }
 
             // 3. Create Offers for EACH Variant
-            console.log(`[eBay Flow] 3/4: Creating offers for ${variantSkus.length} variants...`);
-            for (const variant of itemData.variants) {
-                const variantSku = variant.sku || `${groupKey}-${variant.id}`;
-                console.log(`[eBay Flow] Creating offer for variant: ${variantSku}`);
-                await ebayTrading.createOffer({
-                    sku: variantSku,
-                    marketplaceId: "EBAY_US",
-                    format: "FIXED_PRICE",
-                    availableQuantity: variant.quantity || 1,
-                    categoryId: itemData.categoryId,
-                    listingDescription: itemData.description,
-                    pricingSummary: { price: { value: variant.price || itemData.price, currency: "USD" } },
-                    fulfillmentPolicyId: policies.fulfillmentPolicyId,
-                    paymentPolicyId: policies.paymentPolicyId,
-                    returnPolicyId: policies.returnPolicyId,
-                    merchantLocationKey: locationKey
-                });
+            logToFile(`3/4: Creating offers for ${variantSkus.length} variants...`);
+            for (const variant of preparedVariants) {
+                const variantSku = variant.preparedSku;
+                try {
+                    await ebayTrading.createOffer({
+                        sku: variantSku,
+                        marketplaceId: "EBAY_US",
+                        format: "FIXED_PRICE",
+                        availableQuantity: variant.quantity || 1,
+                        categoryId: itemData.categoryId,
+                        listingDescription: itemData.description,
+                        pricingSummary: { price: { value: variant.price || itemData.price, currency: "USD" } },
+                        fulfillmentPolicyId: policies.fulfillmentPolicyId,
+                        paymentPolicyId: policies.paymentPolicyId,
+                        returnPolicyId: policies.returnPolicyId,
+                        merchantLocationKey: locationKey
+                    });
+                } catch (err) {
+                    logToFile(`FAILED: Offer for ${variantSku}`, err.response?.data || err.message);
+                    throw err;
+                }
             }
 
             // 4. Publish the Group
-            console.log(`[eBay Flow] 4/4: Publishing item group: ${groupKey}`);
-            const publishResponse = await ebayTrading.publishInventoryItemGroup(groupKey);
-            
-            return res.json({
-                success: true,
-                message: "Multi-variation listing published successfully",
-                groupKey: groupKey,
-                details: publishResponse.data
-            });
+            logToFile(`4/4: Publishing item group: ${groupKey}`);
+            try {
+                const publishResponse = await ebayTrading.publishInventoryItemGroup(groupKey);
+                logToFile(`SUCCESS: Published Group ${groupKey}`, publishResponse.data);
+                
+                return res.json({
+                    success: true,
+                    message: "Multi-variation listing published successfully",
+                    groupKey: groupKey,
+                    details: publishResponse.data
+                });
+            } catch (err) {
+                logToFile(`FAILED: Publishing Group ${groupKey}`, err.response?.data || err.message);
+                throw err;
+            }
 
         } else {
             // SINGLE ITEM FLOW (Existing)
+            logToFile(`STARTING SINGLE ITEM FLOW: ${itemData.title}`, { sku: itemData.sku });
             const sku = itemData.sku || `SKU-${Date.now()}`;
-            console.log(`[eBay Flow] 1/3: Creating inventory item for SKU: ${sku}`);
-            await ebayTrading.createOrReplaceInventoryItem(sku, {
-                title: itemData.title,
-                description: itemData.description,
-                images: itemData.images,
-                quantity: itemData.quantity,
-                aspects: aspectsObject
-            });
+            
+            try {
+                await ebayTrading.createOrReplaceInventoryItem(sku, {
+                    title: itemData.title,
+                    description: itemData.description,
+                    images: itemData.images,
+                    quantity: itemData.quantity,
+                    aspects: aspectsObject
+                });
 
-            console.log(`[eBay Flow] 2/3: Creating offer for SKU: ${sku}`);
-            const offerResponse = await ebayTrading.createOffer({
-                sku: sku,
-                marketplaceId: "EBAY_US",
-                format: "FIXED_PRICE",
-                availableQuantity: itemData.quantity,
-                categoryId: itemData.categoryId,
-                listingDescription: itemData.description,
-                pricingSummary: { price: { value: itemData.price, currency: "USD" } },
-                merchantLocationKey: locationKey,
-                fulfillmentPolicyId: policies.fulfillmentPolicyId,
-                returnPolicyId: policies.returnPolicyId,
-                paymentPolicyId: policies.paymentPolicyId
-            });
+                const offerResponse = await ebayTrading.createOffer({
+                    sku: sku,
+                    marketplaceId: "EBAY_US",
+                    format: "FIXED_PRICE",
+                    availableQuantity: itemData.quantity,
+                    categoryId: itemData.categoryId,
+                    listingDescription: itemData.description,
+                    pricingSummary: { price: { value: itemData.price, currency: "USD" } },
+                    merchantLocationKey: locationKey,
+                    fulfillmentPolicyId: policies.fulfillmentPolicyId,
+                    returnPolicyId: policies.returnPolicyId,
+                    paymentPolicyId: policies.paymentPolicyId
+                });
 
-            const offerId = offerResponse.data.offerId;
-            console.log(`[eBay Flow] 3/3: Publishing offer: ${offerId}`);
-            const publishResponse = await ebayTrading.publishOffer(offerId);
+                const offerId = offerResponse.data.offerId;
+                const publishResponse = await ebayTrading.publishOffer(offerId);
+                logToFile(`SUCCESS: Published Single Item ${sku}`, publishResponse.data);
 
-            return res.json({
-                success: true,
-                itemId: publishResponse.data.listingId,
-                offerId: offerId,
-                ack: 'Success'
-            });
+                return res.json({
+                    success: true,
+                    itemId: publishResponse.data.listingId,
+                    offerId: offerId,
+                    ack: 'Success'
+                });
+            } catch (err) {
+                logToFile(`FAILED: Single Item Flow`, err.response?.data || err.message);
+                throw err;
+            }
         }
 
     } catch (error) {

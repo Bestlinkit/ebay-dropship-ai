@@ -884,6 +884,28 @@ class EbayTradingService {
 
 
     /**
+     * 🛡️ POLICY SANITIZER: Automatically replaces trademarked terms that cause eBay rejections (Error 25019)
+     */
+    policySanitize(text) {
+        if (!text) return "";
+        let sanitized = text;
+        const rules = [
+            { pattern: /velcro/gi, replacement: "hook and loop" },
+            { pattern: /ziploc/gi, replacement: "reclosable" },
+            { pattern: /teflon/gi, replacement: "non-stick" },
+            { pattern: /band-aid/gi, replacement: "adhesive bandage" },
+            { pattern: /sharpie/gi, replacement: "permanent marker" },
+            { pattern: /tupperware/gi, replacement: "plastic container" }
+        ];
+        
+        rules.forEach(rule => {
+            sanitized = sanitized.replace(rule.pattern, rule.replacement);
+        });
+        
+        return sanitized;
+    }
+
+    /**
      * 📦 INVENTORY API: Create or Replace Inventory Item
      */
     async createOrReplaceInventoryItem(sku, data) {
@@ -892,8 +914,14 @@ class EbayTradingService {
         
         // 🛡️ SAFETY MODE: Clean and cap all strings to prevent "Core Service" internal crashes
         const clean = (str) => (str || "").replace(/[^\x20-\x7E]/g, '').trim();
-        const title = clean(data.title).substring(0, 80);
-        const description = clean(data.description || data.title || "No description available").substring(0, 4000);
+        
+        // 🚨 Step 1: Clean special characters
+        // 🚨 Step 2: Apply Policy Sanitization (Trademark protection)
+        const rawTitle = clean(data.title);
+        const title = this.policySanitize(rawTitle).substring(0, 80);
+        
+        const rawDesc = clean(data.description || data.title || "No description available");
+        const description = this.policySanitize(rawDesc).substring(0, 4000);
 
         const body = {
             product: {
@@ -955,7 +983,8 @@ class EbayTradingService {
         
         // 🛡️ SAFETY MODE
         const clean = (str) => (str || "").replace(/[^\x20-\x7E]/g, '').trim();
-        const description = clean(data.description || data.title || "No description available").substring(0, 4000);
+        const rawDesc = clean(data.description || data.title || "No description available");
+        const description = this.policySanitize(rawDesc).substring(0, 4000);
 
         const body = {
             sku: data.sku,
@@ -1122,6 +1151,10 @@ class EbayTradingService {
     async createOrReplaceInventoryItemGroup(groupKey, data) {
         await this.ensureToken();
         const url = `${this.restBaseUrl}/sell/inventory/v1/inventory_item_group/${groupKey}`;
+        // 🛡️ POLICY SANITIZATION
+        if (data.title) data.title = this.policySanitize(data.title).substring(0, 80);
+        if (data.description) data.description = this.policySanitize(data.description).substring(0, 4000);
+
         try {
             console.log(`[eBay Inventory] PUT Inventory Item Group: ${groupKey}`);
             return await axios.put(url, data, {
