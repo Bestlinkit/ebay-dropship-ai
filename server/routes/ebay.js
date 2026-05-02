@@ -118,7 +118,12 @@ router.post('/list', async (req, res) => {
         const isMultiVariation = itemData.variants && Array.isArray(itemData.variants) && itemData.variants.length > 0;
         
         if (isMultiVariation) {
-            logToFile(`STARTING MULTI-VARIATION FLOW: ${itemData.title}`, { sku: itemData.sku, variants: itemData.variants.length });
+            logToFile(`STARTING MULTI-VARIATION FLOW: ${itemData.title}`, { 
+                sku: itemData.sku, 
+                variants: itemData.variants.length,
+                firstVariantQty: itemData.variants[0]?.quantity,
+                totalQty: itemData.quantity
+            });
             const groupKey = itemData.sku || `GRP-${Date.now()}`;
             
             // 0. Pre-prepare variants with unique SKUs to ensure consistency across steps
@@ -138,13 +143,15 @@ router.post('/list', async (req, res) => {
                         variantAspects[attr.name] = [attr.value];
                     });
                 }
-
+                
+                console.log(`[eBay Route] Variant ${variantSku} Quantity: ${variant.quantity}`);
+                
                 try {
                     await ebayTrading.createOrReplaceInventoryItem(variantSku, {
                         title: `${itemData.title} - ${variant.name || variantSku}`,
                         description: itemData.description,
                         images: variant.images && variant.images.length > 0 ? variant.images : itemData.images,
-                        quantity: variant.quantity || 1,
+                        quantity: variant.quantity || 40,
                         aspects: variantAspects
                     });
                 } catch (err) {
@@ -195,7 +202,7 @@ router.post('/list', async (req, res) => {
                         sku: variantSku,
                         marketplaceId: "EBAY_US",
                         format: "FIXED_PRICE",
-                        availableQuantity: variant.quantity || 1,
+                        availableQuantity: variant.quantity || 40,
                         categoryId: itemData.categoryId,
                         listingDescription: itemData.description,
                         price: variant.price || itemData.price,
@@ -204,6 +211,7 @@ router.post('/list', async (req, res) => {
                         returnPolicyId: policies.returnPolicyId,
                         merchantLocationKey: locationKey
                     });
+                    console.log(`[eBay Route] Offer for ${variantSku} created with qty ${variant.quantity}`);
                     if (offerResponse.data?.offerId) {
                         offerIds.push(offerResponse.data.offerId);
                         logToFile(`SUCCESS: Created offer ${offerResponse.data.offerId} for ${variantSku}`);
@@ -238,7 +246,7 @@ router.post('/list', async (req, res) => {
 
         } else {
             // SINGLE ITEM FLOW (Existing)
-            logToFile(`STARTING SINGLE ITEM FLOW: ${itemData.title}`, { sku: itemData.sku });
+            logToFile(`STARTING SINGLE ITEM FLOW: ${itemData.title}`, { sku: itemData.sku, quantity: itemData.quantity });
             const sku = itemData.sku || `SKU-${Date.now()}`;
             
             try {
@@ -246,9 +254,9 @@ router.post('/list', async (req, res) => {
                     title: itemData.title,
                     description: itemData.description,
                     images: itemData.images,
-                    quantity: itemData.quantity,
                     aspects: aspectsObject
                 });
+                console.log(`[eBay Route] Single Item ${sku} Quantity: ${itemData.quantity}`);
 
                 const offerResponse = await ebayTrading.createOffer({
                     sku: sku,

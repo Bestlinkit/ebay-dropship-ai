@@ -90,7 +90,7 @@ const EbayListingBuilder = () => {
                     sku: v.skuCode || v.variantSku || "N/A",
                     cj_price: cjPrice,
                     ebay_price: ebayPrice,
-                    inventory: 10
+                    inventory: 40
                 });
             });
             setVariants(initialVariants);
@@ -379,6 +379,7 @@ const EbayListingBuilder = () => {
             };
 
             console.info("[eBay Push] Final Listing Payload:", payload);
+            console.log("VARIANT QUANTITIES:", payload.variants.map(v => `${v.name}: ${v.quantity}`));
             
             const response = await ebayService.publishItem(payload);
             

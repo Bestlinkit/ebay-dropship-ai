@@ -91,7 +91,7 @@ const EbayRevisionBuilder = () => {
                         sku: item.id,
                         cj_price: 0, // We don't have CJ cost for existing eBay items easily
                         ebay_price: item.price || 0,
-                        inventory: item.quantity || 1,
+                        inventory: item.quantity || 40,
                         profit: 0,
                         rio: 0
                     }]);

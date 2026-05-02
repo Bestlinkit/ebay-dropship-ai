@@ -933,10 +933,11 @@ class EbayTradingService {
             condition: "NEW",
             availability: {
                 shipToLocationAvailability: {
-                    quantity: parseInt(data.quantity || 1)
+                    quantity: parseInt(data.quantity || 40)
                 }
             }
         };
+        console.log(`[eBay Service] createOrReplaceInventoryItem for ${sku}: quantity=${body.availability.shipToLocationAvailability.quantity}`);
 
         // 🛡️ FINAL SANITIZER: Ensure ZERO null values and correct schema
         if (body.product.aspects) {
@@ -990,7 +991,7 @@ class EbayTradingService {
             sku: data.sku,
             marketplaceId: "EBAY_US",
             format: "FIXED_PRICE",
-            availableQuantity: parseInt(data.availableQuantity || data.quantity || 1),
+            availableQuantity: parseInt(data.availableQuantity || data.quantity || 40),
             categoryId: data.categoryId,
             listingDescription: description,
             listingPolicies: {
@@ -1006,6 +1007,7 @@ class EbayTradingService {
                 }
             }
         };
+        console.log(`[eBay Service] createOffer for ${data.sku}: availableQuantity=${body.availableQuantity}`);
 
         console.log("=== EBAY Inventory: createOffer REQUEST ===");
         console.log(JSON.stringify(body, null, 2));
