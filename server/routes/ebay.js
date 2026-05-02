@@ -433,6 +433,45 @@ router.get('/orders', async (req, res) => {
 });
 
 /**
+ * 📦 GET SINGLE PRODUCT DETAILS
+ * GET /api/ebay/product/:id
+ */
+router.get('/product/:id', async (req, res) => {
+    try {
+        await ebayTrading.ensureToken();
+        const responseXml = await ebayTrading.getItem(req.params.id);
+        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
+        
+        if (ack === 'Success' || ack === 'Warning') {
+            const xml = responseXml;
+            const item = {
+                id: xml.match(/<ItemID>(.*?)<\/ItemID>/)?.[1],
+                title: xml.match(/<Title>(.*?)<\/Title>/)?.[1],
+                description: xml.match(/<Description>(.*?)<\/Description>/s)?.[1],
+                price: parseFloat(xml.match(/<StartPrice.*?>(.*?)<\/StartPrice>/)?.[1] || "0"),
+                quantity: parseInt(xml.match(/<Quantity>(.*?)<\/Quantity>/)?.[1] || "0"),
+                categoryId: xml.match(/<CategoryID>(.*?)<\/CategoryID>/)?.[1],
+                images: [...xml.matchAll(/<PictureURL>(.*?)<\/PictureURL>/gs)].map(m => m[1]),
+                itemSpecifics: {
+                    nameValueList: [...xml.matchAll(/<NameValueList>(.*?)<\/NameValueList>/gs)].map(m => {
+                        const inner = m[1];
+                        return {
+                            name: inner.match(/<Name>(.*?)<\/Name>/)?.[1],
+                            value: [...inner.matchAll(/<Value>(.*?)<\/Value>/gs)].map(v => v[1])
+                        };
+                    })
+                }
+            };
+            res.json({ success: true, item });
+        } else {
+            res.status(400).json({ success: false, raw: responseXml });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
  * 🛠️ REVISE ITEM
  * POST /api/ebay/revise/:id
  */

@@ -115,7 +115,8 @@ const EbayListingBuilder = () => {
     const handleUpdateVariant = (index, field, value) => {
         setVariants(prev => {
             const next = [...prev];
-            next[index] = calculateMetrics({ ...next[index], [field]: value });
+            const val = field === 'inventory' ? (parseInt(value) || 0) : value;
+            next[index] = calculateMetrics({ ...next[index], [field]: val });
             return next;
         });
     };
@@ -346,7 +347,7 @@ const EbayListingBuilder = () => {
                 description: description,
                 categoryId: selectedCategoryId,
                 price: variants[0].ebay_price,
-                quantity: variants.reduce((sum, v) => sum + v.inventory, 0),
+                quantity: variants.reduce((sum, v) => sum + (Number(v.inventory) || 0), 0),
                 images: selectedImages,
                 itemSpecifics: { nameValueList },
                 sku: productId || `PRD-${Date.now()}`,

@@ -49,6 +49,19 @@ class eBayService {
   }
 
   /**
+   * 📦 GET PRODUCT BY ID
+   */
+  async getProductById(id) {
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/ebay/product/${id}`);
+      return response.data.item;
+    } catch (e) {
+      console.error("[eBay Service] Product Fetch Failed:", e.message);
+      return null;
+    }
+  }
+
+  /**
    * 🛒 GET ORDERS
    */
   async getOrders() {
@@ -85,13 +98,13 @@ class eBayService {
   /**
    * 🛠️ REVISE ITEM
    */
-  async reviseItem(token, itemId, itemData) {
+  async reviseItem(itemId, itemData) {
     try {
       const response = await axios.post(`${this.backendUrl}/api/ebay/revise/${itemId}`, itemData);
       return response.data;
     } catch (e) {
       console.error("[eBay Service] Revision Failed:", e.message);
-      throw e;
+      return { success: false, error: e.response?.data?.error || e.message };
     }
   }
 

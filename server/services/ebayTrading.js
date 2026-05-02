@@ -990,7 +990,7 @@ class EbayTradingService {
             sku: data.sku,
             marketplaceId: "EBAY_US",
             format: "FIXED_PRICE",
-            availableQuantity: parseInt(data.quantity || 1),
+            availableQuantity: parseInt(data.availableQuantity || data.quantity || 1),
             categoryId: data.categoryId,
             listingDescription: description,
             listingPolicies: {

@@ -168,7 +168,7 @@ const MyProducts = () => {
                                         className="w-4 h-4 rounded-md border-slate-200 accent-slate-950"
                                     />
                                 </td>
-                                <td className="px-6 py-5" onClick={() => navigate(`/optimize/${p.id}`, { state: { ebayProduct: p } })}>
+                                <td className="px-6 py-5" onClick={() => navigate(`/revision/${p.id}`, { state: { ebayProduct: p } })}>
                                     <p className="text-[11px] font-black text-slate-950 uppercase leading-tight truncate max-w-sm">{p.title}</p>
                                     <p className="text-[8px] font-black text-slate-300 uppercase mt-1">ID: {p.id}</p>
                                 </td>
@@ -193,7 +193,7 @@ const MyProducts = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-5 text-right">
-                                    <button onClick={() => navigate(`/optimize/${p.id}`, { state: { ebayProduct: p } })} className="p-2 hover:bg-slate-950 hover:text-white rounded-lg transition-all text-slate-400">
+                                    <button onClick={() => navigate(`/revision/${p.id}`, { state: { ebayProduct: p } })} className="p-2 hover:bg-slate-950 hover:text-white rounded-lg transition-all text-slate-400">
                                         <Edit3 size={16} />
                                     </button>
                                 </td>

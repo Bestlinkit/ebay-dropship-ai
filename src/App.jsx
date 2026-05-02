@@ -23,6 +23,7 @@ import IntelligenceReview from './pages/IntelligenceReview';
 import SupplierSourcing from './pages/SupplierSourcing';
 import SupplierProductDetail from './pages/SupplierProductDetail';
 import EbayListingBuilder from './pages/EbayListingBuilder';
+import EbayRevisionBuilder from './pages/EbayRevisionBuilder';
 import ProductImportPreview from './pages/ProductImportPreview';
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -84,6 +85,14 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <EbayListingBuilder />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              <Route path="/revision/:itemId" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EbayRevisionBuilder />
                   </Layout>
                 </ProtectedRoute>
               } />

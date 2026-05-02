@@ -46,12 +46,20 @@ const VideoLab = () => {
   useEffect(() => {
     const fetchRealInventory = async () => {
         try {
-            const products = await ebayService.searchProducts('trending');
+            // Priority 1: Get from active listings (Registry)
+            let products = await ebayService.getActiveListings();
+            
+            // Priority 2: Fallback to trending search
+            if (!products || products.length === 0) {
+                products = await ebayService.searchProducts('trending');
+            }
+
             if (products && products.length > 0) {
                 const mapped = products.map(p => ({
                     id: p.id,
                     title: p.title,
-                    img: p.thumbnail,
+                    img: p.thumbnail || p.images?.[0],
+                    images: p.images || [],
                     price: p.price
                 }));
                 setInventory(mapped);
@@ -85,9 +93,20 @@ const VideoLab = () => {
     "Order Now - Link Below!"
   ]);
 
-  const images = Array.from({ length: 8 }).map((_, i) => 
+  const [images, setImages] = useState(Array.from({ length: 8 }).map((_, i) => 
     `https://images.unsplash.com/photo-${1500000000000 + (i * 1000000)}?auto=format&fit=crop&q=80&w=400&h=700`
-  );
+  ));
+
+  useEffect(() => {
+    if (selectedProduct) {
+        // If product has multiple images, use them. Otherwise repeat the main one.
+        const productImages = selectedProduct.images || [selectedProduct.img];
+        const finalImages = Array.from({ length: 8 }).map((_, i) => 
+            productImages[i % productImages.length] || selectedProduct.img
+        );
+        setImages(finalImages);
+    }
+  }, [selectedProduct]);
 
   useEffect(() => {
     const interval = setInterval(() => {
