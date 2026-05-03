@@ -395,10 +395,13 @@ router.get('/listings', async (req, res) => {
             const itemMatches = [...responseXml.matchAll(/<Item>(.*?)<\/Item>/gs)];
             const items = itemMatches.map(m => {
                 const xml = m[1];
+                const galleryUrl = xml.match(/<GalleryURL>(.*?)<\/GalleryURL>/)?.[1];
                 return {
                     id: xml.match(/<ItemID>(.*?)<\/ItemID>/)?.[1],
                     title: xml.match(/<Title>(.*?)<\/Title>/)?.[1],
                     price: parseFloat(xml.match(/<StartPrice.*?>(.*?)<\/StartPrice>/)?.[1] || "0"),
+                    thumbnail: galleryUrl,
+                    images: galleryUrl ? [galleryUrl] : [],
                     status: 'Published'
                 };
             });

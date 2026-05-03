@@ -153,7 +153,8 @@ const VideoLab = () => {
       const resultUrl = await videoService.generateProAd(
         images, 
         scenes, 
-        (p) => setProgress(p)
+        (p) => setProgress(p),
+        selectedProduct.title
       );
       setVideoUrl(resultUrl);
       toast.success("24s Multi-Objective Ad Produced!");
@@ -214,7 +215,24 @@ const VideoLab = () => {
                     <Package className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-white transition-colors" size={18} />
                     <select 
                         value={selectedProduct?.id || ''}
-                        onChange={(e) => setSelectedProduct(inventory.find(p => p.id === e.target.value))}
+                        onChange={async (e) => {
+                            const baseProduct = inventory.find(p => p.id === e.target.value);
+                            setSelectedProduct(baseProduct);
+                            
+                            // Fetch full details for more images
+                            try {
+                                const fullProduct = await ebayService.getProductById(e.target.value);
+                                if (fullProduct && fullProduct.images) {
+                                    setSelectedProduct(prev => ({
+                                        ...prev,
+                                        images: fullProduct.images,
+                                        img: fullProduct.images[0] || prev.img
+                                    }));
+                                }
+                            } catch (err) {
+                                console.warn("Failed to fetch full product details for video lab", err);
+                            }
+                        }}
                         className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl pl-14 pr-10 h-full py-5 text-[10px] font-black text-white appearance-none outline-none focus:ring-4 focus:ring-primary-500/20 transition-all uppercase tracking-widest"
                     >
                         {inventory.map(p => <option key={p.id} value={p.id} className="bg-slate-900">{p.title}</option>)}
@@ -310,34 +328,59 @@ const VideoLab = () => {
                         <div 
                             key={i} 
                             className={cn(
-                                "p-8 rounded-[2.5rem] border transition-all duration-500 flex gap-6 items-center group relative overflow-hidden",
+                                "p-8 rounded-[2.5rem] border transition-all duration-500 flex flex-col gap-6 group relative overflow-hidden",
                                 activeIndex === i ? "bg-slate-900 border-slate-900 text-white shadow-3xl scale-[1.02]" : "bg-white border-slate-100 hover:border-primary-200"
                             )}
                         >
-                            <div className={cn(
-                                "w-14 h-14 rounded-2xl flex items-center justify-center text-xs font-black shrink-0 transition-all",
-                                activeIndex === i ? "bg-primary-500 text-white rotate-6" : "bg-slate-50 text-slate-400 border border-slate-100"
-                            )}>
-                                0{i+1}
+                            <div className="flex gap-6 items-center">
+                                <div className={cn(
+                                    "w-14 h-14 rounded-2xl flex items-center justify-center text-xs font-black shrink-0 transition-all overflow-hidden border-2",
+                                    activeIndex === i ? "border-primary-500" : "border-slate-100"
+                                )}>
+                                    <img src={images[i]} className="w-full h-full object-cover" alt={`Scene ${i+1}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={cn("text-[9px] font-black uppercase tracking-widest mb-1.5", activeIndex === i ? "text-primary-400" : "text-slate-400")}>
+                                        {i === 0 ? 'Engagement Hook' : i === 7 ? 'Conversion CTA' : `Scene ${i+1}`}
+                                    </p>
+                                    <input 
+                                        type="text"
+                                        value={text}
+                                        onChange={(e) => {
+                                            const newScenes = [...scenes];
+                                            newScenes[i] = e.target.value;
+                                            setScenes(newScenes);
+                                        }}
+                                        className={cn(
+                                            "w-full bg-transparent border-none outline-none text-sm font-bold tracking-tight px-0",
+                                            activeIndex === i ? "text-white italic placeholder:text-white/20" : "text-slate-900 placeholder:text-slate-200"
+                                        )}
+                                    />
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className={cn("text-[9px] font-black uppercase tracking-widest mb-1.5", activeIndex === i ? "text-primary-400" : "text-slate-400")}>
-                                    {i === 0 ? 'Engagement Hook' : i === 7 ? 'Conversion CTA' : `Scene ${i+1}`}
-                                </p>
-                                <input 
-                                    type="text"
-                                    value={text}
-                                    onChange={(e) => {
-                                        const newScenes = [...scenes];
-                                        newScenes[i] = e.target.value;
-                                        setScenes(newScenes);
-                                    }}
-                                    className={cn(
-                                        "w-full bg-transparent border-none outline-none text-sm font-bold tracking-tight px-0",
-                                        activeIndex === i ? "text-white italic placeholder:text-white/20" : "text-slate-900 placeholder:text-slate-200"
-                                    )}
-                                />
-                            </div>
+                            
+                            {/* Scene Image Pool Selection */}
+                            {selectedProduct?.images?.length > 1 && (
+                                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar-hide">
+                                    {selectedProduct.images.slice(0, 5).map((img, imgIdx) => (
+                                        <button
+                                            key={imgIdx}
+                                            onClick={() => {
+                                                const newImages = [...images];
+                                                newImages[i] = img;
+                                                setImages(newImages);
+                                            }}
+                                            className={cn(
+                                                "w-10 h-10 rounded-lg overflow-hidden border-2 shrink-0 transition-all",
+                                                images[i] === img ? "border-primary-500 scale-110" : "border-transparent opacity-50 hover:opacity-100"
+                                            )}
+                                        >
+                                            <img src={img} className="w-full h-full object-cover" alt="Pool" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
                             {activeIndex === i && (
                                 <motion.div layoutId="scenePulse" className="absolute bottom-0 left-0 h-1.5 bg-primary-500 w-full" />
                             )}
