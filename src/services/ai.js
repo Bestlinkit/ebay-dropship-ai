@@ -139,15 +139,54 @@ class AIService {
 
   async generateVideoScript(product) {
     if (!product) return null;
-    const prompt = `Act as an expert scriptwriter. Generate a high-impact, 8-scene video script for ${product.title} that focuses on customer benefits and emotional connection. Return a JSON array of 8 short, engaging strings (one for each scene).`;
+    
+    const context = `
+      PRODUCT: ${product.title}
+      PRICE: ${product.price}
+      DESCRIPTION: ${product.description || 'Premium quality item'}
+    `;
+
+    const prompt = `
+      ACT AS A VIRAL MARKETING DIRECTOR. 
+      Create a high-velocity, 8-scene video script for this product: ${product.title}.
+      
+      CONTEXT: ${context}
+
+      RULES:
+      1. Scenes must be SHORT (max 5-6 words).
+      2. Scene 1 MUST be a "Pattern Interrupt" hook based on the product's primary benefit.
+      3. Scenes 2-6 MUST highlight specific technical features or emotional benefits found in the description.
+      4. Scene 7 is Social Proof / Trust.
+      5. Scene 8 is the Call to Action.
+      
+      OUTPUT: A JSON array of 8 strings.
+    `;
+
     try {
       const response = await this.model.generateContent(prompt);
       const text = response.response.text();
       const jsonMatch = text.match(/\[[\s\S]*\]/);
-      return JSON.parse(jsonMatch[0]);
-    } catch {
-      return Array(8).fill("Scene Text Placeholder");
+      if (!jsonMatch) throw new Error("AI failed to return array");
+      
+      const script = JSON.parse(jsonMatch[0]);
+      return script.length === 8 ? script : this._getFallbackScript(product.title);
+    } catch (error) {
+      console.warn("AI Scripting failed, using fallback", error);
+      return this._getFallbackScript(product.title);
     }
+  }
+
+  _getFallbackScript(title) {
+    return [
+      "WAIT! LOOK AT THIS.",
+      `Discover the ${title}.`,
+      "Unmatched Quality & Style.",
+      "Engineered for Performance.",
+      "The Only Choice for You.",
+      "Join 10,000+ Happy Customers.",
+      "Limited Stock Available.",
+      "Order Now - Link Below!"
+    ];
   }
 
   async generateImagePrompt(title, style = "primary") {

@@ -65,24 +65,27 @@ class VideoService {
           await this.ffmpeg.writeFile(`img${i}.jpg`, new Uint8Array(imgData));
       }
 
-      // 🎨 Premium Typography & Motion Filter
+      // 🎨 Elite Production Filters
       const filterParts = [];
-      const sceneDuration = 3.5; // (3.5 * 8) - (0.5 * 7) = 24.5s total
-      const fadeDuration = 0.5;
+      const sceneDuration = 3.5;
+      const fadeDuration = 0.6;
+      const transitions = ['circleopen', 'pixelize', 'radial', 'slideleft', 'slideright', 'wipeup', 'hblur'];
 
       for (let i = 0; i < images.length; i++) {
           const text = (scenes[i] || "").toUpperCase().replace(/'/g, "\\'").replace(/:/g, "\\:");
           
-          // Style: Ultra-Bold Impact with Deep Shadow
+          // ✨ Dynamic Text Motion: Text slides in from bottom and stays
+          // 🎭 Cinematic Color: Subtle vignette + slight saturation boost
           filterParts.push(
               `[${i}:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,` +
-              `zoompan=z='min(zoom+0.001,1.5)':d=${sceneDuration*25}:s=720x1280,` +
-              `drawtext=fontfile=font.ttf:text='${text}':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=h-400:` +
-              `shadowcolor=black@0.8:shadowx=6:shadowy=6:borderw=4:bordercolor=black@0.4[v${i}]`
+              `vignette=angle=0.3,eq=saturation=1.2:contrast=1.1,` +
+              `zoompan=z='min(zoom+0.001,1.3)':d=${sceneDuration*25}:s=720x1280,` +
+              `drawtext=fontfile=font.ttf:text='${text}':fontcolor=white:fontsize=62:x=(w-text_w)/2:y='h-450-min(t*150, 150)':` +
+              `shadowcolor=black@0.9:shadowx=8:shadowy=8:borderw=5:bordercolor=black@0.5[v${i}]`
           );
       }
       
-      // 🚀 Advanced XFADE Sequence (720x1280 Portrait)
+      // 🚀 Elite XFADE Sequence with Randomized Transitions
       let complexFilter = filterParts.join(';');
       let lastV = 'v0';
       let offset = sceneDuration - fadeDuration;
@@ -90,7 +93,8 @@ class VideoService {
       for (let i = 1; i < images.length; i++) {
           const nextV = `v${i}`;
           const outV = `xf${i}`;
-          complexFilter += `; [${lastV}][${nextV}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${outV}]`;
+          const transition = transitions[i % transitions.length];
+          complexFilter += `; [${lastV}][${nextV}]xfade=transition=${transition}:duration=${fadeDuration}:offset=${offset}[${outV}]`;
           lastV = outV;
           offset += (sceneDuration - fadeDuration);
       }
@@ -99,7 +103,7 @@ class VideoService {
       try {
           // AI Selected Audio Track (Hardened Load)
           const audioUrl = this.getAISelectedMusic(productCategory);
-          console.log("[Video Engine] Injecting Audio Soul:", audioUrl);
+          console.log("[Elite Engine] Mastering with Soul:", audioUrl);
           const audioData = await fetch(audioUrl).then(res => res.arrayBuffer());
           await this.ffmpeg.writeFile('bg.mp3', new Uint8Array(audioData));
           
@@ -114,6 +118,7 @@ class VideoService {
               '-b:a', '192k',
               '-pix_fmt', 'yuv420p',
               '-preset', 'ultrafast',
+              '-crf', '18',
               '-t', '24', 
               '-shortest', 
               'output.mp4'
