@@ -61,34 +61,57 @@ class VideoService {
 
     try {
       for (let i = 0; i < images.length; i++) {
-          await this.ffmpeg.writeFile(`img${i}.jpg`, await fetchFile(images[i]));
+          const imgData = await fetch(images[i]).then(res => res.arrayBuffer());
+          await this.ffmpeg.writeFile(`img${i}.jpg`, new Uint8Array(imgData));
       }
 
+      // 🎨 Premium Typography & Motion Filter
       const filterParts = [];
+      const sceneDuration = 3.5; // (3.5 * 8) - (0.5 * 7) = 24.5s total
+      const fadeDuration = 0.5;
+
       for (let i = 0; i < images.length; i++) {
-          const text = (scenes[i] || "").replace(/'/g, "\\'").replace(/:/g, "\\:");
+          const text = (scenes[i] || "").toUpperCase().replace(/'/g, "\\'").replace(/:/g, "\\:");
+          
+          // Style: Ultra-Bold Impact with Deep Shadow
           filterParts.push(
               `[${i}:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1,` +
-              `drawtext=fontfile=font.ttf:text='${text}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2:box=1:boxcolor=black@0.5:boxborderw=20[v${i}]`
+              `zoompan=z='min(zoom+0.001,1.5)':d=${sceneDuration*25}:s=720x1280,` +
+              `drawtext=fontfile=font.ttf:text='${text}':fontcolor=white:fontsize=56:x=(w-text_w)/2:y=h-400:` +
+              `shadowcolor=black@0.8:shadowx=6:shadowy=6:borderw=4:bordercolor=black@0.4[v${i}]`
           );
       }
       
-      const concatInputs = filterParts.map((_, i) => `[v${i}]`).join('');
-      const complexFilter = `${filterParts.join(';')}; ${concatInputs}concat=n=${images.length}:v=1:a=0[v]`;
+      // 🚀 Advanced XFADE Sequence (720x1280 Portrait)
+      let complexFilter = filterParts.join(';');
+      let lastV = 'v0';
+      let offset = sceneDuration - fadeDuration;
+
+      for (let i = 1; i < images.length; i++) {
+          const nextV = `v${i}`;
+          const outV = `xf${i}`;
+          complexFilter += `; [${lastV}][${nextV}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${outV}]`;
+          lastV = outV;
+          offset += (sceneDuration - fadeDuration);
+      }
+      complexFilter += `; [${lastV}]format=yuv420p[v]`;
 
       try {
-          // AI Selected Audio Track
+          // AI Selected Audio Track (Hardened Load)
           const audioUrl = this.getAISelectedMusic(productCategory);
-          await this.ffmpeg.writeFile('bg.mp3', await fetchFile(audioUrl));
+          console.log("[Video Engine] Injecting Audio Soul:", audioUrl);
+          const audioData = await fetch(audioUrl).then(res => res.arrayBuffer());
+          await this.ffmpeg.writeFile('bg.mp3', new Uint8Array(audioData));
           
           const args = [
-              ...images.flatMap((_, i) => ['-loop', '1', '-t', '3', '-i', `img${i}.jpg`]),
+              ...images.flatMap((_, i) => ['-loop', '1', '-t', `${sceneDuration}`, '-i', `img${i}.jpg`]),
               '-i', 'bg.mp3',
               '-filter_complex', complexFilter,
               '-map', '[v]',
               '-map', `${images.length}:a`, 
               '-c:v', 'libx264',
               '-c:a', 'aac',
+              '-b:a', '192k',
               '-pix_fmt', 'yuv420p',
               '-preset', 'ultrafast',
               '-t', '24', 
@@ -100,13 +123,12 @@ class VideoService {
       } catch (audioErr) {
           console.warn("Audio merging failed, falling back to silent video", audioErr);
           await this.ffmpeg.exec([
-              ...images.flatMap((_, i) => ['-loop', '1', '-t', '3', '-i', `img${i}.jpg`]),
+              ...images.flatMap((_, i) => ['-loop', '1', '-t', `${sceneDuration}`, '-i', `img${i}.jpg`]),
               '-filter_complex', complexFilter,
               '-map', '[v]',
               '-c:v', 'libx264',
               '-pix_fmt', 'yuv420p',
               '-preset', 'ultrafast',
-              '-t', '24',
               'output.mp4'
           ]);
       }

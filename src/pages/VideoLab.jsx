@@ -84,12 +84,12 @@ const VideoLab = () => {
   // 8 Scenes for 24s video (3s each)
   const [scenes, setScenes] = useState([
     "STOP SCROLLING!",
-    "Meet your new favorite routine.",
-    "Pro-grade performance daily.",
-    "Engineered for results.",
-    "Trusted by thousands.",
-    "Transform your lifestyle.",
-    "5-Star Quality Guaranteed.",
+    "Discover the Premium Quality.",
+    "Engineered for Excellence.",
+    "Your Daily Performance Partner.",
+    "Trusted by Professionals.",
+    "Upgrade Your Experience.",
+    "Limited Time Offer.",
     "Order Now - Link Below!"
   ]);
 
@@ -317,10 +317,10 @@ const VideoLab = () => {
             <div className="glass-card p-10 rounded-[3.5rem] space-y-10">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-10">
                     <div className="space-y-2">
-                        <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Scene Sequence</h3>
-                        <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Architecture Hub.</p>
+                        <h3 className="text-[10px] font-black text-primary-500 uppercase tracking-[0.4em]">Storyboard Narrative</h3>
+                        <p className="text-2xl font-outfit font-black text-slate-900 uppercase">Production Suite.</p>
                     </div>
-                    <div className="hidden md:block px-5 py-2 bg-slate-900 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest">Production Ready</div>
+                    <div className="hidden md:block px-5 py-2 bg-slate-900 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest">Master Workflow Ready</div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
@@ -375,7 +375,7 @@ const VideoLab = () => {
                                                 images[i] === img ? "border-primary-500 scale-110" : "border-transparent opacity-50 hover:opacity-100"
                                             )}
                                         >
-                                            <img src={img} className="w-full h-full object-cover" alt="Pool" />
+                                            <img src={img} className="w-full h-full object-cover" alt="Media Asset" />
                                         </button>
                                     ))}
                                 </div>
@@ -426,8 +426,8 @@ const VideoLab = () => {
                                 <CheckCircle size={40} className="fill-emerald-500 text-white" />
                              </div>
                              <div className="space-y-1">
-                                <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-400">Export Complete</p>
-                                <h4 className="text-xl font-outfit font-black uppercase tracking-tight">Master Sequence Ready.</h4>
+                                <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-400">Production Complete</p>
+                                <h4 className="text-xl font-outfit font-black uppercase tracking-tight">Sequence Master Ready.</h4>
                              </div>
                         </div>
                         <button className="w-full md:w-auto px-12 h-16 bg-white text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center gap-3">
