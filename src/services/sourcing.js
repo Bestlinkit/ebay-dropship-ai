@@ -43,11 +43,11 @@ class SourcingService {
     const price = Number(product.price) || 0;
     const totalFound = Number(product.totalFound || 100);
     
-    // A. Velocity / Demand (0.30) - Adjusted for niche density
-    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 20))); 
+    // A. Velocity / Demand (0.30) - Adjusted for eBay volume
+    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 40))); 
     
     // B. Competition (0.35) - INVERSE WEIGHTED
-    const competitionScore = totalFound > 0 ? Math.min(100, (1000 / (totalFound + 5)) * 10) : 50;
+    const competitionScore = totalFound > 0 ? Math.min(100, (2000 / (totalFound + 10)) * 5) : 100;
     
     // C. Trend / Momentum (0.15)
     const trend = Math.min(100, Math.max(0, 70 + (Math.sin(product.title.length) * 30)));
@@ -104,6 +104,8 @@ class SourcingService {
       interpretation: {
         classification: resellScore >= 75 ? "NICHE OPPORTUNITY" : (resellScore >= 50 ? "STEADY PERFOMER" : "HIGH-COMPETITION SEGMENT"),
         action: resellScore >= 60 ? "PRIORITIZE" : (resellScore >= 40 ? "OBSERVE" : "AVOID"),
+        margin: (resellScore / 4).toFixed(1),
+        netProfit: (price * 0.25).toFixed(2),
         basis: [
           `Demand: ${demandLevel}`,
           `Competition: ${competitionLevel}`,

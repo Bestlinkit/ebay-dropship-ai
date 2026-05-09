@@ -115,20 +115,23 @@ const Discovery = () => {
         sellData: sourcingService.calculateSellScore(p, batchIntelligence) 
       }))
       .filter(p => {
-        const { minScore, demandLevel, profitLevel } = filters;
+        const { minScore, demandLevel, profitLevel, competitionLevel } = filters;
         const score = Number(p.sellData?.resellScore || 0);
         const selectedMin = Number(minScore || 0);
 
         if (selectedMin > 0 && score < selectedMin) return false;
         
-        if (demandLevel && p.sellData?.demand !== demandLevel && demandLevel !== 'ANY') {
-          // If filtering for HIGH demand, only show HIGH. If MEDIUM, show MEDIUM/HIGH.
+        if (demandLevel && demandLevel !== 'ANY') {
           if (demandLevel === 'HIGH' && p.sellData?.demand !== 'HIGH') return false;
           if (demandLevel === 'MEDIUM' && p.sellData?.demand === 'LOW') return false;
         }
 
+        if (competitionLevel && competitionLevel !== 'ANY') {
+          if (competitionLevel === 'LOW' && p.sellData?.competition !== 'LOW') return false;
+          if (competitionLevel === 'MEDIUM' && p.sellData?.competition === 'HIGH') return false;
+        }
+
         if (profitLevel && profitLevel !== 'ANY') {
-           const margin = Number(p.sellData?.interpretation?.margin || 0); // Need to ensure this is calculated if possible, or use grade
            if (profitLevel === 'HIGH' && p.sellData?.grade !== 'A') return false;
            if (profitLevel === 'MEDIUM' && (p.sellData?.grade === 'D' || p.sellData?.grade === 'C')) return false;
         }
@@ -373,6 +376,19 @@ const Discovery = () => {
                              <option value="60">Decent (60+)</option>
                            </select>
                         </div>
+
+                       <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Target size={12} /> Competition</label>
+                          <select 
+                            value={filters.competitionLevel || 'ANY'}
+                            onChange={(e) => setFilters(p => ({ ...p, competitionLevel: e.target.value }))}
+                            className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
+                          >
+                            <option value="ANY">Any Saturation</option>
+                            <option value="LOW">Low Competition</option>
+                            <option value="MEDIUM">Medium+</option>
+                          </select>
+                       </div>
 
                        <div className="space-y-3">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Zap size={12} /> Demand Level</label>
