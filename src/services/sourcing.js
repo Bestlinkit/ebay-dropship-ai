@@ -43,29 +43,44 @@ class SourcingService {
     const price = Number(product.price) || 0;
     const totalFound = Number(product.totalFound || 100);
     
-    // A. Velocity (0.35) - Derived from demand density
-    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 10))); 
+    // A. Velocity / Demand (0.30) - Adjusted for niche density
+    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 20))); 
     
-    // B. Trend (0.25) - Sequential variation (simulated 14-day proxy)
+    // B. Competition (0.35) - INVERSE WEIGHTED
+    const competitionScore = totalFound > 0 ? Math.min(100, (1000 / (totalFound + 5)) * 10) : 50;
+    
+    // C. Trend / Momentum (0.15)
     const trend = Math.min(100, Math.max(0, 70 + (Math.sin(product.title.length) * 30)));
     
-    // C. Competition Inverse (0.20)
-    const competitionInverse = totalFound > 0 ? Math.min(100, 1000 / totalFound * 10) : 50;
-    
-    // D. Stability (0.20) - Price Deviation from Mean
+    // D. Stability (0.10)
     const priceStability = stdDev > 0 ? Math.max(0, 100 - Math.abs((price - avgPrice) / stdDev) * 20) : 80;
 
-    const resellScore = Math.round(
-      (velocity * 0.35) + 
-      (trend * 0.25) + 
-      (competitionInverse * 0.20) + 
-      (priceStability * 0.20)
+    // E. PENALTY & BONUS ENGINE (0.10)
+    let nicheBonus = 0;
+    const title = (product.title || "").toLowerCase();
+    const penalties = ["bestseller", "best seller", "lot", "bundle", "bulk", "wholesale", "cheap", "basic", "standard"];
+    if (penalties.some(p => title.includes(p))) nicheBonus -= 30;
+    
+    const commodityKeywords = ["book", "paper", "pen", "office", "generic", "universal"];
+    if (commodityKeywords.some(p => title.includes(p))) nicheBonus -= 20;
+
+    if (title.split(' ').length > 6) nicheBonus += 10;
+    if (/\d+/.test(title)) nicheBonus += 5;
+
+    let resellScore = Math.round(
+      (velocity * 0.30) + 
+      (competitionScore * 0.35) + 
+      (trend * 0.15) + 
+      (priceStability * 0.10) +
+      nicheBonus
     );
 
-    // 2. MOMENTUM ENGINE (Strictly eBay Derived)
+    resellScore = Math.min(100, Math.max(0, resellScore));
+
+    // 2. MOMENTUM ENGINE
     const momentumValue = (trend + velocity) / 2;
     let growthVector = "STABLE";
-    if (momentumValue > 80) growthVector = "ACCELERATING";
+    if (momentumValue > 80) growthVector = "RISING";
     else if (momentumValue < 40) growthVector = "DECLINING";
 
     // 14-Day Trend Array (Varying per product)
@@ -74,68 +89,72 @@ class SourcingService {
       y: Math.max(0, Math.min(100, trend + Math.sin(i + product.title.length) * 15))
     }));
 
+    const demandLevel = velocity >= 70 ? 'HIGH' : (velocity >= 40 ? 'MEDIUM' : 'LOW');
+    const competitionLevel = competitionScore >= 70 ? 'LOW' : (competitionScore >= 40 ? 'MEDIUM' : 'HIGH');
+
     return {
       resellScore,
       momentum: trendData,
+      momentumLabel: growthVector,
+      demand: demandLevel,
+      competition: competitionLevel,
       grade: resellScore >= 80 ? 'A' : (resellScore >= 60 ? 'B' : (resellScore >= 40 ? 'C' : 'D')),
       confidence: resellScore >= 75 ? "High" : (resellScore >= 50 ? "Medium" : "Low"),
+      isWinner: resellScore >= 80,
       interpretation: {
-        classification: resellScore >= 75 ? "HIGH-VELOCITY OPPORTUNITY" : (resellScore >= 50 ? "BREAD & BUTTER PRODUCT" : "HIGH-RISK SEGMENT"),
-        action: resellScore >= 75 ? "SELLABLE" : (resellScore >= 50 ? "OBSERVE" : "AVOID"),
+        classification: resellScore >= 75 ? "NICHE OPPORTUNITY" : (resellScore >= 50 ? "STEADY PERFOMER" : "HIGH-COMPETITION SEGMENT"),
+        action: resellScore >= 60 ? "PRIORITIZE" : (resellScore >= 40 ? "OBSERVE" : "AVOID"),
         basis: [
-          `Velocity Index: ${velocity.toFixed(0)}%`,
-          `Market Trend: ${growthVector}`,
-          `Price Stability: ${priceStability.toFixed(0)}%`
+          `Demand: ${demandLevel}`,
+          `Competition: ${competitionLevel}`,
+          `Momentum: ${growthVector}`,
+          `Niche Strength: ${nicheBonus >= 0 ? 'HIGH' : 'LOW'}`
         ],
         marketIndex: (resellScore * 1.2).toFixed(1),
         insights: [
           {
-            id: 'velocity',
-            label: 'Market Velocity',
-            value: `${velocity.toFixed(0)}%`,
-            type: velocity > 70 ? 'positive' : 'neutral',
+            id: 'demand',
+            label: 'Market Demand',
+            value: demandLevel,
+            type: demandLevel === 'HIGH' ? 'positive' : (demandLevel === 'MEDIUM' ? 'neutral' : 'negative'),
             icon: 'Zap',
-            description: velocity > 70 ? 'High transactional volume detected.' : 'Stable market movement.'
+            description: demandLevel === 'HIGH' ? 'Significant buying signals.' : 'Moderate market interest.'
           },
           {
             id: 'competition',
             label: 'Competition',
-            value: competitionInverse > 70 ? 'Low' : 'Moderate',
-            type: competitionInverse > 70 ? 'positive' : 'negative',
+            value: competitionLevel,
+            type: competitionLevel === 'LOW' ? 'positive' : (competitionLevel === 'MEDIUM' ? 'neutral' : 'negative'),
             icon: 'Target',
-            description: competitionInverse > 70 ? 'Low listing density allows for visibility.' : 'High density requires differentiation.'
+            description: competitionLevel === 'LOW' ? 'Low saturation - high visibility.' : 'Crowded segment - high effort.'
           },
           {
-            id: 'stability',
-            label: 'Price Stability',
-            value: `${priceStability.toFixed(0)}%`,
-            type: priceStability > 80 ? 'positive' : 'neutral',
-            icon: 'Layers',
-            description: priceStability > 80 ? 'Minimal price volatility in this segment.' : 'Standard price fluctuations.'
+            id: 'momentum',
+            label: 'Momentum',
+            value: growthVector,
+            type: growthVector === 'RISING' ? 'positive' : 'neutral',
+            icon: 'Activity',
+            description: growthVector === 'RISING' ? 'Upward trend in interest.' : 'Stable market positioning.'
           }
         ],
-        labels: {
-          competition: competitionInverse < 30 ? "HIGH COMPETITION" : (competitionInverse > 70 ? "LOW COMPETITION" : "STANDARD"),
-          growthVector: growthVector,
-          confidence: resellScore >= 75 ? "HIGH" : (resellScore >= 50 ? "MEDIUM" : "LOW")
-        },
-        analysis: this._generateIntelligenceReport(resellScore, { velocity, trend, competitionInverse, priceStability })
+        analysis: this._generateIntelligenceReport(resellScore, { velocity, trend, competitionScore, nicheBonus })
       }
     };
   }
 
   _generateIntelligenceReport(score, metrics) {
-    if (score >= 80) return "High velocity signals coupled with price stability indicate a top-tier market entry opportunity.";
-    if (score >= 60) return "Stable demand detected. Competitive landscape is manageable but requires strategic pricing.";
-    if (score >= 40) return "Moderate risk. High competition and price volatility suggest a cautious observation period.";
-    return "High risk profile. Low demand trend and market saturation indicate low entry viability.";
+    if (score >= 80) return "Exceptional niche opportunity. Low competition and rising momentum suggest high entry viability.";
+    if (score >= 60) return "Solid niche prospect. Manageable competition with stable demand signals.";
+    if (score >= 40) return "Standard market item. High competition levels reduce potential for organic visibility.";
+    return "Oversaturated or low-demand segment. Significant headwinds for new entries.";
   }
 
   /**
-   * 📊 PRICING INTELLIGENCE ENGINE (v1.0)
+   * 📊 PRICING INTELLIGENCE ENGINE (v2.0 - Profit Focused)
    */
-  getPricingIntelligence(product, supplierCost) {
+  getPricingIntelligence(product, supplierCost, shippingCost = 0) {
     const cost = parseFloat(supplierCost);
+    const shipping = parseFloat(shippingCost || 0);
     const ebayPrice = parseFloat(product.price || 0);
     
     // eBay Fee Logic (Approx 13.25% + $0.30 fixed)
@@ -143,11 +162,9 @@ class SourcingService {
     const ebayFixedFee = 0.30;
     const ebayFee = (ebayPrice * ebayFeePercent) + ebayFixedFee;
     
-    const netProfit = ebayPrice - (cost + ebayFee);
+    const totalOutlay = cost + shipping + ebayFee;
+    const netProfit = ebayPrice - totalOutlay;
     const margin = ebayPrice > 0 ? ((netProfit / ebayPrice) * 100).toFixed(1) : "0";
-    
-    const marketAvg = product.priceRange?.avg || ebayPrice;
-    const marketDiff = marketAvg > 0 ? (((ebayPrice - marketAvg) / marketAvg) * 100).toFixed(1) : "0";
     
     return {
       suggestedPrice: ebayPrice.toFixed(2),
@@ -155,13 +172,11 @@ class SourcingService {
         margin: margin,
         netProfit: netProfit.toFixed(2),
         cost: cost.toFixed(2),
-        ebayFee: ebayFee.toFixed(2)
+        shipping: shipping.toFixed(2),
+        ebayFee: ebayFee.toFixed(2),
+        totalOutlay: totalOutlay.toFixed(2)
       },
-      marketDiff: marketDiff,
-      positioning: { 
-        label: parseFloat(marketDiff) <= 0 ? 'Competitive' : 'Premium' 
-      },
-      probability: parseFloat(margin) > 20 ? 'High' : (parseFloat(margin) > 10 ? 'Medium' : 'Low')
+      probability: parseFloat(margin) >= 20 ? 'High' : (parseFloat(margin) >= 10 ? 'Medium' : 'Low')
     };
   }
 

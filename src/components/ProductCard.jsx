@@ -95,7 +95,7 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                         SOURCE: EBAY MARKET
                     </div>
                     <div className="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase tracking-widest rounded border border-indigo-500/10">
-                        MOMENTUM: {labels.growthVector}
+                        MOMENTUM: {sellData.momentumLabel}
                     </div>
                     <div className="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 text-[8px] font-black uppercase tracking-widest rounded border border-emerald-500/10">
                         {categoryLabel}
@@ -117,21 +117,27 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
                     <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">DEMAND</span>
                         <span className="text-[12px] font-bold text-white uppercase tracking-tight">
-                            {labels.confidence}
+                            {sellData.demand}
                         </span>
                     </div>
 
                     <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">COMPETITION</span>
-                        <span className="text-[12px] font-bold text-white uppercase tracking-tight">
-                            {labels.competition}
+                        <span className={cn(
+                            "text-[12px] font-bold uppercase tracking-tight",
+                            sellData.competition === 'LOW' ? "text-emerald-500" : (sellData.competition === 'MEDIUM' ? "text-yellow-500" : "text-rose-500")
+                        )}>
+                            {sellData.competition}
                         </span>
                     </div>
 
                     <div className="flex flex-col">
                         <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">MOMENTUM</span>
-                        <div className="h-6 flex items-center">
-                            <MomentumGraph data={sellData.momentum} vector={labels.growthVector} />
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">{sellData.momentumLabel}</span>
+                            <div className="h-4 flex items-center">
+                                <MomentumGraph data={sellData.momentum} vector={sellData.momentumLabel} />
+                            </div>
                         </div>
                     </div>
                 </div>

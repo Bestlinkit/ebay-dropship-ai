@@ -43,9 +43,9 @@ const Discovery = () => {
     categoryId: '',
     minPrice: '',
     maxPrice: '',
-    minScore: '',
-    demandLevel: '',
-    profitLevel: '',
+    minScore: '60',
+    demandLevel: 'MEDIUM',
+    profitLevel: 'MEDIUM',
     sort: 'money'
   });
   
@@ -115,12 +115,24 @@ const Discovery = () => {
         sellData: sourcingService.calculateSellScore(p, batchIntelligence) 
       }))
       .filter(p => {
-        const { minScore, profitLevel } = filters;
+        const { minScore, demandLevel, profitLevel } = filters;
         const score = Number(p.sellData?.resellScore || 0);
         const selectedMin = Number(minScore || 0);
 
         if (selectedMin > 0 && score < selectedMin) return false;
-        // profitLevel check can be handled by the new score breakdown if needed
+        
+        if (demandLevel && p.sellData?.demand !== demandLevel && demandLevel !== 'ANY') {
+          // If filtering for HIGH demand, only show HIGH. If MEDIUM, show MEDIUM/HIGH.
+          if (demandLevel === 'HIGH' && p.sellData?.demand !== 'HIGH') return false;
+          if (demandLevel === 'MEDIUM' && p.sellData?.demand === 'LOW') return false;
+        }
+
+        if (profitLevel && profitLevel !== 'ANY') {
+           const margin = Number(p.sellData?.interpretation?.margin || 0); // Need to ensure this is calculated if possible, or use grade
+           if (profitLevel === 'HIGH' && p.sellData?.grade !== 'A') return false;
+           if (profitLevel === 'MEDIUM' && (p.sellData?.grade === 'D' || p.sellData?.grade === 'C')) return false;
+        }
+
         return true;
       })
       .sort((a, b) => (b.sellData?.resellScore || 0) - (a.sellData?.resellScore || 0));
@@ -363,21 +375,34 @@ const Discovery = () => {
                         </div>
 
                        <div className="space-y-3">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><Zap size={12} /> Demand Level</label>
+                          <select 
+                            value={filters.demandLevel}
+                            onChange={(e) => setFilters(p => ({ ...p, demandLevel: e.target.value }))}
+                            className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
+                          >
+                            <option value="ANY">Any Demand</option>
+                            <option value="HIGH">High Demand</option>
+                            <option value="MEDIUM">Medium+</option>
+                          </select>
+                       </div>
+
+                       <div className="space-y-3">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2 flex items-center gap-2"><TrendingUp size={12} /> Profit Potential</label>
                           <select 
                             value={filters.profitLevel}
                             onChange={(e) => setFilters(p => ({ ...p, profitLevel: e.target.value }))}
                             className="w-full bg-[#1A2742] border border-[#2A3A55] rounded-2xl px-5 py-4 text-[11px] font-black text-[#EAF0FF] outline-none appearance-none"
                           >
-                            <option value="">All Marigins</option>
-                            <option value="High">High Yield</option>
-                            <option value="Medium">Stable</option>
+                            <option value="ANY">Any Margin</option>
+                            <option value="HIGH">High Yield</option>
+                            <option value="MEDIUM">Stable</option>
                           </select>
                        </div>
 
                        <div className="flex flex-col gap-3 justify-end pb-1">
                           <button 
-                            onClick={() => setFilters({ categoryId: '', minPrice: '', maxPrice: '', minScore: '', demandLevel: '', profitLevel: '', sort: 'money' })}
+                            onClick={() => setFilters({ categoryId: '', minPrice: '', maxPrice: '', minScore: '60', demandLevel: 'MEDIUM', profitLevel: 'MEDIUM', sort: 'money' })}
                             className="w-full px-6 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-2xl text-[10px] font-black text-slate-400 hover:text-white transition-all uppercase tracking-widest"
                           >
                             Reset Logic

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import cjService from '../services/cj.service';
+import sourcingService from '../services/sourcing';
 import { normalizeProduct } from '../services/cj.schema';
 
 /**
@@ -68,9 +69,11 @@ const SupplierProductDetail = () => {
     
     const vPrice = selectedVariant?.variantSellPrice || selectedVariant?.sellPrice || selectedVariant?.price || 0;
     const cjCost = parseFloat(vPrice || cj.price || 0);
-    
     const shipping = cj.shipping || { cost: 0, delivery: "7-15 Days", name: "Standard Shipping" };
-    const netProfit = (targetPrice > 0 && cjCost > 0) ? (targetPrice - (cjCost + parseFloat(shipping.cost ?? 0))) : null;
+    const shippingCost = parseFloat(shipping.cost ?? 0);
+    
+    const pricing = sourcingService.getPricingIntelligence({ price: targetPrice }, cjCost, shippingCost);
+    const { netProfit, margin, ebayFee } = pricing.breakdown;
 
     /**
      * 🚀 TRIGGER EBAY LISTING BUILDER
@@ -183,22 +186,31 @@ const SupplierProductDetail = () => {
                         <div className="relative z-10 space-y-8">
                             <div className="space-y-2">
                                 <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Calculated Net Profit</p>
-                                <p className={cn(
-                                    "text-5xl font-black italic tracking-tighter",
-                                    netProfit === null ? "text-slate-300" : (netProfit >= 0 ? "text-emerald-500" : "text-rose-500")
-                                )}>
-                                    {netProfit === null ? "CALCULATING..." : (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`)}
-                                </p>
+                                <div className="flex items-end gap-4">
+                                    <p className={cn(
+                                        "text-5xl font-black italic tracking-tighter",
+                                        netProfit < 0 ? "text-rose-500" : "text-emerald-500"
+                                    )}>
+                                        {netProfit < 0 ? `-$${Math.abs(netProfit)}` : `+$${netProfit}`}
+                                    </p>
+                                    <div className="px-3 py-1.5 bg-slate-950 text-white rounded-xl text-[10px] font-black italic mb-1.5">
+                                        {margin}% MARGIN
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-10">
+                            <div className="grid grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sourcing (CJ)</p>
-                                    <p className="text-xl font-black text-slate-950 italic">${cjCost.toFixed(2)}</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Sourcing</p>
+                                    <p className="text-lg font-black text-slate-950 italic">${cjCost.toFixed(2)}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logistics Fee</p>
-                                    <p className="text-xl font-black text-slate-950 italic">${parseFloat(shipping.cost ?? 0).toFixed(2)}</p>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Shipping</p>
+                                    <p className="text-lg font-black text-slate-950 italic">${shippingCost.toFixed(2)}</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">eBay Fees</p>
+                                    <p className="text-lg font-black text-slate-400 italic">${ebayFee}</p>
                                 </div>
                             </div>
                         </div>

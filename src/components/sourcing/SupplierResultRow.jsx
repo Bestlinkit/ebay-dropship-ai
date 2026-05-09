@@ -11,6 +11,7 @@ import {
 import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 import cjService from '../../services/cj.service';
+import sourcingService from '../../services/sourcing';
 
 /**
  * Supplier Discovery Row - CJ Dropshipping Edition (v14.0 - CDN RESILIENT)
@@ -38,9 +39,12 @@ const SupplierResultRow = ({ product, targetPrice, onContinue, source = "CJ" }) 
     const shippingCost = parseFloat(shipping.cost || 0);
     
     const target = parseFloat(targetPrice || 0);
-    const netProfit = (target > 0 && price > 0) ? (target - (price + shippingCost)) : null;
-    const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit).toFixed(2)}` : `+$${netProfit.toFixed(2)}`) : "N/A";
-    const sellability = Math.min(98, Math.max(45, (netProfit > 15 ? 85 : 65) + (variantsCount > 0 ? 10 : 0)));
+    const pricing = sourcingService.getPricingIntelligence({ price: target }, price, shippingCost);
+    const netProfit = pricing.breakdown.netProfit;
+    const margin = pricing.breakdown.margin;
+
+    const profitFormatted = netProfit !== null ? (netProfit < 0 ? `-$${Math.abs(netProfit)}` : `+$${netProfit}`) : "N/A";
+    const sellability = Math.min(98, Math.max(45, (parseFloat(margin) > 20 ? 85 : 65) + (variantsCount > 0 ? 10 : 0)));
 
     return (
         <motion.div 

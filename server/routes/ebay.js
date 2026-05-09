@@ -298,7 +298,8 @@ router.post('/list', async (req, res) => {
         return res.status(error.response?.status || 500).json({
             error: "EBAY_API_ERROR",
             details: error.response?.data || error.message,
-            debugPayload: req.body // Return what we received
+            debugPayload: req.body,
+            instruction: "If this is a 401/403 error, your eBay token may have expired. Please re-authenticate in Settings."
         });
     }
 });
@@ -375,6 +376,40 @@ router.get('/user', async (req, res) => {
         res.status(error.response?.status || 500).json({
             success: false,
             error: error.response?.data || error.message
+        });
+    }
+});
+
+/**
+ * 🏥 EBAY HEALTH CHECK
+ * GET /api/ebay/status
+ */
+router.get('/status', async (req, res) => {
+    try {
+        console.log("[eBay Status] Checking live connectivity...");
+        await ebayTrading.ensureToken();
+        const responseXml = await ebayTrading.getUser();
+        const ack = responseXml.match(/<Ack>(.*?)<\/Ack>/)?.[1];
+        
+        const isHealthy = ack === 'Success' || ack === 'Warning';
+        const userId = isHealthy ? responseXml.match(/<UserID>(.*?)<\/UserID>/)?.[1] : null;
+
+        res.json({
+            success: true,
+            status: isHealthy ? "HEALTHY" : "UNHEALTHY",
+            userId: userId,
+            timestamp: new Date().toISOString(),
+            ack: ack,
+            tokenType: ebayTrading.token?.startsWith('v^1.1') ? 'OAuth' : 'Legacy'
+        });
+    } catch (error) {
+        console.error("[eBay Status] Health Check Failed:", error.message);
+        res.status(500).json({
+            success: false,
+            status: "DOWN",
+            error: error.message,
+            details: error.response?.data || "No additional details",
+            instruction: "If authentication failed, please visit the settings page to re-connect your eBay account."
         });
     }
 });

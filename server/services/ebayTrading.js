@@ -81,9 +81,11 @@ class EbayTradingService {
         console.log("RUNAME:", EBAY_RUNAME);
 
         const scopes = [
+            "https://api.ebay.com/oauth/api_scope",
             "https://api.ebay.com/oauth/api_scope/sell.account",
             "https://api.ebay.com/oauth/api_scope/sell.inventory",
-            "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
+            "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+            "https://api.ebay.com/oauth/api_scope/offline_access"
         ];
         
         const scopeString = scopes.join(" ");
@@ -453,9 +455,11 @@ class EbayTradingService {
             
             if (includeScopes) {
                 const scopes = [
+                    "https://api.ebay.com/oauth/api_scope",
                     "https://api.ebay.com/oauth/api_scope/sell.account",
                     "https://api.ebay.com/oauth/api_scope/sell.inventory",
-                    "https://api.ebay.com/oauth/api_scope/sell.fulfillment"
+                    "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+                    "https://api.ebay.com/oauth/api_scope/offline_access"
                 ];
                 params.append('scope', scopes.join(" "));
             }
