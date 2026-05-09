@@ -161,7 +161,9 @@ const Discovery = () => {
     try {
       let results = [];
       if (isAuto && !query) {
-        results = await ebayService.fetchTrendingProducts(filters.categoryId || null);
+        results = await ebayService.searchProducts('woodworking tools', {
+          limit: 20
+        });
       } else {
         results = await ebayService.searchProducts(query || 'best sellers', {
           categoryId: filters.categoryId,

@@ -190,14 +190,16 @@ class SourcingService {
    */
   validateAndFilter(products) {
     if (!Array.isArray(products)) return [];
-
+    
     return products.filter((p, index, self) => {
       // 1. Phase 1: Field Validation (Discard if missing critical fields)
       if (!p.image_url && !p.thumbnail) return false;
       if (!p.price || p.price <= 0) return false;
       if (!p.title) return false;
-      if (!p.categoryId) return false;
-
+      
+      // Removed categoryId requirement for discovery phase as Browse API 
+      // sometimes omits it in summaries.
+      
       // 2. Phase 8: Duplicate Filter (Similarity > 85%)
       const isDuplicate = self.findIndex(other => 
         other.id !== p.id && this._calculateSimilarity(p.title, other.title) > 0.85
