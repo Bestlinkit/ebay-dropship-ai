@@ -43,11 +43,14 @@ class SourcingService {
     const price = Number(product.price) || 0;
     const totalFound = Number(product.totalFound || 100);
     
-    // A. Velocity / Demand (0.30) - Adjusted for eBay volume
-    const velocity = Math.min(100, Math.max(0, 100 - (totalFound / 40))); 
+    // A. Velocity / Demand (0.30) - Adjusted for eBay volume (Log Scale)
+    // 10,000+ results = LOW, <1000 = HIGH
+    const logTotal = Math.log10(totalFound + 1);
+    const velocity = Math.min(100, Math.max(0, 100 - (logTotal * 20))); 
     
-    // B. Competition (0.35) - INVERSE WEIGHTED
-    const competitionScore = totalFound > 0 ? Math.min(100, (2000 / (totalFound + 10)) * 5) : 100;
+    // B. Competition (0.35) - INVERSE LOG SCALE
+    // Reward lower logTotal
+    const competitionScore = Math.min(100, Math.max(0, 100 - (logTotal * 25) + 20));
     
     // C. Trend / Momentum (0.15)
     const trend = Math.min(100, Math.max(0, 70 + (Math.sin(product.title.length) * 30)));

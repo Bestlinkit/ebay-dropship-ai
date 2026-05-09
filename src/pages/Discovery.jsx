@@ -43,9 +43,10 @@ const Discovery = () => {
     categoryId: '',
     minPrice: '',
     maxPrice: '',
-    minScore: '60',
-    demandLevel: 'MEDIUM',
-    profitLevel: 'MEDIUM',
+    minScore: '45',
+    demandLevel: 'ANY',
+    profitLevel: 'ANY',
+    competitionLevel: 'ANY',
     sort: 'money'
   });
   
@@ -418,7 +419,7 @@ const Discovery = () => {
 
                        <div className="flex flex-col gap-3 justify-end pb-1">
                           <button 
-                            onClick={() => setFilters({ categoryId: '', minPrice: '', maxPrice: '', minScore: '60', demandLevel: 'MEDIUM', profitLevel: 'MEDIUM', sort: 'money' })}
+                            onClick={() => setFilters({ categoryId: '', minPrice: '', maxPrice: '', minScore: '45', demandLevel: 'ANY', profitLevel: 'ANY', competitionLevel: 'ANY', sort: 'money' })}
                             className="w-full px-6 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-2xl text-[10px] font-black text-slate-400 hover:text-white transition-all uppercase tracking-widest"
                           >
                             Reset Logic
