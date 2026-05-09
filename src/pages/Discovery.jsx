@@ -43,7 +43,7 @@ const Discovery = () => {
     categoryId: '',
     minPrice: '',
     maxPrice: '',
-    minScore: '45',
+    minScore: '0',
     demandLevel: 'ANY',
     profitLevel: 'ANY',
     competitionLevel: 'ANY',

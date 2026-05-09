@@ -56,13 +56,11 @@ const ProductCard = React.memo(({ product, onAdd, batchContext }) => {
 
     const [isAdded, setIsAdded] = useState(false);
     const sellData = useMemo(() => sourcingService.calculateSellScore(product, batchContext), [product.id, batchContext]);
-    const { metrics, interpretation } = sellData;
-    const labels = interpretation?.labels || {};
+    const { interpretation } = sellData;
 
-    // Contextual Category Extraction (Leaf node)
-    const categoryLabel = product.categoryPath?.split(' > ').pop() || 
-                          interpretation.classification.split(' ')[0] || 
-                          "ECONOMY";
+    // Contextual Category Extraction
+    const categoryLabel = product.categoryName || 
+                          (interpretation?.classification ? interpretation.classification.split(' ')[0] : "NICHE");
 
     const getScoreColor = (score) => {
         if (score >= 70) return "text-emerald-500";
